@@ -1343,6 +1343,81 @@ img { max-width: 100%; display: block; }
 }
 .appt-edit-btn:hover { border-color: var(--blue); color: var(--blue); }
 
+/* ── Follow-up strip ────────────────────────────────────────────────────── */
+.followup-strip {
+  background: var(--gold-soft);
+  border: 1px solid #E8C97A;
+  border-radius: var(--r);
+  padding: 14px 18px;
+  margin-bottom: 18px;
+}
+.followup-strip-header {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; font-weight: 600; color: var(--gold);
+  margin-bottom: 12px;
+}
+.followup-count {
+  font-weight: 400; color: var(--muted); margin-left: 2px;
+}
+.followup-list { display: flex; flex-direction: column; gap: 10px; }
+.followup-item {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--surface); border-radius: var(--r);
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+}
+.followup-avatar {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: var(--gold); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.followup-info { flex: 1; min-width: 0; }
+.followup-name { font-weight: 600; font-size: 14px; }
+.followup-date { font-size: 12px; color: var(--muted); margin-top: 2px; display: flex; align-items: center; gap: 8px; }
+.followup-days { font-weight: 600; font-size: 12px; }
+.followup-btns { display: flex; gap: 8px; flex-shrink: 0; }
+
+/* ── WhatsApp reminder button ────────────────────────────────────────────── */
+.appt-wa-btn {
+  width: 26px; height: 26px; border-radius: 6px;
+  border: 1px solid #25D36622;
+  background: #F0FDF4; color: #25D366;
+  display: flex; align-items: center; justify-content: center;
+  transition: all var(--trans); text-decoration: none;
+}
+.appt-wa-btn:hover { background: #25D366; color: #fff; border-color: #25D366; }
+
+/* ── Agenda day header (bulk button layout) ──────────────────────────────── */
+.agenda-day-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 12px; margin-bottom: 16px;
+}
+.agenda-bulk-btn {
+  font-size: 12px; padding: 5px 12px;
+  color: var(--green); border-color: var(--green-soft);
+  display: flex; align-items: center; gap: 5px;
+  flex-shrink: 0; white-space: nowrap;
+}
+.agenda-bulk-btn:hover { background: var(--green-soft); }
+
+/* ── Bulk billing modal ──────────────────────────────────────────────────── */
+.bulk-bill-list { display: flex; flex-direction: column; gap: 10px; }
+.bulk-bill-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 12px;
+  background: var(--surface-alt); border-radius: var(--r);
+  border: 1px solid var(--border);
+}
+.bulk-bill-info { flex: 1; min-width: 0; }
+.bulk-bill-name { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bulk-bill-sub { font-size: 12px; color: var(--muted); margin-top: 3px; display: flex; align-items: center; gap: 6px; }
+.bulk-bill-total {
+  text-align: right; font-size: 15px; color: var(--text);
+  margin-top: 14px; padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
 /* ── Responsive ─────────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
   :root { --sidebar-w: 0px; }

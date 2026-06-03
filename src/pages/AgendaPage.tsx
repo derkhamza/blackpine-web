@@ -11,32 +11,39 @@ import {
 } from "../lib/cabinetTypes";
 import { todayIso } from "../lib/format";
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Helpers ────────────────────────────────────────────────────────────────────
 
 function daysInMonth(y: number, m: number) { return new Date(y, m + 1, 0).getDate(); }
 function firstWeekdayMon(y: number, m: number) { return (new Date(y, m, 1).getDay() + 6) % 7; }
 function isoFromParts(y: number, m: number, d: number) {
   return `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
-function calcAge(dob?: string) {
-  if (!dob) return null;
-  const diff = Date.now() - new Date(dob).getTime();
-  return Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25));
-}
 const DAY_HEADERS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
 const TYPE_OPTS: AppointmentType[] = ["consultation", "suivi", "procedure", "urgence", "autre"];
 const STATUS_OPTS: AppointmentStatus[] = ["scheduled", "arrived", "in_consultation", "completed", "cancelled", "no_show"];
 
+// ── WhatsApp helper ────────────────────────────────────────────────────────────
+
+function buildWaUrl(phone: string, appt: Appointment): string {
+  const clean = phone.replace(/\D/g, "");
+  const d = new Date(appt.date + "T12:00:00").toLocaleDateString("fr-FR", {
+    weekday: "long", day: "numeric", month: "long",
+  });
+  const msg = `Bonjour ${appt.patientName}, nous vous rappelons votre rendez-vous le ${d} à ${appt.startTime}. Merci.`;
+  return `https://wa.me/${clean}?text=${encodeURIComponent(msg)}`;
+}
+
 // ── Appointment modal ─────────────────────────────────────────────────────────
 
 interface ApptModalProps {
-  initial?: Appointment | null;
+  initial?: Partial<Appointment>;
   defaultDate: string;
+  isEdit: boolean;
   onSave: (a: Omit<Appointment, "id">) => void;
   onClose: () => void;
 }
 
-function ApptModal({ initial, defaultDate, onSave, onClose }: ApptModalProps) {
+function ApptModal({ initial, defaultDate, isEdit, onSave, onClose }: ApptModalProps) {
   const [patientName, setName]  = useState(initial?.patientName ?? "");
   const [date,   setDate]       = useState(initial?.date ?? defaultDate);
   const [start,  setStart]      = useState(initial?.startTime ?? "09:00");
@@ -56,7 +63,7 @@ function ApptModal({ initial, defaultDate, onSave, onClose }: ApptModalProps) {
     <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modal" style={{ maxWidth: 520 }}>
         <div className="modal-header">
-          <h2 className="modal-title">{initial ? "Modifier" : "Nouveau"} rendez-vous</h2>
+          <h2 className="modal-title">{isEdit ? "Modifier" : "Nouveau"} rendez-vous</h2>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
         <form onSubmit={handleSubmit}>
@@ -64,7 +71,7 @@ function ApptModal({ initial, defaultDate, onSave, onClose }: ApptModalProps) {
             <div className="form-group">
               <label className="form-label">Nom du patient</label>
               <input className="form-input" value={patientName} onChange={e => setName(e.target.value)}
-                placeholder="Dr. — Patient" required autoFocus />
+                placeholder="Nom du patient" required autoFocus />
             </div>
             <div className="form-row">
               <div className="form-group">
@@ -111,12 +118,79 @@ function ApptModal({ initial, defaultDate, onSave, onClose }: ApptModalProps) {
   );
 }
 
-// ── Appointment card ──────────────────────────────────────────────────────────
+// ── Follow-up strip ────────────────────────────────────────────────────────────
+
+interface FollowUpStripProps {
+  followUps: Appointment[];
+  onNavigate: (appt: Appointment) => void;
+  onProgram: (appt: Appointment) => void;
+}
+
+function FollowUpStrip({ followUps, onNavigate, onProgram }: FollowUpStripProps) {
+  if (followUps.length === 0) return null;
+  return (
+    <div className="followup-strip">
+      <div className="followup-strip-header">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0 }}>
+          <circle cx="7" cy="7" r="6" stroke="currentColor" strokeWidth="1.4"/>
+          <path d="M7 4v3l2 1.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+        </svg>
+        <strong>Suivis à prévoir</strong>
+        <span className="followup-count">{followUps.length} patient{followUps.length > 1 ? "s" : ""} dans les 14 prochains jours</span>
+      </div>
+      <div className="followup-list">
+        {followUps.map(appt => {
+          const fDate = new Date(appt.followUpDate! + "T12:00:00").toLocaleDateString("fr-FR", {
+            weekday: "short", day: "numeric", month: "short",
+          });
+          const ms       = new Date(appt.followUpDate!).getTime() - new Date(todayIso()).getTime();
+          const daysLeft = Math.ceil(ms / (1000 * 60 * 60 * 24));
+          const urgent   = daysLeft <= 3;
+          return (
+            <div key={appt.id} className="followup-item">
+              <div className="followup-avatar">{appt.patientName[0]?.toUpperCase() ?? "?"}</div>
+              <div className="followup-info">
+                <div className="followup-name">{appt.patientName}</div>
+                <div className="followup-date">
+                  Suivi prévu le {fDate}
+                  <span className="followup-days" style={{ color: urgent ? "var(--danger)" : "var(--gold)" }}>
+                    {daysLeft <= 0 ? "Aujourd'hui" : `J-${daysLeft}`}
+                  </span>
+                </div>
+              </div>
+              <div className="followup-btns">
+                <button
+                  className="btn btn-ghost"
+                  style={{ padding: "4px 10px", fontSize: 12 }}
+                  onClick={() => onNavigate(appt)}
+                  title="Voir le RDV original"
+                >
+                  Voir →
+                </button>
+                <button
+                  className="btn btn-primary"
+                  style={{ padding: "4px 10px", fontSize: 12 }}
+                  onClick={() => onProgram(appt)}
+                  title="Programmer un nouveau suivi"
+                >
+                  + Programmer
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── Appointment card ───────────────────────────────────────────────────────────
 
 function ApptCard({
-  appt, onDetail, onEdit, onToggle, onBill, onDelete,
+  appt, patientPhone, onDetail, onEdit, onToggle, onBill, onDelete,
 }: {
   appt: Appointment;
+  patientPhone?: string;
   onDetail: () => void;
   onEdit: () => void;
   onToggle: () => void;
@@ -150,10 +224,30 @@ function ApptCard({
               📋 Notes
             </span>
           )}
+          {appt.followUpDate && (
+            <span className="appt-badge" style={{ background: "#FFF8E1", color: "var(--gold)" }}>
+              🔁 {new Date(appt.followUpDate + "T12:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
+            </span>
+          )}
         </div>
         {appt.notes && <div className="appt-notes">{appt.notes}</div>}
       </div>
       <div className="appt-actions" onClick={e => e.stopPropagation()}>
+        {/* WhatsApp reminder */}
+        {patientPhone && (
+          <a
+            href={buildWaUrl(patientPhone, appt)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="appt-wa-btn"
+            title="Envoyer un rappel WhatsApp"
+            onClick={e => e.stopPropagation()}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.890-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/>
+            </svg>
+          </a>
+        )}
         {/* Edit shortcut */}
         <button
           className="appt-edit-btn"
@@ -194,26 +288,122 @@ function ApptCard({
   );
 }
 
-// ── Main page ─────────────────────────────────────────────────────────────────
+// ── Bulk billing modal ─────────────────────────────────────────────────────────
+
+interface BulkBillItem {
+  appt: Appointment;
+  amount: string;
+}
+
+interface BulkBillModalProps {
+  items: BulkBillItem[];
+  onChange: (id: string, amount: string) => void;
+  onConfirm: () => void;
+  onClose: () => void;
+}
+
+function BulkBillModal({ items, onChange, onConfirm, onClose }: BulkBillModalProps) {
+  const total = items.reduce((s, i) => s + (parseFloat(i.amount) || 0), 0);
+  return (
+    <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="modal" style={{ maxWidth: 520 }} onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <h2 className="modal-title">Facturation groupée</h2>
+          <button className="modal-close" onClick={onClose}>×</button>
+        </div>
+        <div className="modal-body">
+          <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 14 }}>
+            {items.length} rendez-vous terminés · non facturés — ajustez les montants si nécessaire
+          </div>
+          <div className="bulk-bill-list">
+            {items.map(({ appt, amount }) => (
+              <div key={appt.id} className="bulk-bill-row">
+                <div className="bulk-bill-info">
+                  <div className="bulk-bill-name">{appt.patientName}</div>
+                  <div className="bulk-bill-sub">
+                    <span style={{ background: APPT_TYPE_COLORS[appt.type] + "22", color: APPT_TYPE_COLORS[appt.type], padding: "1px 6px", borderRadius: 4, fontSize: 11 }}>
+                      {APPT_TYPE_LABELS[appt.type]}
+                    </span>
+                    · {appt.startTime}
+                  </div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <input
+                    className="form-input"
+                    type="number" min="1" step="0.01"
+                    value={amount}
+                    onChange={e => onChange(appt.id, e.target.value)}
+                    style={{ width: 90, textAlign: "right", fontWeight: 700 }}
+                  />
+                  <span style={{ fontSize: 12, color: "var(--muted)" }}>MAD</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="bulk-bill-total">
+            Total : <strong>{total.toLocaleString("fr-MA")} MAD</strong>
+          </div>
+        </div>
+        <div className="modal-footer">
+          <button className="btn btn-ghost" onClick={onClose}>Annuler</button>
+          <button
+            className="btn btn-primary"
+            style={{ background: "var(--green)" }}
+            onClick={onConfirm}
+          >
+            <svg width="13" height="13" viewBox="0 0 12 12" fill="none" style={{ marginRight: 6 }}>
+              <circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.4"/>
+              <path d="M6 3v6M4 5h3.5a1.5 1.5 0 0 1 0 3H4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+            </svg>
+            Facturer tout ({items.length})
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main page ──────────────────────────────────────────────────────────────────
 
 export function AgendaPage() {
   const today    = todayIso();
   const navigate = useNavigate();
-  const { appointments, addAppointment, updateAppointment, deleteAppointment } = useCabinet();
+  const { appointments, patients, addAppointment, updateAppointment, deleteAppointment } = useCabinet();
   const { addTransaction } = useApp();
 
-  const [selDate,  setSelDate]  = useState(today);
-  const [calYear,  setCalYear]  = useState(new Date().getFullYear());
-  const [calMonth, setCalMonth] = useState(new Date().getMonth());
-  const [modal,    setModal]    = useState<{ appt?: Appointment } | null>(null);
-  const [toast,    setToast]    = useState<string | null>(null);
+  const [selDate,   setSelDate]   = useState(today);
+  const [calYear,   setCalYear]   = useState(new Date().getFullYear());
+  const [calMonth,  setCalMonth]  = useState(new Date().getMonth());
+  const [modal,     setModal]     = useState<{ appt?: Appointment; prefill?: Partial<Appointment> } | null>(null);
+  const [toast,     setToast]     = useState<string | null>(null);
   const [billModal, setBillModal] = useState<{ appt: Appointment } | null>(null);
-  const [billAmt, setBillAmt]   = useState("200");
+  const [billAmt,   setBillAmt]   = useState("200");
+  const [bulkItems, setBulkItems] = useState<BulkBillItem[]>([]);
+  const [showBulk,  setShowBulk]  = useState(false);
 
   const showToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 2600);
   };
+
+  // Patient phone lookup map
+  const patientPhoneMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const p of patients) {
+      if (p.phone) map.set(p.id, p.phone);
+    }
+    return map;
+  }, [patients]);
+
+  // Follow-ups in next 14 days
+  const followUps = useMemo(() => {
+    const future = new Date(today);
+    future.setDate(future.getDate() + 14);
+    const t14Iso = future.toISOString().slice(0, 10);
+    return appointments
+      .filter(a => a.followUpDate && a.followUpDate >= today && a.followUpDate <= t14Iso)
+      .sort((a, b) => a.followUpDate!.localeCompare(b.followUpDate!));
+  }, [appointments, today]);
 
   // Calendar grid
   const nDays   = daysInMonth(calYear, calMonth);
@@ -254,6 +444,11 @@ export function AgendaPage() {
     waiting: todayAppts.filter(a => a.status === "scheduled").length,
   }), [todayAppts]);
 
+  // Unbilled completed RDVs for the selected day
+  const unbilledCompleted = useMemo(() =>
+    dayAppts.filter(a => a.status === "completed" && !a.billedAt),
+    [dayAppts]);
+
   const prevMonth = () => {
     let m = calMonth - 1, y = calYear;
     if (m < 0) { m = 11; y--; }
@@ -269,6 +464,7 @@ export function AgendaPage() {
     month: "long", year: "numeric",
   });
 
+  // Single bill handler
   const handleBill = () => {
     if (!billModal) return;
     const amt = parseFloat(billAmt);
@@ -277,12 +473,59 @@ export function AgendaPage() {
       type: "RECETTE", amount: amt,
       date: billModal.appt.date,
       category: "consultation",
+      description: `${APPT_TYPE_LABELS[billModal.appt.type]} – ${billModal.appt.patientName}`,
       deductibilityStatus: "FULLY_DEDUCTIBLE",
       professionalUseRatio: 1,
     });
     updateAppointment({ ...billModal.appt, billedAt: new Date().toISOString() });
     setBillModal(null);
     showToast(`Recette de ${amt.toLocaleString("fr-MA")} MAD ajoutée`);
+  };
+
+  // Bulk bill handlers
+  const openBulkBill = () => {
+    setBulkItems(unbilledCompleted.map(a => ({ appt: a, amount: "200" })));
+    setShowBulk(true);
+  };
+
+  const handleBulkConfirm = () => {
+    let grandTotal = 0;
+    for (const { appt, amount } of bulkItems) {
+      const amt = parseFloat(amount);
+      if (isNaN(amt) || amt <= 0) continue;
+      addTransaction({
+        type: "RECETTE", amount: amt,
+        date: appt.date,
+        category: "consultation",
+        description: `${APPT_TYPE_LABELS[appt.type]} – ${appt.patientName}`,
+        deductibilityStatus: "FULLY_DEDUCTIBLE",
+        professionalUseRatio: 1,
+      });
+      updateAppointment({ ...appt, billedAt: new Date().toISOString() });
+      grandTotal += amt;
+    }
+    setShowBulk(false);
+    showToast(`${bulkItems.length} recettes ajoutées · ${grandTotal.toLocaleString("fr-MA")} MAD`);
+  };
+
+  // Follow-up "Programmer" handler: jump to that date + open pre-filled new modal
+  const handleProgramFollowUp = (appt: Appointment) => {
+    if (!appt.followUpDate) return;
+    const parts = appt.followUpDate.split("-").map(Number);
+    setCalYear(parts[0]);
+    setCalMonth(parts[1] - 1);
+    setSelDate(appt.followUpDate);
+    setModal({
+      prefill: {
+        patientName: appt.patientName,
+        patientId:   appt.patientId,
+        date:        appt.followUpDate,
+        startTime:   "09:00",
+        endTime:     "09:30",
+        type:        "suivi",
+        status:      "scheduled",
+      },
+    });
   };
 
   return (
@@ -298,34 +541,38 @@ export function AgendaPage() {
         </button>
       }
     >
+      {/* ── Follow-up strip ── */}
+      <FollowUpStrip
+        followUps={followUps}
+        onNavigate={appt => navigate(`/agenda/${appt.id}`)}
+        onProgram={handleProgramFollowUp}
+      />
+
       <div className="agenda-layout">
         {/* ── Calendar panel ── */}
         <div className="agenda-cal">
-          {/* Month nav */}
           <div className="cal-month-nav">
             <button className="cal-arrow" onClick={prevMonth}>‹</button>
             <span className="cal-month-label">{monthLabel}</span>
             <button className="cal-arrow" onClick={nextMonth}>›</button>
           </div>
 
-          {/* Day headers */}
           <div className="cal-day-headers">
             {DAY_HEADERS.map(d => <div key={d} className="cal-day-hdr">{d}</div>)}
           </div>
 
-          {/* Grid */}
           <div className="cal-grid">
             {cells.map((day, i) => {
               if (!day) return <div key={i} className="cal-cell cal-cell-empty" />;
-              const iso      = isoFromParts(calYear, calMonth, day);
-              const isToday  = iso === today;
-              const isSel    = iso === selDate;
+              const iso       = isoFromParts(calYear, calMonth, day);
+              const isToday   = iso === today;
+              const isSel     = iso === selDate;
               const dayAppts2 = apptsByDay.get(day) ?? [];
               return (
                 <button
                   key={i}
                   className={`cal-cell${isToday ? " cal-today" : ""}${isSel ? " cal-selected" : ""}`}
-                  onClick={() => { setSelDate(iso); }}
+                  onClick={() => setSelDate(iso)}
                 >
                   <span className="cal-num">{day}</span>
                   {dayAppts2.length > 0 && (
@@ -340,7 +587,6 @@ export function AgendaPage() {
             })}
           </div>
 
-          {/* Today stats */}
           {stats.total > 0 && (
             <div className="agenda-stats">
               <div className="agenda-stat" style={{ color: "var(--blue)" }}>
@@ -362,14 +608,27 @@ export function AgendaPage() {
         {/* ── Day panel ── */}
         <div className="agenda-day">
           <div className="agenda-day-header">
-            <div className="agenda-day-date">
-              {new Date(selDate + "T12:00:00").toLocaleDateString("fr-FR", {
-                weekday: "long", day: "numeric", month: "long",
-              })}
+            <div>
+              <div className="agenda-day-date">
+                {new Date(selDate + "T12:00:00").toLocaleDateString("fr-FR", {
+                  weekday: "long", day: "numeric", month: "long",
+                })}
+              </div>
+              <span className="agenda-day-count">{dayAppts.length} RDV</span>
             </div>
-            <span className="agenda-day-count">
-              {dayAppts.length} RDV
-            </span>
+            {unbilledCompleted.length > 1 && (
+              <button
+                className="btn btn-ghost agenda-bulk-btn"
+                onClick={openBulkBill}
+                title="Facturer tous les RDV terminés non facturés"
+              >
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                  <circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.4"/>
+                  <path d="M6 3v6M4 5h3.5a1.5 1.5 0 0 1 0 3H4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                </svg>
+                Facturer tout ({unbilledCompleted.length})
+              </button>
+            )}
           </div>
 
           {dayAppts.length === 0 ? (
@@ -387,6 +646,7 @@ export function AgendaPage() {
                 <ApptCard
                   key={appt.id}
                   appt={appt}
+                  patientPhone={appt.patientId ? patientPhoneMap.get(appt.patientId) : undefined}
                   onDetail={() => navigate(`/agenda/${appt.id}`)}
                   onEdit={() => setModal({ appt })}
                   onToggle={() => updateAppointment({
@@ -407,10 +667,11 @@ export function AgendaPage() {
         </div>
       </div>
 
-      {/* Add/Edit modal */}
+      {/* ── Add/Edit modal ── */}
       {modal !== null && (
         <ApptModal
-          initial={modal.appt}
+          initial={modal.appt ?? modal.prefill}
+          isEdit={!!modal.appt}
           defaultDate={selDate}
           onSave={a => {
             if (modal.appt) updateAppointment({ ...a, id: modal.appt.id });
@@ -421,7 +682,7 @@ export function AgendaPage() {
         />
       )}
 
-      {/* Bill modal */}
+      {/* ── Single bill modal ── */}
       {billModal && (
         <div className="modal-overlay" onClick={() => setBillModal(null)}>
           <div className="modal" style={{ maxWidth: 380 }} onClick={e => e.stopPropagation()}>
@@ -456,6 +717,18 @@ export function AgendaPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Bulk billing modal ── */}
+      {showBulk && (
+        <BulkBillModal
+          items={bulkItems}
+          onChange={(id, amount) =>
+            setBulkItems(prev => prev.map(i => i.appt.id === id ? { ...i, amount } : i))
+          }
+          onConfirm={handleBulkConfirm}
+          onClose={() => setShowBulk(false)}
+        />
       )}
 
       {toast && <div className="toast">{toast}</div>}
