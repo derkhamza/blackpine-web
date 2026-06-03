@@ -25,6 +25,27 @@ export const BLANK_DOCTOR_PROFILE: CabinetDoctorProfile = {
   fullName: "", specialtyLabel: "", inpe: "", address: "", phone: "", accountantPhone: "",
 };
 
+// ── Clinical record types ─────────────────────────────────────────────────────
+
+export interface ConsultationNote {
+  motif?:       string;
+  examination?:  string;
+  diagnosis?:    string;
+  treatment?:    string;
+}
+
+export interface VitalSigns {
+  bpSys?:  number;  // Systolic BP (mmHg)
+  bpDia?:  number;  // Diastolic BP (mmHg)
+  hr?:     number;  // Heart rate (bpm)
+  temp?:   number;  // Temperature (°C)
+  spo2?:   number;  // SpO₂ (%)
+  weight?: number;  // Weight (kg)
+  height?: number;  // Height (cm)
+}
+
+// ── Appointment types ─────────────────────────────────────────────────────────
+
 export type AppointmentType = "consultation" | "suivi" | "procedure" | "urgence" | "autre";
 export type AppointmentStatus =
   | "scheduled"
@@ -44,8 +65,14 @@ export interface Appointment {
   type: AppointmentType;
   notes?: string;
   status: AppointmentStatus;
+  consultationNote?: ConsultationNote;
+  vitalSigns?: VitalSigns;
   followUpDate?: string;
   billedAt?: string;   // ISO — set when fee is added to finances
+  // AMO / CNOPS reimbursement
+  reimbursementStatus?: "pending" | "received" | "rejected";
+  reimbursementAmount?: number;
+  reimbursementDate?: string;
 }
 
 export type PatientGender = "M" | "F";

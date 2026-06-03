@@ -908,6 +908,153 @@ img { max-width: 100%; display: block; }
 }
 .payroll-table tr:last-child td { border-bottom: none; }
 
+/* ── Appointment Detail ─────────────────────────────────────────────────── */
+.appt-back-link {
+  font-size: 13px; font-weight: 600; color: var(--blue);
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.appt-back-link:hover { text-decoration: underline; }
+
+.appt-detail-header {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-lg); padding: 16px 20px; margin-bottom: 16px;
+  box-shadow: var(--shadow-card);
+}
+.appt-detail-meta { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.appt-detail-type-badge {
+  padding: 3px 10px; border-radius: var(--r-pill); font-size: 12px; font-weight: 700;
+}
+.appt-detail-billed-badge {
+  padding: 3px 10px; border-radius: var(--r-pill);
+  font-size: 12px; font-weight: 700;
+  background: var(--green-soft); color: var(--green);
+}
+.appt-detail-patient-link {
+  font-size: 12px; font-weight: 600; color: var(--blue); margin-left: auto;
+}
+.appt-detail-patient-link:hover { text-decoration: underline; }
+
+.appt-detail-status-row {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+}
+.appt-detail-status-label {
+  font-size: 12px; font-weight: 600; color: var(--muted);
+}
+.appt-detail-status-select {
+  border: 1.5px solid var(--border); border-radius: var(--r);
+  padding: 6px 10px; font-size: 13px; color: var(--text); background: var(--bg);
+}
+
+/* Tab bar */
+.appt-tabs {
+  display: flex; gap: 4px; margin-bottom: 16px;
+  border-bottom: 2px solid var(--border); padding-bottom: 0;
+}
+.appt-tab {
+  padding: 10px 18px; font-size: 13px; font-weight: 600;
+  border: none; background: none; color: var(--muted);
+  cursor: pointer; position: relative; transition: color var(--trans);
+  display: flex; align-items: center; gap: 6px;
+  border-bottom: 2px solid transparent; margin-bottom: -2px;
+}
+.appt-tab:hover { color: var(--navy); }
+.appt-tab.active { color: var(--navy); border-bottom-color: var(--navy); }
+.appt-tab-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--blue); display: inline-block;
+}
+
+/* Tab panel */
+.appt-tab-panel {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-lg); padding: 20px 24px;
+  box-shadow: var(--shadow-card);
+}
+.appt-section-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 14px; padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.appt-section-title {
+  font-size: 11px; font-weight: 700; color: var(--navy);
+  text-transform: uppercase; letter-spacing: 0.5px;
+}
+
+/* Notes grid */
+.appt-notes-grid { display: flex; flex-direction: column; gap: 14px; }
+.appt-textarea { resize: vertical; min-height: 70px; line-height: 1.6; font-size: 13px; }
+
+/* Templates panel */
+.appt-templates-panel {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 14px; margin-bottom: 16px;
+}
+.appt-template-cats { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.appt-template-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.appt-template-item {
+  text-align: left; padding: 8px 12px; border-radius: var(--r);
+  border: 1.5px solid var(--border); background: var(--surface);
+  cursor: pointer; transition: all var(--trans); max-width: 240px;
+}
+.appt-template-item:hover { border-color: var(--blue); background: var(--blue-soft); }
+.appt-template-label { font-size: 12px; font-weight: 700; color: var(--navy); }
+.appt-template-preview { font-size: 10px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Vital signs */
+.vs-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 16px; }
+.vs-bp-group { grid-column: span 2; }
+.vs-group-label { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 8px; }
+.vs-bp-row { display: flex; align-items: flex-end; gap: 6px; }
+.vs-bp-slash { font-size: 20px; font-weight: 300; color: var(--border-strong); padding-bottom: 2px; }
+.vs-field { display: flex; flex-direction: column; gap: 4px; }
+.vs-label { font-size: 11px; font-weight: 600; color: var(--muted); }
+.vs-input-wrap { display: flex; align-items: center; gap: 4px; }
+.vs-input {
+  width: 80px; padding: 7px 10px;
+  border: 1.5px solid var(--border); border-radius: var(--r);
+  font-size: 14px; font-weight: 700; text-align: center;
+  color: var(--text); background: var(--bg);
+  transition: border-color var(--trans), color var(--trans);
+}
+.vs-input:focus { outline: none; border-color: var(--blue); }
+.vs-unit { font-size: 10px; font-weight: 600; color: var(--tertiary); }
+.vs-hint { font-size: 10px; color: var(--tertiary); }
+.vs-bmi-card {
+  display: flex; align-items: center; gap: 14px;
+  background: var(--bg); border-radius: var(--r); padding: 10px 16px;
+  border: 1px solid var(--border); margin-bottom: 12px;
+}
+.vs-bmi-value { font-size: 18px; font-weight: 800; color: var(--text); }
+.vs-bmi-label { font-size: 12px; font-weight: 600; }
+.vs-legend { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.vs-legend-item { font-size: 11px; font-weight: 600; }
+.vs-legend-hint { font-size: 11px; color: var(--tertiary); margin-left: auto; }
+
+/* Suivi grid */
+.appt-suivi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+/* Reimbursement badge */
+.appt-rmb-badge-row { margin: 10px 0; }
+.appt-rmb-badge {
+  display: inline-flex; align-items: center;
+  padding: 6px 14px; border-radius: var(--r-pill);
+  font-size: 13px; font-weight: 700;
+}
+
+.appt-billed-info {
+  padding: 10px 14px; background: var(--green-soft); border-radius: var(--r);
+  border: 1px solid var(--green);
+}
+
+/* Edit button on ApptCard */
+.appt-edit-btn {
+  width: 26px; height: 26px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--surface);
+  color: var(--muted); cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: all var(--trans);
+}
+.appt-edit-btn:hover { border-color: var(--blue); color: var(--blue); }
+
 /* ── Responsive ─────────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
   :root { --sidebar-w: 0px; }

@@ -1,4 +1,5 @@
 import { FormEvent, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import { useCabinet } from "../context/CabinetContext";
 import { useApp } from "../context/AppContext";
@@ -113,9 +114,10 @@ function ApptModal({ initial, defaultDate, onSave, onClose }: ApptModalProps) {
 // ── Appointment card ──────────────────────────────────────────────────────────
 
 function ApptCard({
-  appt, onEdit, onToggle, onBill, onDelete,
+  appt, onDetail, onEdit, onToggle, onBill, onDelete,
 }: {
   appt: Appointment;
+  onDetail: () => void;
   onEdit: () => void;
   onToggle: () => void;
   onBill: () => void;
@@ -123,9 +125,10 @@ function ApptCard({
 }) {
   const isDone = appt.status === "completed";
   const color  = APPT_TYPE_COLORS[appt.type];
+  const hasNotes = !!(appt.consultationNote?.motif || appt.consultationNote?.diagnosis || appt.vitalSigns);
 
   return (
-    <div className="appt-card" style={{ opacity: isDone ? 0.65 : 1 }} onClick={onEdit}>
+    <div className="appt-card" style={{ opacity: isDone ? 0.75 : 1 }} onClick={onDetail}>
       <div className="appt-accent" style={{ background: isDone ? "var(--border)" : color }} />
       <div className="appt-body">
         <div className="appt-time">{appt.startTime} – {appt.endTime}</div>
@@ -139,13 +142,28 @@ function ApptCard({
           </span>
           {appt.billedAt && (
             <span className="appt-badge" style={{ background: "var(--green-soft)", color: "var(--green)" }}>
-              Facturé
+              ✓ Facturé
+            </span>
+          )}
+          {hasNotes && (
+            <span className="appt-badge" style={{ background: "var(--blue-soft)", color: "var(--blue)" }}>
+              📋 Notes
             </span>
           )}
         </div>
         {appt.notes && <div className="appt-notes">{appt.notes}</div>}
       </div>
       <div className="appt-actions" onClick={e => e.stopPropagation()}>
+        {/* Edit shortcut */}
+        <button
+          className="appt-edit-btn"
+          title="Modifier le RDV"
+          onClick={(e) => { e.stopPropagation(); onEdit(); }}
+        >
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <path d="M8.5 1.5a1.5 1.5 0 0 1 2 2L4 10H2v-2L8.5 1.5Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
+          </svg>
+        </button>
         {/* Toggle done */}
         <button
           className={`appt-done-btn${isDone ? " active" : ""}`}
@@ -179,7 +197,8 @@ function ApptCard({
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export function AgendaPage() {
-  const today = todayIso();
+  const today    = todayIso();
+  const navigate = useNavigate();
   const { appointments, addAppointment, updateAppointment, deleteAppointment } = useCabinet();
   const { addTransaction } = useApp();
 
@@ -368,6 +387,7 @@ export function AgendaPage() {
                 <ApptCard
                   key={appt.id}
                   appt={appt}
+                  onDetail={() => navigate(`/agenda/${appt.id}`)}
                   onEdit={() => setModal({ appt })}
                   onToggle={() => updateAppointment({
                     ...appt,

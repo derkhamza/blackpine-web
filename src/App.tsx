@@ -5,9 +5,10 @@ import { DashboardPage }    from "./pages/DashboardPage";
 import { TransactionsPage } from "./pages/TransactionsPage";
 import { ExplainPage }      from "./pages/ExplainPage";
 import { ProfilePage }      from "./pages/ProfilePage";
-import { AgendaPage }       from "./pages/AgendaPage";
-import { PatientsPage }     from "./pages/PatientsPage";
-import { PayrollPage }      from "./pages/PayrollPage";
+import { AgendaPage }            from "./pages/AgendaPage";
+import { AppointmentDetailPage } from "./pages/AppointmentDetailPage";
+import { PatientsPage }          from "./pages/PatientsPage";
+import { PayrollPage }           from "./pages/PayrollPage";
 
 function RequireAuth({ children }: { children: JSX.Element }) {
   const { isAuthenticated } = useApp();
@@ -29,6 +30,9 @@ export function App() {
       } />
       <Route path="/agenda" element={
         <RequireAuth><AgendaPage /></RequireAuth>
+      } />
+      <Route path="/agenda/:apptId" element={
+        <RequireAuth><AppointmentDetailPage /></RequireAuth>
       } />
       <Route path="/patients" element={
         <RequireAuth><PatientsPage /></RequireAuth>
