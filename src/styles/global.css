@@ -475,6 +475,255 @@ img { max-width: 100%; display: block; }
 @keyframes slideUp { from { transform: translateY(16px); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes fadeOut { to { opacity: 0; transform: translateY(8px); } }
 
+/* ── Agenda ──────────────────────────────────────────────────────────────── */
+.agenda-layout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 20px;
+  align-items: start;
+}
+.agenda-cal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+.cal-month-nav {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.cal-arrow {
+  background: var(--surface-alt); border: none; border-radius: 8px;
+  width: 32px; height: 32px; cursor: pointer; font-size: 18px;
+  color: var(--navy); display: flex; align-items: center; justify-content: center;
+  transition: var(--trans);
+}
+.cal-arrow:hover { background: var(--blue-soft); }
+.cal-month-label {
+  font-weight: 700; font-size: 14px; color: var(--text); text-transform: capitalize;
+}
+.cal-day-headers {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  padding: 6px 8px 0;
+}
+.cal-day-hdr {
+  text-align: center; font-size: 10px; font-weight: 700;
+  color: var(--tertiary); text-transform: uppercase; letter-spacing: 0.4px;
+  padding: 4px 0;
+}
+.cal-grid {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  padding: 4px 8px 12px;
+  gap: 2px;
+}
+.cal-cell {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 4px 2px; border-radius: 8px; cursor: pointer;
+  border: none; background: none; transition: var(--trans); min-height: 44px;
+}
+.cal-cell:hover:not(.cal-cell-empty) { background: var(--blue-soft); }
+.cal-cell-empty { cursor: default; pointer-events: none; }
+.cal-today .cal-num {
+  background: var(--blue-soft); color: var(--blue);
+  border: 1.5px solid var(--blue); font-weight: 800;
+}
+.cal-selected .cal-num {
+  background: var(--navy); color: #fff; font-weight: 800;
+}
+.cal-num {
+  width: 28px; height: 28px; border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 600; color: var(--text);
+  transition: var(--trans);
+}
+.cal-dots {
+  display: flex; gap: 2px; margin-top: 2px; height: 5px;
+}
+.cal-dot {
+  width: 4px; height: 4px; border-radius: 2px;
+}
+.agenda-stats {
+  display: flex; gap: 0;
+  border-top: 1px solid var(--border);
+}
+.agenda-stat {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  padding: 12px 0;
+  border-right: 1px solid var(--border);
+}
+.agenda-stat:last-child { border-right: none; }
+.agenda-stat-val { font-size: 20px; font-weight: 800; letter-spacing: -0.5px; }
+.agenda-stat-lbl { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; margin-top: 1px; }
+
+.agenda-day {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-lg); box-shadow: var(--shadow-card); overflow: hidden;
+}
+.agenda-day-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 20px; border-bottom: 1px solid var(--border);
+}
+.agenda-day-date {
+  font-weight: 700; font-size: 14px; color: var(--text); text-transform: capitalize;
+}
+.agenda-day-count {
+  font-size: 12px; font-weight: 600; color: var(--blue);
+  background: var(--blue-soft); padding: 3px 10px; border-radius: var(--r-pill);
+}
+.agenda-list { display: flex; flex-direction: column; gap: 8px; padding: 16px; }
+.agenda-empty {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 40px 24px; text-align: center; color: var(--muted);
+}
+
+/* Appointment card */
+.appt-card {
+  display: flex; align-items: stretch; gap: 0;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r); box-shadow: var(--shadow-card);
+  cursor: pointer; transition: var(--trans); overflow: hidden;
+}
+.appt-card:hover { border-color: var(--blue); transform: translateX(2px); }
+.appt-accent { width: 4px; flex-shrink: 0; }
+.appt-body { flex: 1; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
+.appt-time { font-size: 11px; font-weight: 600; color: var(--muted); }
+.appt-name { font-weight: 700; font-size: 14px; color: var(--text); }
+.appt-badges { display: flex; flex-wrap: wrap; gap: 5px; }
+.appt-badge {
+  font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: var(--r-pill);
+}
+.appt-notes { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.appt-actions {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 4px; padding: 8px 10px;
+}
+.appt-done-btn {
+  width: 28px; height: 28px; border-radius: 14px;
+  border: 1.5px solid var(--border); background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--tertiary); transition: var(--trans);
+}
+.appt-done-btn:hover { background: var(--green-soft); border-color: var(--green); color: var(--green); }
+.appt-done-btn.active { background: var(--green); border-color: var(--green); color: #fff; }
+.appt-bill-btn {
+  width: 28px; height: 28px; border-radius: 14px;
+  border: 1.5px solid var(--border); background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--muted); transition: var(--trans);
+}
+.appt-bill-btn:hover { background: var(--green-soft); border-color: var(--green); color: var(--green); }
+
+/* ── Patients ─────────────────────────────────────────────────────────────── */
+.patients-search {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: var(--r-lg); padding: 10px 16px;
+  margin-bottom: 20px; box-shadow: var(--shadow-card);
+}
+.patients-search-input {
+  flex: 1; border: none; outline: none; background: none;
+  font-size: 14px; color: var(--text); font-family: inherit;
+}
+.patients-section { margin-bottom: 4px; }
+.patients-section-hdr {
+  font-size: 11px; font-weight: 700; color: var(--blue);
+  text-transform: uppercase; letter-spacing: 1px;
+  padding: 10px 2px 6px;
+}
+.patient-card {
+  display: flex; align-items: center; gap: 14px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 14px 16px; margin-bottom: 6px;
+  cursor: pointer; transition: var(--trans); box-shadow: var(--shadow-card);
+}
+.patient-card:hover { border-color: var(--blue); transform: translateX(2px); }
+.patient-avatar {
+  width: 44px; height: 44px; border-radius: 22px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; font-weight: 800; flex-shrink: 0;
+}
+.patient-info { flex: 1; min-width: 0; }
+.patient-name { font-weight: 700; font-size: 14px; color: var(--text); }
+.patient-meta { display: flex; gap: 8px; font-size: 12px; margin-top: 2px; flex-wrap: wrap; }
+.patient-tags { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 5px; }
+.patient-tag {
+  font-size: 10px; font-weight: 700; padding: 2px 7px;
+  border-radius: var(--r-pill);
+}
+
+/* ── Payroll ──────────────────────────────────────────────────────────────── */
+.employee-card {
+  display: flex; align-items: center; gap: 14px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 14px 16px; margin-bottom: 8px;
+  cursor: pointer; transition: var(--trans); box-shadow: var(--shadow-card);
+}
+.employee-card:hover { border-color: var(--blue); transform: translateX(2px); }
+.employee-avatar {
+  width: 44px; height: 44px; border-radius: 22px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 800; flex-shrink: 0;
+}
+.employee-info { flex: 1; }
+.employee-name { font-weight: 700; font-size: 14px; color: var(--text); margin-bottom: 4px; }
+.employee-role-badge {
+  font-size: 10px; font-weight: 700; padding: 2px 8px;
+  border-radius: var(--r-pill);
+}
+.employee-salary { text-align: right; }
+.employee-net { font-weight: 800; font-size: 16px; color: var(--green); }
+.employee-gross { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+/* Live payroll preview (inside modal) */
+.payroll-preview {
+  background: var(--bg); border-radius: var(--r); padding: 14px 16px;
+  border: 1px solid var(--border);
+}
+.payroll-preview-title {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.5px; color: var(--muted); margin-bottom: 10px;
+}
+.payroll-preview-rows { display: flex; flex-direction: column; gap: 6px; }
+.payroll-row-item {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 13px; color: var(--text);
+}
+.payroll-row-item.muted { color: var(--muted); font-size: 12px; }
+.payroll-divider { height: 1px; background: var(--border); margin: 4px 0; }
+
+/* Payroll table */
+.payroll-table-wrap {
+  margin-top: 24px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-lg); overflow: hidden; box-shadow: var(--shadow-card);
+}
+.payroll-table-title {
+  padding: 14px 20px; font-weight: 700; font-size: 13px; color: var(--text);
+  border-bottom: 1px solid var(--border);
+  text-transform: capitalize;
+}
+.payroll-table {
+  width: 100%; border-collapse: collapse; font-size: 13px;
+}
+.payroll-table th {
+  padding: 10px 14px; text-align: right; font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.4px; color: var(--muted);
+  background: var(--bg); border-bottom: 1px solid var(--border);
+}
+.payroll-table th:first-child { text-align: left; }
+.payroll-table td {
+  padding: 12px 14px; text-align: right; color: var(--text);
+  border-bottom: 1px solid var(--border);
+}
+.payroll-table td:first-child { text-align: left; }
+.payroll-table tfoot td {
+  font-weight: 700; background: var(--bg); border-top: 2px solid var(--border);
+  border-bottom: none;
+}
+.payroll-table tr:last-child td { border-bottom: none; }
+
 /* ── Responsive ─────────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
   :root { --sidebar-w: 0px; }
@@ -483,4 +732,6 @@ img { max-width: 100%; display: block; }
   .stats-grid { grid-template-columns: 1fr 1fr; }
   .hero-amount { font-size: 32px; }
   .profile-grid { grid-template-columns: 1fr; }
+  .agenda-layout { grid-template-columns: 1fr; }
+  .payroll-table-wrap { overflow-x: auto; }
 }

@@ -23,6 +23,28 @@ function Icon({ name }: { name: string }) {
         <path d="M8 2a6 6 0 1 0 0 12A6 6 0 0 0 8 2Zm0 4v4M8 11v1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
       </svg>
     ),
+    agenda: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <rect x="2" y="3" width="12" height="11" rx="2" stroke="currentColor" strokeWidth="1.5"/>
+        <path d="M5 2v2M11 2v2M2 7h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+        <rect x="5" y="9" width="2" height="2" rx="0.5" fill="currentColor"/>
+        <rect x="9" y="9" width="2" height="2" rx="0.5" fill="currentColor"/>
+      </svg>
+    ),
+    patients: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <circle cx="6" cy="5" r="2.5" stroke="currentColor" strokeWidth="1.5"/>
+        <path d="M1 13c0-2.8 2.2-5 5-5s5 2.2 5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+        <path d="M12 7v4M14 9h-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      </svg>
+    ),
+    payroll: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <rect x="2" y="4" width="12" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
+        <path d="M8 7v4M6 9h4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+        <path d="M5 4V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1" stroke="currentColor" strokeWidth="1.5"/>
+      </svg>
+    ),
     profile: (
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
         <circle cx="8" cy="5" r="3" stroke="currentColor" strokeWidth="1.5"/>
@@ -70,10 +92,13 @@ export function Layout({ title, subtitle, actions, children }: Props) {
   const handleLogout = () => { logout(); navigate("/login"); };
 
   const navItems = [
-    { to: "/",             label: "Tableau de bord", icon: "dashboard" },
-    { to: "/transactions", label: "Transactions",    icon: "transactions" },
-    { to: "/expliquer",    label: "Calcul fiscal",   icon: "explain" },
-    { to: "/profil",       label: "Mon profil",      icon: "profile" },
+    { to: "/",             label: "Tableau de bord", icon: "dashboard",    group: "Finances" },
+    { to: "/transactions", label: "Transactions",    icon: "transactions", group: "Finances" },
+    { to: "/expliquer",    label: "Calcul fiscal",   icon: "explain",      group: "Finances" },
+    { to: "/agenda",       label: "Agenda",          icon: "agenda",       group: "Cabinet" },
+    { to: "/patients",     label: "Patients",        icon: "patients",     group: "Cabinet" },
+    { to: "/salaires",     label: "Salaires",        icon: "payroll",      group: "Cabinet" },
+    { to: "/profil",       label: "Mon profil",      icon: "profile",      group: "Paramètres" },
   ];
 
   return (
@@ -94,20 +119,27 @@ export function Layout({ title, subtitle, actions, children }: Props) {
           </div>
         </div>
 
-        {/* Nav */}
+        {/* Nav — grouped */}
         <div className="sidebar-nav">
-          <div className="sidebar-section-label">Navigation</div>
-          {navItems.map(({ to, label, icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={to === "/"}
-              className={({ isActive }) => `sidebar-item${isActive ? " active" : ""}`}
-            >
-              <Icon name={icon} />
-              {label}
-            </NavLink>
-          ))}
+          {(["Finances", "Cabinet", "Paramètres"] as const).map(group => {
+            const items = navItems.filter(n => n.group === group);
+            return (
+              <div key={group}>
+                <div className="sidebar-section-label">{group}</div>
+                {items.map(({ to, label, icon }) => (
+                  <NavLink
+                    key={to}
+                    to={to}
+                    end={to === "/"}
+                    className={({ isActive }) => `sidebar-item${isActive ? " active" : ""}`}
+                  >
+                    <Icon name={icon} />
+                    {label}
+                  </NavLink>
+                ))}
+              </div>
+            );
+          })}
         </div>
 
         {/* Footer */}
