@@ -1,4 +1,5 @@
 import { FormEvent, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import { useCabinet } from "../context/CabinetContext";
 import type { Patient, PatientGender } from "../lib/cabinetTypes";
@@ -139,16 +140,16 @@ function PatientModal({ initial, onSave, onClose }: PatientModalProps) {
 // ── Patient card ──────────────────────────────────────────────────────────────
 
 function PatientCard({
-  patient, apptCount, onEdit, onDelete,
+  patient, apptCount, onDetail, onEdit, onDelete,
 }: {
   patient: Patient; apptCount: number;
-  onEdit: () => void; onDelete: () => void;
+  onDetail: () => void; onEdit: () => void; onDelete: () => void;
 }) {
   const age   = calcAge(patient.dateOfBirth);
   const color = avatarColor(patient.firstName + patient.lastName);
 
   return (
-    <div className="patient-card" onClick={onEdit}>
+    <div className="patient-card" onClick={onDetail}>
       <div className="patient-avatar" style={{ background: color + "22", color }}>
         {initials(patient)}
       </div>
@@ -179,15 +180,18 @@ function PatientCard({
           )}
         </div>
       </div>
-      <button
-        className="tx-delete"
-        title="Supprimer"
-        onClick={e => { e.stopPropagation(); onDelete(); }}
-      >
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-          <path d="M2 3h10M5 3V2h4v1M4 3v9h6V3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-      </button>
+      <div className="patient-card-actions" onClick={(e) => e.stopPropagation()}>
+        <button className="appt-edit-btn" title="Modifier" onClick={(e) => { e.stopPropagation(); onEdit(); }}>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <path d="M8.5 1.5a1.5 1.5 0 0 1 2 2L4 10H2v-2L8.5 1.5Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
+          </svg>
+        </button>
+        <button className="tx-delete" title="Supprimer" onClick={(e) => { e.stopPropagation(); onDelete(); }}>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M2 3h10M5 3V2h4v1M4 3v9h6V3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </button>
+      </div>
     </div>
   );
 }
@@ -195,6 +199,7 @@ function PatientCard({
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export function PatientsPage() {
+  const navigate = useNavigate();
   const { patients, appointments, addPatient, updatePatient, deletePatient } = useCabinet();
   const [search,  setSearch]  = useState("");
   const [modal,   setModal]   = useState<{ patient?: Patient } | null>(null);
@@ -292,6 +297,7 @@ export function PatientsPage() {
                   key={p.id}
                   patient={p}
                   apptCount={apptCountMap[p.id] ?? 0}
+                  onDetail={() => navigate(`/patients/${p.id}`)}
                   onEdit={() => setModal({ patient: p })}
                   onDelete={() => {
                     if (confirm(`Supprimer ${p.firstName} ${p.lastName} ?`)) {
