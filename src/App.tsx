@@ -9,6 +9,7 @@ import { AgendaPage }            from "./pages/AgendaPage";
 import { AppointmentDetailPage } from "./pages/AppointmentDetailPage";
 import { PatientsPage }          from "./pages/PatientsPage";
 import { PatientDetailPage }     from "./pages/PatientDetailPage";
+import { StatsPage }             from "./pages/StatsPage";
 import { PayrollPage }           from "./pages/PayrollPage";
 
 function RequireAuth({ children }: { children: JSX.Element }) {
@@ -28,6 +29,9 @@ export function App() {
       } />
       <Route path="/expliquer" element={
         <RequireAuth><ExplainPage /></RequireAuth>
+      } />
+      <Route path="/activite" element={
+        <RequireAuth><StatsPage /></RequireAuth>
       } />
       <Route path="/agenda" element={
         <RequireAuth><AgendaPage /></RequireAuth>

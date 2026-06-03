@@ -908,6 +908,126 @@ img { max-width: 100%; display: block; }
 }
 .payroll-table tr:last-child td { border-bottom: none; }
 
+/* ── Stats / Activité page ──────────────────────────────────────────────── */
+.stats-hero {
+  background: var(--navy); border-radius: var(--r-lg);
+  padding: 28px 32px; margin-bottom: 20px; position: relative; overflow: hidden;
+  box-shadow: var(--shadow-hero);
+}
+.stats-hero-highlight {
+  position: absolute; top: 0; left: 0; right: 0; height: 80px;
+  background: rgba(255,255,255,0.06);
+  border-top-left-radius: var(--r-lg); border-top-right-radius: var(--r-lg);
+  pointer-events: none;
+}
+.stats-hero-label {
+  font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.5);
+  text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px;
+}
+.stats-hero-number {
+  font-size: 56px; font-weight: 800; color: #fff;
+  letter-spacing: -2px; line-height: 1; margin-bottom: 8px;
+}
+.stats-hero-sub { font-size: 13px; color: rgba(255,255,255,0.45); font-weight: 500; }
+
+.stats-page-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+.stats-col { display: flex; flex-direction: column; gap: 16px; }
+
+.stats-section-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-lg); overflow: hidden; box-shadow: var(--shadow-card);
+}
+.stats-section-header {
+  padding: 12px 18px; border-bottom: 1px solid var(--border);
+  font-size: 11px; font-weight: 700; color: var(--navy);
+  text-transform: uppercase; letter-spacing: 0.5px;
+  background: var(--bg);
+}
+
+/* 3-col KPI row */
+.stats-kpi-3col { display: flex; padding: 16px 0; }
+.stats-kpi-cell { flex: 1; text-align: center; padding: 0 8px; }
+.stats-kpi-big {
+  font-size: 22px; font-weight: 800; color: var(--text);
+  letter-spacing: -0.5px; line-height: 1.1; margin-bottom: 4px;
+}
+.stats-kpi-cell-label {
+  font-size: 9px; font-weight: 600; color: var(--tertiary);
+  text-transform: uppercase; letter-spacing: 0.4px;
+}
+.stats-kpi-divider { width: 1px; background: var(--border); margin: 8px 0; }
+
+/* KPI row (horizontal label + value) */
+.stats-kpi-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 18px; border-bottom: 1px solid var(--border);
+}
+.stats-kpi-row:last-child { border-bottom: none; }
+.stats-kpi-label { font-size: 13px; color: var(--text); }
+.stats-kpi-value { font-size: 14px; font-weight: 700; }
+.stats-kpi-sub { font-size: 11px; color: var(--muted); margin-top: 1px; }
+
+/* Records */
+.stats-record-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 18px;
+}
+.stats-record-divider { height: 1px; background: var(--border); margin: 0 18px; }
+.stats-record-icon { font-size: 20px; flex-shrink: 0; }
+.stats-record-label { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 2px; }
+.stats-record-value { font-size: 15px; font-weight: 700; color: var(--text); }
+.stats-record-sub { font-size: 11px; color: var(--tertiary); margin-top: 1px; }
+.stats-empty-hint { padding: 16px 18px; font-size: 13px; color: var(--tertiary); }
+
+/* Weekday bar chart */
+.weekday-chart {
+  display: flex; align-items: flex-end; gap: 6px;
+  padding: 16px 18px 12px; height: 120px;
+}
+.weekday-bar-wrap {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  gap: 3px; height: 100%; justify-content: flex-end;
+}
+.weekday-bar-track {
+  flex: 1; width: 100%; display: flex; flex-direction: column;
+  justify-content: flex-end; border-radius: 4px; overflow: hidden;
+}
+.weekday-bar-fill {
+  width: 100%; border-radius: 4px;
+  transition: height 0.4s ease;
+  min-height: 0;
+}
+.weekday-bar-count { font-size: 10px; font-weight: 600; color: var(--muted); }
+.weekday-bar-label { font-size: 10px; font-weight: 600; color: var(--tertiary); }
+
+/* Return rate */
+.stats-return-rate {
+  padding: 12px 18px 14px; border-top: 1px solid var(--border);
+}
+.stats-return-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.stats-return-label { font-size: 12px; font-weight: 600; color: var(--muted); }
+.stats-return-pct { font-size: 15px; font-weight: 800; }
+.stats-return-track {
+  height: 7px; border-radius: 4px; background: var(--border); overflow: hidden; margin-bottom: 5px;
+}
+.stats-return-fill { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
+.stats-return-sub { font-size: 10px; color: var(--tertiary); }
+
+/* Type breakdown */
+.stats-type-list { padding: 4px 0; }
+.stats-type-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 18px;
+}
+.stats-type-divider { height: 1px; background: var(--border); margin: 0 18px; }
+.stats-type-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.stats-type-label { font-size: 13px; font-weight: 600; color: var(--text); width: 110px; flex-shrink: 0; }
+.stats-type-bar-track {
+  flex: 1; height: 8px; border-radius: 4px; background: var(--bg); overflow: hidden;
+}
+.stats-type-bar-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+.stats-type-count { font-size: 13px; font-weight: 700; width: 24px; text-align: right; flex-shrink: 0; }
+
 /* ── Patient Detail ─────────────────────────────────────────────────────── */
 .patient-header-card {
   background: var(--surface); border: 1px solid var(--border);
@@ -1140,5 +1260,7 @@ img { max-width: 100%; display: block; }
   .patient-dossier-grid { grid-template-columns: 1fr; }
   .vitals-charts-grid   { grid-template-columns: 1fr; }
   .patient-header-card  { flex-direction: column; }
-  .vs-grid { grid-template-columns: 1fr 1fr; }
+  .vs-grid              { grid-template-columns: 1fr 1fr; }
+  .stats-page-grid      { grid-template-columns: 1fr; }
+  .stats-hero-number    { font-size: 40px; }
 }

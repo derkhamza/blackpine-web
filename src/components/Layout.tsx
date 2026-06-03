@@ -23,6 +23,13 @@ function Icon({ name }: { name: string }) {
         <path d="M8 2a6 6 0 1 0 0 12A6 6 0 0 0 8 2Zm0 4v4M8 11v1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
       </svg>
     ),
+    stats: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M2 12l3.5-4 3 2.5L12 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        <circle cx="12" cy="5" r="1.5" fill="currentColor"/>
+        <line x1="2" y1="14" x2="14" y2="14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      </svg>
+    ),
     agenda: (
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
         <rect x="2" y="3" width="12" height="11" rx="2" stroke="currentColor" strokeWidth="1.5"/>
@@ -95,6 +102,7 @@ export function Layout({ title, subtitle, actions, children }: Props) {
     { to: "/",             label: "Tableau de bord", icon: "dashboard",    group: "Finances" },
     { to: "/transactions", label: "Transactions",    icon: "transactions", group: "Finances" },
     { to: "/expliquer",    label: "Calcul fiscal",   icon: "explain",      group: "Finances" },
+    { to: "/activite",     label: "Activité",        icon: "stats",        group: "Cabinet" },
     { to: "/agenda",       label: "Agenda",          icon: "agenda",       group: "Cabinet" },
     { to: "/patients",     label: "Patients",        icon: "patients",     group: "Cabinet" },
     { to: "/salaires",     label: "Salaires",        icon: "payroll",      group: "Cabinet" },
