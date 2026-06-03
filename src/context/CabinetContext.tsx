@@ -1,7 +1,8 @@
 import {
   createContext, useCallback, useContext, useEffect, useState, type ReactNode,
 } from "react";
-import type { Appointment, Employee, Patient } from "../lib/cabinetTypes";
+import type { Appointment, CabinetDoctorProfile, Employee, Patient } from "../lib/cabinetTypes";
+import { BLANK_DOCTOR_PROFILE } from "../lib/cabinetTypes";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -37,6 +38,9 @@ interface CabinetCtx {
   addEmployee:    (e: Omit<Employee, "id">) => void;
   updateEmployee: (e: Employee) => void;
   deleteEmployee: (id: string) => void;
+
+  doctorProfile:    CabinetDoctorProfile;
+  setDoctorProfile: (p: CabinetDoctorProfile) => void;
 }
 
 const Ctx = createContext<CabinetCtx | null>(null);
@@ -44,14 +48,21 @@ const Ctx = createContext<CabinetCtx | null>(null);
 // ── Provider ──────────────────────────────────────────────────────────────────
 
 export function CabinetProvider({ children }: { children: ReactNode }) {
-  const [appointments, setAppts] = useState<Appointment[]>(() => load("bp.appts", []));
-  const [patients,     setPatients] = useState<Patient[]>(() => load("bp.patients", []));
-  const [employees,    setEmployees] = useState<Employee[]>(() => load("bp.employees", []));
+  const [appointments,   setAppts]    = useState<Appointment[]>(() => load("bp.appts", []));
+  const [patients,       setPatients] = useState<Patient[]>(() => load("bp.patients", []));
+  const [employees,      setEmployees] = useState<Employee[]>(() => load("bp.employees", []));
+  const [doctorProfile,  setDoctorProfileState] = useState<CabinetDoctorProfile>(
+    () => load("bp.doctor", BLANK_DOCTOR_PROFILE)
+  );
 
   // Persist to localStorage on every change
-  useEffect(() => { save("bp.appts",     appointments); }, [appointments]);
-  useEffect(() => { save("bp.patients",  patients);     }, [patients]);
-  useEffect(() => { save("bp.employees", employees);    }, [employees]);
+  useEffect(() => { save("bp.appts",     appointments);  }, [appointments]);
+  useEffect(() => { save("bp.patients",  patients);      }, [patients]);
+  useEffect(() => { save("bp.employees", employees);     }, [employees]);
+  useEffect(() => { save("bp.doctor",    doctorProfile); }, [doctorProfile]);
+
+  const setDoctorProfile = useCallback(
+    (p: CabinetDoctorProfile) => setDoctorProfileState(p), []);
 
   // ── Appointments ──────────────────────────────────────────────────────────
   const addAppointment = useCallback(
@@ -82,6 +93,7 @@ export function CabinetProvider({ children }: { children: ReactNode }) {
     appointments, addAppointment, updateAppointment, deleteAppointment,
     patients,     addPatient,     updatePatient,     deletePatient,
     employees,    addEmployee,    updateEmployee,    deleteEmployee,
+    doctorProfile, setDoctorProfile,
   };
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

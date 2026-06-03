@@ -1,6 +1,30 @@
 // Cabinet types — mirrors blackpine-app/lib/cabinetTypes.ts
 // (subset: only what the web app needs)
 
+// ── Doctor / cabinet identity ─────────────────────────────────────────────────
+
+export interface CabinetDoctorProfile {
+  fullName:        string;
+  specialtyLabel?: string;
+  inpe?:           string;   // N° d'inscription registre national professionnel
+  address?:        string;   // Adresse du cabinet
+  phone?:          string;
+  accountantPhone?: string;  // WhatsApp expert-comptable
+}
+
+export const SPECIALTIES: { id: string; label: string }[] = [
+  { id: "medecin_generaliste",  label: "Médecin généraliste" },
+  { id: "medecin_specialiste",  label: "Médecin spécialiste" },
+  { id: "dentiste",             label: "Dentiste" },
+  { id: "kinesitherapeute",     label: "Kinésithérapeute" },
+  { id: "sage_femme",           label: "Sage-femme" },
+  { id: "autre",                label: "Autre profession de santé" },
+];
+
+export const BLANK_DOCTOR_PROFILE: CabinetDoctorProfile = {
+  fullName: "", specialtyLabel: "", inpe: "", address: "", phone: "", accountantPhone: "",
+};
+
 export type AppointmentType = "consultation" | "suivi" | "procedure" | "urgence" | "autre";
 export type AppointmentStatus =
   | "scheduled"
