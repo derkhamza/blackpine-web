@@ -908,6 +908,104 @@ img { max-width: 100%; display: block; }
 }
 .payroll-table tr:last-child td { border-bottom: none; }
 
+/* ── Dashboard upgrades ─────────────────────────────────────────────────── */
+
+/* Quick action buttons */
+.dash-quick-actions {
+  display: flex; gap: 10px; margin-bottom: 16px;
+}
+.dash-quick-btn {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  gap: 8px; padding: 13px 20px; border-radius: var(--r-lg);
+  font-size: 14px; font-weight: 700; border: 2px solid;
+  transition: all var(--trans); cursor: pointer;
+}
+.dash-quick-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+.dash-quick-recette {
+  background: var(--green-soft); border-color: var(--green); color: var(--green);
+}
+.dash-quick-recette:hover { background: var(--green); color: #fff; }
+.dash-quick-charge {
+  background: var(--coral-soft); border-color: var(--coral); color: var(--coral);
+}
+.dash-quick-charge:hover { background: var(--coral); color: #fff; }
+
+/* CNOPS spotlight */
+.cnops-spotlight {
+  background: var(--surface); border: 1.5px solid #c7b8ed;
+  border-radius: var(--r-lg); margin-bottom: 16px; overflow: hidden;
+  box-shadow: var(--shadow-card);
+}
+.cnops-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 18px;
+  background: #6b46c110; border-bottom: 1px solid #c7b8ed;
+}
+.cnops-title {
+  font-size: 11px; font-weight: 700; color: #6b46c1;
+  text-transform: uppercase; letter-spacing: 0.4px;
+}
+.cnops-resolve-btn {
+  background: #6b46c1; color: #fff; border: none; border-radius: var(--r-pill);
+  padding: 3px 10px; font-size: 11px; font-weight: 700; cursor: pointer;
+}
+.cnops-kpi-row { display: flex; padding: 14px 0; }
+.cnops-kpi { flex: 1; text-align: center; }
+.cnops-kpi-value { font-size: 18px; font-weight: 800; color: var(--text); letter-spacing: -0.3px; }
+.cnops-kpi-label { font-size: 9px; font-weight: 600; color: var(--tertiary); text-transform: uppercase; letter-spacing: 0.3px; margin-top: 3px; }
+.cnops-kpi-count { font-size: 10px; color: var(--tertiary); margin-top: 1px; }
+.cnops-kpi-sep { width: 1px; background: #c7b8ed; margin: 6px 0; }
+.cnops-progress-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 18px 12px;
+}
+.cnops-progress-track {
+  flex: 1; height: 6px; border-radius: 3px;
+  background: rgba(217,119,6,0.2); overflow: hidden;
+}
+.cnops-progress-fill { height: 100%; border-radius: 3px; background: var(--green); }
+.cnops-progress-label { font-size: 11px; font-weight: 700; color: var(--green); white-space: nowrap; }
+
+/* Dashboard 2-col layout */
+.dash-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+.dash-col { display: flex; flex-direction: column; gap: 16px; }
+
+/* Delta badge */
+.delta-badge {
+  display: inline-flex; align-items: center;
+  padding: 2px 8px; border-radius: var(--r-pill);
+  font-size: 10px; font-weight: 700; margin-top: 4px;
+}
+
+/* YoY card */
+.yoy-card { }
+.yoy-row { display: flex; align-items: flex-start; gap: 20px; }
+.yoy-metric { flex: 1; }
+.yoy-metric-label { font-size: 11px; font-weight: 600; color: var(--muted); margin-bottom: 4px; }
+.yoy-metric-value { font-size: 20px; font-weight: 800; letter-spacing: -0.5px; }
+.yoy-sep { width: 1px; background: var(--border); margin: 4px 0; align-self: stretch; }
+
+/* Category breakdown */
+.cat-list { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+.cat-row { display: flex; align-items: center; gap: 8px; }
+.cat-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.cat-label { font-size: 12px; font-weight: 500; color: var(--text); width: 130px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cat-bar-track { flex: 1; height: 7px; border-radius: 4px; background: var(--bg); overflow: hidden; }
+.cat-bar-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+.cat-pct { font-size: 10px; font-weight: 700; color: var(--muted); width: 30px; text-align: right; flex-shrink: 0; }
+.cat-amount { font-size: 11px; font-weight: 600; color: var(--text); width: 80px; text-align: right; flex-shrink: 0; }
+
+/* Top patients */
+.top-patient-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 0; border-bottom: 1px solid var(--border);
+}
+.top-patient-row:last-child { border-bottom: none; }
+.top-patient-rank { font-size: 11px; font-weight: 800; color: var(--tertiary); width: 20px; flex-shrink: 0; }
+.top-patient-name { flex: 1; font-size: 13px; font-weight: 600; color: var(--text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.top-patient-count { font-size: 11px; color: var(--muted); flex-shrink: 0; }
+.top-patient-rev { font-size: 13px; font-weight: 700; flex-shrink: 0; }
+
 /* ── Stats / Activité page ──────────────────────────────────────────────── */
 .stats-hero {
   background: var(--navy); border-radius: var(--r-lg);
@@ -1263,4 +1361,6 @@ img { max-width: 100%; display: block; }
   .vs-grid              { grid-template-columns: 1fr 1fr; }
   .stats-page-grid      { grid-template-columns: 1fr; }
   .stats-hero-number    { font-size: 40px; }
+  .dash-2col            { grid-template-columns: 1fr; }
+  .dash-quick-actions   { flex-direction: column; }
 }

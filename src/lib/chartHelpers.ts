@@ -1,4 +1,41 @@
 import type { Transaction } from "blackpine-engine";
+import { getCategoryById } from "blackpine-engine";
+
+// ── Category breakdown ────────────────────────────────────────────────────────
+
+export interface CategorySlice {
+  id:         string;
+  label:      string;
+  amount:     number;
+  percentage: number;
+  color:      string;
+}
+
+const SLICE_COLORS = [
+  "#1890C5", "#15A876", "#D4962A", "#9B72D0",
+  "#E85B5B", "#0A4E7E", "#2ECC71", "#E67E22",
+];
+
+export function getCategoryBreakdown(
+  transactions: Transaction[],
+  topN = 6,
+): CategorySlice[] {
+  const charges = transactions.filter((t) => t.type === "CHARGE");
+  const totals  = new Map<string, number>();
+  for (const tx of charges) totals.set(tx.category, (totals.get(tx.category) ?? 0) + tx.amount);
+
+  const sorted = [...totals.entries()].sort((a, b) => b[1] - a[1]);
+  const grandTotal = sorted.reduce((s, [, v]) => s + v, 0);
+  if (grandTotal === 0) return [];
+
+  return sorted.slice(0, topN).map(([id, amount], i) => ({
+    id,
+    label: getCategoryById(2026, id)?.labelFr ?? id,
+    amount,
+    percentage: Math.round((amount / grandTotal) * 100),
+    color: SLICE_COLORS[i % SLICE_COLORS.length],
+  }));
+}
 
 export interface MonthlyData {
   label: string;

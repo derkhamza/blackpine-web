@@ -410,10 +410,12 @@ export function TransactionsPage() {
   const [modal,    setModal]    = useState<{ tx?: Transaction; type?: "RECETTE" | "CHARGE" } | null>(null);
   const [toast,    setToast]    = useState<string | null>(null);
 
-  // Consume ?filter= param on navigation
+  // Consume ?filter= and ?openAdd= params on navigation
   useEffect(() => {
-    const f = searchParams.get("filter") as TypeFilter | null;
-    if (f) setFilters((prev) => ({ ...prev, typeFilter: f }));
+    const f  = searchParams.get("filter") as TypeFilter | null;
+    const oa = searchParams.get("openAdd") as "RECETTE" | "CHARGE" | null;
+    if (f)  setFilters((prev) => ({ ...prev, typeFilter: f }));
+    if (oa) setModal({ type: oa });
   }, [searchParams]);
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 2800); };
