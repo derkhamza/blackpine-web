@@ -11,6 +11,7 @@ import { PatientsPage }          from "./pages/PatientsPage";
 import { PatientDetailPage }     from "./pages/PatientDetailPage";
 import { StatsPage }             from "./pages/StatsPage";
 import { PayrollPage }           from "./pages/PayrollPage";
+import { ReportPage }            from "./pages/ReportPage";
 
 function RequireAuth({ children }: { children: JSX.Element }) {
   const { isAuthenticated } = useApp();
@@ -44,6 +45,9 @@ export function App() {
       } />
       <Route path="/patients/:patientId" element={
         <RequireAuth><PatientDetailPage /></RequireAuth>
+      } />
+      <Route path="/rapport" element={
+        <RequireAuth><ReportPage /></RequireAuth>
       } />
       <Route path="/salaires" element={
         <RequireAuth><PayrollPage /></RequireAuth>

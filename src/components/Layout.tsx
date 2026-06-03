@@ -30,6 +30,14 @@ function Icon({ name }: { name: string }) {
         <line x1="2" y1="14" x2="14" y2="14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
       </svg>
     ),
+    report: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <rect x="2" y="1" width="9" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
+        <path d="M5 5h4M5 7.5h4M5 10h2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+        <path d="M11 9l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+        <circle cx="11" cy="8" r="2.2" stroke="currentColor" strokeWidth="1.3"/>
+      </svg>
+    ),
     agenda: (
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
         <rect x="2" y="3" width="12" height="11" rx="2" stroke="currentColor" strokeWidth="1.5"/>
@@ -102,6 +110,7 @@ export function Layout({ title, subtitle, actions, children }: Props) {
     { to: "/",             label: "Tableau de bord", icon: "dashboard",    group: "Finances" },
     { to: "/transactions", label: "Transactions",    icon: "transactions", group: "Finances" },
     { to: "/expliquer",    label: "Calcul fiscal",   icon: "explain",      group: "Finances" },
+    { to: "/rapport",     label: "Rapport",         icon: "report",       group: "Finances" },
     { to: "/activite",     label: "Activité",        icon: "stats",        group: "Cabinet" },
     { to: "/agenda",       label: "Agenda",          icon: "agenda",       group: "Cabinet" },
     { to: "/patients",     label: "Patients",        icon: "patients",     group: "Cabinet" },
