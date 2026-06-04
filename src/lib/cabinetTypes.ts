@@ -48,6 +48,14 @@ export interface VitalSigns {
 
 export type AppointmentType = "consultation" | "suivi" | "procedure" | "urgence" | "autre";
 
+// ── Prescription templates ────────────────────────────────────────────────────
+
+export interface PrescriptionTemplate {
+  id:   string;
+  name: string;
+  lines: OrdonnanceLine[];
+}
+
 // ── Certificates ──────────────────────────────────────────────────────────────
 
 export type CertificateType = "medical" | "arret_travail" | "orientation";

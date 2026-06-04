@@ -1,7 +1,7 @@
 import {
   createContext, useCallback, useContext, useEffect, useState, type ReactNode,
 } from "react";
-import type { Appointment, CabinetDoctorProfile, Employee, Patient } from "../lib/cabinetTypes";
+import type { Appointment, CabinetDoctorProfile, Employee, Patient, PrescriptionTemplate } from "../lib/cabinetTypes";
 import { BLANK_DOCTOR_PROFILE } from "../lib/cabinetTypes";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -42,6 +42,11 @@ interface CabinetCtx {
   doctorProfile:    CabinetDoctorProfile;
   setDoctorProfile: (p: CabinetDoctorProfile) => void;
 
+  // Prescription templates
+  prescriptionTemplates:    PrescriptionTemplate[];
+  addPrescriptionTemplate:  (t: Omit<PrescriptionTemplate, "id">) => void;
+  deletePrescriptionTemplate: (id: string) => void;
+
   // Backup / restore
   exportCabinetJSON: () => string;
   importCabinetJSON: (json: string) => void;
@@ -50,6 +55,45 @@ interface CabinetCtx {
 }
 
 const Ctx = createContext<CabinetCtx | null>(null);
+
+// ── Default prescription templates (Moroccan clinical practice) ───────────────
+
+const DEFAULT_TEMPLATES: PrescriptionTemplate[] = [
+  {
+    id: "tpl-grippe",
+    name: "Grippe / Infection respiratoire",
+    lines: [
+      { drug: "Paracétamol cp 1g",    dosage: "1 comprimé", frequency: "toutes les 6 heures", duration: "5 jours",  notes: "maximum 4g/jour" },
+      { drug: "Ibuprofène cp 400mg",  dosage: "1 comprimé", frequency: "3 fois par jour",     duration: "5 jours",  notes: "à prendre pendant les repas" },
+      { drug: "Vitamine C 1g",        dosage: "1 sachet",   frequency: "1 fois par jour",     duration: "7 jours",  notes: "" },
+    ],
+  },
+  {
+    id: "tpl-infection",
+    name: "Infection bactérienne",
+    lines: [
+      { drug: "Amoxicilline cp 500mg", dosage: "1 comprimé", frequency: "3 fois par jour", duration: "7 jours",  notes: "à prendre jusqu'à la fin du traitement" },
+      { drug: "Paracétamol cp 1g",     dosage: "1 comprimé", frequency: "toutes les 6 heures", duration: "3 jours", notes: "si fièvre ou douleur" },
+    ],
+  },
+  {
+    id: "tpl-lombalgie",
+    name: "Lombalgie / Douleur musculaire",
+    lines: [
+      { drug: "Ibuprofène cp 400mg",  dosage: "1 comprimé", frequency: "3 fois par jour",   duration: "7 jours", notes: "à prendre pendant les repas" },
+      { drug: "Myorelax cp 50mg",     dosage: "1 comprimé", frequency: "2 fois par jour",   duration: "5 jours", notes: "" },
+      { drug: "Paracétamol cp 1g",    dosage: "1 comprimé", frequency: "toutes les 6 heures", duration: "au besoin", notes: "" },
+    ],
+  },
+  {
+    id: "tpl-gastrite",
+    name: "Gastrite / Reflux gastro-œsophagien",
+    lines: [
+      { drug: "Oméprazole gél 20mg", dosage: "1 gélule", frequency: "1 fois par jour",  duration: "14 jours", notes: "le matin à jeun, 30 min avant le repas" },
+      { drug: "Gaviscon",            dosage: "2 sachets", frequency: "après les repas", duration: "au besoin", notes: "" },
+    ],
+  },
+];
 
 // ── Provider ──────────────────────────────────────────────────────────────────
 
@@ -60,12 +104,16 @@ export function CabinetProvider({ children }: { children: ReactNode }) {
   const [doctorProfile,  setDoctorProfileState] = useState<CabinetDoctorProfile>(
     () => load("bp.doctor", BLANK_DOCTOR_PROFILE)
   );
+  const [prescriptionTemplates, setTpls] = useState<PrescriptionTemplate[]>(
+    () => load("bp.prescriptionTemplates", DEFAULT_TEMPLATES)
+  );
 
   // Persist to localStorage on every change
   useEffect(() => { save("bp.appts",     appointments);  }, [appointments]);
   useEffect(() => { save("bp.patients",  patients);      }, [patients]);
   useEffect(() => { save("bp.employees", employees);     }, [employees]);
   useEffect(() => { save("bp.doctor",    doctorProfile); }, [doctorProfile]);
+  useEffect(() => { save("bp.prescriptionTemplates", prescriptionTemplates); }, [prescriptionTemplates]);
 
   const setDoctorProfile = useCallback(
     (p: CabinetDoctorProfile) => setDoctorProfileState(p), []);
@@ -124,11 +172,19 @@ export function CabinetProvider({ children }: { children: ReactNode }) {
   const clearAppointments = useCallback(() => setAppts([]),     []);
   const clearPatients     = useCallback(() => setPatients([]),  []);
 
+  // ── Prescription templates ────────────────────────────────────────────────
+  const addPrescriptionTemplate = useCallback(
+    (t: Omit<PrescriptionTemplate, "id">) =>
+      setTpls(prev => [...prev, { ...t, id: uid() }]), []);
+  const deletePrescriptionTemplate = useCallback(
+    (id: string) => setTpls(prev => prev.filter(t => t.id !== id)), []);
+
   const value: CabinetCtx = {
     appointments, addAppointment, updateAppointment, deleteAppointment,
     patients,     addPatient,     updatePatient,     deletePatient,
     employees,    addEmployee,    updateEmployee,    deleteEmployee,
     doctorProfile, setDoctorProfile,
+    prescriptionTemplates, addPrescriptionTemplate, deletePrescriptionTemplate,
     exportCabinetJSON, importCabinetJSON, clearAppointments, clearPatients,
   };
 

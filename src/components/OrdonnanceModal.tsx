@@ -4,6 +4,7 @@ import {
   printOrdonnance,
   COMMON_DRUGS, COMMON_FREQUENCIES, COMMON_DURATIONS,
 } from "../lib/ordonnancePrinter";
+import { useCabinet } from "../context/CabinetContext";
 
 // ── Datalist helpers ──────────────────────────────────────────────────────────
 
@@ -128,12 +129,20 @@ interface Props {
 export function OrdonnanceModal({
   patientName, date, doctorProfile, initialLines, onSave, onClose,
 }: Props) {
+  const { prescriptionTemplates, addPrescriptionTemplate, deletePrescriptionTemplate } = useCabinet();
+
   const [lines, setLines] = useState<LineWithKey[]>(() =>
     initialLines && initialLines.length > 0
       ? initialLines.map(l => ({ ...l, _key: uid() }))
       : [BLANK_LINE()]
   );
 
+  // ── Template panel state ──────────────────────────────────────────────────
+  const [showTpl,  setShowTpl]  = useState(false);
+  const [tplName,  setTplName]  = useState("");
+  const [showSave, setShowSave] = useState(false);
+
+  // ── Line operations ───────────────────────────────────────────────────────
   const updateLine = (idx: number, patch: Partial<OrdonnanceLine>) => {
     setLines(prev => prev.map((l, i) => i === idx ? { ...l, ...patch } : l));
   };
@@ -155,6 +164,25 @@ export function OrdonnanceModal({
     });
   };
 
+  // ── Template operations ───────────────────────────────────────────────────
+  const loadTemplate = (tpl: { lines: OrdonnanceLine[] }) => {
+    const hasContent = lines.some(l => l.drug.trim());
+    if (hasContent && !window.confirm("Remplacer les médicaments actuels par ce modèle ?")) return;
+    setLines(tpl.lines.map(l => ({ ...l, _key: uid() })));
+    setShowTpl(false);
+  };
+
+  const saveAsTemplate = () => {
+    const name = tplName.trim();
+    if (!name) return;
+    const clean = lines.filter(l => l.drug.trim());
+    if (clean.length === 0) return;
+    addPrescriptionTemplate({ name, lines: clean });
+    setTplName("");
+    setShowSave(false);
+  };
+
+  // ── Submit handlers ───────────────────────────────────────────────────────
   const handlePrint = () => {
     const clean = lines.filter(l => l.drug.trim());
     printOrdonnance({ lines: clean, patientName, date, doctorProfile });
@@ -169,6 +197,7 @@ export function OrdonnanceModal({
   };
 
   const isProfileEmpty = !doctorProfile.fullName;
+  const hasLines       = lines.some(l => l.drug.trim());
 
   return (
     <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
@@ -189,7 +218,25 @@ export function OrdonnanceModal({
               </div>
             )}
           </div>
-          <button className="modal-close" onClick={onClose}>×</button>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {/* Templates toggle */}
+            <button
+              className={`btn btn-ghost tpl-toggle-btn${showTpl ? " active" : ""}`}
+              onClick={() => setShowTpl(v => !v)}
+              title="Modèles d'ordonnance"
+            >
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 4 }}>
+                <rect x="1" y="1" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.3"/>
+                <rect x="8" y="1" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.3"/>
+                <rect x="1" y="8" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.3"/>
+                <rect x="8" y="8" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.3"/>
+              </svg>
+              Modèles {prescriptionTemplates.length > 0 && (
+                <span className="tpl-count-badge">{prescriptionTemplates.length}</span>
+              )}
+            </button>
+            <button className="modal-close" onClick={onClose}>×</button>
+          </div>
         </div>
 
         <div className="modal-body">
@@ -212,6 +259,101 @@ export function OrdonnanceModal({
               <span className="ord-info-value">{doctorProfile.fullName || "—"}</span>
             </div>
           </div>
+
+          {/* ── Templates panel ── */}
+          {showTpl && (
+            <div className="tpl-panel">
+              <div className="tpl-panel-hdr">
+                <span className="tpl-panel-title">
+                  📋 Modèles d'ordonnance
+                </span>
+                <span className="tpl-panel-hint">
+                  Cliquez "Charger" pour remplacer les médicaments actuels
+                </span>
+              </div>
+
+              {prescriptionTemplates.length === 0 ? (
+                <div className="tpl-empty">
+                  Aucun modèle sauvegardé. Créez une ordonnance puis sauvegardez-la comme modèle.
+                </div>
+              ) : (
+                <div className="tpl-list">
+                  {prescriptionTemplates.map(tpl => (
+                    <div key={tpl.id} className="tpl-card">
+                      <div className="tpl-card-info">
+                        <div className="tpl-card-name">{tpl.name}</div>
+                        <div className="tpl-card-preview">
+                          {tpl.lines.slice(0, 3).map(l => l.drug).join(" · ")}
+                          {tpl.lines.length > 3 && ` · +${tpl.lines.length - 3}`}
+                        </div>
+                      </div>
+                      <div className="tpl-card-actions">
+                        <span className="tpl-drug-count">{tpl.lines.length} méd.</span>
+                        <button className="tpl-load-btn" onClick={() => loadTemplate(tpl)}>
+                          Charger
+                        </button>
+                        <button
+                          className="tpl-del-btn"
+                          onClick={() => {
+                            if (window.confirm(`Supprimer le modèle "${tpl.name}" ?`))
+                              deletePrescriptionTemplate(tpl.id);
+                          }}
+                          title="Supprimer ce modèle"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Save current as template */}
+              <div className="tpl-save-row">
+                {showSave ? (
+                  <div className="tpl-save-form">
+                    <input
+                      className="form-input tpl-name-input"
+                      placeholder="Nom du modèle (ex: Grippe)"
+                      value={tplName}
+                      onChange={e => setTplName(e.target.value)}
+                      onKeyDown={e => e.key === "Enter" && saveAsTemplate()}
+                      autoFocus
+                    />
+                    <button
+                      className="btn btn-primary"
+                      style={{ fontSize: 12, padding: "5px 12px" }}
+                      onClick={saveAsTemplate}
+                      disabled={!tplName.trim() || !hasLines}
+                    >
+                      Sauvegarder
+                    </button>
+                    <button
+                      className="btn btn-ghost"
+                      style={{ fontSize: 12, padding: "5px 10px" }}
+                      onClick={() => { setShowSave(false); setTplName(""); }}
+                    >
+                      Annuler
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    className="tpl-save-trigger"
+                    onClick={() => setShowSave(true)}
+                    disabled={!hasLines}
+                    title={hasLines ? "Sauvegarder l'ordonnance actuelle comme modèle" : "Ajoutez d'abord des médicaments"}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 14 14" fill="none" style={{ marginRight: 5 }}>
+                      <path d="M2 2h8l2 2v8a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.3"/>
+                      <path d="M5 2v4h4V2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                      <path d="M4 8h6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                    </svg>
+                    Sauvegarder comme modèle
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Column headers */}
           <div className="ord-col-headers">
@@ -257,7 +399,7 @@ export function OrdonnanceModal({
             <button
               className="btn btn-primary"
               onClick={handlePrint}
-              disabled={!lines.some(l => l.drug.trim())}
+              disabled={!hasLines}
             >
               <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 5 }}>
                 <rect x="2" y="5" width="10" height="7" rx="1" stroke="currentColor" strokeWidth="1.3"/>
