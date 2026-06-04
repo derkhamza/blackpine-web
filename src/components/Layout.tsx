@@ -41,6 +41,13 @@ function Icon({ name }: { name: string }) {
         <circle cx="11" cy="8" r="2.2" stroke="currentColor" strokeWidth="1.3"/>
       </svg>
     ),
+    optimisation: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M2 11l3-4 3 2 3-5 3 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        <circle cx="14" cy="6" r="1.5" fill="currentColor"/>
+        <path d="M13 14H3a1 1 0 0 1-1-1V2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+      </svg>
+    ),
     comptabilite: (
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
         <rect x="1" y="4" width="14" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
@@ -205,6 +212,7 @@ export function Layout({ title, subtitle, actions, children }: Props) {
     { to: "/expliquer",    label: "Calcul fiscal",   icon: "explain",      group: "Finances" },
     { to: "/rapport",      label: "Rapport",         icon: "report",       group: "Finances" },
     { to: "/comptabilite", label: "Comptabilité",    icon: "comptabilite", group: "Finances" },
+    { to: "/optimisation", label: "Optimisation",    icon: "optimisation", group: "Finances" },
     { to: "/activite",     label: "Activité",        icon: "stats",        group: "Cabinet" },
     { to: "/agenda",       label: "Agenda",          icon: "agenda",       group: "Cabinet" },
     { to: "/patients",     label: "Patients",        icon: "patients",     group: "Cabinet" },
