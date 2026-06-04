@@ -2,6 +2,7 @@ import { FormEvent, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import { useCabinet } from "../context/CabinetContext";
+import { CsvImportModal } from "../components/CsvImportModal";
 import type { Patient, PatientGender } from "../lib/cabinetTypes";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -201,9 +202,10 @@ function PatientCard({
 export function PatientsPage() {
   const navigate = useNavigate();
   const { patients, appointments, addPatient, updatePatient, deletePatient } = useCabinet();
-  const [search,  setSearch]  = useState("");
-  const [modal,   setModal]   = useState<{ patient?: Patient } | null>(null);
-  const [toast,   setToast]   = useState<string | null>(null);
+  const [search,    setSearch]    = useState("");
+  const [modal,     setModal]     = useState<{ patient?: Patient } | null>(null);
+  const [csvOpen,   setCsvOpen]   = useState(false);
+  const [toast,     setToast]     = useState<string | null>(null);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -247,12 +249,21 @@ export function PatientsPage() {
       title="Patients"
       subtitle={`${patients.length} patient${patients.length !== 1 ? "s" : ""}`}
       actions={
-        <button className="btn btn-primary" onClick={() => setModal({})}>
-          <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 6 }}>
-            <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-          </svg>
-          Nouveau patient
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button className="btn btn-ghost" onClick={() => setCsvOpen(true)}>
+            <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 6 }}>
+              <path d="M7 10V2M4 5l3-3 3 3M2 12h10"
+                stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Importer CSV
+          </button>
+          <button className="btn btn-primary" onClick={() => setModal({})}>
+            <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 6 }}>
+              <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+            </svg>
+            Nouveau patient
+          </button>
+        </div>
       }
     >
       {/* Search */}
@@ -322,6 +333,18 @@ export function PatientsPage() {
             showToast(modal.patient ? "Patient modifié" : "Patient ajouté");
           }}
           onClose={() => setModal(null)}
+        />
+      )}
+
+      {/* CSV import modal */}
+      {csvOpen && (
+        <CsvImportModal
+          existingPatients={patients}
+          onImport={list => {
+            list.forEach(p => addPatient(p));
+            showToast(`${list.length} patient${list.length !== 1 ? "s" : ""} importé${list.length !== 1 ? "s" : ""}`);
+          }}
+          onClose={() => setCsvOpen(false)}
         />
       )}
 

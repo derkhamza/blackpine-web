@@ -1529,6 +1529,76 @@ img { max-width: 100%; display: block; }
   border: 1px solid var(--border); margin-top: 20px;
 }
 
+/* ── CSV import modal ────────────────────────────────────────────────────── */
+.csv-modal { max-width: 680px; max-height: 90vh; display: flex; flex-direction: column; }
+.csv-modal .modal-body { overflow-y: auto; flex: 1; }
+
+/* Drop zone */
+.csv-dropzone {
+  border: 2px dashed var(--border-strong); border-radius: var(--r);
+  padding: 40px 24px; text-align: center; cursor: pointer;
+  transition: all var(--trans); background: var(--surface-alt);
+  margin-bottom: 20px;
+}
+.csv-dropzone:hover, .csv-dropzone.dragging {
+  border-color: var(--blue); background: var(--blue-soft);
+}
+.csv-drop-icon { color: var(--muted); margin-bottom: 12px; display: flex; justify-content: center; }
+.csv-drop-title { font-weight: 700; font-size: 15px; margin-bottom: 4px; }
+.csv-drop-sub   { font-size: 13px; color: var(--muted); margin-bottom: 10px; }
+.csv-drop-hint  { font-size: 12px; color: var(--tertiary); }
+
+/* Sample hint */
+.csv-sample { background: var(--surface-alt); border-radius: 8px; padding: 14px; border: 1px solid var(--border); }
+.csv-sample-title { font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 8px; text-transform: uppercase; }
+.csv-sample-code {
+  display: block; font-family: "Courier New", monospace; font-size: 12px;
+  color: var(--text); line-height: 1.6; white-space: pre-wrap;
+}
+
+/* Error */
+.csv-error { background: var(--coral-soft); border: 1px solid #FECACA; border-radius: 8px; padding: 10px 14px; font-size: 13px; color: var(--coral); }
+
+/* Map step */
+.csv-map-body { display: flex; flex-direction: column; gap: 16px; }
+.csv-file-info {
+  display: flex; align-items: center; gap: 6px; font-size: 13px;
+  padding: 10px 14px; background: var(--green-soft); border-radius: 8px;
+  border: 1px solid var(--border); color: var(--green);
+}
+
+/* Column mapping */
+.csv-mapping { background: var(--surface-alt); border-radius: var(--r); padding: 14px; border: 1px solid var(--border); }
+.csv-mapping-title { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; margin-bottom: 12px; }
+.csv-mapping-grid  { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.csv-mapping-row   { display: flex; flex-direction: column; gap: 4px; }
+.csv-mapping-label { font-size: 12px; font-weight: 600; color: var(--text); }
+.csv-mapping-select { font-size: 13px; }
+.csv-select-required { border-color: var(--coral) !important; }
+
+/* Preview table */
+.csv-preview { }
+.csv-preview-title { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; margin-bottom: 8px; }
+.csv-preview-wrap  { overflow-x: auto; border-radius: var(--r); border: 1px solid var(--border); }
+.csv-preview-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.csv-preview-table th {
+  text-align: left; padding: 7px 10px; background: var(--surface-alt);
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px;
+  color: var(--muted); border-bottom: 1px solid var(--border);
+}
+.csv-preview-table td { padding: 6px 10px; border-bottom: 1px solid var(--border); color: var(--text); }
+.csv-preview-table tbody tr:last-child td { border-bottom: none; }
+.csv-preview-table tbody tr:hover { background: var(--surface-alt); }
+.csv-row-invalid { opacity: 0.35; }
+
+/* Summary chips */
+.csv-summary { display: flex; flex-wrap: wrap; gap: 8px; }
+.csv-summary-item { display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: var(--r-pill); font-size: 13px; }
+.csv-summary-add   { background: var(--green-soft);  color: var(--green);  border: 1px solid var(--border); }
+.csv-summary-skip  { background: var(--gold-soft);   color: var(--gold);   border: 1px solid var(--border); }
+.csv-summary-error { background: var(--coral-soft);  color: var(--coral);  border: 1px solid var(--border); }
+.csv-summary-count { font-size: 18px; font-weight: 800; }
+
 /* ── Settings page ────────────────────────────────────────────────────────── */
 .settings-page { display: flex; flex-direction: column; gap: 20px; max-width: 720px; }
 .settings-section {
