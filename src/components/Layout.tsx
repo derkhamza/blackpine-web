@@ -109,6 +109,13 @@ function Icon({ name }: { name: string }) {
         <path d="M5 7h6M5 9.5h4M5 12h2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
       </svg>
     ),
+    rappels: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M8 2a5 5 0 1 0 0 10A5 5 0 0 0 8 2Z" stroke="currentColor" strokeWidth="1.5"/>
+        <path d="M8 5v3l2 1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M5.5 13.5L8 12l2.5 1.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    ),
     profile: (
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
         <circle cx="8" cy="5" r="3" stroke="currentColor" strokeWidth="1.5"/>
@@ -235,10 +242,16 @@ export function Layout({ title, subtitle, actions, children }: Props) {
       a => a.date === today && a.status === "arrived",
     ).length;
 
+    const overdueFollowUps = appointments.filter(a => {
+      if (!a.followUpDate) return false;
+      return a.followUpDate <= today;  // today or overdue
+    }).length;
+
     return {
       "/agenda":         unbilledToday + followUpsSoon,
       "/remboursements": cnopsPending,
       "/salle-attente":  waitingNow,
+      "/rappels":        overdueFollowUps,
     } as Record<string, number>;
   }, [appointments, today]);
 
@@ -255,6 +268,7 @@ export function Layout({ title, subtitle, actions, children }: Props) {
     { to: "/salle-attente",   label: "Salle d'attente", icon: "waiting",         group: "Cabinet" },
     { to: "/patients",        label: "Patients",        icon: "patients",        group: "Cabinet" },
     { to: "/remboursements",  label: "Remboursements",  icon: "remboursements",  group: "Cabinet" },
+    { to: "/rappels",         label: "Rappels",         icon: "rappels",         group: "Cabinet" },
     { to: "/factures",        label: "Factures",        icon: "factures",        group: "Cabinet" },
     { to: "/salaires",        label: "Salaires",        icon: "payroll",         group: "Cabinet" },
     { to: "/profil",       label: "Mon profil",      icon: "profile",      group: "Paramètres" },

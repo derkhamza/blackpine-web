@@ -2837,3 +2837,107 @@ img { max-width: 100%; display: block; }
   .fac-kpi-strip { grid-template-columns: 1fr 1fr; }
   .fac-table-wrap { overflow-x: auto; }
 }
+
+/* ── Rappels & Suivis Page ──────────────────────────────────────────────── */
+
+.rpl-kpi-strip {
+  display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 18px;
+}
+.rpl-kpi {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r);
+  border-top: 3px solid transparent; padding: 14px 16px; text-align: center;
+  box-shadow: var(--shadow-card);
+}
+.rpl-kpi-val { font-size: 28px; font-weight: 800; line-height: 1; letter-spacing: -0.5px; margin-bottom: 5px; }
+.rpl-kpi-lbl { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; }
+
+/* Toolbar */
+.rpl-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; }
+.rpl-filter-btn {
+  padding: 6px 14px; border-radius: var(--r-pill); font-size: 12px; font-weight: 600;
+  border: 1.5px solid var(--border); background: var(--surface); color: var(--muted);
+  cursor: pointer; transition: all var(--trans);
+}
+.rpl-filter-btn:hover  { border-color: var(--blue); color: var(--blue); }
+.rpl-filter-btn.active { background: var(--blue-soft); border-color: var(--blue); color: var(--blue); }
+
+/* List */
+.rpl-list { display: flex; flex-direction: column; gap: 20px; }
+
+/* Section */
+.rpl-section {}
+.rpl-section-hdr {
+  display: flex; align-items: center; gap: 10px;
+  border-left: 4px solid transparent; padding-left: 10px;
+  margin-bottom: 8px;
+}
+.rpl-section-title { font-size: 13px; font-weight: 800; }
+.rpl-section-count {
+  font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: var(--r-pill);
+}
+
+/* Row */
+.rpl-row {
+  display: flex; align-items: center; gap: 14px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 13px 16px;
+  box-shadow: var(--shadow-card); transition: box-shadow var(--trans);
+  flex-wrap: wrap;
+}
+.rpl-row:hover { box-shadow: 0 4px 20px rgba(18,43,66,0.10); }
+
+/* Urgency left-border accents */
+.rpl-overdue  { border-left: 3px solid var(--coral); }
+.rpl-today    { border-left: 3px solid var(--gold); }
+.rpl-week     { border-left: 3px solid var(--blue); }
+.rpl-upcoming { border-left: 3px solid var(--border-strong); }
+
+/* Avatar */
+.rpl-avatar {
+  width: 40px; height: 40px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 800; flex-shrink: 0;
+}
+
+/* Info */
+.rpl-info { flex: 1; min-width: 140px; }
+.rpl-patient-name { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+.rpl-patient-link { color: var(--text); text-decoration: none; }
+.rpl-patient-link:hover { color: var(--blue); text-decoration: underline; }
+.rpl-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.rpl-type-chip {
+  font-size: 10px; font-weight: 700; padding: 2px 7px;
+  background: var(--blue-soft); color: var(--blue); border-radius: var(--r-pill);
+}
+.rpl-orig-date { font-size: 11px; color: var(--muted); }
+
+/* Date column */
+.rpl-date-col { text-align: right; flex-shrink: 0; min-width: 140px; }
+.rpl-followup-date { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+.rpl-days-badge {
+  display: inline-block; font-size: 11px; font-weight: 700;
+  padding: 3px 9px; border-radius: var(--r-pill);
+}
+
+/* Actions */
+.rpl-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; flex-wrap: wrap; }
+.rpl-btn {
+  font-size: 12px; font-weight: 700; padding: 6px 12px;
+  border-radius: 7px; border: none; cursor: pointer; transition: all var(--trans);
+}
+.rpl-schedule {
+  background: var(--blue-soft); color: var(--blue);
+}
+.rpl-schedule:hover { background: var(--blue); color: #fff; }
+.rpl-done {
+  background: var(--green-soft); color: var(--green);
+}
+.rpl-done:hover { background: var(--green); color: #fff; }
+.rpl-rdv-link { font-size: 11.5px; color: var(--tertiary); text-decoration: none; white-space: nowrap; }
+.rpl-rdv-link:hover { color: var(--blue); text-decoration: underline; }
+
+@media (max-width: 768px) {
+  .rpl-kpi-strip { grid-template-columns: 1fr 1fr; }
+  .rpl-date-col  { text-align: left; min-width: unset; }
+  .rpl-actions   { width: 100%; justify-content: flex-start; }
+}
