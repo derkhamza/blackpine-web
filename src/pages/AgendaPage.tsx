@@ -10,6 +10,7 @@ import {
   APPT_TYPE_LABELS, APPT_TYPE_COLORS, APPT_STATUS_LABELS,
 } from "../lib/cabinetTypes";
 import { todayIso } from "../lib/format";
+import { printReceipt } from "../lib/receiptPrinter";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -223,15 +224,16 @@ function FollowUpStrip({ followUps, onNavigate, onProgram }: FollowUpStripProps)
 // ── Appointment card ───────────────────────────────────────────────────────────
 
 function ApptCard({
-  appt, patientPhone, onDetail, onEdit, onToggle, onBill, onDelete,
+  appt, patientPhone, onDetail, onEdit, onToggle, onBill, onPrintReceipt, onDelete,
 }: {
   appt: Appointment;
   patientPhone?: string;
-  onDetail: () => void;
-  onEdit: () => void;
-  onToggle: () => void;
-  onBill: () => void;
-  onDelete: () => void;
+  onDetail:       () => void;
+  onEdit:         () => void;
+  onToggle:       () => void;
+  onBill:         () => void;
+  onPrintReceipt: () => void;
+  onDelete:       () => void;
 }) {
   const isDone = appt.status === "completed";
   const color  = APPT_TYPE_COLORS[appt.type];
@@ -304,6 +306,20 @@ function ApptCard({
             <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </button>
+        {/* Print receipt */}
+        {appt.billedAt && (
+          <button
+            className="appt-receipt-btn"
+            title="Imprimer le reçu"
+            onClick={onPrintReceipt}
+          >
+            <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
+              <rect x="2" y="5" width="10" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.4"/>
+              <path d="M4 5V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" stroke="currentColor" strokeWidth="1.4"/>
+              <path d="M4 9h6M4 11h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+            </svg>
+          </button>
+        )}
         {/* Bill */}
         {isDone && !appt.billedAt && (
           <button className="appt-bill-btn" title="Ajouter recette" onClick={onBill}>
@@ -404,7 +420,7 @@ function BulkBillModal({ items, onChange, onConfirm, onClose }: BulkBillModalPro
 export function AgendaPage() {
   const today    = todayIso();
   const navigate = useNavigate();
-  const { appointments, patients, addAppointment, updateAppointment, deleteAppointment } = useCabinet();
+  const { appointments, patients, doctorProfile, addAppointment, updateAppointment, deleteAppointment } = useCabinet();
   const { addTransaction } = useApp();
 
   const [selDate,   setSelDate]   = useState(today);
@@ -513,7 +529,7 @@ export function AgendaPage() {
       deductibilityStatus: "FULLY_DEDUCTIBLE",
       professionalUseRatio: 1,
     });
-    updateAppointment({ ...billModal.appt, billedAt: new Date().toISOString() });
+    updateAppointment({ ...billModal.appt, billedAt: new Date().toISOString(), billedAmount: amt });
     setBillModal(null);
     showToast(`Recette de ${amt.toLocaleString("fr-MA")} MAD ajoutée`);
   };
@@ -537,7 +553,7 @@ export function AgendaPage() {
         deductibilityStatus: "FULLY_DEDUCTIBLE",
         professionalUseRatio: 1,
       });
-      updateAppointment({ ...appt, billedAt: new Date().toISOString() });
+      updateAppointment({ ...appt, billedAt: new Date().toISOString(), billedAmount: amt });
       grandTotal += amt;
     }
     setShowBulk(false);
@@ -690,6 +706,14 @@ export function AgendaPage() {
                     status: appt.status === "completed" ? "scheduled" : "completed",
                   })}
                   onBill={() => { setBillModal({ appt }); setBillAmt("200"); }}
+                  onPrintReceipt={() => printReceipt({
+                    patientName:      appt.patientName,
+                    consultationType: APPT_TYPE_LABELS[appt.type],
+                    appointmentDate:  appt.date,
+                    appointmentTime:  appt.startTime,
+                    amount:           appt.billedAmount ?? 0,
+                    doctorProfile,
+                  })}
                   onDelete={() => {
                     if (confirm("Supprimer ce rendez-vous ?")) {
                       deleteAppointment(appt.id);

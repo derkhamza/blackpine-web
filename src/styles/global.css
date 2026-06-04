@@ -1422,6 +1422,22 @@ img { max-width: 100%; display: block; }
 }
 .appt-edit-btn:hover { border-color: var(--blue); color: var(--blue); }
 
+/* Receipt print button (on billed appointment cards) */
+.appt-receipt-btn {
+  width: 26px; height: 26px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--surface);
+  color: var(--muted); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all var(--trans);
+}
+.appt-receipt-btn:hover { border-color: var(--navy); color: var(--navy); background: var(--surface-alt); }
+
+/* Receipt print button inside appointment detail page */
+.receipt-print-btn { font-size: 12px; padding: 5px 12px; margin-left: 10px; }
+
+/* Billed info row */
+.appt-billed-info { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
+
 /* ── Report page ─────────────────────────────────────────────────────────── */
 
 /* Letterhead — screen: hidden; print: shown */

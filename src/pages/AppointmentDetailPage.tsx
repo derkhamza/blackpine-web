@@ -12,6 +12,7 @@ import {
 } from "../lib/cabinetTypes";
 import { NOTE_TEMPLATES, TEMPLATE_CATEGORIES } from "../lib/noteTemplates";
 import { todayIso, formatMAD } from "../lib/format";
+import { printReceipt } from "../lib/receiptPrinter";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -255,7 +256,7 @@ export function AppointmentDetailPage() {
       deductibilityStatus: "FULLY_DEDUCTIBLE", professionalUseRatio: 1,
       description: `${APPT_TYPE_LABELS[appt.type]} – ${appt.patientName}`,
     });
-    updateAppointment({ ...appt, billedAt: new Date().toISOString() });
+    updateAppointment({ ...appt, billedAt: new Date().toISOString(), billedAmount: n });
     setShowBill(false);
   };
 
@@ -623,7 +624,27 @@ export function AppointmentDetailPage() {
               <span style={{ color: "var(--green)", fontWeight: 700 }}>✓ Consultation facturée</span>
               <span style={{ fontSize: 12, color: "var(--muted)", marginLeft: 8 }}>
                 le {new Date(appt.billedAt).toLocaleDateString("fr-FR")}
+                {appt.billedAmount ? ` · ${formatMAD(appt.billedAmount)}` : ""}
               </span>
+              <button
+                className="btn btn-ghost receipt-print-btn"
+                onClick={() => printReceipt({
+                  patientName:      appt.patientName,
+                  consultationType: APPT_TYPE_LABELS[appt.type],
+                  appointmentDate:  appt.date,
+                  appointmentTime:  appt.startTime,
+                  amount:           appt.billedAmount ?? 0,
+                  doctorProfile,
+                })}
+                title="Imprimer le reçu de paiement"
+              >
+                <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 5 }}>
+                  <rect x="2" y="5" width="10" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.4"/>
+                  <path d="M4 5V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" stroke="currentColor" strokeWidth="1.4"/>
+                  <path d="M4 9h6M4 11h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                </svg>
+                Reçu
+              </button>
             </div>
           ) : (
             <div style={{ display: "flex", gap: 10, alignItems: "center" }}>

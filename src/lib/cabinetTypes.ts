@@ -68,7 +68,8 @@ export interface Appointment {
   consultationNote?: ConsultationNote;
   vitalSigns?: VitalSigns;
   followUpDate?: string;
-  billedAt?: string;   // ISO — set when fee is added to finances
+  billedAt?:     string;   // ISO — set when fee is added to finances
+  billedAmount?: number;   // MAD — amount billed (for receipt printing)
   // AMO / CNOPS reimbursement
   reimbursementStatus?: "pending" | "received" | "rejected";
   reimbursementAmount?: number;
