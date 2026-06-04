@@ -1,11 +1,17 @@
 import { FormEvent, useMemo, useState } from "react";
 import { Layout } from "../components/Layout";
 import { useCabinet } from "../context/CabinetContext";
+import { useApp } from "../context/AppContext";
 import type { Employee, EmployeeRole } from "../lib/cabinetTypes";
 import { EMPLOYEE_ROLE_LABELS } from "../lib/cabinetTypes";
-import { computePayroll, fmtMAD, currentMonthLabel } from "../lib/payrollCalc";
+import { computePayroll, fmtMAD, printBulletin } from "../lib/payrollCalc";
 
-// ── Role badge colors ─────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+const MONTH_NAMES_FR = [
+  "Janvier","Février","Mars","Avril","Mai","Juin",
+  "Juillet","Août","Septembre","Octobre","Novembre","Décembre",
+];
 
 const ROLE_COLORS: Record<EmployeeRole, string> = {
   secretaire:    "var(--blue)",
@@ -73,7 +79,7 @@ function EmployeeModal({
                 </select>
               </div>
               <div className="form-group">
-                <label className="form-label">Salaire brut (MAD)</label>
+                <label className="form-label">Salaire brut (MAD/mois)</label>
                 <input className="form-input" type="number" min="1" step="100"
                   value={draft.baseSalary}
                   onChange={e => field({ baseSalary: parseFloat(e.target.value) || 0 })} required />
@@ -100,15 +106,19 @@ function EmployeeModal({
 
             {/* Live payroll preview */}
             <div className="payroll-preview">
-              <div className="payroll-preview-title">Calcul de la paie</div>
+              <div className="payroll-preview-title">Simulation de la paie mensuelle</div>
               <div className="payroll-preview-rows">
                 <div className="payroll-row-item">
                   <span>Salaire brut</span>
                   <span style={{ fontWeight: 700 }}>{fmtMAD(p.grossSalary)}</span>
                 </div>
                 <div className="payroll-row-item muted">
-                  <span>CNSS salarié (6.74%)</span>
+                  <span>CNSS salarié (6,74 %)</span>
                   <span>− {fmtMAD(p.cnssEmployee)}</span>
+                </div>
+                <div className="payroll-row-item muted">
+                  <span>Déduction forfaitaire (20 %)</span>
+                  <span>− {fmtMAD(p.deductionPro)}</span>
                 </div>
                 <div className="payroll-row-item muted">
                   <span>IR net mensuel</span>
@@ -116,12 +126,17 @@ function EmployeeModal({
                 </div>
                 <div className="payroll-divider" />
                 <div className="payroll-row-item" style={{ color: "var(--green)" }}>
-                  <span style={{ fontWeight: 700 }}>Salaire net</span>
+                  <span style={{ fontWeight: 700 }}>Salaire net à payer</span>
                   <span style={{ fontWeight: 800, fontSize: 16 }}>{fmtMAD(p.netSalary)}</span>
                 </div>
+                <div className="payroll-divider" />
                 <div className="payroll-row-item muted" style={{ fontSize: 11 }}>
-                  <span>Charge patronale CNSS (~21.09%)</span>
-                  <span>{fmtMAD(p.cnssEmployer)}</span>
+                  <span>Charge patronale CNSS (21,09 %)</span>
+                  <span>+ {fmtMAD(p.cnssEmployer)}</span>
+                </div>
+                <div className="payroll-row-item" style={{ fontSize: 12, color: "var(--coral)" }}>
+                  <span style={{ fontWeight: 600 }}>Coût total employeur</span>
+                  <span style={{ fontWeight: 700 }}>{fmtMAD(p.grossSalary + p.cnssEmployer)}</span>
                 </div>
               </div>
             </div>
@@ -158,6 +173,11 @@ function EmployeeCard({
         <span className="employee-role-badge" style={{ background: color + "18", color }}>
           {EMPLOYEE_ROLE_LABELS[employee.role]}
         </span>
+        {employee.hireDate && (
+          <span style={{ fontSize: 11, color: "var(--muted)", marginLeft: 8 }}>
+            depuis {new Date(employee.hireDate).toLocaleDateString("fr-FR", { month: "short", year: "numeric" })}
+          </span>
+        )}
       </div>
       <div className="employee-salary">
         <div className="employee-net">{fmtMAD(p.netSalary)}</div>
@@ -179,30 +199,69 @@ function EmployeeCard({
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export function PayrollPage() {
-  const { employees, addEmployee, updateEmployee, deleteEmployee } = useCabinet();
-  const [modal, setModal]   = useState<{ employee?: Employee } | null>(null);
-  const [toast, setToast]   = useState<string | null>(null);
+  const { employees, addEmployee, updateEmployee, deleteEmployee, doctorProfile } = useCabinet();
+  const { addTransaction } = useApp();
+
+  const now = new Date();
+  const [selMonth, setSelMonth] = useState(now.getMonth() + 1);   // 1–12
+  const [selYear,  setSelYear]  = useState(now.getFullYear());
+  const [modal,    setModal]    = useState<{ employee?: Employee } | null>(null);
+  const [toast,    setToast]    = useState<string | null>(null);
+  const [postedKey, setPostedKey] = useState<Set<string>>(new Set());
 
   const showToast = (msg: string) => {
     setToast(msg);
-    setTimeout(() => setToast(null), 2600);
+    setTimeout(() => setToast(null), 2800);
   };
 
+  const monthLabel = `${MONTH_NAMES_FR[selMonth - 1]} ${selYear}`;
+
   const totals = useMemo(() => {
-    let grossSum = 0, netSum = 0, chargeTotal = 0;
+    let grossSum = 0, netSum = 0, cnssPatTotal = 0;
     for (const e of employees) {
       const p = computePayroll(e.baseSalary, e.dependents ?? 0);
       grossSum    += p.grossSalary;
       netSum      += p.netSalary;
-      chargeTotal += p.grossSalary + p.cnssEmployer;
+      cnssPatTotal += p.cnssEmployer;
     }
-    return { grossSum, netSum, chargeTotal };
+    return { grossSum, netSum, cnssPatTotal, coutTotal: grossSum + cnssPatTotal };
   }, [employees]);
+
+  // "Enregistrer la paie" — posts two transactions: salaries + CNSS patronal
+  const handlePostPayroll = () => {
+    if (employees.length === 0) return;
+    const isoDate = `${selYear}-${String(selMonth).padStart(2, "0")}-01`;
+    const key = `${selYear}-${selMonth}`;
+    addTransaction({
+      type: "CHARGE",
+      category: "salaires_personnel",
+      description: `Salaires personnel — ${monthLabel}`,
+      amount: totals.grossSum,
+      date: isoDate,
+      deductibilityStatus: "FULLY_DEDUCTIBLE",
+    });
+    addTransaction({
+      type: "CHARGE",
+      category: "salaires_personnel",
+      description: `Charges patronales CNSS — ${monthLabel}`,
+      amount: totals.cnssPatTotal,
+      date: isoDate,
+      deductibilityStatus: "FULLY_DEDUCTIBLE",
+    });
+    setPostedKey(s => new Set(s).add(key));
+    showToast(`Paie de ${monthLabel} enregistrée dans les finances (${fmtMAD(totals.coutTotal)})`);
+  };
+
+  const alreadyPosted = postedKey.has(`${selYear}-${selMonth}`);
+
+  // Payroll year options
+  const yearNow = new Date().getFullYear();
+  const yearOptions = Array.from({ length: 5 }, (_, i) => yearNow - 2 + i);
 
   return (
     <Layout
       title="Salaires"
-      subtitle={`${employees.length} employé${employees.length !== 1 ? "s" : ""} · ${currentMonthLabel()}`}
+      subtitle={`${employees.length} employé${employees.length !== 1 ? "s" : ""} · ${monthLabel}`}
       actions={
         <button className="btn btn-primary" onClick={() => setModal({})}>
           <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 6 }}>
@@ -212,6 +271,60 @@ export function PayrollPage() {
         </button>
       }
     >
+      {/* Month picker */}
+      <div className="payroll-month-bar">
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+            <rect x="2" y="3" width="12" height="11" rx="2" stroke="currentColor" strokeWidth="1.5"/>
+            <path d="M5 2v2M11 2v2M2 7h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+          </svg>
+          <span style={{ fontWeight: 700, fontSize: 13 }}>Mois de paie :</span>
+          <select
+            className="form-select"
+            style={{ padding: "5px 10px", fontSize: 13, width: "auto" }}
+            value={selMonth}
+            onChange={e => setSelMonth(Number(e.target.value))}
+          >
+            {MONTH_NAMES_FR.map((m, i) => (
+              <option key={i} value={i + 1}>{m}</option>
+            ))}
+          </select>
+          <select
+            className="form-select"
+            style={{ padding: "5px 10px", fontSize: 13, width: "auto" }}
+            value={selYear}
+            onChange={e => setSelYear(Number(e.target.value))}
+          >
+            {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
+        </div>
+
+        {employees.length > 0 && (
+          <button
+            className={`btn ${alreadyPosted ? "btn-ghost" : "btn-secondary"}`}
+            onClick={handlePostPayroll}
+            disabled={alreadyPosted}
+            title={alreadyPosted ? "Déjà enregistré ce mois" : "Ajouter les charges salariales aux finances"}
+          >
+            {alreadyPosted ? (
+              <>
+                <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 5 }}>
+                  <path d="M2 7l4 4 6-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                Paie enregistrée
+              </>
+            ) : (
+              <>
+                <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 5 }}>
+                  <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+                </svg>
+                Enregistrer la paie
+              </>
+            )}
+          </button>
+        )}
+      </div>
+
       {/* Summary cards */}
       {employees.length > 0 && (
         <div className="stats-grid" style={{ marginBottom: 20 }}>
@@ -226,20 +339,112 @@ export function PayrollPage() {
             <div className="stat-sub">après CNSS et IR</div>
           </div>
           <div className="stat-card">
+            <div className="stat-label">Charges patronales CNSS</div>
+            <div className="stat-value" style={{ color: "var(--gold)" }}>{fmtMAD(totals.cnssPatTotal)}</div>
+            <div className="stat-sub">21,09 % du cotisable</div>
+          </div>
+          <div className="stat-card">
             <div className="stat-label">Coût total employeur</div>
-            <div className="stat-value" style={{ color: "var(--coral)" }}>{fmtMAD(totals.chargeTotal)}</div>
+            <div className="stat-value" style={{ color: "var(--coral)" }}>{fmtMAD(totals.coutTotal)}</div>
             <div className="stat-sub">brut + charges patronales</div>
           </div>
         </div>
       )}
 
-      {/* Employee list */}
+      {/* Payroll detail table */}
+      {employees.length > 0 && (
+        <div className="payroll-table-wrap" style={{ marginBottom: 24 }}>
+          <div className="payroll-table-title">
+            Détail de la paie — {monthLabel}
+          </div>
+          <div style={{ overflowX: "auto" }}>
+            <table className="payroll-table">
+              <thead>
+                <tr>
+                  <th>Employé</th>
+                  <th>Brut</th>
+                  <th>CNSS sal.</th>
+                  <th>Déd. pro.</th>
+                  <th>Net imposable</th>
+                  <th>IR net</th>
+                  <th style={{ color: "var(--green)" }}>Net à payer</th>
+                  <th style={{ color: "var(--coral)" }}>Charge pat.</th>
+                  <th>Bulletin</th>
+                </tr>
+              </thead>
+              <tbody>
+                {employees.map(e => {
+                  const p     = computePayroll(e.baseSalary, e.dependents ?? 0);
+                  const color = ROLE_COLORS[e.role];
+                  return (
+                    <tr key={e.id}>
+                      <td>
+                        <div style={{ fontWeight: 700 }}>{e.firstName} {e.lastName}</div>
+                        <span style={{
+                          fontSize: 11, color,
+                          background: color + "15",
+                          padding: "1px 6px", borderRadius: 6,
+                        }}>
+                          {EMPLOYEE_ROLE_LABELS[e.role]}
+                        </span>
+                      </td>
+                      <td>{fmtMAD(p.grossSalary)}</td>
+                      <td style={{ color: "var(--coral)" }}>− {fmtMAD(p.cnssEmployee)}</td>
+                      <td style={{ color: "var(--muted)" }}>− {fmtMAD(p.deductionPro)}</td>
+                      <td>{fmtMAD(p.netImposable)}</td>
+                      <td style={{ color: "var(--coral)" }}>− {fmtMAD(p.irNet)}</td>
+                      <td style={{ color: "var(--green)", fontWeight: 800 }}>{fmtMAD(p.netSalary)}</td>
+                      <td style={{ color: "var(--gold)" }}>{fmtMAD(p.cnssEmployer)}</td>
+                      <td>
+                        <button
+                          className="payroll-print-btn"
+                          title={`Imprimer bulletin de ${monthLabel}`}
+                          onClick={() => printBulletin(e, selMonth, selYear, doctorProfile)}
+                        >
+                          <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+                            <rect x="2" y="5" width="10" height="7" rx="1" stroke="currentColor" strokeWidth="1.3"/>
+                            <path d="M4 5V2h6v3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                            <path d="M4 9h6M4 11h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                            <circle cx="11" cy="7.5" r="0.8" fill="currentColor"/>
+                          </svg>
+                          Bulletin
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td>Total</td>
+                  <td>{fmtMAD(totals.grossSum)}</td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                  <td style={{ color: "var(--green)" }}>{fmtMAD(totals.netSum)}</td>
+                  <td style={{ color: "var(--gold)" }}>{fmtMAD(totals.cnssPatTotal)}</td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Employee cards */}
+      <div style={{ marginBottom: 8, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>
+          Fiche des employés
+        </h3>
+      </div>
+
       {employees.length === 0 ? (
         <div className="tx-empty">
           <div style={{ fontSize: 36, marginBottom: 10 }}>👤</div>
           <div style={{ fontWeight: 700, marginBottom: 6 }}>Aucun employé</div>
-          <div style={{ marginBottom: 16 }}>
-            Ajoutez vos employés pour calculer automatiquement la paie (CNSS + IR).
+          <div style={{ marginBottom: 16, color: "var(--muted)" }}>
+            Ajoutez vos employés pour calculer automatiquement la paie (CNSS + IR salarial).
           </div>
           <button className="btn btn-primary" onClick={() => setModal({})}>Ajouter un employé</button>
         </div>
@@ -258,59 +463,6 @@ export function PayrollPage() {
               }}
             />
           ))}
-        </div>
-      )}
-
-      {/* Payroll breakdown by employee */}
-      {employees.length > 0 && (
-        <div className="payroll-table-wrap">
-          <div className="payroll-table-title">Détail de la paie — {currentMonthLabel()}</div>
-          <table className="payroll-table">
-            <thead>
-              <tr>
-                <th>Employé</th>
-                <th>Brut</th>
-                <th>CNSS sal.</th>
-                <th>Déd. pro.</th>
-                <th>Net imposable</th>
-                <th>IR net</th>
-                <th style={{ color: "var(--green)" }}>Net à payer</th>
-                <th style={{ color: "var(--coral)" }}>Charge pat.</th>
-              </tr>
-            </thead>
-            <tbody>
-              {employees.map(e => {
-                const p = computePayroll(e.baseSalary, e.dependents ?? 0);
-                const color = ROLE_COLORS[e.role];
-                return (
-                  <tr key={e.id}>
-                    <td>
-                      <div style={{ fontWeight: 700 }}>{e.firstName} {e.lastName}</div>
-                      <span style={{ fontSize: 11, color, background: color + "15", padding: "1px 6px", borderRadius: 6 }}>
-                        {EMPLOYEE_ROLE_LABELS[e.role]}
-                      </span>
-                    </td>
-                    <td>{fmtMAD(p.grossSalary)}</td>
-                    <td style={{ color: "var(--coral)" }}>− {fmtMAD(p.cnssEmployee)}</td>
-                    <td style={{ color: "var(--muted)" }}>− {fmtMAD(p.deductionPro)}</td>
-                    <td>{fmtMAD(p.netImposable)}</td>
-                    <td style={{ color: "var(--coral)" }}>− {fmtMAD(p.irNet)}</td>
-                    <td style={{ color: "var(--green)", fontWeight: 800 }}>{fmtMAD(p.netSalary)}</td>
-                    <td style={{ color: "var(--coral)" }}>{fmtMAD(p.cnssEmployer)}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-            <tfoot>
-              <tr>
-                <td style={{ fontWeight: 700 }}>Total</td>
-                <td style={{ fontWeight: 700 }}>{fmtMAD(totals.grossSum)}</td>
-                <td colSpan={4}></td>
-                <td style={{ color: "var(--green)", fontWeight: 800 }}>{fmtMAD(totals.netSum)}</td>
-                <td style={{ color: "var(--coral)", fontWeight: 700 }}>{fmtMAD(totals.chargeTotal - totals.grossSum)}</td>
-              </tr>
-            </tfoot>
-          </table>
         </div>
       )}
 
