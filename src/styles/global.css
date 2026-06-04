@@ -2752,3 +2752,88 @@ img { max-width: 100%; display: block; }
   transition: all var(--trans); flex-shrink: 0;
 }
 .cert-reprint-btn:hover { background: var(--blue); color: #fff; border-color: var(--blue); }
+
+/* ── Factures Page ──────────────────────────────────────────────────────── */
+
+.fac-kpi-strip {
+  display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 18px;
+}
+.fac-kpi {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r);
+  border-top: 3px solid transparent; padding: 14px 16px; text-align: center;
+  box-shadow: var(--shadow-card);
+}
+.fac-kpi-val { font-size: 26px; font-weight: 800; line-height: 1; letter-spacing: -0.4px; margin-bottom: 5px; }
+.fac-kpi-lbl { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; }
+
+/* Filter bar */
+.fac-filter-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+.fac-year-tabs  { display: flex; gap: 4px; }
+.fac-year-tab {
+  padding: 5px 12px; border-radius: var(--r-pill); font-size: 12px; font-weight: 600;
+  border: 1.5px solid var(--border); background: var(--surface); color: var(--muted);
+  cursor: pointer; transition: all var(--trans);
+}
+.fac-year-tab:hover  { border-color: var(--blue); color: var(--blue); }
+.fac-year-tab.active { background: var(--blue); border-color: var(--blue); color: #fff; }
+
+/* Table */
+.fac-table-wrap {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-lg); overflow: hidden; box-shadow: var(--shadow-card);
+}
+.fac-table {
+  width: 100%; border-collapse: collapse; font-size: 13px;
+}
+.fac-table th {
+  background: var(--surface-alt); padding: 10px 14px; text-align: left;
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px;
+  color: var(--muted); border-bottom: 1px solid var(--border);
+}
+.fac-table td {
+  padding: 11px 14px; border-bottom: 1px solid var(--border); vertical-align: middle;
+}
+.fac-table tbody tr:last-child td { border-bottom: none; }
+.fac-table tbody tr:hover td { background: var(--bg); }
+.fac-table tfoot td { background: var(--surface-alt); font-weight: 600; font-size: 12px; }
+.fac-r { text-align: right !important; }
+
+.fac-inv-num {
+  font-family: monospace; font-size: 12px; font-weight: 700;
+  color: var(--blue); background: var(--blue-soft);
+  padding: 2px 8px; border-radius: 5px;
+}
+.fac-no-inv { font-size: 12px; color: var(--tertiary); font-style: italic; }
+.fac-patient-link { color: var(--text); font-weight: 600; }
+.fac-patient-link:hover { color: var(--blue); text-decoration: underline; }
+.fac-date   { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.fac-amount { font-weight: 700; font-variant-numeric: tabular-nums; }
+.fac-total-label { color: var(--muted); font-size: 12px; }
+.fac-total-val { font-size: 14px; font-weight: 800; color: var(--navy); }
+.fac-type-chip {
+  font-size: 11px; font-weight: 600; padding: 2px 8px;
+  background: var(--blue-soft); color: var(--blue); border-radius: var(--r-pill);
+}
+
+.fac-actions { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+.fac-emit-btn {
+  font-size: 11.5px; font-weight: 700; padding: 4px 11px;
+  border: 1.5px solid var(--blue); border-radius: 6px;
+  background: var(--blue-soft); color: var(--blue); cursor: pointer;
+  transition: all var(--trans);
+}
+.fac-emit-btn:hover { background: var(--blue); color: #fff; }
+.fac-reprint-btn {
+  font-size: 11.5px; font-weight: 600; padding: 4px 11px;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: transparent; color: var(--muted); cursor: pointer;
+  transition: all var(--trans);
+}
+.fac-reprint-btn:hover { border-color: var(--blue); color: var(--blue); }
+.fac-rdv-link { font-size: 11.5px; color: var(--tertiary); text-decoration: none; }
+.fac-rdv-link:hover { color: var(--blue); text-decoration: underline; }
+
+@media (max-width: 768px) {
+  .fac-kpi-strip { grid-template-columns: 1fr 1fr; }
+  .fac-table-wrap { overflow-x: auto; }
+}

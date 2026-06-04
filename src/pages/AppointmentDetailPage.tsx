@@ -13,6 +13,7 @@ import {
 import { NOTE_TEMPLATES, TEMPLATE_CATEGORIES } from "../lib/noteTemplates";
 import { todayIso, formatMAD } from "../lib/format";
 import { printReceipt } from "../lib/receiptPrinter";
+import { nextInvoiceNumber, printFacture } from "../lib/facturePrinter";
 import { OrdonnanceModal }    from "../components/OrdonnanceModal";
 import { CertificateModal }  from "../components/CertificateModal";
 
@@ -615,12 +616,13 @@ export function AppointmentDetailPage() {
             <div className="appt-section-title">Facturation</div>
           </div>
           {appt.billedAt ? (
-            <div className="appt-billed-info">
+            <div className="appt-billed-info" style={{ flexWrap: "wrap", gap: 8 }}>
               <span style={{ color: "var(--green)", fontWeight: 700 }}>✓ Consultation facturée</span>
-              <span style={{ fontSize: 12, color: "var(--muted)", marginLeft: 8 }}>
+              <span style={{ fontSize: 12, color: "var(--muted)" }}>
                 le {new Date(appt.billedAt).toLocaleDateString("fr-FR")}
                 {appt.billedAmount ? ` · ${formatMAD(appt.billedAmount)}` : ""}
               </span>
+              {/* Reçu */}
               <button
                 className="btn btn-ghost receipt-print-btn"
                 onClick={() => printReceipt({
@@ -640,6 +642,54 @@ export function AppointmentDetailPage() {
                 </svg>
                 Reçu
               </button>
+              {/* Facture */}
+              {appt.invoiceNumber ? (
+                <button
+                  className="btn btn-ghost receipt-print-btn"
+                  onClick={() => {
+                    const pt = patient;
+                    printFacture({
+                      invoiceNumber:  appt.invoiceNumber!,
+                      invoiceDate:    appt.invoiceIssuedAt
+                        ? appt.invoiceIssuedAt.slice(0, 10)
+                        : appt.date,
+                      patientName:    appt.patientName,
+                      patientCnops:   pt?.cnopsNumber,
+                      serviceLabel:   APPT_TYPE_LABELS[appt.type] + " médicale",
+                      serviceDate:    appt.date,
+                      amount:         appt.billedAmount ?? 0,
+                      doctorProfile,
+                    });
+                  }}
+                  title={`Réimprimer la facture ${appt.invoiceNumber}`}
+                >
+                  📄 {appt.invoiceNumber}
+                </button>
+              ) : (
+                <button
+                  className="btn btn-ghost receipt-print-btn"
+                  style={{ color: "var(--blue)", borderColor: "var(--blue)" }}
+                  onClick={() => {
+                    const pt = patient;
+                    const invNum   = nextInvoiceNumber();
+                    const issuedAt = new Date().toISOString();
+                    updateAppointment({ ...appt, invoiceNumber: invNum, invoiceIssuedAt: issuedAt });
+                    printFacture({
+                      invoiceNumber:  invNum,
+                      invoiceDate:    issuedAt.slice(0, 10),
+                      patientName:    appt.patientName,
+                      patientCnops:   pt?.cnopsNumber,
+                      serviceLabel:   APPT_TYPE_LABELS[appt.type] + " médicale",
+                      serviceDate:    appt.date,
+                      amount:         appt.billedAmount ?? 0,
+                      doctorProfile,
+                    });
+                  }}
+                  title="Émettre une facture officielle"
+                >
+                  📄 Émettre la facture
+                </button>
+              )}
             </div>
           ) : (
             <div style={{ display: "flex", gap: 10, alignItems: "center" }}>

@@ -115,6 +115,9 @@ export interface Appointment {
   inConsultationAt?: string;  // ISO — set when doctor calls patient
   // Certificates
   savedCertificates?: SavedCertificate[];
+  // Invoice
+  invoiceNumber?:   string;   // FAC-YYYY-NNNN — set when formal invoice is issued
+  invoiceIssuedAt?: string;   // ISO datetime
 }
 
 export type PatientGender = "M" | "F";

@@ -101,6 +101,14 @@ function Icon({ name }: { name: string }) {
         <path d="M2 12c0-1.7 1.3-3 3-3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
       </svg>
     ),
+    factures: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M3 2h7l3 3v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1Z"
+          stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+        <path d="M10 2v3h3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+        <path d="M5 7h6M5 9.5h4M5 12h2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+      </svg>
+    ),
     profile: (
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
         <circle cx="8" cy="5" r="3" stroke="currentColor" strokeWidth="1.5"/>
@@ -247,6 +255,7 @@ export function Layout({ title, subtitle, actions, children }: Props) {
     { to: "/salle-attente",   label: "Salle d'attente", icon: "waiting",         group: "Cabinet" },
     { to: "/patients",        label: "Patients",        icon: "patients",        group: "Cabinet" },
     { to: "/remboursements",  label: "Remboursements",  icon: "remboursements",  group: "Cabinet" },
+    { to: "/factures",        label: "Factures",        icon: "factures",        group: "Cabinet" },
     { to: "/salaires",        label: "Salaires",        icon: "payroll",         group: "Cabinet" },
     { to: "/profil",       label: "Mon profil",      icon: "profile",      group: "Paramètres" },
     { to: "/parametres",   label: "Paramètres",      icon: "parametres",   group: "Paramètres" },
