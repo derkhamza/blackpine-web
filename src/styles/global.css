@@ -1450,6 +1450,82 @@ img { max-width: 100%; display: block; }
   border: 1px solid var(--border); margin-top: 20px;
 }
 
+/* ── Comptabilité page ───────────────────────────────────────────────────── */
+.compta-tabs {
+  display: flex; gap: 4px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 4px;
+  margin-bottom: 20px; width: fit-content;
+}
+.compta-tab {
+  display: flex; align-items: center; gap: 7px;
+  padding: 7px 16px; border-radius: 8px;
+  font-size: 13px; font-weight: 600; color: var(--muted);
+  background: transparent; border: none;
+  transition: all var(--trans); cursor: pointer;
+}
+.compta-tab:hover { color: var(--text); background: var(--surface-alt); }
+.compta-tab.active { background: var(--navy); color: #fff; }
+.compta-tab-badge {
+  background: var(--surface-alt); color: var(--muted);
+  font-size: 11px; font-weight: 700; padding: 1px 7px;
+  border-radius: var(--r-pill); min-width: 20px; text-align: center;
+}
+.compta-tab.active .compta-tab-badge { background: rgba(255,255,255,.2); color: #fff; }
+
+.compta-kpi-row {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
+  margin-bottom: 20px;
+}
+.compta-kpi {
+  background: var(--surface); border-radius: var(--r);
+  border: 1px solid var(--border); padding: 16px 18px;
+  box-shadow: var(--shadow-card);
+}
+.compta-kpi-highlight { border-top: 3px solid var(--coral); }
+.compta-kpi-lbl  { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 6px; }
+.compta-kpi-val  { font-size: 22px; font-weight: 800; margin-bottom: 4px; }
+.compta-kpi-sub  { font-size: 12px; color: var(--muted); }
+
+.compta-table-wrap { overflow-x: auto; background: var(--surface); border-radius: var(--r); border: 1px solid var(--border); box-shadow: var(--shadow-card); }
+.compta-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.compta-table th {
+  text-align: left; padding: 10px 14px;
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px;
+  color: var(--muted); background: var(--surface-alt); border-bottom: 1px solid var(--border);
+}
+.compta-table th.ta-r { text-align: right; }
+.compta-table td { padding: 11px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.compta-table tbody tr:last-child td { border-bottom: none; }
+.compta-table tbody tr:hover { background: var(--surface-alt); }
+.compta-tfoot td { padding: 10px 14px; font-weight: 700; border-top: 2px solid var(--border-strong); background: var(--surface-alt); }
+
+.compta-cat-badge {
+  display: inline-block; padding: 2px 8px; border-radius: 4px;
+  font-size: 12px; background: var(--blue-soft); color: var(--blue);
+  font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px;
+}
+.compta-status {
+  display: inline-block; padding: 2px 10px; border-radius: var(--r-pill);
+  font-size: 12px; font-weight: 600;
+}
+.compta-empty {
+  text-align: center; padding: 60px 20px;
+  background: var(--surface); border-radius: var(--r);
+  border: 1px solid var(--border);
+}
+
+/* Asset rate presets */
+.asset-rate-presets { display: flex; gap: 6px; flex-wrap: wrap; }
+.asset-rate-btn {
+  padding: 5px 12px; border-radius: 6px;
+  font-size: 12px; font-weight: 600; cursor: pointer;
+  border: 1px solid var(--border); background: var(--surface-alt); color: var(--muted);
+  transition: all var(--trans);
+}
+.asset-rate-btn:hover  { border-color: var(--blue); color: var(--blue); }
+.asset-rate-btn.active { border-color: var(--navy); background: var(--navy); color: #fff; }
+
 /* ── Print styles ─────────────────────────────────────────────────────────── */
 @media print {
   body { background: white; font-size: 11px; }
@@ -1577,4 +1653,6 @@ img { max-width: 100%; display: block; }
   .rpt-kpi-grid         { grid-template-columns: 1fr 1fr; }
   .rpt-2col             { grid-template-columns: 1fr; }
   .rpt-quarters         { grid-template-columns: repeat(2,1fr); }
+  .compta-kpi-row       { grid-template-columns: 1fr; }
+  .compta-tabs          { width: 100%; }
 }
