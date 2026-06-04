@@ -93,6 +93,9 @@ export interface Appointment {
   reimbursementDate?: string;
   // Ordonnance
   savedOrdonnance?: SavedOrdonnance;
+  // Waiting-room timestamps
+  checkedInAt?:      string;  // ISO — set when patient marks "arrived"
+  inConsultationAt?: string;  // ISO — set when doctor calls patient
 }
 
 export type PatientGender = "M" | "F";

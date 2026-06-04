@@ -12,6 +12,7 @@ import { PatientDetailPage }     from "./pages/PatientDetailPage";
 import { StatsPage }             from "./pages/StatsPage";
 import { PayrollPage }           from "./pages/PayrollPage";
 import { RemboursementsPage }    from "./pages/RemboursementsPage";
+import { WaitingRoomPage }       from "./pages/WaitingRoomPage";
 import { ReportPage }            from "./pages/ReportPage";
 import { ComptabilitePage }      from "./pages/ComptabilitePage";
 import { OptimisationPage }      from "./pages/OptimisationPage";
@@ -64,6 +65,9 @@ export function App() {
       } />
       <Route path="/remboursements" element={
         <RequireAuth><RemboursementsPage /></RequireAuth>
+      } />
+      <Route path="/salle-attente" element={
+        <RequireAuth><WaitingRoomPage /></RequireAuth>
       } />
       <Route path="/profil" element={
         <RequireAuth><ProfilePage /></RequireAuth>

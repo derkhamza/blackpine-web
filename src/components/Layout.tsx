@@ -93,6 +93,14 @@ function Icon({ name }: { name: string }) {
         <path d="M5.5 8l2 2 3-3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
       </svg>
     ),
+    waiting: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <circle cx="10" cy="10" r="4.5" stroke="currentColor" strokeWidth="1.5"/>
+        <path d="M10 8v2.5l1.5 1.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+        <circle cx="5" cy="4" r="2" stroke="currentColor" strokeWidth="1.4"/>
+        <path d="M2 12c0-1.7 1.3-3 3-3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+      </svg>
+    ),
     profile: (
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
         <circle cx="8" cy="5" r="3" stroke="currentColor" strokeWidth="1.5"/>
@@ -215,9 +223,14 @@ export function Layout({ title, subtitle, actions, children }: Props) {
       a => a.reimbursementStatus === "pending",
     ).length;
 
+    const waitingNow = appointments.filter(
+      a => a.date === today && a.status === "arrived",
+    ).length;
+
     return {
-      "/agenda":          unbilledToday + followUpsSoon,
-      "/remboursements":  cnopsPending,
+      "/agenda":         unbilledToday + followUpsSoon,
+      "/remboursements": cnopsPending,
+      "/salle-attente":  waitingNow,
     } as Record<string, number>;
   }, [appointments, today]);
 
@@ -230,7 +243,8 @@ export function Layout({ title, subtitle, actions, children }: Props) {
     { to: "/comptabilite", label: "Comptabilité",    icon: "comptabilite", group: "Finances" },
     { to: "/optimisation", label: "Optimisation",    icon: "optimisation", group: "Finances" },
     { to: "/activite",     label: "Activité",        icon: "stats",        group: "Cabinet" },
-    { to: "/agenda",       label: "Agenda",          icon: "agenda",       group: "Cabinet" },
+    { to: "/agenda",          label: "Agenda",          icon: "agenda",          group: "Cabinet" },
+    { to: "/salle-attente",   label: "Salle d'attente", icon: "waiting",         group: "Cabinet" },
     { to: "/patients",        label: "Patients",        icon: "patients",        group: "Cabinet" },
     { to: "/remboursements",  label: "Remboursements",  icon: "remboursements",  group: "Cabinet" },
     { to: "/salaires",        label: "Salaires",        icon: "payroll",         group: "Cabinet" },
