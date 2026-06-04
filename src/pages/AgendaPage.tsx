@@ -19,6 +19,21 @@ function firstWeekdayMon(y: number, m: number) { return (new Date(y, m, 1).getDa
 function isoFromParts(y: number, m: number, d: number) {
   return `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
+function addDays(iso: string, n: number): string {
+  const d = new Date(iso + "T12:00:00");
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+function getMondayOfWeek(iso: string): string {
+  const d = new Date(iso + "T12:00:00");
+  const dow = (d.getDay() + 6) % 7;  // Mon=0 … Sun=6
+  d.setDate(d.getDate() - dow);
+  return d.toISOString().slice(0, 10);
+}
+
+type AgendaView = "day" | "week";
+
+function colour(hex: string, muted = false) { return muted ? "var(--border)" : hex; }
 const DAY_HEADERS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
 const TYPE_OPTS: AppointmentType[] = ["consultation", "suivi", "procedure", "urgence", "autre"];
 const STATUS_OPTS: AppointmentStatus[] = ["scheduled", "arrived", "in_consultation", "completed", "cancelled", "no_show"];
@@ -424,6 +439,7 @@ export function AgendaPage() {
   const { addTransaction } = useApp();
 
   const [selDate,   setSelDate]   = useState(today);
+  const [view,      setView]      = useState<AgendaView>("day");
   const [calYear,   setCalYear]   = useState(new Date().getFullYear());
   const [calMonth,  setCalMonth]  = useState(new Date().getMonth());
   const [modal,     setModal]     = useState<{ appt?: Appointment; prefill?: Partial<Appointment> } | null>(null);
@@ -516,6 +532,36 @@ export function AgendaPage() {
     month: "long", year: "numeric",
   });
 
+  // ── Week view ─────────────────────────────────────────────────────────────
+  const weekStart = getMondayOfWeek(selDate);
+  const weekDays  = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  const weekLabel = (() => {
+    const s = new Date(weekDays[0] + "T12:00:00");
+    const e = new Date(weekDays[6] + "T12:00:00");
+    const fmt = (d: Date, opts: Intl.DateTimeFormatOptions) =>
+      d.toLocaleDateString("fr-FR", opts);
+    return `${fmt(s, { day: "numeric", month: "short" })} – ${fmt(e, { day: "numeric", month: "short", year: "numeric" })}`;
+  })();
+  const prevWeek = () => setSelDate(addDays(selDate, -7));
+  const nextWeek = () => setSelDate(addDays(selDate, +7));
+  const jumpToToday = () => {
+    setSelDate(today);
+    const d = new Date(today + "T12:00:00");
+    setCalYear(d.getFullYear());
+    setCalMonth(d.getMonth());
+  };
+
+  const weekApptsByDay = useMemo(() => {
+    const map = new Map<string, Appointment[]>();
+    for (const iso of weekDays) {
+      map.set(iso, appointments
+        .filter(a => a.date === iso)
+        .sort((a, b) => a.startTime.localeCompare(b.startTime)));
+    }
+    return map;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appointments, weekStart]);
+
   // Single bill handler
   const handleBill = () => {
     if (!billModal) return;
@@ -585,12 +631,40 @@ export function AgendaPage() {
       title="Agenda"
       subtitle={`${appointments.length} rendez-vous au total`}
       actions={
-        <button className="btn btn-primary" onClick={() => setModal({})}>
-          <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 6 }}>
-            <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-          </svg>
-          Nouveau RDV
-        </button>
+        <>
+          <div className="agenda-view-toggle">
+            <button
+              className={`agenda-view-btn${view === "day" ? " active" : ""}`}
+              onClick={() => setView("day")}
+              title="Vue journée"
+            >
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+                <rect x="2" y="2" width="10" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.4"/>
+                <path d="M4 5h6M4 7.5h6M4 10h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+              </svg>
+              Jour
+            </button>
+            <button
+              className={`agenda-view-btn${view === "week" ? " active" : ""}`}
+              onClick={() => setView("week")}
+              title="Vue semaine"
+            >
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+                <rect x="1" y="3" width="2" height="8" rx="0.5" fill="currentColor" opacity="0.5"/>
+                <rect x="4" y="3" width="2" height="8" rx="0.5" fill="currentColor" opacity="0.7"/>
+                <rect x="7" y="3" width="2" height="8" rx="0.5" fill="currentColor"/>
+                <rect x="10" y="3" width="2" height="8" rx="0.5" fill="currentColor" opacity="0.7"/>
+              </svg>
+              Semaine
+            </button>
+          </div>
+          <button className="btn btn-primary" onClick={() => setModal({})}>
+            <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 6 }}>
+              <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+            </svg>
+            Nouveau RDV
+          </button>
+        </>
       }
     >
       {/* ── Follow-up strip ── */}
@@ -600,7 +674,93 @@ export function AgendaPage() {
         onProgram={handleProgramFollowUp}
       />
 
-      <div className="agenda-layout">
+      {/* ── Week view ── */}
+      {view === "week" && (
+        <div className="agenda-week-view">
+          {/* Nav bar */}
+          <div className="agenda-week-nav">
+            <button className="agenda-week-arrow" onClick={prevWeek} title="Semaine précédente">‹</button>
+            <span className="agenda-week-label">{weekLabel}</span>
+            <button className="agenda-week-arrow" onClick={nextWeek} title="Semaine suivante">›</button>
+            {!weekDays.includes(today) && (
+              <button className="agenda-week-today-btn" onClick={jumpToToday}>Aujourd'hui</button>
+            )}
+          </div>
+
+          {/* 7-column grid */}
+          <div className="agenda-week-grid">
+            {weekDays.map(iso => {
+              const appts    = weekApptsByDay.get(iso) ?? [];
+              const isToday  = iso === today;
+              const isSel    = iso === selDate;
+              const d        = new Date(iso + "T12:00:00");
+              const dayName  = d.toLocaleDateString("fr-FR", { weekday: "short" });
+              const dayNum   = d.getDate();
+              const monthSh  = d.toLocaleDateString("fr-FR", { month: "short" });
+              return (
+                <div
+                  key={iso}
+                  className={`agenda-week-col${isToday ? " agenda-week-today" : ""}${isSel ? " agenda-week-sel" : ""}`}
+                >
+                  {/* Column header */}
+                  <button
+                    className="agenda-week-col-hdr"
+                    onClick={() => { setSelDate(iso); setView("day"); }}
+                    title={`Voir le ${dayNum} ${monthSh}`}
+                  >
+                    <span className="agenda-week-day-name">{dayName}</span>
+                    <span className={`agenda-week-day-num${isToday ? " today-ring" : ""}`}>{dayNum}</span>
+                    {appts.length > 0 && (
+                      <span className="agenda-week-day-count">{appts.length}</span>
+                    )}
+                  </button>
+
+                  {/* Appointment chips */}
+                  <div className="agenda-week-appts">
+                    {appts.map(appt => {
+                      const color = APPT_TYPE_COLORS[appt.type];
+                      const done  = appt.status === "completed";
+                      const cancelled = appt.status === "cancelled" || appt.status === "no_show";
+                      return (
+                        <div
+                          key={appt.id}
+                          className={`agenda-week-chip${done ? " done" : ""}${cancelled ? " cancelled" : ""}`}
+                          style={{ borderLeftColor: colour(color, cancelled) }}
+                          onClick={() => navigate(`/agenda/${appt.id}`)}
+                          title={`${appt.patientName} · ${appt.startTime}`}
+                        >
+                          <div className="agenda-week-chip-time">{appt.startTime}</div>
+                          <div className="agenda-week-chip-name">{appt.patientName}</div>
+                          <div className="agenda-week-chip-icons">
+                            {appt.billedAt     && <span className="wchip-icon green">✓</span>}
+                            {appt.savedOrdonnance && <span className="wchip-icon blue">℞</span>}
+                            {cancelled         && <span className="wchip-icon coral">✗</span>}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Add button */}
+                  <button
+                    className="agenda-week-add"
+                    onClick={() => {
+                      setSelDate(iso);
+                      setModal({ prefill: { date: iso, startTime: "09:00", endTime: "09:30" } });
+                    }}
+                    title={`Ajouter un RDV le ${dayNum} ${monthSh}`}
+                  >
+                    + RDV
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── Day view ── */}
+      {view === "day" && <div className="agenda-layout">
         {/* ── Calendar panel ── */}
         <div className="agenda-cal">
           <div className="cal-month-nav">
@@ -725,7 +885,7 @@ export function AgendaPage() {
             </div>
           )}
         </div>
-      </div>
+      </div>}
 
       {/* ── Add/Edit modal ── */}
       {modal !== null && (
