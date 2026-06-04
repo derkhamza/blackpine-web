@@ -1,9 +1,11 @@
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
+import { useCabinet } from "../context/CabinetContext";
 import { CommandPalette } from "./CommandPalette";
+import { todayIso } from "../lib/format";
 
-// ── Icons ──────────────────────────────────────────────────────────────────
+// ── Icons ──────────────────────────────────────────────────────────────────────
 function Icon({ name }: { name: string }) {
   const icons: Record<string, JSX.Element> = {
     dashboard: (
@@ -84,24 +86,56 @@ function Icon({ name }: { name: string }) {
   return icons[name] ?? null;
 }
 
-// ── Sync indicator ─────────────────────────────────────────────────────────
+// ── Sync indicator ─────────────────────────────────────────────────────────────
 function SyncPill() {
   const { syncStatus, lastSyncedAt } = useApp();
   const label =
     syncStatus === "syncing" ? "Sync…"
     : syncStatus === "error"   ? "Sync échoué"
     : syncStatus === "offline" ? "Hors ligne"
-    : lastSyncedAt ? `Sync ${new Date(lastSyncedAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}` : "Prêt";
+    : lastSyncedAt
+      ? `Sync ${new Date(lastSyncedAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`
+      : "Prêt";
 
   return (
     <div className="sync-bar" style={{ padding: "6px 10px" }}>
-      <div className={`sync-dot ${syncStatus === "syncing" ? "syncing" : syncStatus === "synced" ? "synced" : syncStatus === "error" || syncStatus === "offline" ? "error" : ""}`} />
+      <div className={`sync-dot ${
+        syncStatus === "syncing" ? "syncing"
+        : syncStatus === "synced" ? "synced"
+        : syncStatus === "error" || syncStatus === "offline" ? "error"
+        : ""
+      }`} />
       <span>{label}</span>
     </div>
   );
 }
 
-// ── Layout ─────────────────────────────────────────────────────────────────
+// ── Notification dot ───────────────────────────────────────────────────────────
+function NavDot({ count }: { count: number }) {
+  if (count === 0) return null;
+  return (
+    <span className="nav-badge" title={`${count} action${count > 1 ? "s" : ""} en attente`}>
+      {count > 9 ? "9+" : count}
+    </span>
+  );
+}
+
+// ── Hamburger icon ─────────────────────────────────────────────────────────────
+function HamburgerIcon({ open }: { open: boolean }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+      {open ? (
+        <path d="M4 4l10 10M14 4L4 14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+      ) : (
+        <>
+          <path d="M2 5h14M2 9h14M2 13h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+        </>
+      )}
+    </svg>
+  );
+}
+
+// ── Layout ─────────────────────────────────────────────────────────────────────
 interface Props {
   title: string;
   subtitle?: string;
@@ -111,12 +145,16 @@ interface Props {
 
 export function Layout({ title, subtitle, actions, children }: Props) {
   const { user, logout } = useApp();
+  const { appointments }  = useCabinet();
   const navigate = useNavigate();
+
   const [searchOpen, setSearchOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const handleLogout = () => { logout(); navigate("/login"); };
+  const closeDrawer  = () => setDrawerOpen(false);
 
-  // Global Ctrl+K / Cmd+K shortcut
+  // ── Global shortcuts ──────────────────────────────────────────────────────
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "k") {
@@ -128,11 +166,44 @@ export function Layout({ title, subtitle, actions, children }: Props) {
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
+  // Body scroll lock when mobile drawer is open
+  useEffect(() => {
+    document.body.style.overflow = drawerOpen ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
+  }, [drawerOpen]);
+
+  // ── Notification badges ───────────────────────────────────────────────────
+  const today = todayIso();
+
+  const badges = useMemo(() => {
+    const unbilledToday = appointments.filter(
+      a => a.date === today && a.status === "completed" && !a.billedAt,
+    ).length;
+
+    const followUpsSoon = appointments.filter(a => {
+      if (!a.followUpDate) return false;
+      const diff = Math.ceil(
+        (new Date(a.followUpDate).getTime() - new Date(today).getTime()) / 86400000,
+      );
+      return diff >= 0 && diff <= 3;
+    }).length;
+
+    const cnopsPending = appointments.filter(
+      a => a.reimbursementStatus === "pending",
+    ).length;
+
+    return {
+      "/agenda":   unbilledToday + followUpsSoon,
+      "/patients": cnopsPending,
+    } as Record<string, number>;
+  }, [appointments, today]);
+
+  // ── Nav items ─────────────────────────────────────────────────────────────
   const navItems = [
     { to: "/",             label: "Tableau de bord", icon: "dashboard",    group: "Finances" },
     { to: "/transactions", label: "Transactions",    icon: "transactions", group: "Finances" },
     { to: "/expliquer",    label: "Calcul fiscal",   icon: "explain",      group: "Finances" },
-    { to: "/rapport",      label: "Rapport",          icon: "report",       group: "Finances" },
+    { to: "/rapport",      label: "Rapport",         icon: "report",       group: "Finances" },
     { to: "/comptabilite", label: "Comptabilité",    icon: "comptabilite", group: "Finances" },
     { to: "/activite",     label: "Activité",        icon: "stats",        group: "Cabinet" },
     { to: "/agenda",       label: "Agenda",          icon: "agenda",       group: "Cabinet" },
@@ -141,81 +212,126 @@ export function Layout({ title, subtitle, actions, children }: Props) {
     { to: "/profil",       label: "Mon profil",      icon: "profile",      group: "Paramètres" },
   ];
 
+  // ── Shared sidebar content ────────────────────────────────────────────────
+  const sidebarContent = (
+    <>
+      {/* Logo */}
+      <div className="sidebar-logo">
+        <div className="sidebar-logo-mark">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M4 4h5.5a3.5 3.5 0 0 1 0 7H4V4Z" fill="white" fillOpacity="0.9"/>
+            <path d="M4 11h6a4 4 0 0 1 0 8H4v-8Z" fill="white" fillOpacity="0.6"/>
+          </svg>
+        </div>
+        <div>
+          <div className="sidebar-logo-text">Blackpine</div>
+          <div className="sidebar-logo-sub">Cabinet Web</div>
+        </div>
+        {/* Mobile close button */}
+        <button className="sidebar-close-btn" onClick={closeDrawer} aria-label="Fermer le menu">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M4 4l8 8M12 4L4 12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+          </svg>
+        </button>
+      </div>
+
+      {/* Search */}
+      <button className="sidebar-search" onClick={() => { setSearchOpen(true); closeDrawer(); }}>
+        <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+          <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.4"/>
+          <path d="M9.5 9.5l3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+        </svg>
+        <span>Rechercher…</span>
+        <kbd className="sidebar-search-kbd">⌘K</kbd>
+      </button>
+
+      {/* Nav — grouped */}
+      <div className="sidebar-nav">
+        {(["Finances", "Cabinet", "Paramètres"] as const).map(group => {
+          const items = navItems.filter(n => n.group === group);
+          return (
+            <div key={group}>
+              <div className="sidebar-section-label">{group}</div>
+              {items.map(({ to, label, icon }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  end={to === "/"}
+                  className={({ isActive }) => `sidebar-item${isActive ? " active" : ""}`}
+                  onClick={closeDrawer}
+                >
+                  <Icon name={icon} />
+                  {label}
+                  <NavDot count={badges[to] ?? 0} />
+                </NavLink>
+              ))}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Footer */}
+      <div className="sidebar-footer">
+        <SyncPill />
+        {user && (
+          <div className="sidebar-user">
+            <div className="sidebar-avatar">{user.email[0].toUpperCase()}</div>
+            <span className="sidebar-email">{user.email}</span>
+          </div>
+        )}
+        <button className="sidebar-logout" onClick={handleLogout}>
+          <Icon name="logout" />
+          Déconnexion
+        </button>
+      </div>
+    </>
+  );
+
+  // ── Total action count for mobile badge ───────────────────────────────────
+  const totalActions = Object.values(badges).reduce((s, n) => s + n, 0);
+
   return (
     <div className="app-shell">
-      {/* ── Sidebar ── */}
+      {/* ── Desktop sidebar ── */}
       <nav className="sidebar">
-        {/* Logo */}
-        <div className="sidebar-logo">
-          <div className="sidebar-logo-mark">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <path d="M4 4h5.5a3.5 3.5 0 0 1 0 7H4V4Z" fill="white" fillOpacity="0.9"/>
-              <path d="M4 11h6a4 4 0 0 1 0 8H4v-8Z" fill="white" fillOpacity="0.6"/>
-            </svg>
-          </div>
-          <div>
-            <div className="sidebar-logo-text">Blackpine</div>
-            <div className="sidebar-logo-sub">Cabinet Web</div>
-          </div>
-        </div>
+        {sidebarContent}
+      </nav>
 
-        {/* Search */}
-        <button className="sidebar-search" onClick={() => setSearchOpen(true)}>
-          <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
-            <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.4"/>
-            <path d="M9.5 9.5l3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
-          </svg>
-          <span>Rechercher…</span>
-          <kbd className="sidebar-search-kbd">⌘K</kbd>
-        </button>
+      {/* ── Mobile drawer backdrop ── */}
+      {drawerOpen && (
+        <div
+          className="drawer-backdrop"
+          onClick={closeDrawer}
+          aria-hidden="true"
+        />
+      )}
 
-        {/* Nav — grouped */}
-        <div className="sidebar-nav">
-          {(["Finances", "Cabinet", "Paramètres"] as const).map(group => {
-            const items = navItems.filter(n => n.group === group);
-            return (
-              <div key={group}>
-                <div className="sidebar-section-label">{group}</div>
-                {items.map(({ to, label, icon }) => (
-                  <NavLink
-                    key={to}
-                    to={to}
-                    end={to === "/"}
-                    className={({ isActive }) => `sidebar-item${isActive ? " active" : ""}`}
-                  >
-                    <Icon name={icon} />
-                    {label}
-                  </NavLink>
-                ))}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Footer */}
-        <div className="sidebar-footer">
-          <SyncPill />
-          {user && (
-            <div className="sidebar-user">
-              <div className="sidebar-avatar">{user.email[0].toUpperCase()}</div>
-              <span className="sidebar-email">{user.email}</span>
-            </div>
-          )}
-          <button className="sidebar-logout" onClick={handleLogout}>
-            <Icon name="logout" />
-            Déconnexion
-          </button>
-        </div>
+      {/* ── Mobile drawer ── */}
+      <nav className={`sidebar sidebar-drawer${drawerOpen ? " open" : ""}`}>
+        {sidebarContent}
       </nav>
 
       {/* ── Main ── */}
       <main className="main-content">
         <div className="page-header">
-          <div>
+          {/* Hamburger (mobile only) */}
+          <button
+            className="hamburger-btn"
+            onClick={() => setDrawerOpen(o => !o)}
+            aria-label={drawerOpen ? "Fermer le menu" : "Ouvrir le menu"}
+            aria-expanded={drawerOpen}
+          >
+            <HamburgerIcon open={drawerOpen} />
+            {totalActions > 0 && !drawerOpen && (
+              <span className="hamburger-dot" />
+            )}
+          </button>
+
+          <div style={{ flex: 1, minWidth: 0 }}>
             <div className="page-title">{title}</div>
             {subtitle && <div className="page-sub">{subtitle}</div>}
           </div>
-          {actions && <div style={{ display: "flex", gap: 10 }}>{actions}</div>}
+          {actions && <div style={{ display: "flex", gap: 10, flexShrink: 0 }}>{actions}</div>}
         </div>
         <div className="page-body">{children}</div>
       </main>
