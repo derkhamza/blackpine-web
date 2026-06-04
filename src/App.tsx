@@ -14,6 +14,7 @@ import { PayrollPage }           from "./pages/PayrollPage";
 import { ReportPage }            from "./pages/ReportPage";
 import { ComptabilitePage }      from "./pages/ComptabilitePage";
 import { OptimisationPage }      from "./pages/OptimisationPage";
+import { ParametresPage }        from "./pages/ParametresPage";
 
 function RequireAuth({ children }: { children: JSX.Element }) {
   const { isAuthenticated } = useApp();
@@ -62,6 +63,9 @@ export function App() {
       } />
       <Route path="/profil" element={
         <RequireAuth><ProfilePage /></RequireAuth>
+      } />
+      <Route path="/parametres" element={
+        <RequireAuth><ParametresPage /></RequireAuth>
       } />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

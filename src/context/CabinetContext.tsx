@@ -41,6 +41,12 @@ interface CabinetCtx {
 
   doctorProfile:    CabinetDoctorProfile;
   setDoctorProfile: (p: CabinetDoctorProfile) => void;
+
+  // Backup / restore
+  exportCabinetJSON: () => string;
+  importCabinetJSON: (json: string) => void;
+  clearAppointments: () => void;
+  clearPatients:     () => void;
 }
 
 const Ctx = createContext<CabinetCtx | null>(null);
@@ -89,11 +95,41 @@ export function CabinetProvider({ children }: { children: ReactNode }) {
   const deleteEmployee = useCallback(
     (id: string) => setEmployees(p => p.filter(x => x.id !== id)), []);
 
+  // ── Backup / restore ─────────────────────────────────────────────────────
+  const exportCabinetJSON = useCallback(() =>
+    JSON.stringify({
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      appointments, patients, employees, doctorProfile,
+    }, null, 2),
+  [appointments, patients, employees, doctorProfile]);
+
+  const importCabinetJSON = useCallback((json: string) => {
+    try {
+      const d = JSON.parse(json) as {
+        appointments?: Appointment[];
+        patients?:     Patient[];
+        employees?:    Employee[];
+        doctorProfile?: CabinetDoctorProfile;
+      };
+      if (Array.isArray(d.appointments)) setAppts(d.appointments);
+      if (Array.isArray(d.patients))     setPatients(d.patients);
+      if (Array.isArray(d.employees))    setEmployees(d.employees);
+      if (d.doctorProfile)               setDoctorProfileState(d.doctorProfile);
+    } catch (e) {
+      throw new Error("Fichier JSON invalide");
+    }
+  }, []);
+
+  const clearAppointments = useCallback(() => setAppts([]),     []);
+  const clearPatients     = useCallback(() => setPatients([]),  []);
+
   const value: CabinetCtx = {
     appointments, addAppointment, updateAppointment, deleteAppointment,
     patients,     addPatient,     updatePatient,     deletePatient,
     employees,    addEmployee,    updateEmployee,    deleteEmployee,
     doctorProfile, setDoctorProfile,
+    exportCabinetJSON, importCabinetJSON, clearAppointments, clearPatients,
   };
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

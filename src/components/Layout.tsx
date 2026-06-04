@@ -4,6 +4,7 @@ import { useApp } from "../context/AppContext";
 import { useCabinet } from "../context/CabinetContext";
 import { CommandPalette } from "./CommandPalette";
 import { todayIso } from "../lib/format";
+import { useDarkMode } from "../lib/useDarkMode";
 
 // ── Icons ──────────────────────────────────────────────────────────────────────
 function Icon({ name }: { name: string }) {
@@ -39,6 +40,13 @@ function Icon({ name }: { name: string }) {
         <path d="M5 5h4M5 7.5h4M5 10h2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
         <path d="M11 9l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
         <circle cx="11" cy="8" r="2.2" stroke="currentColor" strokeWidth="1.3"/>
+      </svg>
+    ),
+    parametres: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.4"/>
+        <path d="M8 1v1.5M8 13.5V15M1 8h1.5M13.5 8H15M3.2 3.2l1 1M11.8 11.8l1 1M3.2 12.8l1-1M11.8 4.2l1-1"
+          stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
       </svg>
     ),
     optimisation: (
@@ -157,6 +165,7 @@ export function Layout({ title, subtitle, actions, children }: Props) {
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const { dark, toggle: toggleDark } = useDarkMode();
 
   const handleLogout = () => { logout(); navigate("/login"); };
   const closeDrawer  = () => setDrawerOpen(false);
@@ -218,6 +227,7 @@ export function Layout({ title, subtitle, actions, children }: Props) {
     { to: "/patients",     label: "Patients",        icon: "patients",     group: "Cabinet" },
     { to: "/salaires",     label: "Salaires",        icon: "payroll",      group: "Cabinet" },
     { to: "/profil",       label: "Mon profil",      icon: "profile",      group: "Paramètres" },
+    { to: "/parametres",   label: "Paramètres",      icon: "parametres",   group: "Paramètres" },
   ];
 
   // ── Shared sidebar content ────────────────────────────────────────────────
@@ -285,6 +295,23 @@ export function Layout({ title, subtitle, actions, children }: Props) {
           <div className="sidebar-user">
             <div className="sidebar-avatar">{user.email[0].toUpperCase()}</div>
             <span className="sidebar-email">{user.email}</span>
+            <button
+              className="sidebar-dark-btn"
+              onClick={toggleDark}
+              title={dark ? "Mode clair" : "Mode sombre"}
+            >
+              {dark
+                ? <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+                    <path d="M7 1v1M7 12v1M1 7h1M12 7h1M3.2 3.2l.7.7M10.1 10.1l.7.7M3.2 10.8l.7-.7M10.1 3.9l.7-.7"
+                      stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                    <circle cx="7" cy="7" r="2.5" stroke="currentColor" strokeWidth="1.4"/>
+                  </svg>
+                : <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+                    <path d="M12 8.5A6 6 0 0 1 5.5 2a5.5 5.5 0 1 0 6.5 6.5Z"
+                      stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
+                  </svg>
+              }
+            </button>
           </div>
         )}
         <button className="sidebar-logout" onClick={handleLogout}>

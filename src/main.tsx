@@ -5,7 +5,11 @@ import { AppProvider } from "./context/AppContext";
 import { CabinetProvider } from "./context/CabinetContext";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { App } from "./App";
+import { initDarkMode } from "./lib/useDarkMode";
 import "./styles/global.css";
+
+// Apply saved theme before first paint
+initDarkMode();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
