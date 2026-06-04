@@ -4,7 +4,7 @@ import { Layout } from "../components/Layout";
 import { useCabinet } from "../context/CabinetContext";
 import { useApp } from "../context/AppContext";
 import type {
-  Appointment, AppointmentType, AppointmentStatus,
+  Appointment, AppointmentType, AppointmentStatus, Patient,
 } from "../lib/cabinetTypes";
 import {
   APPT_TYPE_LABELS, APPT_TYPE_COLORS, APPT_STATUS_LABELS,
@@ -39,12 +39,14 @@ interface ApptModalProps {
   initial?: Partial<Appointment>;
   defaultDate: string;
   isEdit: boolean;
+  patients: Patient[];
   onSave: (a: Omit<Appointment, "id">) => void;
   onClose: () => void;
 }
 
-function ApptModal({ initial, defaultDate, isEdit, onSave, onClose }: ApptModalProps) {
+function ApptModal({ initial, defaultDate, isEdit, patients, onSave, onClose }: ApptModalProps) {
   const [patientName, setName]  = useState(initial?.patientName ?? "");
+  const [linkedPid,   setPid]   = useState(initial?.patientId   ?? "");
   const [date,   setDate]       = useState(initial?.date ?? defaultDate);
   const [start,  setStart]      = useState(initial?.startTime ?? "09:00");
   const [end,    setEnd]        = useState(initial?.endTime ?? "09:30");
@@ -52,10 +54,25 @@ function ApptModal({ initial, defaultDate, isEdit, onSave, onClose }: ApptModalP
   const [status, setStatus]     = useState<AppointmentStatus>(initial?.status ?? "scheduled");
   const [notes,  setNotes]      = useState(initial?.notes ?? "");
 
+  const handleNameChange = (val: string) => {
+    setName(val);
+    const match = patients.find(
+      p => `${p.firstName} ${p.lastName}`.toLowerCase() === val.trim().toLowerCase()
+    );
+    setPid(match?.id ?? "");
+  };
+
+  const linkedPatient = patients.find(p => p.id === linkedPid);
+
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (!patientName.trim()) return;
-    onSave({ patientName: patientName.trim(), date, startTime: start, endTime: end, type, status, notes: notes || undefined });
+    onSave({
+      patientName: patientName.trim(),
+      patientId: linkedPid || undefined,
+      date, startTime: start, endTime: end, type, status,
+      notes: notes || undefined,
+    });
     onClose();
   };
 
@@ -70,8 +87,27 @@ function ApptModal({ initial, defaultDate, isEdit, onSave, onClose }: ApptModalP
           <div className="modal-body" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <div className="form-group">
               <label className="form-label">Nom du patient</label>
-              <input className="form-input" value={patientName} onChange={e => setName(e.target.value)}
-                placeholder="Nom du patient" required autoFocus />
+              <input
+                className="form-input"
+                value={patientName}
+                onChange={e => handleNameChange(e.target.value)}
+                placeholder="Nom du patient"
+                list="appt-patient-list"
+                required autoFocus
+              />
+              <datalist id="appt-patient-list">
+                {patients.map(p => (
+                  <option key={p.id} value={`${p.firstName} ${p.lastName}`} />
+                ))}
+              </datalist>
+              {linkedPatient && (
+                <div className="appt-linked-patient">
+                  <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                    <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  Fiche patient liée · {linkedPatient.phone ?? "Pas de téléphone"}
+                </div>
+              )}
             </div>
             <div className="form-row">
               <div className="form-group">
@@ -673,6 +709,7 @@ export function AgendaPage() {
           initial={modal.appt ?? modal.prefill}
           isEdit={!!modal.appt}
           defaultDate={selDate}
+          patients={patients}
           onSave={a => {
             if (modal.appt) updateAppointment({ ...a, id: modal.appt.id });
             else addAppointment(a);

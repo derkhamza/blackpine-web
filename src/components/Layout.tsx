@@ -1,6 +1,7 @@
-import { type ReactNode } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
+import { CommandPalette } from "./CommandPalette";
 
 // ── Icons ──────────────────────────────────────────────────────────────────
 function Icon({ name }: { name: string }) {
@@ -111,8 +112,21 @@ interface Props {
 export function Layout({ title, subtitle, actions, children }: Props) {
   const { user, logout } = useApp();
   const navigate = useNavigate();
+  const [searchOpen, setSearchOpen] = useState(false);
 
   const handleLogout = () => { logout(); navigate("/login"); };
+
+  // Global Ctrl+K / Cmd+K shortcut
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+        e.preventDefault();
+        setSearchOpen(o => !o);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   const navItems = [
     { to: "/",             label: "Tableau de bord", icon: "dashboard",    group: "Finances" },
@@ -144,6 +158,16 @@ export function Layout({ title, subtitle, actions, children }: Props) {
             <div className="sidebar-logo-sub">Cabinet Web</div>
           </div>
         </div>
+
+        {/* Search */}
+        <button className="sidebar-search" onClick={() => setSearchOpen(true)}>
+          <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+            <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.4"/>
+            <path d="M9.5 9.5l3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+          </svg>
+          <span>Rechercher…</span>
+          <kbd className="sidebar-search-kbd">⌘K</kbd>
+        </button>
 
         {/* Nav — grouped */}
         <div className="sidebar-nav">
@@ -195,6 +219,9 @@ export function Layout({ title, subtitle, actions, children }: Props) {
         </div>
         <div className="page-body">{children}</div>
       </main>
+
+      {/* ── Command Palette ── */}
+      {searchOpen && <CommandPalette onClose={() => setSearchOpen(false)} />}
     </div>
   );
 }
