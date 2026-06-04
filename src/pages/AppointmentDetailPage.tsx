@@ -5,7 +5,7 @@ import { useCabinet } from "../context/CabinetContext";
 import { useApp } from "../context/AppContext";
 import type {
   Appointment, AppointmentStatus, AppointmentType,
-  ConsultationNote, VitalSigns, OrdonnanceLine,
+  ConsultationNote, VitalSigns, OrdonnanceLine, SavedCertificate,
 } from "../lib/cabinetTypes";
 import {
   APPT_TYPE_LABELS, APPT_TYPE_COLORS, APPT_STATUS_LABELS,
@@ -13,7 +13,8 @@ import {
 import { NOTE_TEMPLATES, TEMPLATE_CATEGORIES } from "../lib/noteTemplates";
 import { todayIso, formatMAD } from "../lib/format";
 import { printReceipt } from "../lib/receiptPrinter";
-import { OrdonnanceModal } from "../components/OrdonnanceModal";
+import { OrdonnanceModal }    from "../components/OrdonnanceModal";
+import { CertificateModal }  from "../components/CertificateModal";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -114,7 +115,10 @@ export function AppointmentDetailPage() {
   const [rmbAmount, setRmbAmount] = useState("");
 
   // ── Ordonnance modal ──────────────────────────────────────────────────────
-  const [showOrd, setShowOrd] = useState(false);
+  const [showOrd,  setShowOrd]  = useState(false);
+
+  // ── Certificate modal ─────────────────────────────────────────────────────
+  const [showCert, setShowCert] = useState(false);
 
   // ── Billing modal ─────────────────────────────────────────────────────────
   const [showBill,  setShowBill]  = useState(false);
@@ -299,6 +303,21 @@ export function AppointmentDetailPage() {
               </svg>
               {appt.savedOrdonnance ? "℞ Ordonnance" : "℞ Ordonnance"}
               {appt.savedOrdonnance && (
+                <span className="ord-saved-dot" />
+              )}
+            </button>
+            <button
+              className="btn btn-ghost ord-open-btn"
+              onClick={() => setShowCert(true)}
+              title="Certificats & attestations"
+            >
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style={{ marginRight: 5 }}>
+                <path d="M3 2h7l3 3v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1Z"
+                  stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+                <path d="M10 2v3h3M5 7h6M5 9.5h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+              </svg>
+              📄 Certificat
+              {(appt.savedCertificates?.length ?? 0) > 0 && (
                 <span className="ord-saved-dot" />
               )}
             </button>
@@ -690,6 +709,22 @@ export function AppointmentDetailPage() {
             });
           }}
           onClose={() => setShowOrd(false)}
+        />
+      )}
+
+      {/* ── Certificate modal ── */}
+      {showCert && (
+        <CertificateModal
+          appt={appt}
+          patientName={appt.patientName}
+          doctorProfile={doctorProfile}
+          onSave={(cert: SavedCertificate) => {
+            updateAppointment({
+              ...appt,
+              savedCertificates: [...(appt.savedCertificates ?? []), cert],
+            });
+          }}
+          onClose={() => setShowCert(false)}
         />
       )}
     </Layout>

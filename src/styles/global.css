@@ -2684,3 +2684,71 @@ img { max-width: 100%; display: block; }
 @media (max-width: 600px) {
   .wr-board { grid-template-columns: 1fr; }
 }
+
+/* ── Certificate Modal ──────────────────────────────────────────────────── */
+
+.cert-modal { max-width: 520px; width: 100%; }
+
+/* Type picker */
+.cert-type-picker {
+  display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap;
+}
+.cert-type-btn {
+  flex: 1; min-width: 130px;
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  padding: 10px 12px; border-radius: var(--r);
+  border: 1.5px solid var(--border); background: var(--surface);
+  cursor: pointer; transition: all var(--trans); color: var(--muted);
+}
+.cert-type-btn:hover { border-color: var(--blue); color: var(--blue); }
+.cert-type-btn.active {
+  border-color: var(--blue); background: var(--blue-soft); color: var(--blue);
+}
+.cert-type-icon  { font-size: 20px; }
+.cert-type-label { font-size: 11px; font-weight: 700; text-align: center; }
+
+/* Form area */
+.cert-form { display: flex; flex-direction: column; gap: 14px; }
+.cert-textarea { resize: vertical; min-height: 90px; }
+.cert-optional  { font-size: 11px; font-weight: 400; color: var(--tertiary); margin-left: 4px; }
+.cert-required  { color: var(--coral); margin-left: 2px; }
+.cert-preview-hint {
+  font-size: 11px; color: var(--tertiary); margin-top: -6px;
+  padding: 7px 10px; background: var(--bg); border-radius: 6px; border: 1px solid var(--border);
+}
+
+/* Arrêt de travail date row */
+.cert-at-row {
+  display: flex; align-items: flex-end; gap: 10px;
+}
+.cert-at-arrow {
+  font-size: 16px; color: var(--muted); padding-bottom: 10px; flex-shrink: 0;
+}
+.cert-at-days {
+  font-size: 13px; font-weight: 800; color: var(--blue);
+  padding-bottom: 10px; white-space: nowrap; flex-shrink: 0;
+}
+
+/* History */
+.cert-history {
+  margin-top: 18px; border-top: 1px solid var(--border); padding-top: 12px;
+}
+.cert-history-title {
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px;
+  color: var(--muted); margin-bottom: 8px;
+}
+.cert-history-row {
+  display: flex; align-items: center; gap: 8px; padding: 7px 0;
+  border-bottom: 1px solid var(--border); flex-wrap: wrap;
+}
+.cert-history-icon  { font-size: 14px; flex-shrink: 0; }
+.cert-history-type  { font-size: 12px; font-weight: 600; color: var(--text); flex: 1; min-width: 0; }
+.cert-history-meta  { font-size: 11px; color: var(--muted); flex-shrink: 0; }
+.cert-history-date  { font-size: 11px; color: var(--tertiary); flex-shrink: 0; }
+.cert-reprint-btn {
+  font-size: 11px; font-weight: 600; padding: 3px 10px;
+  border: 1px solid var(--border); border-radius: var(--r-pill);
+  background: var(--surface); color: var(--blue); cursor: pointer;
+  transition: all var(--trans); flex-shrink: 0;
+}
+.cert-reprint-btn:hover { background: var(--blue); color: #fff; border-color: var(--blue); }

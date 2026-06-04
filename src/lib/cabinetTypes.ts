@@ -47,6 +47,23 @@ export interface VitalSigns {
 // ── Appointment types ─────────────────────────────────────────────────────────
 
 export type AppointmentType = "consultation" | "suivi" | "procedure" | "urgence" | "autre";
+
+// ── Certificates ──────────────────────────────────────────────────────────────
+
+export type CertificateType = "medical" | "arret_travail" | "orientation";
+
+export interface SavedCertificate {
+  id:               string;
+  type:             CertificateType;
+  issuedAt:         string;      // ISO datetime
+  content?:         string;      // medical: observation; arret: diagnosis
+  dateFrom?:        string;      // arret de travail start date (YYYY-MM-DD)
+  dateTo?:          string;      // arret de travail end date (YYYY-MM-DD)
+  duration?:        number;      // arret de travail: days
+  specialist?:      string;      // orientation: addressee
+  reason?:          string;      // orientation: motif d'orientation
+  clinicalSummary?: string;      // orientation: résumé clinique
+}
 export type AppointmentStatus =
   | "scheduled"
   | "arrived"
@@ -96,6 +113,8 @@ export interface Appointment {
   // Waiting-room timestamps
   checkedInAt?:      string;  // ISO — set when patient marks "arrived"
   inConsultationAt?: string;  // ISO — set when doctor calls patient
+  // Certificates
+  savedCertificates?: SavedCertificate[];
 }
 
 export type PatientGender = "M" | "F";
