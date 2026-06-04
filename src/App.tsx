@@ -11,6 +11,7 @@ import { PatientsPage }          from "./pages/PatientsPage";
 import { PatientDetailPage }     from "./pages/PatientDetailPage";
 import { StatsPage }             from "./pages/StatsPage";
 import { PayrollPage }           from "./pages/PayrollPage";
+import { RemboursementsPage }    from "./pages/RemboursementsPage";
 import { ReportPage }            from "./pages/ReportPage";
 import { ComptabilitePage }      from "./pages/ComptabilitePage";
 import { OptimisationPage }      from "./pages/OptimisationPage";
@@ -60,6 +61,9 @@ export function App() {
       } />
       <Route path="/salaires" element={
         <RequireAuth><PayrollPage /></RequireAuth>
+      } />
+      <Route path="/remboursements" element={
+        <RequireAuth><RemboursementsPage /></RequireAuth>
       } />
       <Route path="/profil" element={
         <RequireAuth><ProfilePage /></RequireAuth>

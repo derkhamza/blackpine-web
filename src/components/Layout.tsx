@@ -86,6 +86,13 @@ function Icon({ name }: { name: string }) {
         <path d="M5 4V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1" stroke="currentColor" strokeWidth="1.5"/>
       </svg>
     ),
+    remboursements: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M8 2L3 5v4c0 3 2.5 4.5 5 5 2.5-.5 5-2 5-5V5L8 2Z"
+          stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+        <path d="M5.5 8l2 2 3-3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    ),
     profile: (
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
         <circle cx="8" cy="5" r="3" stroke="currentColor" strokeWidth="1.5"/>
@@ -209,8 +216,8 @@ export function Layout({ title, subtitle, actions, children }: Props) {
     ).length;
 
     return {
-      "/agenda":   unbilledToday + followUpsSoon,
-      "/patients": cnopsPending,
+      "/agenda":          unbilledToday + followUpsSoon,
+      "/remboursements":  cnopsPending,
     } as Record<string, number>;
   }, [appointments, today]);
 
@@ -224,8 +231,9 @@ export function Layout({ title, subtitle, actions, children }: Props) {
     { to: "/optimisation", label: "Optimisation",    icon: "optimisation", group: "Finances" },
     { to: "/activite",     label: "Activité",        icon: "stats",        group: "Cabinet" },
     { to: "/agenda",       label: "Agenda",          icon: "agenda",       group: "Cabinet" },
-    { to: "/patients",     label: "Patients",        icon: "patients",     group: "Cabinet" },
-    { to: "/salaires",     label: "Salaires",        icon: "payroll",      group: "Cabinet" },
+    { to: "/patients",        label: "Patients",        icon: "patients",        group: "Cabinet" },
+    { to: "/remboursements",  label: "Remboursements",  icon: "remboursements",  group: "Cabinet" },
+    { to: "/salaires",        label: "Salaires",        icon: "payroll",         group: "Cabinet" },
     { to: "/profil",       label: "Mon profil",      icon: "profile",      group: "Paramètres" },
     { to: "/parametres",   label: "Paramètres",      icon: "parametres",   group: "Paramètres" },
   ];

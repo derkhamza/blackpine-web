@@ -1008,6 +1008,89 @@ img { max-width: 100%; display: block; }
   background: var(--blue-soft); border-color: var(--blue); color: var(--blue);
 }
 
+/* ── Remboursements page ─────────────────────────────────────────────────── */
+
+/* Progress bar */
+.rmb-progress-bar { margin-bottom: 18px; }
+.rmb-progress-track {
+  height: 10px; border-radius: 5px; background: var(--surface-alt);
+  overflow: hidden; display: flex; margin-bottom: 6px;
+}
+.rmb-progress-seg { height: 100%; transition: width 0.5s ease; }
+.rmb-progress-seg.received { background: var(--green); }
+.rmb-progress-seg.rejected { background: var(--coral); }
+.rmb-progress-legend { display: flex; gap: 14px; font-size: 11px; font-weight: 600; }
+
+/* Filter bar */
+.rmb-filter-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 10px; margin-bottom: 14px;
+}
+.rmb-tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+.rmb-tab {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 6px 12px; border-radius: var(--r-pill); font-size: 12px; font-weight: 600;
+  border: 1.5px solid var(--border); background: var(--surface);
+  color: var(--muted); cursor: pointer; transition: var(--trans);
+}
+.rmb-tab:hover   { border-color: var(--blue); color: var(--blue); }
+.rmb-tab.active  { background: var(--blue); border-color: var(--blue); color: #fff; }
+.rmb-tab-badge {
+  background: rgba(255,255,255,0.25); border-radius: 10px;
+  padding: 0 5px; font-size: 10px; font-weight: 700;
+  color: inherit;
+}
+.rmb-tab.active .rmb-tab-badge { background: rgba(255,255,255,0.3); }
+.rmb-tab:not(.active) .rmb-tab-badge { background: var(--bg); color: var(--muted); }
+
+/* Search */
+.rmb-search-wrap {
+  display: flex; align-items: center; gap: 7px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 6px 10px;
+  color: var(--muted);
+}
+.rmb-search { border: none; background: none; outline: none; font-size: 13px; color: var(--text); width: 160px; }
+
+/* Table */
+.rmb-table-wrap {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-lg); overflow: hidden; box-shadow: var(--shadow-card);
+}
+.rmb-table-count {
+  padding: 10px 16px; font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.4px; color: var(--muted);
+  border-bottom: 1px solid var(--border);
+}
+.rmb-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.rmb-table th {
+  padding: 9px 14px; text-align: left; font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.4px; color: var(--muted);
+  background: var(--bg); border-bottom: 1px solid var(--border);
+}
+.rmb-table td {
+  padding: 11px 14px; border-bottom: 1px solid var(--border); vertical-align: middle;
+}
+.rmb-table tfoot td {
+  font-weight: 700; background: var(--bg); border-top: 2px solid var(--border);
+  border-bottom: none; padding: 10px 14px;
+}
+.rmb-table tr:last-child:not(tfoot tr) td { border-bottom: none; }
+.rmb-patient-name { font-weight: 700; margin-bottom: 2px; }
+.rmb-cnops-num { font-size: 10px; color: #6b46c1; font-weight: 600; }
+.rmb-appt-link { color: var(--text); text-decoration: none; }
+.rmb-appt-link:hover { color: var(--blue); text-decoration: underline; }
+.rmb-status-badge {
+  display: inline-block; padding: 3px 10px; border-radius: var(--r-pill);
+  font-size: 11px; font-weight: 700;
+}
+.rmb-update-btn {
+  background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-pill);
+  padding: 4px 10px; font-size: 11px; font-weight: 600; color: var(--navy);
+  cursor: pointer; transition: var(--trans); white-space: nowrap;
+}
+.rmb-update-btn:hover { background: var(--blue-soft); border-color: var(--blue); color: var(--blue); }
+
 /* ── Ordonnance modal ────────────────────────────────────────────────────── */
 .ord-modal { }
 

@@ -172,9 +172,9 @@ export function DashboardPage() {
             {cnopsStats.pendingCount > 0 && (
               <button
                 className="cnops-resolve-btn"
-                onClick={() => navigate("/agenda")}
+                onClick={() => navigate("/remboursements")}
               >
-                Résoudre →
+                Voir tout →
               </button>
             )}
           </div>
