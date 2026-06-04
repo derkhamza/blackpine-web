@@ -55,6 +55,23 @@ export type AppointmentStatus =
   | "cancelled"
   | "no_show";
 
+// ── Ordonnance ────────────────────────────────────────────────────────────────
+
+export interface OrdonnanceLine {
+  drug:      string;   // "Amoxicilline cp 500 mg"
+  dosage?:   string;   // "1 comprimé" (optional dosage detail)
+  frequency: string;   // "3 fois par jour"
+  duration:  string;   // "7 jours"
+  notes?:    string;   // "à prendre pendant les repas"
+}
+
+export interface SavedOrdonnance {
+  lines:     OrdonnanceLine[];
+  printedAt: string;  // ISO datetime
+}
+
+// ── Appointment ───────────────────────────────────────────────────────────────
+
 export interface Appointment {
   id: string;
   patientId?: string;
@@ -74,6 +91,8 @@ export interface Appointment {
   reimbursementStatus?: "pending" | "received" | "rejected";
   reimbursementAmount?: number;
   reimbursementDate?: string;
+  // Ordonnance
+  savedOrdonnance?: SavedOrdonnance;
 }
 
 export type PatientGender = "M" | "F";

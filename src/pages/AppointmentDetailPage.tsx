@@ -5,7 +5,7 @@ import { useCabinet } from "../context/CabinetContext";
 import { useApp } from "../context/AppContext";
 import type {
   Appointment, AppointmentStatus, AppointmentType,
-  ConsultationNote, VitalSigns,
+  ConsultationNote, VitalSigns, OrdonnanceLine,
 } from "../lib/cabinetTypes";
 import {
   APPT_TYPE_LABELS, APPT_TYPE_COLORS, APPT_STATUS_LABELS,
@@ -13,6 +13,7 @@ import {
 import { NOTE_TEMPLATES, TEMPLATE_CATEGORIES } from "../lib/noteTemplates";
 import { todayIso, formatMAD } from "../lib/format";
 import { printReceipt } from "../lib/receiptPrinter";
+import { OrdonnanceModal } from "../components/OrdonnanceModal";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -39,52 +40,6 @@ function vsColor(key: keyof VitalSigns, val: number): string {
     case "spo2":   return val < 90  ? "var(--coral)" : val < 95 ? "var(--gold)" : "var(--green)";
     default:       return "var(--text)";
   }
-}
-
-// ── Ordonnance print ──────────────────────────────────────────────────────────
-
-function printOrdonnance(
-  doctorName: string, specialty: string, inpe: string, address: string, phone: string,
-  patientName: string, date: string, content: string,
-) {
-  const html = `<!DOCTYPE html>
-<html lang="fr">
-<head>
-<meta charset="UTF-8"/>
-<title>Ordonnance – ${patientName}</title>
-<style>
-  @page { size: A5; margin: 14mm 16mm; }
-  body { font-family: 'Times New Roman', serif; font-size: 11pt; color: #111; }
-  .header { display: flex; justify-content: space-between; border-bottom: 2px solid #0A4E7E; padding-bottom: 10px; margin-bottom: 14px; }
-  .doctor-block { }
-  .doctor-name { font-size: 14pt; font-weight: bold; color: #0A4E7E; }
-  .doctor-meta { font-size: 9pt; color: #444; margin-top: 3px; }
-  .date-block { text-align: right; font-size: 9pt; color: #444; padding-top: 4px; }
-  .patient-line { margin-bottom: 14px; font-size: 10pt; }
-  .patient-line strong { color: #0A4E7E; }
-  .rx-title { font-size: 26pt; color: #0A4E7E; font-style: italic; margin-bottom: 16px; }
-  .rx-content { font-size: 11pt; line-height: 1.9; white-space: pre-wrap; min-height: 120mm; }
-  .footer { margin-top: 20px; border-top: 1px solid #ccc; padding-top: 8px; font-size: 8pt; color: #666; text-align: center; }
-  @media print { button { display: none; } }
-</style>
-</head>
-<body>
-<div class="header">
-  <div class="doctor-block">
-    <div class="doctor-name">${doctorName || "Médecin"}</div>
-    <div class="doctor-meta">${specialty || ""}<br>${inpe ? "INPE : " + inpe : ""}</div>
-  </div>
-  <div class="date-block">${address ? address + "<br>" : ""}${phone ? "Tél : " + phone + "<br>" : ""}Le ${new Date(date + "T12:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</div>
-</div>
-<div class="patient-line">Patient(e) : <strong>${patientName}</strong></div>
-<div class="rx-title">℞</div>
-<div class="rx-content">${content || "(vide)"}</div>
-<div class="footer">Ordonnance médicale — à conserver</div>
-<script>window.onload = () => { window.print(); }<\/script>
-</body>
-</html>`;
-  const w = window.open("", "_blank");
-  if (w) { w.document.write(html); w.document.close(); }
 }
 
 // ── VitalSign input ───────────────────────────────────────────────────────────
@@ -160,7 +115,6 @@ export function AppointmentDetailPage() {
 
   // ── Ordonnance modal ──────────────────────────────────────────────────────
   const [showOrd, setShowOrd] = useState(false);
-  const [ordText, setOrdText] = useState("");
 
   // ── Billing modal ─────────────────────────────────────────────────────────
   const [showBill,  setShowBill]  = useState(false);
@@ -334,6 +288,20 @@ export function AppointmentDetailPage() {
           </select>
 
           <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+            <button
+              className="btn btn-ghost ord-open-btn"
+              onClick={() => setShowOrd(true)}
+              title={appt.savedOrdonnance ? "Réimprimer l'ordonnance" : "Créer une ordonnance"}
+            >
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style={{ marginRight: 5 }}>
+                <rect x="2" y="1" width="9" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
+                <path d="M5 5h4M5 7.5h4M5 10h2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+              </svg>
+              {appt.savedOrdonnance ? "℞ Ordonnance" : "℞ Ordonnance"}
+              {appt.savedOrdonnance && (
+                <span className="ord-saved-dot" />
+              )}
+            </button>
             {!appt.billedAt && (
               <button className="btn btn-primary" style={{ background: "var(--green)" }}
                 onClick={() => setShowBill(true)}>
@@ -459,20 +427,28 @@ export function AppointmentDetailPage() {
           </div>
 
           {/* Ordonnance shortcut */}
-          <div style={{ marginTop: 16, display: "flex", gap: 10 }}>
+          <div style={{ marginTop: 16, display: "flex", gap: 10, alignItems: "center" }}>
             <button
-              className="btn btn-ghost"
-              style={{ fontSize: 12 }}
-              onClick={() => {
-                setOrdText(treatment);
-                setShowOrd(true);
-              }}
+              className="btn btn-ghost ord-open-btn"
+              onClick={() => setShowOrd(true)}
             >
-              🖨️ Générer une ordonnance
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style={{ marginRight: 6 }}>
+                <rect x="2" y="1" width="9" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
+                <path d="M5 5h4M5 7.5h4M5 10h2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+              </svg>
+              {appt.savedOrdonnance ? "Voir / réimprimer l'ordonnance" : "Créer une ordonnance"}
             </button>
-            <span style={{ fontSize: 11, color: "var(--tertiary)", alignSelf: "center" }}>
-              auto-sauvegardé à la sortie du champ
-            </span>
+            {appt.savedOrdonnance && (
+              <span className="ord-saved-badge">
+                ✓ Ordonnance sauvegardée ·{" "}
+                {new Date(appt.savedOrdonnance.printedAt).toLocaleDateString("fr-FR")}
+              </span>
+            )}
+            {!appt.savedOrdonnance && (
+              <span style={{ fontSize: 11, color: "var(--tertiary)" }}>
+                auto-sauvegardé à la sortie du champ
+              </span>
+            )}
           </div>
         </div>
       )}
@@ -702,52 +678,19 @@ export function AppointmentDetailPage() {
 
       {/* ── Ordonnance modal ── */}
       {showOrd && (
-        <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setShowOrd(false); }}>
-          <div className="modal" style={{ maxWidth: 560, maxHeight: "90vh", overflowY: "auto" }}>
-            <div className="modal-header">
-              <h2 className="modal-title">Ordonnance — {appt.patientName}</h2>
-              <button className="modal-close" onClick={() => setShowOrd(false)}>×</button>
-            </div>
-            <div className="modal-body">
-              <div className="form-group">
-                <label className="form-label">Contenu de l'ordonnance</label>
-                <textarea
-                  className="form-input appt-textarea"
-                  rows={10}
-                  placeholder="Médicaments, posologie, durée…"
-                  value={ordText}
-                  onChange={(e) => setOrdText(e.target.value)}
-                />
-              </div>
-              <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 6 }}>
-                En-tête : {doctorProfile?.fullName || "— nom non renseigné —"} ·{" "}
-                {doctorProfile?.specialtyLabel || ""} ·{" "}
-                <Link to="/profil" style={{ color: "var(--blue)" }}>Compléter le profil</Link>
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-ghost" onClick={() => setShowOrd(false)}>Annuler</button>
-              <button
-                className="btn btn-primary"
-                onClick={() => {
-                  printOrdonnance(
-                    doctorProfile?.fullName ?? "",
-                    doctorProfile?.specialtyLabel ?? "",
-                    doctorProfile?.inpe ?? "",
-                    doctorProfile?.address ?? "",
-                    doctorProfile?.phone ?? "",
-                    appt.patientName,
-                    appt.date,
-                    ordText,
-                  );
-                  setShowOrd(false);
-                }}
-              >
-                🖨️ Imprimer / Enregistrer PDF
-              </button>
-            </div>
-          </div>
-        </div>
+        <OrdonnanceModal
+          patientName={appt.patientName}
+          date={appt.date}
+          doctorProfile={doctorProfile}
+          initialLines={appt.savedOrdonnance?.lines}
+          onSave={(lines: OrdonnanceLine[]) => {
+            updateAppointment({
+              ...appt,
+              savedOrdonnance: { lines, printedAt: new Date().toISOString() },
+            });
+          }}
+          onClose={() => setShowOrd(false)}
+        />
       )}
     </Layout>
   );
