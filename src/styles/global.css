@@ -1298,6 +1298,27 @@ img { max-width: 100%; display: block; }
   background: var(--green); margin-left: 5px;
 }
 
+/* ── Patient ordonnance history ─────────────────────────────────────────── */
+.ord-history-list { display: flex; flex-direction: column; gap: 12px; }
+.ord-history-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 14px 16px; box-shadow: var(--shadow-card);
+}
+.ord-history-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  margin-bottom: 10px; gap: 12px;
+}
+.ord-history-date {
+  font-weight: 700; font-size: 13px; color: var(--text);
+}
+.ord-history-lines {
+  padding-left: 18px; display: flex; flex-direction: column; gap: 5px;
+}
+.ord-history-line { font-size: 12.5px; }
+.ord-history-drug { font-weight: 700; color: var(--navy); }
+.ord-history-meta { font-size: 11.5px; color: var(--muted); }
+.ord-history-note { font-size: 11px; color: var(--muted); font-style: italic; }
+
 /* ── Dashboard upgrades ─────────────────────────────────────────────────── */
 
 /* Quick action buttons */

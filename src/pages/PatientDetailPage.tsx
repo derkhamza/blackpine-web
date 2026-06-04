@@ -3,9 +3,11 @@ import { useNavigate, useParams, Link } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import { useCabinet } from "../context/CabinetContext";
 import { useApp } from "../context/AppContext";
-import type { Patient, PatientGender, VitalSigns } from "../lib/cabinetTypes";
+import type { Patient, PatientGender, VitalSigns, OrdonnanceLine } from "../lib/cabinetTypes";
 import { APPT_TYPE_LABELS, APPT_TYPE_COLORS, APPT_STATUS_LABELS } from "../lib/cabinetTypes";
 import { formatMAD, formatDateShort, todayIso } from "../lib/format";
+import { printPatientReport } from "../lib/patientReportPrinter";
+import { printOrdonnance } from "../lib/ordonnancePrinter";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -121,13 +123,13 @@ function TrendChart({
 export function PatientDetailPage() {
   const { patientId } = useParams<{ patientId: string }>();
   const navigate      = useNavigate();
-  const { patients, appointments, updatePatient, deletePatient } = useCabinet();
+  const { patients, appointments, updatePatient, deletePatient, doctorProfile } = useCabinet();
   const { transactions } = useApp();
 
   const patient = useMemo(() => patients.find((p) => p.id === patientId), [patients, patientId]);
 
   // ── Tabs ──────────────────────────────────────────────────────────────────
-  const [tab, setTab] = useState<"dossier" | "rdv" | "vitals">("dossier");
+  const [tab, setTab] = useState<"dossier" | "rdv" | "vitals" | "ordonnances">("dossier");
 
   // ── Dossier inline fields ─────────────────────────────────────────────────
   const [bloodType,   setBloodType]   = useState("");
@@ -200,6 +202,7 @@ export function PatientDetailPage() {
 
   const completedAppts = patientAppts.filter((a) => a.status === "completed");
   const billedAppts    = patientAppts.filter((a) => !!a.billedAt);
+  const ordAppts       = patientAppts.filter((a) => !!a.savedOrdonnance && a.savedOrdonnance.lines.length > 0);
 
   const fullName = patient ? `${patient.firstName} ${patient.lastName}` : "";
 
@@ -332,9 +335,23 @@ export function PatientDetailPage() {
               ✏️ Modifier
             </button>
             <button
+              className="btn btn-ghost"
+              style={{ fontSize: 12 }}
+              onClick={() => printPatientReport({ patient, appointments: patientAppts, doctorProfile })}
+              title="Imprimer le dossier complet A4"
+            >
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 5 }}>
+                <rect x="2" y="5" width="10" height="7" rx="1" stroke="currentColor" strokeWidth="1.3"/>
+                <path d="M4 5V2h6v3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                <path d="M4 9h6M4 11h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                <circle cx="11" cy="7.5" r="0.8" fill="currentColor"/>
+              </svg>
+              Dossier
+            </button>
+            <button
               className="btn btn-primary"
               style={{ fontSize: 12, background: "var(--navy)" }}
-              onClick={() => navigate("/agenda")}
+              onClick={() => navigate(`/agenda?newAppt=${patient.id}`)}
             >
               + Nouveau RDV
             </button>
@@ -345,9 +362,10 @@ export function PatientDetailPage() {
       {/* ── Tabs ── */}
       <div className="appt-tabs">
         {([
-          { key: "dossier", label: "Dossier médical",                          dot: false },
-          { key: "rdv",     label: `Rendez-vous (${patientAppts.length})`,     dot: patientAppts.length > 0 },
-          { key: "vitals",  label: "Suivi TA / poids",                         dot: hasVitals },
+          { key: "dossier",     label: "Dossier médical",                        dot: false },
+          { key: "rdv",         label: `Rendez-vous (${patientAppts.length})`,   dot: patientAppts.length > 0 },
+          { key: "vitals",      label: "Suivi vitaux",                           dot: hasVitals },
+          { key: "ordonnances", label: `Ordonnances (${ordAppts.length})`,       dot: ordAppts.length > 0 },
         ] as const).map(({ key, label, dot }) => (
           <button
             key={key}
@@ -572,6 +590,80 @@ export function PatientDetailPage() {
                   yMax={Math.max(...weightPoints.map(p => p.val)) + 10}
                 />
               )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── ORDONNANCES ── */}
+      {tab === "ordonnances" && (
+        <div className="appt-tab-panel">
+          <div className="appt-section-header">
+            <div className="appt-section-title">Historique des ordonnances</div>
+            <span style={{ fontSize: 11, color: "var(--tertiary)" }}>
+              {ordAppts.length} ordonnance{ordAppts.length !== 1 ? "s" : ""} enregistrée{ordAppts.length !== 1 ? "s" : ""}
+            </span>
+          </div>
+
+          {ordAppts.length === 0 ? (
+            <div className="tx-empty" style={{ padding: "32px 0" }}>
+              <div style={{ fontSize: 32, marginBottom: 8 }}>℞</div>
+              <div style={{ fontWeight: 700, marginBottom: 4 }}>Aucune ordonnance</div>
+              <div style={{ fontSize: 13, color: "var(--muted)" }}>
+                Les prescriptions créées lors des consultations apparaissent ici.
+              </div>
+            </div>
+          ) : (
+            <div className="ord-history-list">
+              {ordAppts.map(appt => (
+                <div key={appt.id} className="ord-history-card">
+                  <div className="ord-history-header">
+                    <div>
+                      <div className="ord-history-date">
+                        {fmtDate(appt.date)} · {APPT_TYPE_LABELS[appt.type]}
+                      </div>
+                      <div style={{ fontSize: 11, color: "var(--muted)" }}>
+                        Éditée le {new Date(appt.savedOrdonnance!.printedAt).toLocaleDateString("fr-FR")}
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <Link
+                        to={`/agenda/${appt.id}`}
+                        className="payroll-print-btn"
+                        style={{ textDecoration: "none" }}
+                      >
+                        Voir le RDV →
+                      </Link>
+                      <button
+                        className="payroll-print-btn"
+                        onClick={() => printOrdonnance({
+                          lines:        appt.savedOrdonnance!.lines as OrdonnanceLine[],
+                          patientName:  appt.patientName,
+                          date:         appt.date,
+                          doctorProfile,
+                        })}
+                      >
+                        <svg width="12" height="12" viewBox="0 0 14 14" fill="none" style={{ marginRight: 4 }}>
+                          <rect x="2" y="5" width="10" height="7" rx="1" stroke="currentColor" strokeWidth="1.3"/>
+                          <path d="M4 5V2h6v3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                          <circle cx="11" cy="7.5" r="0.8" fill="currentColor"/>
+                        </svg>
+                        Réimprimer
+                      </button>
+                    </div>
+                  </div>
+                  <ol className="ord-history-lines">
+                    {appt.savedOrdonnance!.lines.map((l, i) => (
+                      <li key={i} className="ord-history-line">
+                        <span className="ord-history-drug">{l.drug}</span>
+                        {l.dosage && <span className="ord-history-meta"> — {l.dosage}</span>}
+                        <span className="ord-history-meta"> · {l.frequency} · {l.duration}</span>
+                        {l.notes && <span className="ord-history-note"> ({l.notes})</span>}
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              ))}
             </div>
           )}
         </div>

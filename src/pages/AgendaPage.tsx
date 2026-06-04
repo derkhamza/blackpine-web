@@ -1,5 +1,5 @@
-import { FormEvent, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import { useCabinet } from "../context/CabinetContext";
 import { useApp } from "../context/AppContext";
@@ -435,6 +435,7 @@ function BulkBillModal({ items, onChange, onConfirm, onClose }: BulkBillModalPro
 export function AgendaPage() {
   const today    = todayIso();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { appointments, patients, doctorProfile, addAppointment, updateAppointment, deleteAppointment } = useCabinet();
   const { addTransaction } = useApp();
 
@@ -453,6 +454,28 @@ export function AgendaPage() {
     setToast(msg);
     setTimeout(() => setToast(null), 2600);
   };
+
+  // Auto-open new-appointment modal when navigated from a patient page
+  useEffect(() => {
+    const pid = searchParams.get("newAppt");
+    if (!pid) return;
+    const p = patients.find(x => x.id === pid);
+    if (p) {
+      setModal({
+        prefill: {
+          patientName: `${p.firstName} ${p.lastName}`,
+          patientId:   p.id,
+          date:        today,
+          startTime:   "09:00",
+          endTime:     "09:30",
+          type:        "consultation",
+          status:      "scheduled",
+        },
+      });
+    }
+    setSearchParams({}, { replace: true });   // remove param from URL
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Patient phone lookup map
   const patientPhoneMap = useMemo(() => {
