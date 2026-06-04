@@ -31,7 +31,7 @@ function getMondayOfWeek(iso: string): string {
   return d.toISOString().slice(0, 10);
 }
 
-type AgendaView = "day" | "week";
+type AgendaView = "day" | "week" | "month";
 
 function colour(hex: string, muted = false) { return muted ? "var(--border)" : hex; }
 const DAY_HEADERS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
@@ -680,6 +680,21 @@ export function AgendaPage() {
               </svg>
               Semaine
             </button>
+            <button
+              className={`agenda-view-btn${view === "month" ? " active" : ""}`}
+              onClick={() => setView("month")}
+              title="Vue mois"
+            >
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+                <rect x="1" y="2" width="12" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.3"/>
+                <path d="M1 5h12" stroke="currentColor" strokeWidth="1.2"/>
+                <path d="M4 2V1M10 2V1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                <rect x="3" y="7" width="2" height="2" rx="0.4" fill="currentColor" opacity="0.7"/>
+                <rect x="6" y="7" width="2" height="2" rx="0.4" fill="currentColor"/>
+                <rect x="9" y="7" width="2" height="2" rx="0.4" fill="currentColor" opacity="0.5"/>
+              </svg>
+              Mois
+            </button>
           </div>
           <button className="btn btn-primary" onClick={() => setModal({})}>
             <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 6 }}>
@@ -696,6 +711,77 @@ export function AgendaPage() {
         onNavigate={appt => navigate(`/agenda/${appt.id}`)}
         onProgram={handleProgramFollowUp}
       />
+
+      {/* ── Month view ── */}
+      {view === "month" && (
+        <div className="agenda-month-view">
+          {/* Nav */}
+          <div className="agenda-month-nav">
+            <button className="agenda-week-arrow" onClick={prevMonth} title="Mois précédent">‹</button>
+            <span className="agenda-month-label">{monthLabel}</span>
+            <button className="agenda-week-arrow" onClick={nextMonth} title="Mois suivant">›</button>
+            {!(calYear === new Date(today + "T12:00:00").getFullYear() &&
+               calMonth === new Date(today + "T12:00:00").getMonth()) && (
+              <button className="agenda-week-today-btn" onClick={jumpToToday}>Aujourd'hui</button>
+            )}
+          </div>
+
+          {/* Grid */}
+          <div className="agenda-month-grid">
+            {/* Weekday headers */}
+            <div className="agenda-month-weekdays">
+              {DAY_HEADERS.map(d => (
+                <div key={d} className="agenda-month-wday">{d}</div>
+              ))}
+            </div>
+            {/* Day cells */}
+            <div className="agenda-month-days">
+              {cells.map((day, i) => {
+                if (!day) return <div key={i} className="agenda-month-cell agenda-month-empty" />;
+                const iso       = isoFromParts(calYear, calMonth, day);
+                const isToday   = iso === today;
+                const isSel     = iso === selDate;
+                const cellAppts = [...(apptsByDay.get(day) ?? [])]
+                  .sort((a, b) => a.startTime.localeCompare(b.startTime));
+                const shown = cellAppts.slice(0, 3);
+                const more  = cellAppts.length - shown.length;
+                return (
+                  <div
+                    key={i}
+                    className={`agenda-month-cell${isToday ? " am-today" : ""}${isSel ? " am-sel" : ""}`}
+                    onClick={() => { setSelDate(iso); setView("day"); }}
+                    title={`Voir le ${day} — ${cellAppts.length} RDV`}
+                  >
+                    <div className={`agenda-month-day-num${isToday ? " am-today-ring" : ""}`}>
+                      {day}
+                    </div>
+                    <div className="agenda-month-chips">
+                      {shown.map(a => {
+                        const cancelled = a.status === "cancelled" || a.status === "no_show";
+                        return (
+                          <div
+                            key={a.id}
+                            className={`agenda-month-chip${a.status === "completed" ? " am-done" : ""}${cancelled ? " am-cancel" : ""}`}
+                            style={{ borderLeftColor: APPT_TYPE_COLORS[a.type] }}
+                            onClick={e => { e.stopPropagation(); navigate(`/agenda/${a.id}`); }}
+                            title={`${a.startTime} · ${a.patientName}`}
+                          >
+                            <span className="am-chip-time">{a.startTime}</span>
+                            <span className="am-chip-name">{a.patientName}</span>
+                          </div>
+                        );
+                      })}
+                      {more > 0 && (
+                        <div className="agenda-month-more">+{more} autre{more > 1 ? "s" : ""}</div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Week view ── */}
       {view === "week" && (

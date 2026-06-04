@@ -3024,3 +3024,98 @@ img { max-width: 100%; display: block; }
 }
 .tpl-save-trigger:hover   { opacity: 0.75; }
 .tpl-save-trigger:disabled { color: var(--tertiary); cursor: not-allowed; opacity: 0.6; }
+
+/* ── Agenda Month View ──────────────────────────────────────────────────── */
+
+.agenda-month-view { }
+
+/* Nav bar (reuses week-nav classes for arrows / today btn) */
+.agenda-month-nav {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 14px;
+}
+.agenda-month-label {
+  font-size: 15px; font-weight: 800; color: var(--text); flex: 1; text-align: center;
+  text-transform: capitalize;
+}
+
+/* Grid container */
+.agenda-month-grid {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-lg); overflow: hidden; box-shadow: var(--shadow-card);
+}
+
+/* Weekday headers row */
+.agenda-month-weekdays {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  background: var(--surface-alt); border-bottom: 1px solid var(--border);
+}
+.agenda-month-wday {
+  padding: 8px 6px; text-align: center;
+  font-size: 11px; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.4px;
+}
+
+/* Day cells */
+.agenda-month-days {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+}
+.agenda-month-cell {
+  min-height: 90px; padding: 6px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  cursor: pointer; transition: background var(--trans);
+  vertical-align: top;
+}
+.agenda-month-cell:nth-child(7n) { border-right: none; }
+.agenda-month-cell:hover:not(.agenda-month-empty) { background: var(--bg); }
+.agenda-month-empty { background: var(--bg); cursor: default; min-height: 90px; }
+.am-today { background: rgba(24,144,197,0.06); }
+.am-sel   { background: var(--blue-soft); }
+
+/* Day number */
+.agenda-month-day-num {
+  font-size: 12px; font-weight: 700; color: var(--muted);
+  width: 22px; height: 22px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%; margin-bottom: 4px;
+  line-height: 1;
+}
+.am-today-ring {
+  background: var(--blue); color: #fff; font-weight: 800;
+}
+
+/* Appointment chips */
+.agenda-month-chips { display: flex; flex-direction: column; gap: 2px; }
+.agenda-month-chip {
+  display: flex; align-items: center; gap: 4px;
+  border-left: 2.5px solid transparent; border-radius: 3px;
+  padding: 2px 4px; font-size: 10px;
+  background: var(--surface-alt);
+  cursor: pointer; overflow: hidden;
+  transition: opacity var(--trans), background var(--trans);
+}
+.agenda-month-chip:hover { opacity: 0.75; background: var(--bg); }
+.am-chip-time {
+  color: var(--muted); flex-shrink: 0;
+  font-variant-numeric: tabular-nums; font-size: 9.5px;
+}
+.am-chip-name {
+  color: var(--text); font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  flex: 1; min-width: 0;
+}
+.am-done   { opacity: 0.55; }
+.am-cancel { opacity: 0.4; }
+.am-cancel .am-chip-name { text-decoration: line-through; }
+.agenda-month-more {
+  font-size: 10px; color: var(--muted); padding: 1px 4px;
+  font-weight: 600;
+}
+
+/* Responsive */
+@media (max-width: 700px) {
+  .agenda-month-cell { min-height: 60px; padding: 4px; }
+  .agenda-month-chip { font-size: 9px; padding: 1px 3px; }
+  .am-chip-time      { display: none; }
+  .agenda-month-wday { font-size: 9px; padding: 5px 2px; }
+}
