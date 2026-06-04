@@ -2,7 +2,8 @@ import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 import { useCabinet } from "../context/CabinetContext";
-import { CommandPalette } from "./CommandPalette";
+import { CommandPalette }  from "./CommandPalette";
+import { ShortcutsModal } from "./ShortcutsModal";
 import { todayIso } from "../lib/format";
 import { useDarkMode } from "../lib/useDarkMode";
 
@@ -193,8 +194,9 @@ export function Layout({ title, subtitle, actions, children }: Props) {
   const { appointments }  = useCabinet();
   const navigate = useNavigate();
 
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [searchOpen,    setSearchOpen]    = useState(false);
+  const [drawerOpen,    setDrawerOpen]    = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const { dark, toggle: toggleDark } = useDarkMode();
 
   const handleLogout = () => { logout(); navigate("/login"); };
@@ -202,14 +204,77 @@ export function Layout({ title, subtitle, actions, children }: Props) {
 
   // ── Global shortcuts ──────────────────────────────────────────────────────
   useEffect(() => {
+    let gPending = false;
+    let gTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const clearG = () => {
+      gPending = false;
+      if (gTimer) { clearTimeout(gTimer); gTimer = null; }
+    };
+
     const handler = (e: KeyboardEvent) => {
+      // Never fire inside text inputs
+      const tag = (e.target as HTMLElement).tagName;
+      const inInput = /^(INPUT|TEXTAREA|SELECT)$/i.test(tag) ||
+        (e.target as HTMLElement).isContentEditable;
+
+      // Ctrl/Cmd+K — command palette
       if ((e.ctrlKey || e.metaKey) && e.key === "k") {
         e.preventDefault();
         setSearchOpen(o => !o);
+        clearG();
+        return;
+      }
+
+      if (inInput) return;
+
+      // ? — shortcuts help
+      if (e.key === "?" && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        setShortcutsOpen(o => !o);
+        clearG();
+        return;
+      }
+
+      // Escape — close any overlay
+      if (e.key === "Escape") {
+        setSearchOpen(false);
+        setShortcutsOpen(false);
+        clearG();
+        return;
+      }
+
+      // G — start navigation sequence
+      if ((e.key === "g" || e.key === "G") && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        if (gPending) { clearG(); return; }   // double-G cancels
+        gPending = true;
+        gTimer = setTimeout(clearG, 1500);    // auto-reset after 1.5 s
+        return;
+      }
+
+      // G + letter navigation
+      if (gPending) {
+        const key = e.key.toLowerCase();
+        const routes: Record<string, string> = {
+          d: "/",
+          a: "/agenda",
+          p: "/patients",
+          w: "/salle-attente",
+          r: "/rappels",
+          f: "/factures",
+        };
+        if (routes[key]) {
+          e.preventDefault();
+          navigate(routes[key]);
+        }
+        clearG();
       }
     };
+
     window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    return () => { window.removeEventListener("keydown", handler); clearG(); };
+  // navigate is stable from useNavigate; eslint is over-cautious here
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Body scroll lock when mobile drawer is open
@@ -342,6 +407,18 @@ export function Layout({ title, subtitle, actions, children }: Props) {
             <span className="sidebar-email">{user.email}</span>
             <button
               className="sidebar-dark-btn"
+              onClick={() => setShortcutsOpen(true)}
+              title="Raccourcis clavier (?)"
+              style={{ marginRight: 2 }}
+            >
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+                <circle cx="7" cy="7" r="6" stroke="currentColor" strokeWidth="1.4"/>
+                <path d="M5.5 5.5a1.5 1.5 0 1 1 2.5 1.5c-.5.4-1 .8-1 1.5v.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                <circle cx="7" cy="10.5" r="0.7" fill="currentColor"/>
+              </svg>
+            </button>
+            <button
+              className="sidebar-dark-btn"
               onClick={toggleDark}
               title={dark ? "Mode clair" : "Mode sombre"}
             >
@@ -418,6 +495,9 @@ export function Layout({ title, subtitle, actions, children }: Props) {
 
       {/* ── Command Palette ── */}
       {searchOpen && <CommandPalette onClose={() => setSearchOpen(false)} />}
+
+      {/* ── Shortcuts overlay ── */}
+      {shortcutsOpen && <ShortcutsModal onClose={() => setShortcutsOpen(false)} />}
     </div>
   );
 }
