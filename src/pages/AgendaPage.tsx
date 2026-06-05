@@ -11,6 +11,7 @@ import {
 } from "../lib/cabinetTypes";
 import { todayIso } from "../lib/format";
 import { printReceipt } from "../lib/receiptPrinter";
+import { exportAgendaIcal } from "../lib/icalExport";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -696,6 +697,27 @@ export function AgendaPage() {
               Mois
             </button>
           </div>
+          <button
+            className="btn btn-ghost"
+            onClick={() => {
+              const monthAppts = appointments.filter(a => a.date.startsWith(monthPrefix));
+              const calName = doctorProfile?.fullName
+                ? `Cabinet Dr. ${doctorProfile.fullName}`
+                : "Blackpine Cabinet";
+              exportAgendaIcal(monthAppts, calName, `agenda-${monthPrefix}.ics`);
+              showToast(`${monthAppts.length} RDV exportés en iCal`);
+            }}
+            disabled={!appointments.some(a => a.date.startsWith(monthPrefix))}
+            title={`Exporter les RDV de ${monthLabel} vers Google Calendar / Outlook`}
+          >
+            <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 5 }}>
+              <rect x="1" y="2" width="12" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.3"/>
+              <path d="M1 5h12" stroke="currentColor" strokeWidth="1.2"/>
+              <path d="M4 2V1M10 2V1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+              <path d="M7 9V7M5.5 9h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+            </svg>
+            iCal
+          </button>
           <button className="btn btn-primary" onClick={() => setModal({})}>
             <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 6 }}>
               <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>

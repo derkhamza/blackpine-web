@@ -3,6 +3,7 @@ import { Layout } from "../components/Layout";
 import { useCabinet } from "../context/CabinetContext";
 import { useDarkMode } from "../lib/useDarkMode";
 import { exportPatientsCsv, exportAppointmentsCsv } from "../lib/csvExport";
+import { exportAgendaIcal } from "../lib/icalExport";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -95,6 +96,7 @@ function parsePreview(json: string): ImportPreview {
 export function ParametresPage() {
   const {
     appointments, patients, employees,
+    doctorProfile,
     exportCabinetJSON, importCabinetJSON,
     clearAppointments, clearPatients,
   } = useCabinet();
@@ -254,6 +256,31 @@ export function ParametresPage() {
                   stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
               Rendez-vous.csv
+            </button>
+          </SettingsRow>
+
+          <SettingsRow
+            label="Exporter l'agenda (.ics)"
+            hint="Importe tous vos rendez-vous dans Google Calendar, Outlook ou Apple Calendar"
+          >
+            <button
+              className="btn btn-ghost settings-action-btn"
+              onClick={() => {
+                const calName = doctorProfile?.fullName
+                  ? `Cabinet Dr. ${doctorProfile.fullName}`
+                  : "Blackpine Cabinet";
+                exportAgendaIcal(appointments, calName);
+                showToast("Agenda exporté en iCal");
+              }}
+              disabled={appointments.length === 0}
+            >
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 6 }}>
+                <rect x="1" y="2" width="12" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.3"/>
+                <path d="M1 5h12" stroke="currentColor" strokeWidth="1.2"/>
+                <path d="M4 2V1M10 2V1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                <path d="M7 9V7M5.5 9h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+              </svg>
+              Agenda.ics
             </button>
           </SettingsRow>
 
