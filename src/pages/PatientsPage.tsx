@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import { useCabinet } from "../context/CabinetContext";
 import { CsvImportModal } from "../components/CsvImportModal";
+import { exportPatientsCsv } from "../lib/csvExport";
 import type { Patient, PatientGender } from "../lib/cabinetTypes";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -250,6 +251,18 @@ export function PatientsPage() {
       subtitle={`${patients.length} patient${patients.length !== 1 ? "s" : ""}`}
       actions={
         <div style={{ display: "flex", gap: 8 }}>
+          <button
+            className="btn btn-ghost"
+            onClick={() => { exportPatientsCsv(patients); showToast("Patients exportés"); }}
+            disabled={patients.length === 0}
+            title="Télécharger la liste des patients en CSV"
+          >
+            <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 6 }}>
+              <path d="M7 2v8M4 7l3 3 3-3M2 12h10"
+                stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Exporter CSV
+          </button>
           <button className="btn btn-ghost" onClick={() => setCsvOpen(true)}>
             <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 6 }}>
               <path d="M7 10V2M4 5l3-3 3 3M2 12h10"

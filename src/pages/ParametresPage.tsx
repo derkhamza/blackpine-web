@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { Layout } from "../components/Layout";
 import { useCabinet } from "../context/CabinetContext";
 import { useDarkMode } from "../lib/useDarkMode";
+import { exportPatientsCsv, exportAppointmentsCsv } from "../lib/csvExport";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -219,6 +220,40 @@ export function ParametresPage() {
                   stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
               Exporter (.json)
+            </button>
+          </SettingsRow>
+
+          <SettingsRow
+            label="Exporter les patients (.csv)"
+            hint="Télécharge la liste complète des patients au format CSV (compatible Excel)"
+          >
+            <button
+              className="btn btn-ghost settings-action-btn"
+              onClick={() => { exportPatientsCsv(patients); showToast("Patients exportés"); }}
+              disabled={patients.length === 0}
+            >
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 6 }}>
+                <path d="M7 2v8M4 7l3 3 3-3M2 12h10"
+                  stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Patients.csv
+            </button>
+          </SettingsRow>
+
+          <SettingsRow
+            label="Exporter les rendez-vous (.csv)"
+            hint="Télécharge tous les rendez-vous avec facturation et notes cliniques"
+          >
+            <button
+              className="btn btn-ghost settings-action-btn"
+              onClick={() => { exportAppointmentsCsv(appointments); showToast("Rendez-vous exportés"); }}
+              disabled={appointments.length === 0}
+            >
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 6 }}>
+                <path d="M7 2v8M4 7l3 3 3-3M2 12h10"
+                  stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Rendez-vous.csv
             </button>
           </SettingsRow>
 
