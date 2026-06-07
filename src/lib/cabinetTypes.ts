@@ -72,6 +72,37 @@ export interface SavedCertificate {
   reason?:          string;      // orientation: motif d'orientation
   clinicalSummary?: string;      // orientation: résumé clinique
 }
+
+// Standalone certificate record (not only embedded in an appointment)
+export const CERT_TYPE_LABELS: Record<CertificateType, string> = {
+  medical:       "Certificat médical",
+  arret_travail: "Arrêt de travail",
+  orientation:   "Lettre d'orientation",
+};
+
+export const CERT_TYPE_COLORS: Record<CertificateType, string> = {
+  medical:       "#1890C5",
+  arret_travail: "#E85B5B",
+  orientation:   "#9B72D0",
+};
+
+export interface Certificate {
+  id:             string;
+  type:           CertificateType;
+  patientId?:     string;
+  patientName:    string;
+  date:           string;   // YYYY-MM-DD
+  content?:       string;   // médical: observations / arret: diagnostic
+  dateFrom?:      string;   // arret: YYYY-MM-DD
+  dateTo?:        string;   // arret: YYYY-MM-DD
+  duration?:      number;   // arret: nb jours
+  specialist?:    string;   // orientation: destinataire (Dr. Dupont, cardiologue…)
+  reason?:        string;   // orientation: motif
+  clinicalSummary?: string; // orientation: résumé clinique
+  source:         "standalone" | "appointment";
+  appointmentId?: string;
+  createdAt:      string;   // ISO
+}
 export type AppointmentStatus =
   | "scheduled"
   | "arrived"

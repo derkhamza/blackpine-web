@@ -27,6 +27,7 @@ const GROUPS: Group[] = [
       { keys: ["G", "V"], description: "Fournisseurs & Commandes" },
       { keys: ["G", "E"], description: "Examens & Biologie" },
       { keys: ["G", "O"], description: "Ordonnances & Modèles" },
+      { keys: ["G", "C"], description: "Certificats médicaux" },
     ],
   },
   {

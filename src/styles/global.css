@@ -5397,3 +5397,144 @@ a.ana-top-name:hover { color: var(--blue); text-decoration: underline; }
   .rx-line-row2 { grid-template-columns: 1fr 1fr; }
   .rx-tpl-grid { grid-template-columns: 1fr; }
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   CERTIFICATS MÉDICAUX — item 41
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.cert-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.cert-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  display: flex;
+  align-items: stretch;
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+  transition: box-shadow var(--trans);
+}
+.cert-card:hover { box-shadow: 0 4px 20px rgba(18,43,66,0.1); }
+.cert-card-accent {
+  width: 4px;
+  flex-shrink: 0;
+}
+.cert-card-body {
+  flex: 1;
+  padding: 13px 16px 11px;
+  min-width: 0;
+}
+.cert-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+.cert-card-patient {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cert-type-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 9px;
+  border-radius: 99px;
+  border: 1px solid;
+  flex-shrink: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.cert-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+.cert-card-date {
+  font-size: 12px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.cert-card-detail {
+  font-size: 12px;
+  font-weight: 500;
+}
+.cert-card-preview {
+  font-size: 12px;
+  color: var(--muted);
+  font-style: italic;
+  margin-top: 4px;
+  line-height: 1.5;
+}
+.cert-source-badge {
+  display: inline-block;
+  font-size: 10px;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  padding: 1px 8px;
+  margin-top: 6px;
+  font-weight: 500;
+}
+.cert-card-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px 10px 0;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Type selector in modal */
+.cert-type-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.cert-type-tab {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1.5px solid var(--border);
+  background: var(--bg);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all var(--trans);
+  white-space: nowrap;
+}
+.cert-type-tab:hover { border-color: var(--border-strong); color: var(--text); }
+.cert-type-tab.active { font-weight: 700; }
+
+/* Duration badge */
+.cert-duration-badge {
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid;
+  border-radius: var(--r);
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+/* Modal sizing */
+.cert-modal {
+  max-width: 560px;
+  width: 96vw;
+  max-height: 90vh;
+  overflow-y: auto;
+}

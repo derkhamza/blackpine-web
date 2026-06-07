@@ -1,7 +1,7 @@
 import {
   createContext, useCallback, useContext, useEffect, useState, type ReactNode,
 } from "react";
-import type { Appointment, CabinetDoctorProfile, Employee, Patient, Prescription, PrescriptionTemplate, StockItem, WaTemplate, TeleSession, InternalNote, Supplier, PurchaseOrder, PurchaseOrderLine, ExamResult } from "../lib/cabinetTypes";
+import type { Appointment, CabinetDoctorProfile, Certificate, Employee, Patient, Prescription, PrescriptionTemplate, StockItem, WaTemplate, TeleSession, InternalNote, Supplier, PurchaseOrder, PurchaseOrderLine, ExamResult } from "../lib/cabinetTypes";
 import { BLANK_DOCTOR_PROFILE } from "../lib/cabinetTypes";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -99,6 +99,12 @@ interface CabinetCtx {
   addExamResult:       (e: Omit<ExamResult, "id" | "createdAt">) => void;
   updateExamResult:    (e: ExamResult) => void;
   deleteExamResult:    (id: string) => void;
+
+  // Standalone certificates
+  certificates:        Certificate[];
+  addCertificate:      (c: Omit<Certificate, "id" | "createdAt">) => void;
+  updateCertificate:   (c: Certificate) => void;
+  deleteCertificate:   (id: string) => void;
 
   // Backup / restore
   exportCabinetJSON: () => string;
@@ -219,6 +225,9 @@ export function CabinetProvider({ children }: { children: ReactNode }) {
   const [prescriptions, setPrescriptions] = useState<Prescription[]>(
     () => load("bp.prescriptions", [])
   );
+  const [certificates, setCertificates] = useState<Certificate[]>(
+    () => load("bp.certificates", [])
+  );
 
   // Persist to localStorage on every change
   useEffect(() => { save("bp.appts",     appointments);  }, [appointments]);
@@ -233,7 +242,8 @@ export function CabinetProvider({ children }: { children: ReactNode }) {
   useEffect(() => { save("bp.suppliers",      suppliers);      }, [suppliers]);
   useEffect(() => { save("bp.purchaseOrders", purchaseOrders); }, [purchaseOrders]);
   useEffect(() => { save("bp.examResults",    examResults);    }, [examResults]);
-  useEffect(() => { save("bp.prescriptions", prescriptions); }, [prescriptions]);
+  useEffect(() => { save("bp.prescriptions",  prescriptions);  }, [prescriptions]);
+  useEffect(() => { save("bp.certificates",   certificates);   }, [certificates]);
 
   const setDoctorProfile = useCallback(
     (p: CabinetDoctorProfile) => setDoctorProfileState(p), []);
@@ -377,6 +387,15 @@ export function CabinetProvider({ children }: { children: ReactNode }) {
   const deletePrescriptionTemplate = useCallback(
     (id: string) => setTpls(prev => prev.filter(t => t.id !== id)), []);
 
+  // ── Certificates ─────────────────────────────────────────────────────────
+  const addCertificate = useCallback(
+    (c: Omit<Certificate, "id" | "createdAt">) =>
+      setCertificates(prev => [...prev, { ...c, id: uid(), createdAt: new Date().toISOString() }]), []);
+  const updateCertificate = useCallback(
+    (c: Certificate) => setCertificates(prev => prev.map(x => x.id === c.id ? c : x)), []);
+  const deleteCertificate = useCallback(
+    (id: string) => setCertificates(prev => prev.filter(x => x.id !== id)), []);
+
   // ── Standalone prescriptions ──────────────────────────────────────────────
   const addPrescription = useCallback(
     (p: Omit<Prescription, "id" | "createdAt">) =>
@@ -418,6 +437,7 @@ export function CabinetProvider({ children }: { children: ReactNode }) {
     doctorProfile, setDoctorProfile,
     prescriptionTemplates, addPrescriptionTemplate, updatePrescriptionTemplate, deletePrescriptionTemplate,
     prescriptions, addPrescription, updatePrescription, deletePrescription,
+    certificates, addCertificate, updateCertificate, deleteCertificate,
     stockItems, addStockItem, updateStockItem, deleteStockItem, adjustStock,
     waTemplates, addWaTemplate, updateWaTemplate, deleteWaTemplate,
     teleSessions, addTeleSession, updateTeleSession, deleteTeleSession,

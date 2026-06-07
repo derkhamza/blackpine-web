@@ -24,6 +24,7 @@ import { NotesPage }            from "./pages/NotesPage";
 import { FournisseursPage }      from "./pages/FournisseursPage";
 import { ExamensPage }           from "./pages/ExamensPage";
 import { OrdonancesPage }        from "./pages/OrdonancesPage";
+import { CertificatsPage }       from "./pages/CertificatsPage";
 import { ReportPage }            from "./pages/ReportPage";
 import { ComptabilitePage }      from "./pages/ComptabilitePage";
 import { OptimisationPage }      from "./pages/OptimisationPage";
@@ -112,6 +113,9 @@ export function App() {
       } />
       <Route path="/ordonnances" element={
         <RequireAuth><OrdonancesPage /></RequireAuth>
+      } />
+      <Route path="/certificats" element={
+        <RequireAuth><CertificatsPage /></RequireAuth>
       } />
       <Route path="/profil" element={
         <RequireAuth><ProfilePage /></RequireAuth>
