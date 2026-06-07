@@ -34,8 +34,8 @@ export function AuthPage() {
         <div className="auth-logo">
           <div className="auth-logo-mark">
             <svg width="22" height="22" viewBox="0 0 20 20" fill="none">
-              <path d="M4 4h5.5a3.5 3.5 0 0 1 0 7H4V4Z" fill="white" fillOpacity="0.9"/>
-              <path d="M4 11h6a4 4 0 0 1 0 8H4v-8Z" fill="white" fillOpacity="0.6"/>
+              <circle cx="10" cy="10" r="9" stroke="white" strokeWidth="1.2" strokeOpacity="0.9"/>
+              <path d="M10,2.5 L6.9,7.5 L8.1,7.5 L5,12 L7.5,12 L7.5,16.3 L12.5,16.3 L12.5,12 L15,12 L11.9,7.5 L13.1,7.5 Z" fill="white" fillOpacity="0.9"/>
             </svg>
           </div>
           <span className="auth-logo-text">Blackpine Cabinet</span>
