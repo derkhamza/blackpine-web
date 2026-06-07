@@ -1,7 +1,7 @@
 import {
   createContext, useCallback, useContext, useEffect, useState, type ReactNode,
 } from "react";
-import type { Appointment, CabinetDoctorProfile, Employee, Patient, PrescriptionTemplate, StockItem, WaTemplate, TeleSession, InternalNote, Supplier, PurchaseOrder, PurchaseOrderLine, ExamResult } from "../lib/cabinetTypes";
+import type { Appointment, CabinetDoctorProfile, Employee, Patient, Prescription, PrescriptionTemplate, StockItem, WaTemplate, TeleSession, InternalNote, Supplier, PurchaseOrder, PurchaseOrderLine, ExamResult } from "../lib/cabinetTypes";
 import { BLANK_DOCTOR_PROFILE } from "../lib/cabinetTypes";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -43,9 +43,16 @@ interface CabinetCtx {
   setDoctorProfile: (p: CabinetDoctorProfile) => void;
 
   // Prescription templates
-  prescriptionTemplates:    PrescriptionTemplate[];
-  addPrescriptionTemplate:  (t: Omit<PrescriptionTemplate, "id">) => void;
-  deletePrescriptionTemplate: (id: string) => void;
+  prescriptionTemplates:       PrescriptionTemplate[];
+  addPrescriptionTemplate:     (t: Omit<PrescriptionTemplate, "id">) => void;
+  updatePrescriptionTemplate:  (t: PrescriptionTemplate) => void;
+  deletePrescriptionTemplate:  (id: string) => void;
+
+  // Standalone prescriptions
+  prescriptions:       Prescription[];
+  addPrescription:     (p: Omit<Prescription, "id" | "createdAt">) => void;
+  updatePrescription:  (p: Prescription) => void;
+  deletePrescription:  (id: string) => void;
 
   // Stock management
   stockItems:        StockItem[];
@@ -209,6 +216,9 @@ export function CabinetProvider({ children }: { children: ReactNode }) {
   const [examResults, setExamResults] = useState<ExamResult[]>(
     () => load("bp.examResults", [])
   );
+  const [prescriptions, setPrescriptions] = useState<Prescription[]>(
+    () => load("bp.prescriptions", [])
+  );
 
   // Persist to localStorage on every change
   useEffect(() => { save("bp.appts",     appointments);  }, [appointments]);
@@ -223,6 +233,7 @@ export function CabinetProvider({ children }: { children: ReactNode }) {
   useEffect(() => { save("bp.suppliers",      suppliers);      }, [suppliers]);
   useEffect(() => { save("bp.purchaseOrders", purchaseOrders); }, [purchaseOrders]);
   useEffect(() => { save("bp.examResults",    examResults);    }, [examResults]);
+  useEffect(() => { save("bp.prescriptions", prescriptions); }, [prescriptions]);
 
   const setDoctorProfile = useCallback(
     (p: CabinetDoctorProfile) => setDoctorProfileState(p), []);
@@ -361,8 +372,19 @@ export function CabinetProvider({ children }: { children: ReactNode }) {
   const addPrescriptionTemplate = useCallback(
     (t: Omit<PrescriptionTemplate, "id">) =>
       setTpls(prev => [...prev, { ...t, id: uid() }]), []);
+  const updatePrescriptionTemplate = useCallback(
+    (t: PrescriptionTemplate) => setTpls(prev => prev.map(x => x.id === t.id ? t : x)), []);
   const deletePrescriptionTemplate = useCallback(
     (id: string) => setTpls(prev => prev.filter(t => t.id !== id)), []);
+
+  // ── Standalone prescriptions ──────────────────────────────────────────────
+  const addPrescription = useCallback(
+    (p: Omit<Prescription, "id" | "createdAt">) =>
+      setPrescriptions(prev => [...prev, { ...p, id: uid(), createdAt: new Date().toISOString() }]), []);
+  const updatePrescription = useCallback(
+    (p: Prescription) => setPrescriptions(prev => prev.map(x => x.id === p.id ? p : x)), []);
+  const deletePrescription = useCallback(
+    (id: string) => setPrescriptions(prev => prev.filter(x => x.id !== id)), []);
 
   // ── Stock management ──────────────────────────────────────────────────────
   const addStockItem = useCallback(
@@ -394,7 +416,8 @@ export function CabinetProvider({ children }: { children: ReactNode }) {
     patients,     addPatient,     updatePatient,     deletePatient,
     employees,    addEmployee,    updateEmployee,    deleteEmployee,
     doctorProfile, setDoctorProfile,
-    prescriptionTemplates, addPrescriptionTemplate, deletePrescriptionTemplate,
+    prescriptionTemplates, addPrescriptionTemplate, updatePrescriptionTemplate, deletePrescriptionTemplate,
+    prescriptions, addPrescription, updatePrescription, deletePrescription,
     stockItems, addStockItem, updateStockItem, deleteStockItem, adjustStock,
     waTemplates, addWaTemplate, updateWaTemplate, deleteWaTemplate,
     teleSessions, addTeleSession, updateTeleSession, deleteTeleSession,

@@ -172,6 +172,14 @@ function Icon({ name }: { name: string }) {
         <path d="M4 2.5V1M12 2.5V1M4 13V14.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
       </svg>
     ),
+    ordonnances: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M4 2h6l4 4v8a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
+        <path d="M10 2v4h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+        <path d="M5.5 9h5M5.5 11.5h3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+        <circle cx="5.5" cy="9" r="0" fill="currentColor"/>
+      </svg>
+    ),
     profile: (
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
         <circle cx="8" cy="5" r="3" stroke="currentColor" strokeWidth="1.5"/>
@@ -323,6 +331,7 @@ export function Layout({ title, subtitle, actions, children }: Props) {
           n: "/notes",
           v: "/fournisseurs",
           e: "/examens",
+          o: "/ordonnances",
         };
         if (routes[key]) {
           e.preventDefault();
@@ -409,6 +418,7 @@ export function Layout({ title, subtitle, actions, children }: Props) {
     { to: "/notes",           label: "Notes & Tâches",  icon: "notes",           group: "Cabinet" },
     { to: "/fournisseurs",    label: "Fournisseurs",    icon: "fournisseurs",    group: "Cabinet" },
     { to: "/examens",         label: "Examens & Bio",   icon: "examens",         group: "Cabinet" },
+    { to: "/ordonnances",     label: "Ordonnances",     icon: "ordonnances",     group: "Cabinet" },
     { to: "/salaires",        label: "Salaires",        icon: "payroll",         group: "Cabinet" },
     { to: "/profil",       label: "Mon profil",      icon: "profile",      group: "Paramètres" },
     { to: "/parametres",   label: "Paramètres",      icon: "parametres",   group: "Paramètres" },

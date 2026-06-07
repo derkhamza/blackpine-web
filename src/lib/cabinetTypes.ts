@@ -95,6 +95,19 @@ export interface SavedOrdonnance {
   printedAt: string;  // ISO datetime
 }
 
+// Standalone prescription record (not embedded in an appointment)
+export interface Prescription {
+  id:            string;
+  patientId?:    string;
+  patientName:   string;
+  date:          string;          // YYYY-MM-DD
+  lines:         OrdonnanceLine[];
+  notes?:        string;
+  source:        "standalone" | "appointment";
+  appointmentId?: string;         // if linked to an appointment
+  createdAt:     string;          // ISO
+}
+
 // ── Appointment ───────────────────────────────────────────────────────────────
 
 export interface Appointment {

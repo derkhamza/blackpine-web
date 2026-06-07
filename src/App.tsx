@@ -23,6 +23,7 @@ import { TeleconsultPage }      from "./pages/TeleconsultPage";
 import { NotesPage }            from "./pages/NotesPage";
 import { FournisseursPage }      from "./pages/FournisseursPage";
 import { ExamensPage }           from "./pages/ExamensPage";
+import { OrdonancesPage }        from "./pages/OrdonancesPage";
 import { ReportPage }            from "./pages/ReportPage";
 import { ComptabilitePage }      from "./pages/ComptabilitePage";
 import { OptimisationPage }      from "./pages/OptimisationPage";
@@ -108,6 +109,9 @@ export function App() {
       } />
       <Route path="/examens" element={
         <RequireAuth><ExamensPage /></RequireAuth>
+      } />
+      <Route path="/ordonnances" element={
+        <RequireAuth><OrdonancesPage /></RequireAuth>
       } />
       <Route path="/profil" element={
         <RequireAuth><ProfilePage /></RequireAuth>
