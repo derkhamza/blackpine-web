@@ -18,6 +18,8 @@ import { RappelsPage }          from "./pages/RappelsPage";
 import { AnalytiquesPage }      from "./pages/AnalytiquesPage";
 import { StockPage }            from "./pages/StockPage";
 import { CalculateursPage }     from "./pages/CalculateursPage";
+import { MessagesPage }         from "./pages/MessagesPage";
+import { TeleconsultPage }      from "./pages/TeleconsultPage";
 import { ReportPage }            from "./pages/ReportPage";
 import { ComptabilitePage }      from "./pages/ComptabilitePage";
 import { OptimisationPage }      from "./pages/OptimisationPage";
@@ -88,6 +90,12 @@ export function App() {
       } />
       <Route path="/calculateurs" element={
         <RequireAuth><CalculateursPage /></RequireAuth>
+      } />
+      <Route path="/messages" element={
+        <RequireAuth><MessagesPage /></RequireAuth>
+      } />
+      <Route path="/teleconsult" element={
+        <RequireAuth><TeleconsultPage /></RequireAuth>
       } />
       <Route path="/profil" element={
         <RequireAuth><ProfilePage /></RequireAuth>

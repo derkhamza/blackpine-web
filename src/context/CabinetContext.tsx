@@ -1,7 +1,7 @@
 import {
   createContext, useCallback, useContext, useEffect, useState, type ReactNode,
 } from "react";
-import type { Appointment, CabinetDoctorProfile, Employee, Patient, PrescriptionTemplate, StockItem } from "../lib/cabinetTypes";
+import type { Appointment, CabinetDoctorProfile, Employee, Patient, PrescriptionTemplate, StockItem, WaTemplate, TeleSession } from "../lib/cabinetTypes";
 import { BLANK_DOCTOR_PROFILE } from "../lib/cabinetTypes";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -54,6 +54,18 @@ interface CabinetCtx {
   deleteStockItem:   (id: string) => void;
   adjustStock:       (id: string, delta: number) => void;  // delta = +N or -N
 
+  // WhatsApp message templates
+  waTemplates:          WaTemplate[];
+  addWaTemplate:        (t: Omit<WaTemplate, "id">) => void;
+  updateWaTemplate:     (t: WaTemplate) => void;
+  deleteWaTemplate:     (id: string) => void;
+
+  // Teleconsultation sessions
+  teleSessions:         TeleSession[];
+  addTeleSession:       (s: Omit<TeleSession, "id" | "createdAt">) => void;
+  updateTeleSession:    (s: TeleSession) => void;
+  deleteTeleSession:    (id: string) => void;
+
   // Backup / restore
   exportCabinetJSON: () => string;
   importCabinetJSON: (json: string) => void;
@@ -102,6 +114,41 @@ const DEFAULT_TEMPLATES: PrescriptionTemplate[] = [
   },
 ];
 
+// ── Default WhatsApp templates ────────────────────────────────────────────────
+
+const DEFAULT_WA_TEMPLATES: WaTemplate[] = [
+  {
+    id: "wa-rappel",
+    name: "Rappel de rendez-vous",
+    category: "rappel",
+    body: "Bonjour {patient}, nous vous rappelons votre rendez-vous le {date} à {heure} chez {docteur}. En cas d'empêchement, merci de nous contacter. Merci.",
+  },
+  {
+    id: "wa-confirmation",
+    name: "Confirmation de rendez-vous",
+    category: "confirmation",
+    body: "Bonjour {patient}, votre rendez-vous du {date} à {heure} est confirmé au {cabinet}. Merci de vous présenter 5 minutes avant. À bientôt !",
+  },
+  {
+    id: "wa-suivi",
+    name: "Suivi post-consultation",
+    category: "suivi",
+    body: "Bonjour {patient}, suite à votre consultation du {date}, nous espérons que vous allez mieux. N'hésitez pas à nous contacter si vous avez des questions. Cordialement, {cabinet}.",
+  },
+  {
+    id: "wa-resultats",
+    name: "Résultats disponibles",
+    category: "resultats",
+    body: "Bonjour {patient}, vos résultats d'examens sont disponibles au {cabinet}. Merci de nous contacter ou de passer les récupérer. Cordialement.",
+  },
+  {
+    id: "wa-annulation",
+    name: "Annulation de rendez-vous",
+    category: "autre",
+    body: "Bonjour {patient}, nous sommes dans l'obligation d'annuler votre rendez-vous du {date} à {heure}. Merci de nous contacter pour reprogrammer. Nous nous excusons pour la gêne occasionnée.",
+  },
+];
+
 // ── Provider ──────────────────────────────────────────────────────────────────
 
 export function CabinetProvider({ children }: { children: ReactNode }) {
@@ -117,6 +164,12 @@ export function CabinetProvider({ children }: { children: ReactNode }) {
   const [stockItems, setStock] = useState<StockItem[]>(
     () => load("bp.stock", [])
   );
+  const [waTemplates, setWaTpls] = useState<WaTemplate[]>(
+    () => load("bp.waTemplates", DEFAULT_WA_TEMPLATES)
+  );
+  const [teleSessions, setTele] = useState<TeleSession[]>(
+    () => load("bp.teleSessions", [])
+  );
 
   // Persist to localStorage on every change
   useEffect(() => { save("bp.appts",     appointments);  }, [appointments]);
@@ -124,7 +177,9 @@ export function CabinetProvider({ children }: { children: ReactNode }) {
   useEffect(() => { save("bp.employees", employees);     }, [employees]);
   useEffect(() => { save("bp.doctor",    doctorProfile); }, [doctorProfile]);
   useEffect(() => { save("bp.prescriptionTemplates", prescriptionTemplates); }, [prescriptionTemplates]);
-  useEffect(() => { save("bp.stock",     stockItems);    }, [stockItems]);
+  useEffect(() => { save("bp.stock",       stockItems);    }, [stockItems]);
+  useEffect(() => { save("bp.waTemplates", waTemplates);   }, [waTemplates]);
+  useEffect(() => { save("bp.teleSessions", teleSessions); }, [teleSessions]);
 
   const setDoctorProfile = useCallback(
     (p: CabinetDoctorProfile) => setDoctorProfileState(p), []);
@@ -183,6 +238,24 @@ export function CabinetProvider({ children }: { children: ReactNode }) {
   const clearAppointments = useCallback(() => setAppts([]),     []);
   const clearPatients     = useCallback(() => setPatients([]),  []);
 
+  // ── WhatsApp templates ────────────────────────────────────────────────────
+  const addWaTemplate = useCallback(
+    (t: Omit<WaTemplate, "id">) =>
+      setWaTpls(prev => [...prev, { ...t, id: uid() }]), []);
+  const updateWaTemplate = useCallback(
+    (t: WaTemplate) => setWaTpls(prev => prev.map(x => x.id === t.id ? t : x)), []);
+  const deleteWaTemplate = useCallback(
+    (id: string) => setWaTpls(prev => prev.filter(x => x.id !== id)), []);
+
+  // ── Teleconsultation sessions ─────────────────────────────────────────────
+  const addTeleSession = useCallback(
+    (s: Omit<TeleSession, "id" | "createdAt">) =>
+      setTele(prev => [...prev, { ...s, id: uid(), createdAt: new Date().toISOString() }]), []);
+  const updateTeleSession = useCallback(
+    (s: TeleSession) => setTele(prev => prev.map(x => x.id === s.id ? s : x)), []);
+  const deleteTeleSession = useCallback(
+    (id: string) => setTele(prev => prev.filter(x => x.id !== id)), []);
+
   // ── Prescription templates ────────────────────────────────────────────────
   const addPrescriptionTemplate = useCallback(
     (t: Omit<PrescriptionTemplate, "id">) =>
@@ -213,6 +286,8 @@ export function CabinetProvider({ children }: { children: ReactNode }) {
     doctorProfile, setDoctorProfile,
     prescriptionTemplates, addPrescriptionTemplate, deletePrescriptionTemplate,
     stockItems, addStockItem, updateStockItem, deleteStockItem, adjustStock,
+    waTemplates, addWaTemplate, updateWaTemplate, deleteWaTemplate,
+    teleSessions, addTeleSession, updateTeleSession, deleteTeleSession,
     exportCabinetJSON, importCabinetJSON, clearAppointments, clearPatients,
   };
 

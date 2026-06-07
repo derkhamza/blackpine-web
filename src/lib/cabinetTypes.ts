@@ -230,3 +230,82 @@ export interface StockItem {
   notes?:       string;
   updatedAt:    string;       // ISO — last adjustment
 }
+
+// ── WhatsApp message templates ────────────────────────────────────────────────
+
+export type WaTemplateCategory = "rappel" | "confirmation" | "suivi" | "resultats" | "autre";
+
+export const WA_TEMPLATE_CATEGORY_LABELS: Record<WaTemplateCategory, string> = {
+  rappel:       "Rappel de RDV",
+  confirmation: "Confirmation",
+  suivi:        "Suivi",
+  resultats:    "Résultats",
+  autre:        "Autre",
+};
+
+export const WA_TEMPLATE_CATEGORY_COLORS: Record<WaTemplateCategory, string> = {
+  rappel:       "#25D366",
+  confirmation: "#1890C5",
+  suivi:        "#9B72D0",
+  resultats:    "#D4962A",
+  autre:        "#888888",
+};
+
+// Variables available in body: {patient} {date} {heure} {docteur} {cabinet}
+export interface WaTemplate {
+  id:       string;
+  name:     string;
+  category: WaTemplateCategory;
+  body:     string;
+}
+
+// ── Teleconsultation sessions ─────────────────────────────────────────────────
+
+export type TelePlatform = "googlemeet" | "zoom" | "teams" | "jitsi" | "autre";
+
+export const TELE_PLATFORM_LABELS: Record<TelePlatform, string> = {
+  googlemeet: "Google Meet",
+  zoom:       "Zoom",
+  teams:      "Microsoft Teams",
+  jitsi:      "Jitsi",
+  autre:      "Autre lien",
+};
+
+export const TELE_PLATFORM_COLORS: Record<TelePlatform, string> = {
+  googlemeet: "#1A73E8",
+  zoom:       "#2D8CFF",
+  teams:      "#6264A7",
+  jitsi:      "#15A876",
+  autre:      "#888888",
+};
+
+export type TeleStatus = "scheduled" | "in_progress" | "completed" | "cancelled";
+
+export const TELE_STATUS_LABELS: Record<TeleStatus, string> = {
+  scheduled:   "Planifiée",
+  in_progress: "En cours",
+  completed:   "Terminée",
+  cancelled:   "Annulée",
+};
+
+export const TELE_STATUS_COLORS: Record<TeleStatus, string> = {
+  scheduled:   "#1890C5",
+  in_progress: "#15A876",
+  completed:   "#888888",
+  cancelled:   "#E85B5B",
+};
+
+export interface TeleSession {
+  id:            string;
+  patientName:   string;
+  patientId?:    string;
+  patientPhone?: string;
+  platform:      TelePlatform;
+  link?:         string;
+  scheduledDate: string;   // YYYY-MM-DD
+  scheduledTime: string;   // HH:MM
+  status:        TeleStatus;
+  notes?:        string;
+  duration?:     number;   // minutes
+  createdAt:     string;   // ISO
+}

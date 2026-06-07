@@ -21,6 +21,8 @@ const GROUPS: Group[] = [
       { keys: ["G", "R"], description: "Rappels & Suivis" },
       { keys: ["G", "F"], description: "Factures" },
       { keys: ["G", "S"], description: "Stocks" },
+      { keys: ["G", "M"], description: "Messages WhatsApp" },
+      { keys: ["G", "T"], description: "Téléconsultation" },
     ],
   },
   {

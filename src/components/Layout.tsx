@@ -136,6 +136,18 @@ function Icon({ name }: { name: string }) {
         <path d="M5 5h2M5 8h2M5 11h2M9 5h2M9 8h2M9 11h2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
       </svg>
     ),
+    messages: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M2 3h12a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H5l-3 2V4a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
+        <path d="M5 7h6M5 9.5h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+      </svg>
+    ),
+    teleconsult: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <rect x="1" y="3" width="10" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.4"/>
+        <path d="M11 6l4-2v6l-4-2V6Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/>
+      </svg>
+    ),
     profile: (
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
         <circle cx="8" cy="5" r="3" stroke="currentColor" strokeWidth="1.5"/>
@@ -282,6 +294,8 @@ export function Layout({ title, subtitle, actions, children }: Props) {
           r: "/rappels",
           f: "/factures",
           s: "/stocks",
+          m: "/messages",
+          t: "/teleconsult",
         };
         if (routes[key]) {
           e.preventDefault();
@@ -363,6 +377,8 @@ export function Layout({ title, subtitle, actions, children }: Props) {
     { to: "/factures",        label: "Factures",        icon: "factures",        group: "Cabinet" },
     { to: "/stocks",          label: "Stocks",          icon: "stocks",          group: "Cabinet" },
     { to: "/calculateurs",    label: "Calculateurs",    icon: "calculateurs",    group: "Cabinet" },
+    { to: "/messages",        label: "Messages WA",     icon: "messages",        group: "Cabinet" },
+    { to: "/teleconsult",     label: "Téléconsult",     icon: "teleconsult",     group: "Cabinet" },
     { to: "/salaires",        label: "Salaires",        icon: "payroll",         group: "Cabinet" },
     { to: "/profil",       label: "Mon profil",      icon: "profile",      group: "Paramètres" },
     { to: "/parametres",   label: "Paramètres",      icon: "parametres",   group: "Paramètres" },
