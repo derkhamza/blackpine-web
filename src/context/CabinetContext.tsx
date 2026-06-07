@@ -1,7 +1,7 @@
 import {
   createContext, useCallback, useContext, useEffect, useState, type ReactNode,
 } from "react";
-import type { Appointment, CabinetDoctorProfile, Employee, Patient, PrescriptionTemplate, StockItem, WaTemplate, TeleSession, InternalNote } from "../lib/cabinetTypes";
+import type { Appointment, CabinetDoctorProfile, Employee, Patient, PrescriptionTemplate, StockItem, WaTemplate, TeleSession, InternalNote, Supplier, PurchaseOrder, PurchaseOrderLine, ExamResult } from "../lib/cabinetTypes";
 import { BLANK_DOCTOR_PROFILE } from "../lib/cabinetTypes";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -73,6 +73,25 @@ interface CabinetCtx {
   deleteNote:        (id: string) => void;
   toggleNotePin:     (id: string) => void;
   toggleNoteDone:    (id: string) => void;
+
+  // Suppliers
+  suppliers:         Supplier[];
+  addSupplier:       (s: Omit<Supplier, "id" | "createdAt">) => void;
+  updateSupplier:    (s: Supplier) => void;
+  deleteSupplier:    (id: string) => void;
+
+  // Purchase orders
+  purchaseOrders:      PurchaseOrder[];
+  addPurchaseOrder:    (o: Omit<PurchaseOrder, "id" | "createdAt">) => void;
+  updatePurchaseOrder: (o: PurchaseOrder) => void;
+  deletePurchaseOrder: (id: string) => void;
+  receiveOrder:        (orderId: string, lines: PurchaseOrderLine[]) => void;
+
+  // Paraclinical exams & lab results
+  examResults:         ExamResult[];
+  addExamResult:       (e: Omit<ExamResult, "id" | "createdAt">) => void;
+  updateExamResult:    (e: ExamResult) => void;
+  deleteExamResult:    (id: string) => void;
 
   // Backup / restore
   exportCabinetJSON: () => string;
@@ -181,6 +200,15 @@ export function CabinetProvider({ children }: { children: ReactNode }) {
   const [notes, setNotes] = useState<InternalNote[]>(
     () => load("bp.notes", [])
   );
+  const [suppliers, setSuppliers] = useState<Supplier[]>(
+    () => load("bp.suppliers", [])
+  );
+  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>(
+    () => load("bp.purchaseOrders", [])
+  );
+  const [examResults, setExamResults] = useState<ExamResult[]>(
+    () => load("bp.examResults", [])
+  );
 
   // Persist to localStorage on every change
   useEffect(() => { save("bp.appts",     appointments);  }, [appointments]);
@@ -191,7 +219,10 @@ export function CabinetProvider({ children }: { children: ReactNode }) {
   useEffect(() => { save("bp.stock",       stockItems);    }, [stockItems]);
   useEffect(() => { save("bp.waTemplates",  waTemplates);   }, [waTemplates]);
   useEffect(() => { save("bp.teleSessions", teleSessions);  }, [teleSessions]);
-  useEffect(() => { save("bp.notes",        notes);         }, [notes]);
+  useEffect(() => { save("bp.notes",          notes);          }, [notes]);
+  useEffect(() => { save("bp.suppliers",      suppliers);      }, [suppliers]);
+  useEffect(() => { save("bp.purchaseOrders", purchaseOrders); }, [purchaseOrders]);
+  useEffect(() => { save("bp.examResults",    examResults);    }, [examResults]);
 
   const setDoctorProfile = useCallback(
     (p: CabinetDoctorProfile) => setDoctorProfileState(p), []);
@@ -285,6 +316,47 @@ export function CabinetProvider({ children }: { children: ReactNode }) {
     (id: string) =>
       setNotes(prev => prev.map(x => x.id === id ? { ...x, isDone: !x.isDone, updatedAt: now() } : x)), []);
 
+  // ── Suppliers ─────────────────────────────────────────────────────────────
+  const addSupplier = useCallback(
+    (s: Omit<Supplier, "id" | "createdAt">) =>
+      setSuppliers(prev => [...prev, { ...s, id: uid(), createdAt: now() }]), []);
+  const updateSupplier = useCallback(
+    (s: Supplier) => setSuppliers(prev => prev.map(x => x.id === s.id ? s : x)), []);
+  const deleteSupplier = useCallback(
+    (id: string) => setSuppliers(prev => prev.filter(x => x.id !== id)), []);
+
+  // ── Purchase orders ───────────────────────────────────────────────────────
+  const addPurchaseOrder = useCallback(
+    (o: Omit<PurchaseOrder, "id" | "createdAt">) =>
+      setPurchaseOrders(prev => [...prev, { ...o, id: uid(), createdAt: now() }]), []);
+  const updatePurchaseOrder = useCallback(
+    (o: PurchaseOrder) => setPurchaseOrders(prev => prev.map(x => x.id === o.id ? o : x)), []);
+  const deletePurchaseOrder = useCallback(
+    (id: string) => setPurchaseOrders(prev => prev.filter(x => x.id !== id)), []);
+  const receiveOrder = useCallback(
+    (orderId: string, lines: PurchaseOrderLine[]) => {
+      // Update stock quantities for lines that link to a stock item
+      setStock(prev => {
+        let next = prev;
+        for (const line of lines) {
+          if (!line.stockItemId) continue;
+          const qty = line.receivedQty ?? line.quantity;
+          next = next.map(x =>
+            x.id === line.stockItemId
+              ? { ...x, quantity: x.quantity + qty, updatedAt: new Date().toISOString() }
+              : x
+          );
+        }
+        return next;
+      });
+      // Mark the order received
+      setPurchaseOrders(prev => prev.map(o =>
+        o.id === orderId
+          ? { ...o, status: "received" as const, receivedAt: new Date().toISOString().slice(0, 10), lines }
+          : o
+      ));
+    }, []);
+
   // ── Prescription templates ────────────────────────────────────────────────
   const addPrescriptionTemplate = useCallback(
     (t: Omit<PrescriptionTemplate, "id">) =>
@@ -308,6 +380,15 @@ export function CabinetProvider({ children }: { children: ReactNode }) {
           : x
       )), []);
 
+  // ── Exam results ──────────────────────────────────────────────────────────
+  const addExamResult = useCallback(
+    (e: Omit<ExamResult, "id" | "createdAt">) =>
+      setExamResults(prev => [...prev, { ...e, id: uid(), createdAt: new Date().toISOString() }]), []);
+  const updateExamResult = useCallback(
+    (e: ExamResult) => setExamResults(prev => prev.map(x => x.id === e.id ? e : x)), []);
+  const deleteExamResult = useCallback(
+    (id: string) => setExamResults(prev => prev.filter(x => x.id !== id)), []);
+
   const value: CabinetCtx = {
     appointments, addAppointment, updateAppointment, deleteAppointment,
     patients,     addPatient,     updatePatient,     deletePatient,
@@ -318,6 +399,9 @@ export function CabinetProvider({ children }: { children: ReactNode }) {
     waTemplates, addWaTemplate, updateWaTemplate, deleteWaTemplate,
     teleSessions, addTeleSession, updateTeleSession, deleteTeleSession,
     notes, addNote, updateNote, deleteNote, toggleNotePin, toggleNoteDone,
+    suppliers, addSupplier, updateSupplier, deleteSupplier,
+    purchaseOrders, addPurchaseOrder, updatePurchaseOrder, deletePurchaseOrder, receiveOrder,
+    examResults, addExamResult, updateExamResult, deleteExamResult,
     exportCabinetJSON, importCabinetJSON, clearAppointments, clearPatients,
   };
 

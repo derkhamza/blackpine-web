@@ -4631,3 +4631,177 @@ a.ana-top-name:hover { color: var(--blue); text-decoration: underline; }
   padding: 1px 6px;
   border-radius: var(--r-pill);
 }
+
+/* ═══════════════════════════════════════════════════════════
+   EXAMENS & BIOLOGIE
+═══════════════════════════════════════════════════════════ */
+
+/* KPI strip: re-uses .stock-kpi-card / .four-tabs / .four-toolbar */
+
+/* ── Exam list ── */
+.exam-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.exam-card {
+  display: flex;
+  align-items: stretch;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+  transition: box-shadow var(--trans), border-color var(--trans);
+}
+.exam-card:hover { box-shadow: var(--shadow-hover); }
+.exam-card.has-abnormal { border-color: var(--coral); }
+
+.exam-card-accent { width: 4px; flex-shrink: 0; }
+.exam-card-body { flex: 1; min-width: 0; padding: 12px 14px; }
+.exam-card-header {}
+.exam-card-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 5px;
+}
+.exam-card-title { font-size: 14px; font-weight: 700; color: var(--text); }
+.exam-type-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+}
+.exam-abnormal-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--coral);
+  background: #E85B5B18;
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+}
+.exam-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--muted);
+}
+.exam-patient { font-weight: 600; color: var(--text); }
+
+/* Values table (expanded) */
+.exam-values-table {
+  margin-top: 12px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+.exam-val-row {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 8px;
+  align-items: center;
+  padding: 5px 8px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+.exam-val-row.abn { background: #E85B5B0A; }
+.exam-val-label { font-weight: 500; color: var(--text); }
+.exam-val-value { font-weight: 700; text-align: center; }
+.exam-val-ref { font-size: 11px; color: var(--muted); text-align: right; }
+
+/* Card actions */
+.exam-card-actions {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 10px;
+  border-left: 1px solid var(--border);
+}
+
+/* ── Value editor ── */
+.exam-values-list {
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.exam-values-header {
+  display: flex;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--muted);
+  padding: 0 4px;
+  margin-bottom: 2px;
+}
+.exam-col-lbl    { flex: 1 1 160px; }
+.exam-col-val    { flex: 0 0 90px; }
+.exam-col-unit   { flex: 0 0 70px; }
+.exam-col-refs   { flex: 0 0 200px; }
+
+.exam-value-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  transition: border-color var(--trans);
+}
+.exam-value-row.abnormal { border-color: var(--coral); background: #E85B5B06; }
+
+.exam-value-main { display: flex; gap: 6px; align-items: center; }
+.exam-value-label { flex: 1; min-width: 0; }
+.exam-value-val   { flex: 0 0 90px; }
+.exam-value-unit  { flex: 0 0 70px; }
+.exam-val-abnormal { border-color: var(--coral) !important; color: var(--coral); }
+
+.exam-value-refs {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.exam-value-ref { flex: 0 0 88px; }
+
+.exam-preset-btn {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--trans);
+}
+.exam-preset-btn:hover { border-color: var(--blue); color: var(--blue); }
+
+.exam-flag-btn {
+  flex-shrink: 0;
+  padding: 2px 7px;
+  border-radius: 6px;
+  border: 1.5px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all var(--trans);
+}
+.exam-flag-btn.active { border-color: var(--coral); color: var(--coral); background: #E85B5B10; }
+.exam-flag-btn:hover:not(.active) { border-color: var(--gold); color: var(--gold); }

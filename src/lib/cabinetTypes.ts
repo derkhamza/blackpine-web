@@ -310,6 +310,58 @@ export interface TeleSession {
   createdAt:     string;   // ISO
 }
 
+// ── Suppliers & purchase orders ───────────────────────────────────────────────
+
+export interface Supplier {
+  id:        string;
+  name:      string;
+  phone?:    string;
+  email?:    string;
+  address?:  string;
+  products?: string;   // free-text: what they supply
+  notes?:    string;
+  createdAt: string;
+}
+
+export type PurchaseOrderStatus = "draft" | "ordered" | "partial" | "received" | "cancelled";
+
+export const PO_STATUS_LABELS: Record<PurchaseOrderStatus, string> = {
+  draft:     "Brouillon",
+  ordered:   "Commandé",
+  partial:   "Partiellement reçu",
+  received:  "Reçu",
+  cancelled: "Annulé",
+};
+
+export const PO_STATUS_COLORS: Record<PurchaseOrderStatus, string> = {
+  draft:     "#888888",
+  ordered:   "#1890C5",
+  partial:   "#D4962A",
+  received:  "#15A876",
+  cancelled: "#E85B5B",
+};
+
+export interface PurchaseOrderLine {
+  stockItemId?: string;   // links to StockItem.id (optional)
+  itemName:     string;   // denormalized or free-text
+  quantity:     number;
+  unitPrice?:   number;   // MAD
+  receivedQty?: number;   // actual qty received (set on partial/received)
+}
+
+export interface PurchaseOrder {
+  id:             string;
+  supplierId?:    string;
+  supplierName?:  string;  // denormalized
+  lines:          PurchaseOrderLine[];
+  status:         PurchaseOrderStatus;
+  orderedAt?:     string;  // YYYY-MM-DD
+  expectedAt?:    string;  // YYYY-MM-DD expected delivery
+  receivedAt?:    string;  // YYYY-MM-DD
+  notes?:         string;
+  createdAt:      string;
+}
+
 // ── Internal notes & tasks ────────────────────────────────────────────────────
 
 export type NoteColor = "yellow" | "blue" | "green" | "pink";
@@ -332,4 +384,45 @@ export interface InternalNote {
   dueDate?:  string;          // YYYY-MM-DD, tasks only
   createdAt: string;          // ISO
   updatedAt: string;          // ISO
+}
+
+// ── Paraclinical exams & lab results ─────────────────────────────────────────
+
+export type ExamType = "biologie" | "imagerie" | "ecg" | "autre";
+
+export const EXAM_TYPE_LABELS: Record<ExamType, string> = {
+  biologie: "Biologie",
+  imagerie: "Imagerie",
+  ecg:      "ECG / Cardiologie",
+  autre:    "Autre",
+};
+
+export const EXAM_TYPE_COLORS: Record<ExamType, string> = {
+  biologie: "#1890C5",
+  imagerie: "#9B72D0",
+  ecg:      "#E85B5B",
+  autre:    "#888888",
+};
+
+export interface ExamValue {
+  label:      string;    // "Hémoglobine", "Glucose"
+  value:      string;    // "12.5" (string for flexibility: can be text like "Normal")
+  unit?:      string;    // "g/dL", "mmol/L"
+  refMin?:    number;    // lower bound of normal range
+  refMax?:    number;    // upper bound of normal range
+  isAbnormal?: boolean;  // manually flagged or auto-computed
+}
+
+export interface ExamResult {
+  id:           string;
+  patientId?:   string;
+  patientName:  string;
+  type:         ExamType;
+  date:         string;   // YYYY-MM-DD
+  title:        string;   // "NFS", "Glycémie à jeun", "Échographie abdominale"
+  labName?:     string;   // laboratory name
+  requestedBy?: string;   // referring doctor
+  values:       ExamValue[];
+  notes?:       string;
+  createdAt:    string;   // ISO
 }

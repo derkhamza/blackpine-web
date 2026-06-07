@@ -164,6 +164,14 @@ function Icon({ name }: { name: string }) {
         <path d="M8 8.5h4M8 10.5h2.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
       </svg>
     ),
+    examens: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.4"/>
+        <path d="M7 4.5v2.8l1.8 1.8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M10.5 11.5l3 3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+        <path d="M4 2.5V1M12 2.5V1M4 13V14.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+      </svg>
+    ),
     profile: (
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
         <circle cx="8" cy="5" r="3" stroke="currentColor" strokeWidth="1.5"/>
@@ -314,6 +322,7 @@ export function Layout({ title, subtitle, actions, children }: Props) {
           t: "/teleconsult",
           n: "/notes",
           v: "/fournisseurs",
+          e: "/examens",
         };
         if (routes[key]) {
           e.preventDefault();
@@ -399,6 +408,7 @@ export function Layout({ title, subtitle, actions, children }: Props) {
     { to: "/teleconsult",     label: "Téléconsult",     icon: "teleconsult",     group: "Cabinet" },
     { to: "/notes",           label: "Notes & Tâches",  icon: "notes",           group: "Cabinet" },
     { to: "/fournisseurs",    label: "Fournisseurs",    icon: "fournisseurs",    group: "Cabinet" },
+    { to: "/examens",         label: "Examens & Bio",   icon: "examens",         group: "Cabinet" },
     { to: "/salaires",        label: "Salaires",        icon: "payroll",         group: "Cabinet" },
     { to: "/profil",       label: "Mon profil",      icon: "profile",      group: "Paramètres" },
     { to: "/parametres",   label: "Paramètres",      icon: "parametres",   group: "Paramètres" },
