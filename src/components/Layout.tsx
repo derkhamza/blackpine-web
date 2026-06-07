@@ -124,6 +124,12 @@ function Icon({ name }: { name: string }) {
         <line x1="2" y1="14" x2="14" y2="14" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
       </svg>
     ),
+    stocks: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M2 5l6-3 6 3v6l-6 3-6-3V5Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+        <path d="M8 2v12M2 5l6 3 6-3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+      </svg>
+    ),
     profile: (
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
         <circle cx="8" cy="5" r="3" stroke="currentColor" strokeWidth="1.5"/>
@@ -198,7 +204,7 @@ interface Props {
 
 export function Layout({ title, subtitle, actions, children }: Props) {
   const { user, logout } = useApp();
-  const { appointments }  = useCabinet();
+  const { appointments, stockItems }  = useCabinet();
   const navigate = useNavigate();
 
   const [searchOpen,    setSearchOpen]    = useState(false);
@@ -269,6 +275,7 @@ export function Layout({ title, subtitle, actions, children }: Props) {
           w: "/salle-attente",
           r: "/rappels",
           f: "/factures",
+          s: "/stocks",
         };
         if (routes[key]) {
           e.preventDefault();
@@ -314,6 +321,10 @@ export function Layout({ title, subtitle, actions, children }: Props) {
       a => a.date === today && a.status === "arrived",
     ).length;
 
+    const lowStock = stockItems.filter(
+      s => s.quantity <= s.minThreshold,
+    ).length;
+
     const overdueFollowUps = appointments.filter(a => {
       if (!a.followUpDate) return false;
       return a.followUpDate <= today;  // today or overdue
@@ -324,8 +335,9 @@ export function Layout({ title, subtitle, actions, children }: Props) {
       "/remboursements": cnopsPending,
       "/salle-attente":  waitingNow,
       "/rappels":        overdueFollowUps,
+      "/stocks":         lowStock,
     } as Record<string, number>;
-  }, [appointments, today]);
+  }, [appointments, stockItems, today]);
 
   // ── Nav items ─────────────────────────────────────────────────────────────
   const navItems = [
@@ -343,6 +355,7 @@ export function Layout({ title, subtitle, actions, children }: Props) {
     { to: "/analytiques",     label: "Analytiques",     icon: "analytiques",     group: "Cabinet" },
     { to: "/rappels",         label: "Rappels",         icon: "rappels",         group: "Cabinet" },
     { to: "/factures",        label: "Factures",        icon: "factures",        group: "Cabinet" },
+    { to: "/stocks",          label: "Stocks",          icon: "stocks",          group: "Cabinet" },
     { to: "/salaires",        label: "Salaires",        icon: "payroll",         group: "Cabinet" },
     { to: "/profil",       label: "Mon profil",      icon: "profile",      group: "Paramètres" },
     { to: "/parametres",   label: "Paramètres",      icon: "parametres",   group: "Paramètres" },

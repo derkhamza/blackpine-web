@@ -200,3 +200,33 @@ export const EMPLOYEE_ROLE_LABELS: Record<EmployeeRole, string> = {
   technicien:    "Technicien(ne)",
   autre:         "Autre",
 };
+
+// ── Stock management ──────────────────────────────────────────────────────────
+
+export type StockCategory = "medicament" | "consommable" | "equipement" | "autre";
+
+export const STOCK_CATEGORY_LABELS: Record<StockCategory, string> = {
+  medicament:  "Médicament",
+  consommable: "Consommable",
+  equipement:  "Équipement",
+  autre:       "Autre",
+};
+
+export const STOCK_CATEGORY_COLORS: Record<StockCategory, string> = {
+  medicament:  "#1890C5",
+  consommable: "#15A876",
+  equipement:  "#9B72D0",
+  autre:       "#D4962A",
+};
+
+export interface StockItem {
+  id:           string;
+  name:         string;
+  category:     StockCategory;
+  quantity:     number;       // current count
+  unit:         string;       // "boîtes", "ml", "pièces", "flacons"…
+  minThreshold: number;       // alert when quantity ≤ this
+  supplier?:    string;
+  notes?:       string;
+  updatedAt:    string;       // ISO — last adjustment
+}

@@ -1,7 +1,7 @@
 import {
   createContext, useCallback, useContext, useEffect, useState, type ReactNode,
 } from "react";
-import type { Appointment, CabinetDoctorProfile, Employee, Patient, PrescriptionTemplate } from "../lib/cabinetTypes";
+import type { Appointment, CabinetDoctorProfile, Employee, Patient, PrescriptionTemplate, StockItem } from "../lib/cabinetTypes";
 import { BLANK_DOCTOR_PROFILE } from "../lib/cabinetTypes";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -46,6 +46,13 @@ interface CabinetCtx {
   prescriptionTemplates:    PrescriptionTemplate[];
   addPrescriptionTemplate:  (t: Omit<PrescriptionTemplate, "id">) => void;
   deletePrescriptionTemplate: (id: string) => void;
+
+  // Stock management
+  stockItems:        StockItem[];
+  addStockItem:      (s: Omit<StockItem, "id" | "updatedAt">) => void;
+  updateStockItem:   (s: StockItem) => void;
+  deleteStockItem:   (id: string) => void;
+  adjustStock:       (id: string, delta: number) => void;  // delta = +N or -N
 
   // Backup / restore
   exportCabinetJSON: () => string;
@@ -107,6 +114,9 @@ export function CabinetProvider({ children }: { children: ReactNode }) {
   const [prescriptionTemplates, setTpls] = useState<PrescriptionTemplate[]>(
     () => load("bp.prescriptionTemplates", DEFAULT_TEMPLATES)
   );
+  const [stockItems, setStock] = useState<StockItem[]>(
+    () => load("bp.stock", [])
+  );
 
   // Persist to localStorage on every change
   useEffect(() => { save("bp.appts",     appointments);  }, [appointments]);
@@ -114,6 +124,7 @@ export function CabinetProvider({ children }: { children: ReactNode }) {
   useEffect(() => { save("bp.employees", employees);     }, [employees]);
   useEffect(() => { save("bp.doctor",    doctorProfile); }, [doctorProfile]);
   useEffect(() => { save("bp.prescriptionTemplates", prescriptionTemplates); }, [prescriptionTemplates]);
+  useEffect(() => { save("bp.stock",     stockItems);    }, [stockItems]);
 
   const setDoctorProfile = useCallback(
     (p: CabinetDoctorProfile) => setDoctorProfileState(p), []);
@@ -179,12 +190,29 @@ export function CabinetProvider({ children }: { children: ReactNode }) {
   const deletePrescriptionTemplate = useCallback(
     (id: string) => setTpls(prev => prev.filter(t => t.id !== id)), []);
 
+  // ── Stock management ──────────────────────────────────────────────────────
+  const addStockItem = useCallback(
+    (s: Omit<StockItem, "id" | "updatedAt">) =>
+      setStock(prev => [...prev, { ...s, id: uid(), updatedAt: new Date().toISOString() }]), []);
+  const updateStockItem = useCallback(
+    (s: StockItem) => setStock(prev => prev.map(x => x.id === s.id ? s : x)), []);
+  const deleteStockItem = useCallback(
+    (id: string) => setStock(prev => prev.filter(x => x.id !== id)), []);
+  const adjustStock = useCallback(
+    (id: string, delta: number) =>
+      setStock(prev => prev.map(x =>
+        x.id === id
+          ? { ...x, quantity: Math.max(0, x.quantity + delta), updatedAt: new Date().toISOString() }
+          : x
+      )), []);
+
   const value: CabinetCtx = {
     appointments, addAppointment, updateAppointment, deleteAppointment,
     patients,     addPatient,     updatePatient,     deletePatient,
     employees,    addEmployee,    updateEmployee,    deleteEmployee,
     doctorProfile, setDoctorProfile,
     prescriptionTemplates, addPrescriptionTemplate, deletePrescriptionTemplate,
+    stockItems, addStockItem, updateStockItem, deleteStockItem, adjustStock,
     exportCabinetJSON, importCabinetJSON, clearAppointments, clearPatients,
   };
 

@@ -20,6 +20,7 @@ const GROUPS: Group[] = [
       { keys: ["G", "W"], description: "Salle d'attente" },
       { keys: ["G", "R"], description: "Rappels & Suivis" },
       { keys: ["G", "F"], description: "Factures" },
+      { keys: ["G", "S"], description: "Stocks" },
     ],
   },
   {

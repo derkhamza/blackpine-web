@@ -16,6 +16,7 @@ import { WaitingRoomPage }       from "./pages/WaitingRoomPage";
 import { FacturesPage }         from "./pages/FacturesPage";
 import { RappelsPage }          from "./pages/RappelsPage";
 import { AnalytiquesPage }      from "./pages/AnalytiquesPage";
+import { StockPage }            from "./pages/StockPage";
 import { ReportPage }            from "./pages/ReportPage";
 import { ComptabilitePage }      from "./pages/ComptabilitePage";
 import { OptimisationPage }      from "./pages/OptimisationPage";
@@ -80,6 +81,9 @@ export function App() {
       } />
       <Route path="/analytiques" element={
         <RequireAuth><AnalytiquesPage /></RequireAuth>
+      } />
+      <Route path="/stocks" element={
+        <RequireAuth><StockPage /></RequireAuth>
       } />
       <Route path="/profil" element={
         <RequireAuth><ProfilePage /></RequireAuth>
