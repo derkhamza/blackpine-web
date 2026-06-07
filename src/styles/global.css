@@ -4805,3 +4805,295 @@ a.ana-top-name:hover { color: var(--blue); text-decoration: underline; }
 }
 .exam-flag-btn.active { border-color: var(--coral); color: var(--coral); background: #E85B5B10; }
 .exam-flag-btn:hover:not(.active) { border-color: var(--gold); color: var(--gold); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   DASHBOARD ENRICHI — item 39
+   Activity strip · Alert pills · Today's agenda · Pinned notes
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Cabinet activity strip ─────────────────────────────────────────────── */
+.dash-activity-strip {
+  display: flex;
+  gap: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  overflow: hidden;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-card);
+}
+.dash-act-item {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 8px 10px;
+  cursor: pointer;
+  transition: background var(--trans);
+  border-right: 1px solid var(--border);
+  gap: 2px;
+}
+.dash-act-item:last-child { border-right: none; }
+.dash-act-item:hover { background: var(--bg); }
+.dash-act-val {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--text);
+}
+.dash-act-lbl {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  text-align: center;
+}
+
+/* ── Alerts section ─────────────────────────────────────────────────────── */
+.dash-alerts-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  margin-bottom: 16px;
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+}
+.dash-alerts-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 16px;
+  cursor: pointer;
+  user-select: none;
+  border-bottom: 1px solid var(--border);
+  transition: background var(--trans);
+}
+.dash-alerts-header:hover { background: var(--bg); }
+.dash-alerts-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+.dash-alerts-critical-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--coral);
+  box-shadow: 0 0 0 3px #E85B5B22;
+  flex-shrink: 0;
+}
+.dash-alerts-count {
+  background: var(--coral-soft);
+  color: var(--coral);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 99px;
+  min-width: 20px;
+  text-align: center;
+}
+.dash-alerts-toggle {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--muted);
+  padding: 2px;
+  display: flex;
+  align-items: center;
+}
+.dash-alerts-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 16px;
+}
+.dash-alert-pill {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 12px;
+  border-radius: 8px;
+  border: 1px solid;
+  font-size: 12px;
+  font-weight: 500;
+  transition: opacity var(--trans);
+  max-width: 360px;
+}
+.dash-alert-pill:hover { opacity: 0.82; }
+.dash-alert-icon { flex-shrink: 0; display: flex; align-items: center; }
+.dash-alert-text { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dash-alert-sub {
+  font-size: 11px;
+  opacity: 0.7;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 140px;
+  flex-shrink: 0;
+}
+
+/* ── Today row (agenda + tele side by side) ─────────────────────────────── */
+.dash-today-row {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+.dash-today-card {
+  /* extends .card */
+}
+.dash-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.dash-see-all {
+  background: transparent;
+  border: none;
+  font-size: 12px;
+  color: var(--blue);
+  cursor: pointer;
+  padding: 0;
+  font-weight: 600;
+}
+.dash-see-all:hover { text-decoration: underline; }
+.dash-today-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.dash-today-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  transition: background var(--trans);
+}
+.dash-today-item:hover { background: var(--surface-alt); }
+.dash-today-time {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  min-width: 38px;
+  flex-shrink: 0;
+}
+.dash-today-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.dash-today-info { flex: 1; min-width: 0; }
+.dash-today-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dash-today-meta { font-size: 11px; color: var(--muted); }
+.dash-today-more {
+  font-size: 12px;
+  color: var(--blue);
+  cursor: pointer;
+  text-align: center;
+  padding: 4px 0 2px;
+  font-weight: 600;
+}
+.dash-today-more:hover { text-decoration: underline; }
+.dash-tele-join {
+  display: flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: #2D8CFF18;
+  color: #2D8CFF;
+  border: 1px solid #2D8CFF44;
+  text-decoration: none;
+  transition: background var(--trans);
+  flex-shrink: 0;
+}
+.dash-tele-join:hover { background: #2D8CFF30; }
+
+/* ── Pinned notes / tasks section ───────────────────────────────────────── */
+.dash-pinned-section {
+  margin-bottom: 16px;
+}
+.dash-pinned-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+.dash-pinned-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+.dash-pinned-card {
+  border: 1.5px solid;
+  border-radius: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: transform var(--trans), box-shadow var(--trans);
+  min-height: 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.dash-pinned-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+}
+.dash-pinned-card-header {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 16px;
+}
+.dash-pinned-task-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 99px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.dash-pinned-card-title {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.3;
+  word-break: break-word;
+}
+.dash-pinned-card-body {
+  font-size: 12px;
+  opacity: 0.8;
+  line-height: 1.4;
+  flex: 1;
+}
+.dash-pinned-due {
+  font-size: 11px;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+/* ── Responsive tweaks ──────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .dash-activity-strip { flex-wrap: wrap; }
+  .dash-act-item { flex: 0 0 calc(33.333% - 1px); border-bottom: 1px solid var(--border); }
+  .dash-today-row { flex-direction: column; }
+  .dash-pinned-grid { grid-template-columns: 1fr 1fr; }
+}
