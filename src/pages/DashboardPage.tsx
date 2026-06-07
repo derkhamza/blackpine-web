@@ -1,35 +1,10 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "../components/Layout";
-import { MonthlyChart } from "../components/MonthlyChart";
 import { useApp } from "../context/AppContext";
 import { useCabinet } from "../context/CabinetContext";
 import { formatMAD, todayIso } from "../lib/format";
-import { getActiveMonths, getMonthlyData, getCategoryBreakdown } from "../lib/chartHelpers";
 import { NOTE_COLOR_VALUES } from "../lib/cabinetTypes";
-
-// ── Delta badge ───────────────────────────────────────────────────────────────
-
-function DeltaBadge({
-  curr, prev, higherIsBetter = true,
-}: { curr: number; prev: number; higherIsBetter?: boolean }) {
-  if (prev === 0) return null;
-  const pctRaw = ((curr - prev) / Math.abs(prev)) * 100;
-  const pct = Math.round(pctRaw);
-  const up  = pct >= 0;
-  const good = higherIsBetter ? up : !up;
-  return (
-    <span
-      className="delta-badge"
-      style={{
-        background: good ? "var(--green-soft)" : "var(--coral-soft)",
-        color:      good ? "var(--green)"      : "var(--coral)",
-      }}
-    >
-      {up ? "▲" : "▼"} {Math.abs(pct)}%
-    </span>
-  );
-}
 
 // ── Alert item ────────────────────────────────────────────────────────────────
 
@@ -66,7 +41,7 @@ function AlertPill({ alert, navigate }: { alert: Alert; navigate: (r: string) =>
   );
 }
 
-// ── Appt status colors ────────────────────────────────────────────────────────
+// ── Appt status helpers ───────────────────────────────────────────────────────
 
 const APPT_STATUS_COLORS: Record<string, string> = {
   scheduled:       "var(--blue)",
@@ -92,10 +67,7 @@ export function DashboardPage() {
   const navigate = useNavigate();
   const today = todayIso();
 
-  const {
-    result, transactions, fiscalYear, setFiscalYear,
-    FISCAL_MIN, FISCAL_MAX,
-  } = useApp();
+  const { result, transactions, fiscalYear } = useApp();
 
   const {
     appointments,
@@ -104,62 +76,54 @@ export function DashboardPage() {
     examResults,
     notes,
     teleSessions,
+    patients,
   } = useCabinet();
 
   const [alertsCollapsed, setAlertsCollapsed] = useState(false);
+  const [financeOpen,     setFinanceOpen]     = useState(false);
 
-  const yearTx      = useMemo(() => transactions.filter((t) => t.date.startsWith(String(fiscalYear))), [transactions, fiscalYear]);
-  const monthlyData = useMemo(() => getActiveMonths(getMonthlyData(yearTx, fiscalYear)), [yearTx, fiscalYear]);
-  const netResult   = result.breakdown.totalRecettes - result.breakdown.totalCharges;
-  const isNeg       = netResult < 0;
+  // ── Today's agenda ─────────────────────────────────────────────────────────
+  const todayAppts = useMemo(() =>
+    appointments
+      .filter(a => a.date === today && a.status !== "cancelled")
+      .sort((a, b) => a.startTime.localeCompare(b.startTime)),
+    [appointments, today]);
 
-  const prevYear   = fiscalYear - 1;
-  const prevYearTx = useMemo(() => transactions.filter((t) => t.date.startsWith(String(prevYear))), [transactions, prevYear]);
-  const prevRec    = useMemo(() => prevYearTx.filter((t) => t.type === "RECETTE").reduce((s, t) => s + t.amount, 0), [prevYearTx]);
-  const prevChg    = useMemo(() => prevYearTx.filter((t) => t.type === "CHARGE").reduce((s, t)  => s + t.amount, 0), [prevYearTx]);
-  const hasPrev    = prevYearTx.length > 0;
+  // ── Today's teleconsult sessions ──────────────────────────────────────────
+  const todayTele = useMemo(() =>
+    teleSessions
+      .filter(s => s.scheduledDate === today && s.status !== "cancelled")
+      .sort((a, b) => a.scheduledTime.localeCompare(b.scheduledTime)),
+    [teleSessions, today]);
 
-  const categorySlices = useMemo(() => getCategoryBreakdown(yearTx), [yearTx]);
+  // ── Pinned notes & urgent tasks ───────────────────────────────────────────
+  const pinnedItems = useMemo(() => {
+    const urgent = notes.filter(n => n.type === "task" && !n.isDone && n.dueDate && n.dueDate <= today);
+    const pinned = notes.filter(n => n.isPinned && !urgent.some(u => u.id === n.id));
+    return [...urgent, ...pinned].slice(0, 4);
+  }, [notes, today]);
 
-  // CNOPS / AMO spotlight
-  const yearAppts = useMemo(
-    () => appointments.filter((a) => a.date.startsWith(String(fiscalYear))),
-    [appointments, fiscalYear],
-  );
-  const cnopsStats = useMemo(() => {
-    let pendingTotal = 0, receivedTotal = 0;
-    let pendingCount = 0, receivedCount = 0, rejectedCount = 0;
-    for (const a of yearAppts) {
-      if (!a.reimbursementStatus) continue;
-      const amt = a.reimbursementAmount ?? 0;
-      if      (a.reimbursementStatus === "pending")  { pendingCount++;  pendingTotal  += amt; }
-      else if (a.reimbursementStatus === "received") { receivedCount++; receivedTotal += amt; }
-      else if (a.reimbursementStatus === "rejected") { rejectedCount++; }
-    }
-    return { pendingTotal, receivedTotal, pendingCount, receivedCount, rejectedCount };
-  }, [yearAppts]);
-  const hasCnops = cnopsStats.pendingCount + cnopsStats.receivedCount + cnopsStats.rejectedCount > 0;
-
-  // Top patients by revenue
-  const topPatients = useMemo(() => {
-    const map: Record<string, { name: string; revenue: number; count: number }> = {};
-    for (const tx of yearTx) {
-      if (tx.type !== "RECETTE" || !tx.description) continue;
-      const name = tx.description.replace(/^[^–]+ – /, "");
-      if (!map[name]) map[name] = { name, revenue: 0, count: 0 };
-      map[name].revenue += tx.amount;
-      map[name].count++;
-    }
-    return Object.values(map)
-      .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 5);
-  }, [yearTx]);
+  // ── Clinical hero stats ───────────────────────────────────────────────────
+  const heroStats = useMemo(() => {
+    const inWaiting  = appointments.filter(a => a.date === today && a.status === "arrived").length;
+    const completed  = appointments.filter(a => a.date === today && a.status === "completed").length;
+    const thisMonth  = today.slice(0, 7);
+    const monthTotal = appointments.filter(a => a.date.startsWith(thisMonth)).length;
+    return {
+      todayTotal:  todayAppts.length,
+      inWaiting,
+      completed,
+      todayTele:   todayTele.length,
+      monthTotal,
+      totalPatients: patients.length,
+    };
+  }, [appointments, todayAppts, todayTele, today, patients]);
 
   // ── Clinical alerts ────────────────────────────────────────────────────────
   const alerts = useMemo((): Alert[] => {
     const list: Alert[] = [];
 
-    // Low / out-of-stock items
+    // Low / out-of-stock
     const outOfStock = stockItems.filter(s => s.quantity === 0);
     const lowStock   = stockItems.filter(s => s.quantity > 0 && s.quantity <= s.minThreshold);
     if (outOfStock.length > 0) {
@@ -195,21 +159,7 @@ export function DashboardPage() {
       });
     }
 
-    // Pending purchase orders (not yet overdue)
-    const pendingPO = purchaseOrders.filter(o =>
-      (o.status === "ordered" || o.status === "draft") &&
-      (!o.expectedAt || o.expectedAt >= today)
-    );
-    if (pendingPO.length > 0 && overduePO.length === 0) {
-      list.push({
-        id: "pending-po", level: "info",
-        icon: <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><rect x="1" y="2" width="12" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.3"/><path d="M4 6h6M4 8.5h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>,
-        text: `${pendingPO.length} commande${pendingPO.length > 1 ? "s" : ""} en attente`,
-        route: "/fournisseurs",
-      });
-    }
-
-    // Recent abnormal exam results (last 30 days)
+    // Recent abnormal exam results (30 days)
     const cutoff = new Date(today);
     cutoff.setDate(cutoff.getDate() - 30);
     const cutoffStr = cutoff.toISOString().slice(0, 10);
@@ -234,19 +184,6 @@ export function DashboardPage() {
       });
     }
 
-    // Unbilled completed appointments today
-    const unbilledToday = appointments.filter(
-      a => a.date === today && a.status === "completed" && !a.billedAt
-    );
-    if (unbilledToday.length > 0) {
-      list.push({
-        id: "unbilled", level: "warning",
-        icon: <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M3 2h6l3 3v7a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/><path d="M9 2v3h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/><path d="M5 8h4M5 10h2.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>,
-        text: `${unbilledToday.length} consultation${unbilledToday.length > 1 ? "s" : ""} non facturée${unbilledToday.length > 1 ? "s" : ""} aujourd'hui`,
-        route: "/agenda",
-      });
-    }
-
     // Overdue tasks
     const overdueTasks = notes.filter(n =>
       n.type === "task" && !n.isDone && n.dueDate && n.dueDate < today
@@ -261,201 +198,130 @@ export function DashboardPage() {
       });
     }
 
-    // CNOPS pending
-    if (cnopsStats.pendingCount > 0) {
+    // Unbilled completed appointments today
+    const unbilledToday = appointments.filter(
+      a => a.date === today && a.status === "completed" && !a.billedAt
+    );
+    if (unbilledToday.length > 0) {
       list.push({
-        id: "cnops", level: "info",
-        icon: <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M7 1L2 4v4c0 3 2 4.5 5 5 3-.5 5-2 5-5V4L7 1Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/></svg>,
-        text: `${cnopsStats.pendingCount} dossier${cnopsStats.pendingCount > 1 ? "s" : ""} AMO/CNOPS en attente`,
-        subtext: cnopsStats.pendingTotal > 0 ? formatMAD(cnopsStats.pendingTotal) : undefined,
-        route: "/remboursements",
+        id: "unbilled", level: "info",
+        icon: <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M3 2h6l3 3v7a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/><path d="M9 2v3h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/><path d="M5 8h4M5 10h2.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>,
+        text: `${unbilledToday.length} consultation${unbilledToday.length > 1 ? "s" : ""} non facturée${unbilledToday.length > 1 ? "s" : ""} aujourd'hui`,
+        route: "/factures",
       });
     }
 
     return list;
-  }, [stockItems, purchaseOrders, examResults, notes, appointments, cnopsStats, today]);
+  }, [stockItems, purchaseOrders, examResults, notes, appointments, today]);
 
   const criticalAlerts = alerts.filter(a => a.level === "critical");
-  const hasAlerts      = alerts.length > 0;
 
-  // ── Today's agenda ─────────────────────────────────────────────────────────
-  const todayAppts = useMemo(() =>
-    appointments
-      .filter(a => a.date === today && a.status !== "cancelled")
-      .sort((a, b) => a.startTime.localeCompare(b.startTime)),
-    [appointments, today]);
+  // ── Finance snapshot (compact) ────────────────────────────────────────────
+  const yearTx = useMemo(
+    () => transactions.filter(t => t.date.startsWith(String(fiscalYear))),
+    [transactions, fiscalYear],
+  );
+  const netResult = result.breakdown.totalRecettes - result.breakdown.totalCharges;
+  const isNeg     = netResult < 0;
 
-  // ── Today's teleconsult sessions ──────────────────────────────────────────
-  const todayTele = useMemo(() =>
-    teleSessions
-      .filter(s => s.scheduledDate === today && s.status !== "cancelled")
-      .sort((a, b) => a.scheduledTime.localeCompare(b.scheduledTime)),
-    [teleSessions, today]);
-
-  // ── Pinned notes & urgent tasks ───────────────────────────────────────────
-  const pinnedItems = useMemo(() => {
-    const urgent = notes.filter(n => n.type === "task" && !n.isDone && n.dueDate && n.dueDate <= today);
-    const pinned = notes.filter(n => n.isPinned && !urgent.some(u => u.id === n.id));
-    return [...urgent, ...pinned].slice(0, 4);
-  }, [notes, today]);
-
-  // ── Cabinet activity strip ────────────────────────────────────────────────
-  const cabinetActivity = useMemo(() => {
-    const thisMonth = today.slice(0, 7);
-    return {
-      todayAppts:   todayAppts.length,
-      completedToday: todayAppts.filter(a => a.status === "completed").length,
-      monthAppts:   appointments.filter(a => a.date.startsWith(thisMonth)).length,
-      lowStockCount: stockItems.filter(s => s.quantity <= s.minThreshold).length,
-      pendingOrders: purchaseOrders.filter(o => o.status === "ordered" || o.status === "partial" || o.status === "draft").length,
-      todayTele:    todayTele.length,
-      pendingTasks: notes.filter(n => n.type === "task" && !n.isDone).length,
-      recentExams:  examResults.filter(e => e.date >= today.slice(0, 7) + "-01").length,
-    };
-  }, [todayAppts, appointments, stockItems, purchaseOrders, todayTele, notes, examResults, today]);
+  // ── Formatted today label ─────────────────────────────────────────────────
+  const todayLabel = new Date(today + "T12:00:00").toLocaleDateString("fr-FR", {
+    weekday: "long", day: "numeric", month: "long",
+  });
 
   return (
-    <Layout title="Tableau de bord" subtitle={String(fiscalYear)}>
+    <Layout title="Tableau de bord" subtitle={todayLabel}>
 
-      {/* ── Year picker ── */}
-      <div className="year-picker">
-        <button className="year-btn" disabled={fiscalYear <= FISCAL_MIN}
-          onClick={() => setFiscalYear(fiscalYear - 1)}>
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </button>
-        <div>
-          <div className="year-label">{fiscalYear}</div>
-          <div className="year-sub">Exercice fiscal</div>
+      {/* ══════════════════════════════════════════════════
+          CLINICAL HERO — today at a glance
+      ══════════════════════════════════════════════════ */}
+      <div className="dash-hero-grid">
+        <div className="dash-hero-tile" onClick={() => navigate("/agenda")} style={{ cursor: "pointer" }}>
+          <div className="dash-hero-val" style={{ color: "var(--blue)" }}>{heroStats.todayTotal}</div>
+          <div className="dash-hero-lbl">RDV aujourd'hui</div>
         </div>
-        <button className="year-btn" disabled={fiscalYear >= FISCAL_MAX}
-          onClick={() => setFiscalYear(fiscalYear + 1)}>
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </button>
-      </div>
-
-      {/* ── Hero result card ── */}
-      <div className="hero-card" style={{ marginBottom: 16 }}>
-        <div className="hero-card-header">
-          <div className="hero-card-label">Résultat net</div>
-          <div className="hero-card-regime">{result.tax.regime}</div>
+        <div className="dash-hero-tile" onClick={() => navigate("/salle-attente")} style={{ cursor: "pointer" }}>
+          <div className="dash-hero-val" style={{ color: heroStats.inWaiting > 0 ? "#d97706" : "var(--text)" }}>
+            {heroStats.inWaiting}
+          </div>
+          <div className="dash-hero-lbl">En salle d'attente</div>
         </div>
-        <div className={`hero-amount${isNeg ? " negative" : ""}`}>
-          {formatMAD(netResult)}
+        <div className="dash-hero-tile" onClick={() => navigate("/agenda")} style={{ cursor: "pointer" }}>
+          <div className="dash-hero-val" style={{ color: "var(--green)" }}>{heroStats.completed}</div>
+          <div className="dash-hero-lbl">Terminées</div>
         </div>
-        <div className="hero-sub">Recettes − Charges · {fiscalYear}</div>
-        <div className="hero-metrics">
-          <div className="hero-metric" onClick={() => navigate("/transactions?filter=RECETTE")} style={{ cursor: "pointer" }}>
-            <div className="hero-metric-label">Recettes</div>
-            <div className="hero-metric-value" style={{ color: "#6DEDB5" }}>
-              {formatMAD(result.breakdown.totalRecettes)}
-            </div>
-          </div>
-          <div className="hero-metric" onClick={() => navigate("/transactions?filter=CHARGE")} style={{ cursor: "pointer" }}>
-            <div className="hero-metric-label">Charges</div>
-            <div className="hero-metric-value" style={{ color: "#FF8087" }}>
-              {formatMAD(result.breakdown.totalCharges)}
-            </div>
-          </div>
-          <div className="hero-metric" onClick={() => navigate("/expliquer")} style={{ cursor: "pointer" }}>
-            <div className="hero-metric-label">IR estimé</div>
-            <div className="hero-metric-value">{formatMAD(result.tax.taxDue)}</div>
-          </div>
+        <div className="dash-hero-tile" onClick={() => navigate("/teleconsult")} style={{ cursor: "pointer" }}>
+          <div className="dash-hero-val" style={{ color: "#2D8CFF" }}>{heroStats.todayTele}</div>
+          <div className="dash-hero-lbl">Téléconsults</div>
+        </div>
+        <div className="dash-hero-tile" onClick={() => navigate("/agenda")} style={{ cursor: "pointer" }}>
+          <div className="dash-hero-val" style={{ color: "var(--blue)" }}>{heroStats.monthTotal}</div>
+          <div className="dash-hero-lbl">RDV ce mois</div>
+        </div>
+        <div className="dash-hero-tile" onClick={() => navigate("/patients")} style={{ cursor: "pointer" }}>
+          <div className="dash-hero-val">{heroStats.totalPatients}</div>
+          <div className="dash-hero-lbl">Patients total</div>
         </div>
       </div>
 
-      {/* ── Quick actions ── */}
+      {/* ══════════════════════════════════════════════════
+          QUICK ACTIONS — clinical-first
+      ══════════════════════════════════════════════════ */}
       <div className="dash-quick-actions">
-        <button
-          className="dash-quick-btn dash-quick-recette"
-          onClick={() => navigate("/transactions?openAdd=RECETTE")}
-        >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-          </svg>
-          Ajouter une recette
-        </button>
-        <button
-          className="dash-quick-btn dash-quick-charge"
-          onClick={() => navigate("/transactions?openAdd=CHARGE")}
-        >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-          </svg>
-          Ajouter une charge
-        </button>
-        <button className="dash-quick-btn" style={{ flex: "0 0 auto" }}
-          onClick={() => navigate("/agenda")}
-        >
+        <button className="dash-quick-btn dash-quick-primary" onClick={() => navigate("/agenda")}>
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
             <rect x="1" y="2" width="12" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.3"/>
             <path d="M4 1v2M10 1v2M1 6h12" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+            <path d="M7 8.5v-2M6 7.5h2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
           </svg>
-          Agenda
+          Nouveau RDV
         </button>
-        <button className="dash-quick-btn" style={{ flex: "0 0 auto" }}
-          onClick={() => navigate("/patients")}
-        >
+        <button className="dash-quick-btn dash-quick-primary" onClick={() => navigate("/patients")}>
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
             <circle cx="5.5" cy="5" r="2.5" stroke="currentColor" strokeWidth="1.3"/>
             <path d="M1 12c0-2.5 2-4.5 4.5-4.5S10 9.5 10 12" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
             <path d="M11 6v4M13 8h-4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
           </svg>
-          Patients
+          Nouveau patient
+        </button>
+        <button className="dash-quick-btn" onClick={() => navigate("/salle-attente")}>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <circle cx="9" cy="9" r="4" stroke="currentColor" strokeWidth="1.3"/>
+            <path d="M9 7.5v2l1.2 1.2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+            <circle cx="3.5" cy="4.5" r="2" stroke="currentColor" strokeWidth="1.2"/>
+            <path d="M1 11c0-1.7 1.1-3 2.5-3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+          </svg>
+          Salle d'attente
+        </button>
+        <button className="dash-quick-btn" onClick={() => navigate("/ordonnances")}>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M3 1h6l3 3v8a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/>
+            <path d="M9 1v3h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+            <path d="M4 7h5M4 9.5h3.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+          </svg>
+          Ordonnances
+        </button>
+        <button className="dash-quick-btn" onClick={() => navigate("/notes")}>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <rect x="1" y="2" width="12" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.3"/>
+            <path d="M4 6h6M4 8.5h4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+          </svg>
+          Notes & Tâches
+        </button>
+        <button className="dash-quick-btn" onClick={() => navigate("/examens")}>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <circle cx="6.5" cy="7" r="4.5" stroke="currentColor" strokeWidth="1.3"/>
+            <path d="M10 3.5l3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+            <path d="M5.5 7h2M6.5 6v2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+          </svg>
+          Examens & Bio
         </button>
       </div>
 
-      {/* ════════════════════════════════════════════════
-          CABINET ACTIVITY STRIP — new in item 39
-      ════════════════════════════════════════════════ */}
-      <div className="dash-activity-strip">
-        <div className="dash-act-item" onClick={() => navigate("/agenda")} title="Voir l'agenda">
-          <div className="dash-act-val" style={{ color: "var(--blue)" }}>{cabinetActivity.todayAppts}</div>
-          <div className="dash-act-lbl">RDV aujourd'hui</div>
-        </div>
-        <div className="dash-act-item" onClick={() => navigate("/agenda")} title="Consultations terminées">
-          <div className="dash-act-val" style={{ color: "var(--green)" }}>{cabinetActivity.completedToday}</div>
-          <div className="dash-act-lbl">Terminées</div>
-        </div>
-        <div className="dash-act-item" onClick={() => navigate("/teleconsult")} title="Téléconsultations aujourd'hui">
-          <div className="dash-act-val" style={{ color: "#2D8CFF" }}>{cabinetActivity.todayTele}</div>
-          <div className="dash-act-lbl">Téléconsult</div>
-        </div>
-        <div className="dash-act-item"
-          onClick={() => navigate("/stocks")}
-          title="Articles en stock faible ou rupture"
-          style={{ cursor: cabinetActivity.lowStockCount > 0 ? "pointer" : "default" }}
-        >
-          <div className="dash-act-val" style={{ color: cabinetActivity.lowStockCount > 0 ? "var(--coral)" : "var(--text)" }}>
-            {cabinetActivity.lowStockCount}
-          </div>
-          <div className="dash-act-lbl">Stock faible</div>
-        </div>
-        <div className="dash-act-item" onClick={() => navigate("/fournisseurs")} title="Commandes en attente">
-          <div className="dash-act-val" style={{ color: cabinetActivity.pendingOrders > 0 ? "var(--gold)" : "var(--text)" }}>
-            {cabinetActivity.pendingOrders}
-          </div>
-          <div className="dash-act-lbl">Commandes</div>
-        </div>
-        <div className="dash-act-item" onClick={() => navigate("/notes")} title="Tâches en attente">
-          <div className="dash-act-val" style={{ color: cabinetActivity.pendingTasks > 0 ? "var(--gold)" : "var(--text)" }}>
-            {cabinetActivity.pendingTasks}
-          </div>
-          <div className="dash-act-lbl">Tâches</div>
-        </div>
-        <div className="dash-act-item" onClick={() => navigate("/examens")} title="Examens ce mois">
-          <div className="dash-act-val" style={{ color: "var(--blue)" }}>{cabinetActivity.recentExams}</div>
-          <div className="dash-act-lbl">Examens (mois)</div>
-        </div>
-      </div>
-
-      {/* ════════════════════════════════════════════════
-          ALERTS — new in item 39
-      ════════════════════════════════════════════════ */}
-      {hasAlerts && (
+      {/* ══════════════════════════════════════════════════
+          ALERTS
+      ══════════════════════════════════════════════════ */}
+      {alerts.length > 0 && (
         <div className="dash-alerts-section">
           <div
             className="dash-alerts-header"
@@ -485,13 +351,12 @@ export function DashboardPage() {
         </div>
       )}
 
-      {/* ════════════════════════════════════════════════
-          TODAY's AGENDA + TELE — new in item 39
-      ════════════════════════════════════════════════ */}
+      {/* ══════════════════════════════════════════════════
+          TODAY'S AGENDA + TÉLÉCONSULTATIONS
+      ══════════════════════════════════════════════════ */}
       {(todayAppts.length > 0 || todayTele.length > 0) && (
         <div className="dash-today-row">
 
-          {/* Agenda du jour */}
           {todayAppts.length > 0 && (
             <div className="card dash-today-card" style={{ flex: 1, minWidth: 0 }}>
               <div className="dash-section-header">
@@ -499,7 +364,7 @@ export function DashboardPage() {
                 <button className="dash-see-all" onClick={() => navigate("/agenda")}>Voir tout →</button>
               </div>
               <div className="dash-today-list">
-                {todayAppts.slice(0, 5).map(a => (
+                {todayAppts.slice(0, 6).map(a => (
                   <div key={a.id} className="dash-today-item"
                     onClick={() => navigate("/agenda/" + a.id)} style={{ cursor: "pointer" }}
                   >
@@ -514,20 +379,24 @@ export function DashboardPage() {
                         <span style={{ color: APPT_STATUS_COLORS[a.status] ?? "var(--muted)", fontSize: 11, fontWeight: 600 }}>
                           {APPT_STATUS_LABELS[a.status] ?? a.status}
                         </span>
+                        {a.consultationNote?.motif && (
+                          <span style={{ color: "var(--muted)", fontSize: 11, marginLeft: 6 }}>
+                            · {a.consultationNote.motif}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
                 ))}
-                {todayAppts.length > 5 && (
+                {todayAppts.length > 6 && (
                   <div className="dash-today-more" onClick={() => navigate("/agenda")}>
-                    +{todayAppts.length - 5} autre{todayAppts.length - 5 > 1 ? "s" : ""} →
+                    +{todayAppts.length - 6} autre{todayAppts.length - 6 > 1 ? "s" : ""} →
                   </div>
                 )}
               </div>
             </div>
           )}
 
-          {/* Téléconsultations du jour */}
           {todayTele.length > 0 && (
             <div className="card dash-today-card" style={{ flex: "0 0 240px" }}>
               <div className="dash-section-header">
@@ -569,9 +438,9 @@ export function DashboardPage() {
         </div>
       )}
 
-      {/* ════════════════════════════════════════════════
-          PINNED NOTES — new in item 39
-      ════════════════════════════════════════════════ */}
+      {/* ══════════════════════════════════════════════════
+          PINNED NOTES & URGENT TASKS
+      ══════════════════════════════════════════════════ */}
       {pinnedItems.length > 0 && (
         <div className="dash-pinned-section">
           <div className="dash-section-header">
@@ -620,208 +489,82 @@ export function DashboardPage() {
         </div>
       )}
 
-      {/* ── CNOPS / AMO spotlight ── */}
-      {hasCnops && (
-        <div className="cnops-spotlight">
-          <div className="cnops-header">
-            <span className="cnops-title">AMO / CNOPS · {fiscalYear}</span>
-            {cnopsStats.pendingCount > 0 && (
-              <button
-                className="cnops-resolve-btn"
-                onClick={() => navigate("/remboursements")}
-              >
-                Voir tout →
+      {/* ══════════════════════════════════════════════════
+          FINANCE SNAPSHOT — compact, collapsible
+      ══════════════════════════════════════════════════ */}
+      <div className="dash-finance-snapshot">
+        <button
+          className="dash-finance-header"
+          onClick={() => setFinanceOpen(o => !o)}
+        >
+          <div className="dash-finance-header-left">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <rect x="1" y="3" width="12" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.3"/>
+              <path d="M4 3V2a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1" stroke="currentColor" strokeWidth="1.3"/>
+              <path d="M7 7v2M5.5 8h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+            </svg>
+            <span className="dash-finance-title">Aperçu financier · {fiscalYear}</span>
+            <span
+              className="dash-finance-net"
+              style={{ color: isNeg ? "var(--coral)" : "var(--green)" }}
+            >
+              {formatMAD(netResult)}
+            </span>
+          </div>
+          <svg
+            width="12" height="12" viewBox="0 0 12 12" fill="none"
+            style={{ transition: "transform 0.2s", transform: financeOpen ? "rotate(180deg)" : "rotate(0deg)" }}
+          >
+            <path d="M3 4.5l3 3 3-3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </button>
+
+        {financeOpen && (
+          <div className="dash-finance-body">
+            <div className="dash-finance-kpis">
+              <div className="dash-finance-kpi">
+                <div className="dash-finance-kpi-val" style={{ color: "var(--green)" }}>
+                  {formatMAD(result.breakdown.totalRecettes)}
+                </div>
+                <div className="dash-finance-kpi-lbl">Recettes</div>
+              </div>
+              <div className="dash-finance-kpi-sep" />
+              <div className="dash-finance-kpi">
+                <div className="dash-finance-kpi-val" style={{ color: "var(--coral)" }}>
+                  {formatMAD(result.breakdown.totalCharges)}
+                </div>
+                <div className="dash-finance-kpi-lbl">Charges</div>
+              </div>
+              <div className="dash-finance-kpi-sep" />
+              <div className="dash-finance-kpi">
+                <div className="dash-finance-kpi-val" style={{ color: "var(--gold)" }}>
+                  {formatMAD(result.tax.taxDue)}
+                </div>
+                <div className="dash-finance-kpi-lbl">IR estimé</div>
+              </div>
+              <div className="dash-finance-kpi-sep" />
+              <div className="dash-finance-kpi">
+                <div className="dash-finance-kpi-val" style={{ color: isNeg ? "var(--coral)" : "var(--text)" }}>
+                  {formatMAD(netResult)}
+                </div>
+                <div className="dash-finance-kpi-lbl">Résultat net</div>
+              </div>
+            </div>
+            <div className="dash-finance-actions">
+              <button className="btn btn-ghost" onClick={() => navigate("/transactions")}>
+                Transactions
               </button>
-            )}
-          </div>
-          <div className="cnops-kpi-row">
-            <div className="cnops-kpi">
-              <div className="cnops-kpi-value" style={{ color: cnopsStats.receivedTotal > 0 ? "var(--green)" : undefined }}>
-                {cnopsStats.receivedTotal > 0 ? formatMAD(cnopsStats.receivedTotal) : "—"}
-              </div>
-              <div className="cnops-kpi-label">Encaissé</div>
-              {cnopsStats.receivedCount > 0 && (
-                <div className="cnops-kpi-count">{cnopsStats.receivedCount} dossier{cnopsStats.receivedCount > 1 ? "s" : ""}</div>
-              )}
-            </div>
-            <div className="cnops-kpi-sep" />
-            <div className="cnops-kpi">
-              <div className="cnops-kpi-value" style={{ color: cnopsStats.pendingTotal > 0 ? "var(--gold)" : undefined }}>
-                {cnopsStats.pendingTotal > 0 ? formatMAD(cnopsStats.pendingTotal) : "—"}
-              </div>
-              <div className="cnops-kpi-label">En attente</div>
-              {cnopsStats.pendingCount > 0 && (
-                <div className="cnops-kpi-count">{cnopsStats.pendingCount} dossier{cnopsStats.pendingCount > 1 ? "s" : ""}</div>
-              )}
-            </div>
-            <div className="cnops-kpi-sep" />
-            <div className="cnops-kpi">
-              <div className="cnops-kpi-value" style={{ color: cnopsStats.rejectedCount > 0 ? "var(--coral)" : undefined }}>
-                {cnopsStats.rejectedCount > 0 ? String(cnopsStats.rejectedCount) : "—"}
-              </div>
-              <div className="cnops-kpi-label">Refusé</div>
+              <button className="btn btn-ghost" onClick={() => navigate("/rapport")}>
+                Rapport fiscal
+              </button>
+              <button className="btn btn-ghost" onClick={() => navigate("/expliquer")}>
+                Calcul IR
+              </button>
             </div>
           </div>
-          {cnopsStats.receivedTotal > 0 && cnopsStats.pendingTotal > 0 && (() => {
-            const pct = Math.round(
-              (cnopsStats.receivedTotal / (cnopsStats.receivedTotal + cnopsStats.pendingTotal)) * 100,
-            );
-            return (
-              <div className="cnops-progress-row">
-                <div className="cnops-progress-track">
-                  <div className="cnops-progress-fill" style={{ width: `${pct}%` }} />
-                </div>
-                <span className="cnops-progress-label">{pct}% encaissé</span>
-              </div>
-            );
-          })()}
-        </div>
-      )}
-
-      {/* ── Two-column financial layout ── */}
-      <div className="dash-2col">
-
-        {/* Left */}
-        <div className="dash-col">
-          <div className="stats-grid" style={{ marginBottom: 0 }}>
-            <div className="stat-card" style={{ borderLeftColor: "var(--green)" }}>
-              <div className="stat-label">Total recettes</div>
-              <div className="stat-value" style={{ color: "var(--green)" }}>{formatMAD(result.breakdown.totalRecettes)}</div>
-              {hasPrev && <DeltaBadge curr={result.breakdown.totalRecettes} prev={prevRec} higherIsBetter />}
-            </div>
-            <div className="stat-card" style={{ borderLeftColor: "var(--coral)" }}>
-              <div className="stat-label">Total charges</div>
-              <div className="stat-value" style={{ color: "var(--coral)" }}>{formatMAD(result.breakdown.totalCharges)}</div>
-              {hasPrev && <DeltaBadge curr={result.breakdown.totalCharges} prev={prevChg} higherIsBetter={false} />}
-            </div>
-            <div className="stat-card" style={{ borderLeftColor: "var(--gold)" }}>
-              <div className="stat-label">IR / CM estimé</div>
-              <div className="stat-value" style={{ color: "var(--gold)" }}>{formatMAD(result.tax.taxDue)}</div>
-              <div className="stat-sub">{result.tax.payableRule}</div>
-            </div>
-          </div>
-
-          <div className="card">
-            <div className="card-title">Activité mensuelle · {fiscalYear}</div>
-            <MonthlyChart data={monthlyData} fiscalYear={fiscalYear} />
-          </div>
-
-          <div className="card">
-            <div className="card-title">Performance cabinet</div>
-            <div className="breakdown-row">
-              <span>Total recettes</span>
-              <span className="val-green">{formatMAD(result.breakdown.totalRecettes)}</span>
-            </div>
-            <div className="breakdown-row">
-              <span>Charges déductibles</span>
-              <span style={{ color: "var(--muted)" }}>− {formatMAD(result.breakdown.totalChargesDeductibles)}</span>
-            </div>
-            {result.breakdown.totalReintegrations > 0 && (
-              <div className="breakdown-row">
-                <span>Réintégrations fiscales</span>
-                <span style={{ color: "var(--gold)" }}>+ {formatMAD(result.breakdown.totalReintegrations)}</span>
-              </div>
-            )}
-            <div className="breakdown-row bold">
-              <span>Résultat fiscal</span>
-              <span>{formatMAD(result.breakdown.resultatFiscal)}</span>
-            </div>
-            <div className="breakdown-row bold">
-              <span>IR / CM estimé ({result.tax.payableRule})</span>
-              <span style={{ color: "var(--gold)" }}>{formatMAD(result.tax.taxDue)}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Right */}
-        <div className="dash-col">
-
-          {hasPrev && (
-            <div className="card yoy-card">
-              <div className="card-title">Comparaison année précédente</div>
-              <div className="yoy-row">
-                <div className="yoy-metric">
-                  <div className="yoy-metric-label">Recettes {fiscalYear}</div>
-                  <div className="yoy-metric-value" style={{ color: "var(--green)" }}>
-                    {formatMAD(result.breakdown.totalRecettes)}
-                  </div>
-                  <DeltaBadge curr={result.breakdown.totalRecettes} prev={prevRec} higherIsBetter />
-                </div>
-                <div className="yoy-sep" />
-                <div className="yoy-metric">
-                  <div className="yoy-metric-label">Recettes {prevYear}</div>
-                  <div className="yoy-metric-value" style={{ color: "var(--muted)" }}>
-                    {formatMAD(prevRec)}
-                  </div>
-                </div>
-              </div>
-              <div className="yoy-row" style={{ borderTop: "1px solid var(--border)", marginTop: 12, paddingTop: 12 }}>
-                <div className="yoy-metric">
-                  <div className="yoy-metric-label">Charges {fiscalYear}</div>
-                  <div className="yoy-metric-value" style={{ color: "var(--coral)" }}>
-                    {formatMAD(result.breakdown.totalCharges)}
-                  </div>
-                  <DeltaBadge curr={result.breakdown.totalCharges} prev={prevChg} higherIsBetter={false} />
-                </div>
-                <div className="yoy-sep" />
-                <div className="yoy-metric">
-                  <div className="yoy-metric-label">Charges {prevYear}</div>
-                  <div className="yoy-metric-value" style={{ color: "var(--muted)" }}>
-                    {formatMAD(prevChg)}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {categorySlices.length > 0 && (
-            <div className="card">
-              <div className="card-title">Répartition des charges</div>
-              <div className="cat-list">
-                {categorySlices.map((s) => (
-                  <div key={s.id} className="cat-row">
-                    <div className="cat-dot" style={{ background: s.color }} />
-                    <span className="cat-label">{s.label}</span>
-                    <div className="cat-bar-track">
-                      <div
-                        className="cat-bar-fill"
-                        style={{ width: `${s.percentage}%`, background: s.color + "cc" }}
-                      />
-                    </div>
-                    <span className="cat-pct">{s.percentage}%</span>
-                    <span className="cat-amount">{formatMAD(s.amount)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {topPatients.length > 0 && (
-            <div className="card">
-              <div className="card-title">Top patients · {fiscalYear}</div>
-              {topPatients.map((p, i) => (
-                <div key={p.name} className="top-patient-row">
-                  <div className="top-patient-rank">#{i + 1}</div>
-                  <div className="top-patient-name">{p.name}</div>
-                  <div className="top-patient-count">{p.count} consult.</div>
-                  <div className="top-patient-rev" style={{ color: "var(--green)" }}>
-                    {formatMAD(p.revenue)}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div style={{ display: "flex", gap: 10 }}>
-            <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => navigate("/transactions")}>
-              Gérer les transactions
-            </button>
-            <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => navigate("/expliquer")}>
-              Voir le détail fiscal
-            </button>
-          </div>
-        </div>
+        )}
       </div>
+
     </Layout>
   );
 }

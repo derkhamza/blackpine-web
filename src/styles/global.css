@@ -1321,25 +1321,81 @@ img { max-width: 100%; display: block; }
 
 /* ── Dashboard upgrades ─────────────────────────────────────────────────── */
 
+/* ── Clinical hero grid ────────────────────────────────────────────────── */
+.dash-hero-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 0;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-lg);
+  margin-bottom: 16px;
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+}
+.dash-hero-tile {
+  padding: 16px 12px;
+  text-align: center;
+  border-right: 1px solid var(--border);
+  transition: background var(--trans);
+}
+.dash-hero-tile:last-child { border-right: none; }
+.dash-hero-tile:hover { background: var(--bg); }
+.dash-hero-val {
+  font-size: 28px; font-weight: 800; line-height: 1; margin-bottom: 5px;
+  color: var(--text);
+}
+.dash-hero-lbl {
+  font-size: 10px; font-weight: 600; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.4px;
+}
+
 /* Quick action buttons */
 .dash-quick-actions {
-  display: flex; gap: 10px; margin-bottom: 16px;
+  display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;
 }
 .dash-quick-btn {
-  flex: 1; display: flex; align-items: center; justify-content: center;
-  gap: 8px; padding: 13px 20px; border-radius: var(--r-lg);
-  font-size: 14px; font-weight: 700; border: 2px solid;
+  flex: 1; min-width: 130px; display: flex; align-items: center; justify-content: center;
+  gap: 8px; padding: 11px 16px; border-radius: var(--r);
+  font-size: 13px; font-weight: 600; border: 1.5px solid var(--border);
+  background: var(--surface); color: var(--text);
   transition: all var(--trans); cursor: pointer;
 }
-.dash-quick-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
-.dash-quick-recette {
-  background: var(--green-soft); border-color: var(--green); color: var(--green);
+.dash-quick-btn:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-soft); }
+.dash-quick-primary {
+  background: var(--navy); color: #fff; border-color: var(--navy);
 }
-.dash-quick-recette:hover { background: var(--green); color: #fff; }
-.dash-quick-charge {
-  background: var(--coral-soft); border-color: var(--coral); color: var(--coral);
+.dash-quick-primary:hover { background: var(--navy-mid); border-color: var(--navy-mid); color: #fff; }
+
+/* Finance snapshot */
+.dash-finance-snapshot {
+  background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: var(--r-lg); margin-bottom: 16px; overflow: hidden;
+  box-shadow: var(--shadow-card);
 }
-.dash-quick-charge:hover { background: var(--coral); color: #fff; }
+.dash-finance-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px; width: 100%; background: transparent;
+  border: none; cursor: pointer; text-align: left;
+  transition: background var(--trans);
+}
+.dash-finance-header:hover { background: var(--bg); }
+.dash-finance-header-left { display: flex; align-items: center; gap: 10px; color: var(--text); }
+.dash-finance-title { font-size: 13px; font-weight: 700; color: var(--text); }
+.dash-finance-net { font-size: 14px; font-weight: 800; }
+.dash-finance-body { padding: 0 16px 14px; border-top: 1px solid var(--border); }
+.dash-finance-kpis {
+  display: flex; align-items: center; gap: 0;
+  padding: 14px 0 12px;
+}
+.dash-finance-kpi { flex: 1; text-align: center; }
+.dash-finance-kpi-val { font-size: 16px; font-weight: 800; line-height: 1; margin-bottom: 4px; }
+.dash-finance-kpi-lbl { font-size: 10px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; }
+.dash-finance-kpi-sep { width: 1px; height: 36px; background: var(--border); flex-shrink: 0; }
+.dash-finance-actions {
+  display: flex; gap: 8px; padding-top: 4px;
+}
+.dash-finance-actions .btn { flex: 1; font-size: 12px; padding: 7px 10px; }
 
 /* CNOPS spotlight */
 .cnops-spotlight {
@@ -5092,6 +5148,9 @@ a.ana-top-name:hover { color: var(--blue); text-decoration: underline; }
 
 /* ── Responsive tweaks ──────────────────────────────────────────────────── */
 @media (max-width: 640px) {
+  .dash-hero-grid { grid-template-columns: repeat(3, 1fr); }
+  .dash-hero-tile:nth-child(3) { border-right: none; }
+  .dash-hero-tile:nth-child(n+4) { border-top: 1px solid var(--border); }
   .dash-activity-strip { flex-wrap: wrap; }
   .dash-act-item { flex: 0 0 calc(33.333% - 1px); border-bottom: 1px solid var(--border); }
   .dash-today-row { flex-direction: column; }
