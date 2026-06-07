@@ -31,6 +31,26 @@ function getMondayOfWeek(iso: string): string {
   d.setDate(d.getDate() - dow);
   return d.toISOString().slice(0, 10);
 }
+function addMonths(iso: string, n: number): string {
+  const d = new Date(iso + "T12:00:00");
+  d.setMonth(d.getMonth() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+type RecurrFreq = "weekly" | "biweekly" | "monthly";
+
+function generateRecurringDates(start: string, freq: RecurrFreq, count: number): string[] {
+  const dates: string[] = [start];
+  for (let i = 1; i < count; i++) {
+    const prev = dates[i - 1];
+    dates.push(
+      freq === "weekly"   ? addDays(prev, 7)
+      : freq === "biweekly" ? addDays(prev, 14)
+      :                       addMonths(prev, 1),
+    );
+  }
+  return dates;
+}
 
 type AgendaView = "day" | "week" | "month";
 
@@ -57,11 +77,12 @@ interface ApptModalProps {
   defaultDate: string;
   isEdit: boolean;
   patients: Patient[];
-  onSave: (a: Omit<Appointment, "id">) => void;
+  onSave:      (a: Omit<Appointment, "id">) => void;
+  onSaveBatch?: (appts: Omit<Appointment, "id">[]) => void;
   onClose: () => void;
 }
 
-function ApptModal({ initial, defaultDate, isEdit, patients, onSave, onClose }: ApptModalProps) {
+function ApptModal({ initial, defaultDate, isEdit, patients, onSave, onSaveBatch, onClose }: ApptModalProps) {
   const [patientName, setName]  = useState(initial?.patientName ?? "");
   const [linkedPid,   setPid]   = useState(initial?.patientId   ?? "");
   const [date,   setDate]       = useState(initial?.date ?? defaultDate);
@@ -70,6 +91,10 @@ function ApptModal({ initial, defaultDate, isEdit, patients, onSave, onClose }: 
   const [type,   setType]       = useState<AppointmentType>(initial?.type ?? "consultation");
   const [status, setStatus]     = useState<AppointmentStatus>(initial?.status ?? "scheduled");
   const [notes,  setNotes]      = useState(initial?.notes ?? "");
+  // Recurrence (new appointments only)
+  const [recurring,   setRecurring]   = useState(false);
+  const [recurrFreq,  setRecurrFreq]  = useState<RecurrFreq>("weekly");
+  const [recurrCount, setRecurrCount] = useState(4);
 
   const handleNameChange = (val: string) => {
     setName(val);
@@ -84,12 +109,18 @@ function ApptModal({ initial, defaultDate, isEdit, patients, onSave, onClose }: 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (!patientName.trim()) return;
-    onSave({
+    const base = {
       patientName: patientName.trim(),
-      patientId: linkedPid || undefined,
-      date, startTime: start, endTime: end, type, status,
+      patientId:   linkedPid || undefined,
+      startTime: start, endTime: end, type, status,
       notes: notes || undefined,
-    });
+    };
+    if (!isEdit && recurring && onSaveBatch) {
+      const dates = generateRecurringDates(date, recurrFreq, recurrCount);
+      onSaveBatch(dates.map(d => ({ ...base, date: d })));
+    } else {
+      onSave({ ...base, date });
+    }
     onClose();
   };
 
@@ -158,11 +189,90 @@ function ApptModal({ initial, defaultDate, isEdit, patients, onSave, onClose }: 
               <label className="form-label">Notes (optionnel)</label>
               <input className="form-input" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Motif, remarques…" />
             </div>
+
+            {/* ── Recurrence — new appointments only ── */}
+            {!isEdit && (
+              <div className="recurrence-section">
+                <label className="recurrence-toggle">
+                  <input
+                    type="checkbox"
+                    checked={recurring}
+                    onChange={e => setRecurring(e.target.checked)}
+                  />
+                  <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0 }}>
+                    <path d="M2 7a5 5 0 1 1 5 5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                    <path d="M7 3V7l2.5 2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                    <path d="M2 7l-2-2M2 7l2-2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  <span>Répéter ce rendez-vous</span>
+                </label>
+
+                {recurring && (
+                  <div className="recurrence-options">
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label className="form-label">Fréquence</label>
+                        <select
+                          className="form-select"
+                          value={recurrFreq}
+                          onChange={e => setRecurrFreq(e.target.value as RecurrFreq)}
+                        >
+                          <option value="weekly">Chaque semaine</option>
+                          <option value="biweekly">Toutes les 2 semaines</option>
+                          <option value="monthly">Chaque mois</option>
+                        </select>
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Séances</label>
+                        <input
+                          type="number"
+                          className="form-input"
+                          min={2} max={52}
+                          value={recurrCount}
+                          onChange={e =>
+                            setRecurrCount(Math.max(2, Math.min(52, parseInt(e.target.value) || 2)))}
+                        />
+                      </div>
+                    </div>
+
+                    {date && (
+                      <div className="recurrence-preview">
+                        <div className="recurrence-preview-summary">
+                          Créera <strong>{recurrCount} rendez-vous</strong>
+                          {" · "}
+                          <span style={{ color: "var(--muted)" }}>
+                            {new Date(date + "T12:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
+                            {" → "}
+                            {new Date(
+                              generateRecurringDates(date, recurrFreq, recurrCount).slice(-1)[0] + "T12:00:00"
+                            ).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
+                          </span>
+                        </div>
+                        <div className="recurrence-chips">
+                          {generateRecurringDates(date, recurrFreq, recurrCount).slice(0, 5).map((d, i) => (
+                            <span key={d} className="recurrence-chip">
+                              {i + 1}. {new Date(d + "T12:00:00").toLocaleDateString("fr-FR", {
+                                weekday: "short", day: "numeric", month: "short",
+                              })}
+                            </span>
+                          ))}
+                          {recurrCount > 5 && (
+                            <span className="recurrence-chip recurrence-chip-more">
+                              +{recurrCount - 5} autres
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           <div className="modal-footer">
             <button type="button" className="btn btn-ghost" onClick={onClose}>Annuler</button>
             <button type="submit" className="btn btn-primary" style={{ background: APPT_TYPE_COLORS[type] }}>
-              Enregistrer
+              {!isEdit && recurring ? `Créer ${recurrCount} RDV` : "Enregistrer"}
             </button>
           </div>
         </form>
@@ -1029,6 +1139,10 @@ export function AgendaPage() {
             if (modal.appt) updateAppointment({ ...a, id: modal.appt.id });
             else addAppointment(a);
             showToast(modal.appt ? "Rendez-vous modifié" : "Rendez-vous ajouté");
+          }}
+          onSaveBatch={appts => {
+            appts.forEach(a => addAppointment(a));
+            showToast(`${appts.length} rendez-vous créés`);
           }}
           onClose={() => setModal(null)}
         />

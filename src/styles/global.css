@@ -3591,3 +3591,66 @@ a.ana-top-name:hover { color: var(--blue); text-decoration: underline; }
   .calc-nav-btn { flex: 1; min-width: 130px; }
   .calc-nav-sub { display: none; }
 }
+
+/* ═══════════════════════════════════════════════════════════
+   RECURRING APPOINTMENTS (inside ApptModal)
+═══════════════════════════════════════════════════════════ */
+
+.recurrence-section {
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: var(--surface-alt);
+}
+.recurrence-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  user-select: none;
+}
+.recurrence-toggle input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+  accent-color: var(--navy);
+}
+.recurrence-options {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.recurrence-preview {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+.recurrence-preview-summary {
+  font-size: 12px;
+  margin-bottom: 8px;
+  color: var(--text);
+}
+.recurrence-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.recurrence-chip {
+  padding: 3px 9px;
+  border-radius: 100px;
+  background: var(--blue-soft);
+  color: var(--blue);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.recurrence-chip-more {
+  background: var(--surface-alt);
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
