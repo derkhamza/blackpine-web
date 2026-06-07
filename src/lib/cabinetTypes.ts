@@ -309,3 +309,27 @@ export interface TeleSession {
   duration?:     number;   // minutes
   createdAt:     string;   // ISO
 }
+
+// ── Internal notes & tasks ────────────────────────────────────────────────────
+
+export type NoteColor = "yellow" | "blue" | "green" | "pink";
+
+export const NOTE_COLOR_VALUES: Record<NoteColor, { bg: string; border: string; text: string }> = {
+  yellow: { bg: "#FFFDE7", border: "#FFE082", text: "#6B4F00" },
+  blue:   { bg: "#E3F2FD", border: "#90CAF9", text: "#0D47A1" },
+  green:  { bg: "#E8F5E9", border: "#A5D6A7", text: "#1B5E20" },
+  pink:   { bg: "#FCE4EC", border: "#F48FB1", text: "#880E4F" },
+};
+
+export interface InternalNote {
+  id:        string;
+  type:      "note" | "task";
+  title:     string;
+  body?:     string;          // free text (notes) or undefined (tasks)
+  color:     NoteColor;
+  isPinned:  boolean;
+  isDone:    boolean;         // tasks only
+  dueDate?:  string;          // YYYY-MM-DD, tasks only
+  createdAt: string;          // ISO
+  updatedAt: string;          // ISO
+}

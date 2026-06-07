@@ -4119,3 +4119,242 @@ a.ana-top-name:hover { color: var(--blue); text-decoration: underline; }
   .tele-row-right { flex-direction: column; align-items: flex-end; gap: 6px; }
   .tele-kpi-strip { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ── Notes & Tâches page (item 36) ─────────────────────────────────────────── */
+
+.note-kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+@media (max-width: 600px) { .note-kpi-strip { grid-template-columns: repeat(2, 1fr); } }
+.note-kpi-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 14px 16px;
+  text-align: center;
+}
+.note-kpi-val { font-size: 26px; font-weight: 800; color: var(--text); }
+.note-kpi-lbl { font-size: 11px; color: var(--muted); font-weight: 500; margin-top: 2px; }
+
+.note-alert-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--coral-soft);
+  border: 1px solid var(--coral);
+  border-radius: 9px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--coral);
+  margin-bottom: 16px;
+}
+
+.note-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+.note-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+.note-tab {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: var(--r-pill);
+  border: 1.5px solid var(--border);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  transition: border-color var(--trans), color var(--trans), background var(--trans);
+}
+.note-tab.active {
+  border-color: var(--blue);
+  color: var(--blue);
+  background: var(--blue-soft);
+}
+.note-tab:hover:not(.active) { border-color: var(--muted); color: var(--text); }
+
+/* Note grid */
+.note-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+@media (max-width: 480px) { .note-grid { grid-template-columns: 1fr; } }
+
+/* Note card */
+.note-card {
+  border: 1.5px solid;
+  border-radius: 12px;
+  padding: 14px 14px 10px;
+  position: relative;
+  transition: box-shadow var(--trans), transform 0.15s;
+  break-inside: avoid;
+}
+.note-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.1); transform: translateY(-1px); }
+.note-card.note-done { opacity: 0.6; }
+.note-card.note-pinned { box-shadow: 0 2px 12px rgba(0,0,0,0.12); }
+
+.note-pin-flag {
+  position: absolute;
+  top: -4px;
+  right: 12px;
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+.note-card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.note-task-check {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: 2px solid;
+  flex-shrink: 0;
+  margin-top: 1px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--trans);
+}
+.note-card-title {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.4;
+  flex: 1;
+  word-break: break-word;
+}
+.note-done .note-card-title { text-decoration: line-through; }
+
+.note-card-body {
+  font-size: 12px;
+  line-height: 1.6;
+  margin-bottom: 8px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  opacity: 0.85;
+}
+
+.note-due-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.note-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  opacity: 0.7;
+  border-top: 1px solid;
+  border-color: inherit;
+  padding-top: 8px;
+  margin-top: 4px;
+}
+.note-card-date { font-size: 10px; }
+.note-card-actions {
+  display: flex;
+  gap: 2px;
+}
+.note-action-btn {
+  background: transparent;
+  border: none;
+  padding: 3px 5px;
+  cursor: pointer;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  opacity: 0.6;
+  transition: opacity var(--trans), background var(--trans);
+}
+.note-action-btn:hover { opacity: 1; }
+.note-action-btn.danger:hover { opacity: 1; color: var(--coral) !important; }
+
+/* Form elements */
+.note-type-toggle {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.note-type-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1.5px solid var(--border);
+  background: var(--surface-alt);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  justify-content: center;
+  transition: border-color var(--trans), color var(--trans), background var(--trans);
+}
+.note-type-btn.active {
+  border-color: var(--blue);
+  color: var(--blue);
+  background: var(--blue-soft);
+}
+.note-color-picker {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+.note-color-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.12s;
+}
+.note-color-swatch.active { transform: scale(1.2); }
+.note-color-swatch:hover:not(.active) { transform: scale(1.1); }
+.note-pin-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted);
+  cursor: pointer;
+  font-weight: 500;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1.5px solid var(--border);
+  background: transparent;
+  white-space: nowrap;
+  transition: border-color var(--trans), color var(--trans);
+}
+.note-pin-toggle:has(input:checked) {
+  border-color: var(--gold);
+  color: var(--gold);
+  background: var(--gold-soft);
+}
+.note-pin-toggle input { display: none; }

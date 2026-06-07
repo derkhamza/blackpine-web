@@ -1,7 +1,7 @@
 import {
   createContext, useCallback, useContext, useEffect, useState, type ReactNode,
 } from "react";
-import type { Appointment, CabinetDoctorProfile, Employee, Patient, PrescriptionTemplate, StockItem, WaTemplate, TeleSession } from "../lib/cabinetTypes";
+import type { Appointment, CabinetDoctorProfile, Employee, Patient, PrescriptionTemplate, StockItem, WaTemplate, TeleSession, InternalNote } from "../lib/cabinetTypes";
 import { BLANK_DOCTOR_PROFILE } from "../lib/cabinetTypes";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -65,6 +65,14 @@ interface CabinetCtx {
   addTeleSession:       (s: Omit<TeleSession, "id" | "createdAt">) => void;
   updateTeleSession:    (s: TeleSession) => void;
   deleteTeleSession:    (id: string) => void;
+
+  // Internal notes & tasks
+  notes:             InternalNote[];
+  addNote:           (n: Omit<InternalNote, "id" | "createdAt" | "updatedAt">) => void;
+  updateNote:        (n: InternalNote) => void;
+  deleteNote:        (id: string) => void;
+  toggleNotePin:     (id: string) => void;
+  toggleNoteDone:    (id: string) => void;
 
   // Backup / restore
   exportCabinetJSON: () => string;
@@ -170,6 +178,9 @@ export function CabinetProvider({ children }: { children: ReactNode }) {
   const [teleSessions, setTele] = useState<TeleSession[]>(
     () => load("bp.teleSessions", [])
   );
+  const [notes, setNotes] = useState<InternalNote[]>(
+    () => load("bp.notes", [])
+  );
 
   // Persist to localStorage on every change
   useEffect(() => { save("bp.appts",     appointments);  }, [appointments]);
@@ -178,8 +189,9 @@ export function CabinetProvider({ children }: { children: ReactNode }) {
   useEffect(() => { save("bp.doctor",    doctorProfile); }, [doctorProfile]);
   useEffect(() => { save("bp.prescriptionTemplates", prescriptionTemplates); }, [prescriptionTemplates]);
   useEffect(() => { save("bp.stock",       stockItems);    }, [stockItems]);
-  useEffect(() => { save("bp.waTemplates", waTemplates);   }, [waTemplates]);
-  useEffect(() => { save("bp.teleSessions", teleSessions); }, [teleSessions]);
+  useEffect(() => { save("bp.waTemplates",  waTemplates);   }, [waTemplates]);
+  useEffect(() => { save("bp.teleSessions", teleSessions);  }, [teleSessions]);
+  useEffect(() => { save("bp.notes",        notes);         }, [notes]);
 
   const setDoctorProfile = useCallback(
     (p: CabinetDoctorProfile) => setDoctorProfileState(p), []);
@@ -256,6 +268,23 @@ export function CabinetProvider({ children }: { children: ReactNode }) {
   const deleteTeleSession = useCallback(
     (id: string) => setTele(prev => prev.filter(x => x.id !== id)), []);
 
+  // ── Internal notes & tasks ────────────────────────────────────────────────
+  const now = () => new Date().toISOString();
+  const addNote = useCallback(
+    (n: Omit<InternalNote, "id" | "createdAt" | "updatedAt">) =>
+      setNotes(prev => [{ ...n, id: uid(), createdAt: now(), updatedAt: now() }, ...prev]), []);
+  const updateNote = useCallback(
+    (n: InternalNote) =>
+      setNotes(prev => prev.map(x => x.id === n.id ? { ...n, updatedAt: now() } : x)), []);
+  const deleteNote = useCallback(
+    (id: string) => setNotes(prev => prev.filter(x => x.id !== id)), []);
+  const toggleNotePin = useCallback(
+    (id: string) =>
+      setNotes(prev => prev.map(x => x.id === id ? { ...x, isPinned: !x.isPinned, updatedAt: now() } : x)), []);
+  const toggleNoteDone = useCallback(
+    (id: string) =>
+      setNotes(prev => prev.map(x => x.id === id ? { ...x, isDone: !x.isDone, updatedAt: now() } : x)), []);
+
   // ── Prescription templates ────────────────────────────────────────────────
   const addPrescriptionTemplate = useCallback(
     (t: Omit<PrescriptionTemplate, "id">) =>
@@ -288,6 +317,7 @@ export function CabinetProvider({ children }: { children: ReactNode }) {
     stockItems, addStockItem, updateStockItem, deleteStockItem, adjustStock,
     waTemplates, addWaTemplate, updateWaTemplate, deleteWaTemplate,
     teleSessions, addTeleSession, updateTeleSession, deleteTeleSession,
+    notes, addNote, updateNote, deleteNote, toggleNotePin, toggleNoteDone,
     exportCabinetJSON, importCabinetJSON, clearAppointments, clearPatients,
   };
 
