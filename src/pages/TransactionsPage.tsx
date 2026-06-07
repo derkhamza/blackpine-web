@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { getCategoryById } from "blackpine-engine";
-import type { Transaction } from "blackpine-engine";
+import { getCategoryById } from "../engine";
+import type { Transaction } from "../engine";
 import { Layout } from "../components/Layout";
 import { useApp } from "../context/AppContext";
 import { formatMAD, formatDateShort, todayIso } from "../lib/format";

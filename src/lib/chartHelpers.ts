@@ -1,5 +1,5 @@
-import type { Transaction } from "blackpine-engine";
-import { getCategoryById } from "blackpine-engine";
+import type { Transaction } from "../engine";
+import { getCategoryById } from "../engine";
 
 // ── Category breakdown ────────────────────────────────────────────────────────
 

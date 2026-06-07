@@ -1,5 +1,5 @@
 /// <reference types="vite/client" />
-import type { DoctorProfile, Transaction, FixedAsset } from "blackpine-engine";
+import type { DoctorProfile, Transaction, FixedAsset } from "../engine";
 import type { RecurringRule } from "../lib/recurringTransactions";
 
 // ── Config ─────────────────────────────────────────────────────────────────

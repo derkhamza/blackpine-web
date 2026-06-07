@@ -1,4 +1,4 @@
-import type { TraceEvent } from "blackpine-engine";
+import type { TraceEvent } from "../engine";
 import { Layout } from "../components/Layout";
 import { useApp } from "../context/AppContext";
 import { formatMAD } from "../lib/format";

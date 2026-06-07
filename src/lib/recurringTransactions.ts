@@ -1,4 +1,4 @@
-import type { Transaction } from "blackpine-engine";
+import type { Transaction } from "../engine";
 
 export interface RecurringRule {
   id: string;

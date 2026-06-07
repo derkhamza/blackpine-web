@@ -6,7 +6,7 @@ import {
   computeTaxFromTransactions, type DoctorProfile,
   type FullTaxComputation, type Transaction, type FixedAsset,
   calculateTotalDotation,
-} from "blackpine-engine";
+} from "../engine";
 import {
   getStoredUser, isLoggedIn, login as apiLogin, logout as apiLogout,
   pullData, pushData, signup as apiSignup, type AuthUser,

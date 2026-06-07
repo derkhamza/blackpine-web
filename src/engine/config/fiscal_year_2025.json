@@ -1,0 +1,28 @@
+{
+  "fiscalYear": 2025,
+  "version": "2025.1.0",
+  "irBracketsProfessional": [
+    { "from": 0, "to": 40000, "rate": 0.0, "deduction": 0 },
+    { "from": 40001, "to": 60000, "rate": 0.1, "deduction": 4000 },
+    { "from": 60001, "to": 80000, "rate": 0.2, "deduction": 10000 },
+    { "from": 80001, "to": 100000, "rate": 0.3, "deduction": 18000 },
+    { "from": 100001, "to": 180000, "rate": 0.34, "deduction": 22000 },
+    { "from": 180001, "to": null, "rate": 0.37, "deduction": 27400 }
+  ],
+  "familyDeductions": {
+    "perDependentAnnual": 500,
+    "maxDependents": 6
+  },
+  "cotisationMinimale": {
+    "rateMedical": 0.005,
+    "floorMad": 1500,
+    "exemptionMonths": 36
+  },
+  "retenueASource": {
+    "clinicsRate": 0.3
+  },
+  "regimeThresholds": {
+    "rnsMinCa": 250000,
+    "rnsMaxCa": 500000
+  }
+}

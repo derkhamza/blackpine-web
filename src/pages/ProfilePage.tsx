@@ -1,5 +1,5 @@
 import { FormEvent, useState } from "react";
-import type { DoctorProfile } from "blackpine-engine";
+import type { DoctorProfile } from "../engine";
 import { Layout } from "../components/Layout";
 import { useApp } from "../context/AppContext";
 import { useCabinet } from "../context/CabinetContext";

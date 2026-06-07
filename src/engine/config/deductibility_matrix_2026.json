@@ -1,0 +1,505 @@
+{
+  "version": "2026.2.0",
+  "categories": [
+    {
+      "id": "loyer_cabinet",
+      "labelFr": "Loyer du cabinet",
+      "family": "cabinet_operating",
+      "applicableTo": ["RECETTE_OFF", "CHARGE"],
+      "type": "CHARGE",
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 },
+      "justificatifRequired": ["contrat_bail", "quittance"],
+      "notes": "RAS sur loyer applicable selon montant"
+    },
+    {
+      "id": "charges_copropriete",
+      "labelFr": "Charges de copropriété",
+      "family": "cabinet_operating",
+      "type": "CHARGE",
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
+    },
+    {
+      "id": "electricite_eau",
+      "labelFr": "Électricité, eau",
+      "family": "cabinet_operating",
+      "type": "CHARGE",
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
+    },
+    {
+      "id": "internet_telephone",
+      "labelFr": "Internet et téléphone fixe",
+      "family": "cabinet_operating",
+      "type": "CHARGE",
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
+    },
+    {
+      "id": "assurance_local",
+      "labelFr": "Assurance du local",
+      "family": "cabinet_operating",
+      "type": "CHARGE",
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
+    },
+
+    {
+      "id": "salaires_personnel",
+      "labelFr": "Salaires du personnel",
+      "family": "staff",
+      "type": "CHARGE",
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 },
+      "justificatifRequired": ["bulletin_paie", "declaration_cnss"]
+    },
+    {
+      "id": "cotisations_cnss_employeur",
+      "labelFr": "Cotisations CNSS employeur",
+      "family": "staff",
+      "type": "CHARGE",
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
+    },
+    {
+      "id": "menage_declare",
+      "labelFr": "Femme de ménage déclarée",
+      "family": "staff",
+      "type": "CHARGE",
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
+    },
+
+    {
+      "id": "petit_materiel_medical",
+      "labelFr": "Petit matériel médical",
+      "family": "medical_equipment",
+      "type": "CHARGE",
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 },
+      "notes": "Déductible immédiatement si moins de 5,000 MAD"
+    },
+{
+      "id": "gros_equipement_medical",
+      "labelFr": "Gros équipement médical (>5000 MAD)",
+      "family": "medical_equipment",
+      "type": "CHARGE",
+      "rnr": { "deductible": true, "ratio": 1.0, "needsReview": true },
+      "rns": { "deductible": true, "ratio": 1.0, "needsReview": true },
+      "notes": "Amortissable sur 5-10 ans (10-20%/an). Ne pas déduire en totalité l'année d'achat. Art. 10-I-F CGI."
+    },
+    {
+      "id": "consommables_medicaux",
+      "labelFr": "Consommables (gants, seringues, pansements)",
+      "family": "medical_equipment",
+      "type": "CHARGE",
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
+    },
+    {
+      "id": "produits_pharmaceutiques",
+      "labelFr": "Produits pharmaceutiques pour le cabinet",
+      "family": "medical_equipment",
+      "type": "CHARGE",
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
+    },
+    {
+      "id": "blanchisserie_sterilisation",
+      "labelFr": "Blanchisserie, stérilisation",
+      "family": "medical_equipment",
+      "type": "CHARGE",
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
+    },
+
+    {
+      "id": "honoraires_comptable",
+      "labelFr": "Honoraires expert-comptable",
+      "family": "professional_services",
+      "type": "CHARGE",
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
+    },
+    {
+      "id": "honoraires_avocat",
+      "labelFr": "Honoraires avocat (professionnel)",
+      "family": "professional_services",
+      "type": "CHARGE",
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
+    },
+    {
+      "id": "rc_pro",
+      "labelFr": "Assurance RC professionnelle",
+      "family": "professional_services",
+      "type": "CHARGE",
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
+    },
+    {
+      "id": "ordre_medecins",
+      "labelFr": "Cotisation Ordre des médecins",
+      "family": "professional_services",
+      "type": "CHARGE",
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
+    },
+    {
+      "id": "abonnements_medicaux",
+      "labelFr": "Abonnements et revues médicales",
+      "family": "professional_services",
+      "type": "CHARGE",
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
+    },
+
+    {
+      "id": "congres_formation",
+      "labelFr": "Congrès et formation continue",
+      "family": "training",
+      "type": "CHARGE",
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
+    },
+    {
+      "id": "voyages_congres",
+      "labelFr": "Voyages liés aux congrès",
+      "family": "training",
+      "type": "CHARGE",
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 },
+      "notes": "Vérifier que l'extension personnelle est exclue"
+    },
+{
+      "id": "blouse_tenue_pro",
+      "labelFr": "Blouses et tenues professionnelles",
+      "family": "cabinet_operating",
+      "type": "CHARGE",
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
+    },
+    {
+      "id": "logiciel_informatique",
+      "labelFr": "Logiciels et maintenance informatique",
+      "family": "cabinet_operating",
+      "type": "CHARGE",
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
+    },
+    {
+      "id": "fournitures_bureau",
+      "labelFr": "Fournitures de bureau",
+      "family": "cabinet_operating",
+      "type": "CHARGE",
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
+    },
+    {
+      "id": "entretien_nettoyage",
+      "labelFr": "Entretien et nettoyage du cabinet",
+      "family": "cabinet_operating",
+      "type": "CHARGE",
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
+    },
+    {
+      "id": "retraite_cimr",
+      "labelFr": "Retraite complémentaire (CIMR)",
+      "family": "taxes",
+      "type": "CHARGE",
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 },
+      "notes": "Déductible dans la limite de 10% du revenu global imposable. Art. 28-III CGI."
+    },
+    {
+      "id": "dons_deductibles",
+      "labelFr": "Dons aux associations reconnues d'utilité publique",
+      "family": "financial",
+      "type": "CHARGE",
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 },
+      "notes": "Plafond 2‰ du chiffre d'affaires. Art. 10-I-B CGI."
+    },
+{
+      "id": "vehicule_amortissement",
+      "labelFr": "Véhicule professionnel (achat/amortissement)",
+      "family": "vehicle",
+      "type": "CHARGE",
+      "rnr": { "deductible": true, "ratio": 1.0, "needsReview": true },
+      "rns": { "deductible": true, "ratio": 1.0, "needsReview": true },
+      "defaultProfessionalRatio": 0.6,
+      "notes": "Amortissement plafonné à 300 000 MAD TTC (400 000 pour véhicules électriques). Durée 5 ans (20%). Art. 10-II CGI."
+    },
+{
+      "id": "carburant",
+      "labelFr": "Carburant",
+      "family": "vehicle",
+      "type": "CHARGE",
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 },
+      "defaultProfessionalRatio": 0.6,
+      "notes": "Déductible au prorata de l'usage professionnel. Par défaut 60%. Ajustez selon votre situation réelle. Art. 10 CGI."
+    },
+    {
+      "id": "entretien_vehicule",
+      "labelFr": "Entretien et réparation véhicule",
+      "family": "vehicle",
+      "type": "CHARGE",
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 },
+      "defaultProfessionalRatio": 0.6,
+      "notes": "Même ratio que le carburant. Art. 10 CGI."
+    },
+    {
+      "id": "assurance_vehicule",
+      "labelFr": "Assurance véhicule",
+      "family": "vehicle",
+      "type": "CHARGE",
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 },
+      "defaultProfessionalRatio": 0.6,
+      "notes": "Même ratio que le carburant. Art. 10 CGI."
+    },
+    {
+      "id": "taxi_visites",
+      "labelFr": "Taxi pour visites à domicile",
+      "family": "vehicle",
+      "type": "CHARGE",
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
+    },
+
+{
+      "id": "telephone_mobile_pro",
+      "labelFr": "Téléphone mobile",
+      "family": "communications",
+      "type": "CHARGE",
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 },
+      "defaultProfessionalRatio": 0.7,
+      "notes": "100% si ligne dédiée. Sinon au prorata de l'usage pro (70% par défaut). Art. 10 CGI."
+    },
+    {
+      "id": "site_web",
+      "labelFr": "Site web et hébergement",
+      "family": "marketing",
+      "type": "CHARGE",
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
+    },
+    {
+      "id": "publicite_pro",
+      "labelFr": "Publicité (plaques, signalétique)",
+      "family": "marketing",
+      "type": "CHARGE",
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
+    },
+    {
+      "id": "cadeaux_correspondants",
+      "labelFr": "Cadeaux aux correspondants",
+      "family": "marketing",
+      "type": "CHARGE",
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 },
+      "ceilingPerUnit": 100,
+      "notes": "Plafond de 100 MAD par bénéficiaire"
+    },
+
+    {
+      "id": "interets_emprunt_pro",
+      "labelFr": "Intérêts d'emprunt professionnel",
+      "family": "financial",
+      "type": "CHARGE",
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 },
+      "notes": "Uniquement les intérêts, pas le capital"
+    },
+    {
+      "id": "frais_bancaires",
+      "labelFr": "Frais bancaires (compte pro)",
+      "family": "financial",
+      "type": "CHARGE",
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
+    },
+
+    {
+      "id": "taxe_professionnelle",
+      "labelFr": "Taxe professionnelle",
+      "family": "taxes",
+      "type": "CHARGE",
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
+    },
+    {
+      "id": "taxe_services_communaux",
+      "labelFr": "Taxe de services communaux",
+      "family": "taxes",
+      "type": "CHARGE",
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
+    },
+    {
+      "id": "cotisations_cnss_tns",
+      "labelFr": "Cotisations CNSS (couverture personnelle)",
+      "family": "taxes",
+      "type": "CHARGE",
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
+    },
+
+    {
+      "id": "repas_personnels",
+      "labelFr": "Repas personnels",
+      "family": "non_deductible",
+      "type": "CHARGE",
+      "rnr": { "deductible": false, "ratio": 0 },
+      "rns": { "deductible": false, "ratio": 0 }
+    },
+    {
+      "id": "vetements_personnels",
+      "labelFr": "Vêtements non professionnels",
+      "family": "non_deductible",
+      "type": "CHARGE",
+      "rnr": { "deductible": false, "ratio": 0 },
+      "rns": { "deductible": false, "ratio": 0 }
+    },
+    {
+      "id": "depenses_personnelles",
+      "labelFr": "Dépenses personnelles",
+      "family": "non_deductible",
+      "type": "CHARGE",
+      "rnr": { "deductible": false, "ratio": 0 },
+      "rns": { "deductible": false, "ratio": 0 }
+    },
+    {
+      "id": "amendes_penalites",
+      "labelFr": "Amendes et pénalités",
+      "family": "non_deductible",
+      "type": "CHARGE",
+      "rnr": { "deductible": false, "ratio": 0 },
+      "rns": { "deductible": false, "ratio": 0 }
+    },
+
+    {
+      "id": "consultation",
+      "labelFr": "Consultation",
+      "family": "income",
+      "type": "RECETTE",
+      "specialties": ["all"],
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
+    },
+    {
+      "id": "visite_domicile",
+      "labelFr": "Visite à domicile",
+      "family": "income",
+      "type": "RECETTE",
+      "specialties": ["medecin_generaliste", "medecin_specialiste"],
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
+    },
+    {
+      "id": "acte_chirurgical",
+      "labelFr": "Acte chirurgical",
+      "family": "income",
+      "type": "RECETTE",
+      "specialties": ["medecin_specialiste"],
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
+    },
+    {
+      "id": "soin_dentaire",
+      "labelFr": "Soin dentaire",
+      "family": "income",
+      "type": "RECETTE",
+      "specialties": ["dentiste"],
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
+    },
+    {
+      "id": "prothese_dentaire",
+      "labelFr": "Prothèse dentaire",
+      "family": "income",
+      "type": "RECETTE",
+      "specialties": ["dentiste"],
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
+    },
+    {
+      "id": "orthodontie",
+      "labelFr": "Orthodontie",
+      "family": "income",
+      "type": "RECETTE",
+      "specialties": ["dentiste"],
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
+    },
+    {
+      "id": "detartrage",
+      "labelFr": "Détartrage",
+      "family": "income",
+      "type": "RECETTE",
+      "specialties": ["dentiste"],
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
+    },
+    {
+      "id": "seance_kine",
+      "labelFr": "Séance de kinésithérapie",
+      "family": "income",
+      "type": "RECETTE",
+      "specialties": ["kinesitherapeute"],
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
+    },
+    {
+      "id": "reeducation",
+      "labelFr": "Rééducation fonctionnelle",
+      "family": "income",
+      "type": "RECETTE",
+      "specialties": ["kinesitherapeute"],
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
+    },
+    {
+      "id": "accouchement",
+      "labelFr": "Accouchement",
+      "family": "income",
+      "type": "RECETTE",
+      "specialties": ["sage_femme"],
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
+    },
+    {
+      "id": "suivi_grossesse",
+      "labelFr": "Suivi de grossesse",
+      "family": "income",
+      "type": "RECETTE",
+      "specialties": ["sage_femme"],
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
+    },
+    {
+      "id": "vacation_clinique",
+      "labelFr": "Vacation en clinique",
+      "family": "income",
+      "type": "RECETTE",
+      "specialties": ["all"],
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
+    },
+    {
+      "id": "autre_recette",
+      "labelFr": "Autre recette",
+      "family": "income",
+      "type": "RECETTE",
+      "specialties": ["all"],
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
+    }
+  ]
+}

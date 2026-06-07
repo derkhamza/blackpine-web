@@ -1,8 +1,8 @@
 import { FormEvent, useMemo, useState } from "react";
-import type { FixedAsset } from "blackpine-engine";
+import type { FixedAsset } from "../engine";
 import {
   calculateAmortization, calculateTotalDotation, getCategoriesByType,
-} from "blackpine-engine";
+} from "../engine";
 import { Layout } from "../components/Layout";
 import { useApp } from "../context/AppContext";
 import { formatMAD, formatDateShort } from "../lib/format";

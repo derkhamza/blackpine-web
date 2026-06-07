@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import type { IRBracket } from "blackpine-engine";
-import { loadFiscalYearConfig } from "blackpine-engine";
+import type { IRBracket } from "../engine";
+import { loadFiscalYearConfig } from "../engine";
 import { Layout } from "../components/Layout";
 import { useApp } from "../context/AppContext";
 import { useCabinet } from "../context/CabinetContext";
