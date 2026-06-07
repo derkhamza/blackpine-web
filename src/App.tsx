@@ -17,6 +17,7 @@ import { FacturesPage }         from "./pages/FacturesPage";
 import { RappelsPage }          from "./pages/RappelsPage";
 import { AnalytiquesPage }      from "./pages/AnalytiquesPage";
 import { StockPage }            from "./pages/StockPage";
+import { CalculateursPage }     from "./pages/CalculateursPage";
 import { ReportPage }            from "./pages/ReportPage";
 import { ComptabilitePage }      from "./pages/ComptabilitePage";
 import { OptimisationPage }      from "./pages/OptimisationPage";
@@ -84,6 +85,9 @@ export function App() {
       } />
       <Route path="/stocks" element={
         <RequireAuth><StockPage /></RequireAuth>
+      } />
+      <Route path="/calculateurs" element={
+        <RequireAuth><CalculateursPage /></RequireAuth>
       } />
       <Route path="/profil" element={
         <RequireAuth><ProfilePage /></RequireAuth>

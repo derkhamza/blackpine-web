@@ -130,6 +130,12 @@ function Icon({ name }: { name: string }) {
         <path d="M8 2v12M2 5l6 3 6-3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
       </svg>
     ),
+    calculateurs: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <rect x="2" y="2" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="1.5"/>
+        <path d="M5 5h2M5 8h2M5 11h2M9 5h2M9 8h2M9 11h2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+      </svg>
+    ),
     profile: (
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
         <circle cx="8" cy="5" r="3" stroke="currentColor" strokeWidth="1.5"/>
@@ -356,6 +362,7 @@ export function Layout({ title, subtitle, actions, children }: Props) {
     { to: "/rappels",         label: "Rappels",         icon: "rappels",         group: "Cabinet" },
     { to: "/factures",        label: "Factures",        icon: "factures",        group: "Cabinet" },
     { to: "/stocks",          label: "Stocks",          icon: "stocks",          group: "Cabinet" },
+    { to: "/calculateurs",    label: "Calculateurs",    icon: "calculateurs",    group: "Cabinet" },
     { to: "/salaires",        label: "Salaires",        icon: "payroll",         group: "Cabinet" },
     { to: "/profil",       label: "Mon profil",      icon: "profile",      group: "Paramètres" },
     { to: "/parametres",   label: "Paramètres",      icon: "parametres",   group: "Paramètres" },
