@@ -21,6 +21,7 @@ import { CalculateursPage }     from "./pages/CalculateursPage";
 import { MessagesPage }         from "./pages/MessagesPage";
 import { TeleconsultPage }      from "./pages/TeleconsultPage";
 import { NotesPage }            from "./pages/NotesPage";
+import { FournisseursPage }      from "./pages/FournisseursPage";
 import { ReportPage }            from "./pages/ReportPage";
 import { ComptabilitePage }      from "./pages/ComptabilitePage";
 import { OptimisationPage }      from "./pages/OptimisationPage";
@@ -100,6 +101,9 @@ export function App() {
       } />
       <Route path="/notes" element={
         <RequireAuth><NotesPage /></RequireAuth>
+      } />
+      <Route path="/fournisseurs" element={
+        <RequireAuth><FournisseursPage /></RequireAuth>
       } />
       <Route path="/profil" element={
         <RequireAuth><ProfilePage /></RequireAuth>

@@ -24,6 +24,7 @@ const GROUPS: Group[] = [
       { keys: ["G", "M"], description: "Messages WhatsApp" },
       { keys: ["G", "T"], description: "Téléconsultation" },
       { keys: ["G", "N"], description: "Notes & Tâches" },
+      { keys: ["G", "V"], description: "Fournisseurs & Commandes" },
     ],
   },
   {

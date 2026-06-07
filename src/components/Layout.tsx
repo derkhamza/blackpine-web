@@ -156,6 +156,14 @@ function Icon({ name }: { name: string }) {
         <circle cx="11.5" cy="9.5" r="2.5" stroke="currentColor" strokeWidth="1.3"/>
       </svg>
     ),
+    fournisseurs: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <rect x="1" y="5" width="14" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.4"/>
+        <path d="M4 5V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v1" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
+        <circle cx="5.5" cy="9.5" r="1.2" stroke="currentColor" strokeWidth="1.2"/>
+        <path d="M8 8.5h4M8 10.5h2.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+      </svg>
+    ),
     profile: (
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
         <circle cx="8" cy="5" r="3" stroke="currentColor" strokeWidth="1.5"/>
@@ -305,6 +313,7 @@ export function Layout({ title, subtitle, actions, children }: Props) {
           m: "/messages",
           t: "/teleconsult",
           n: "/notes",
+          v: "/fournisseurs",
         };
         if (routes[key]) {
           e.preventDefault();
@@ -389,6 +398,7 @@ export function Layout({ title, subtitle, actions, children }: Props) {
     { to: "/messages",        label: "Messages WA",     icon: "messages",        group: "Cabinet" },
     { to: "/teleconsult",     label: "Téléconsult",     icon: "teleconsult",     group: "Cabinet" },
     { to: "/notes",           label: "Notes & Tâches",  icon: "notes",           group: "Cabinet" },
+    { to: "/fournisseurs",    label: "Fournisseurs",    icon: "fournisseurs",    group: "Cabinet" },
     { to: "/salaires",        label: "Salaires",        icon: "payroll",         group: "Cabinet" },
     { to: "/profil",       label: "Mon profil",      icon: "profile",      group: "Paramètres" },
     { to: "/parametres",   label: "Paramètres",      icon: "parametres",   group: "Paramètres" },
