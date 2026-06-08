@@ -82,7 +82,7 @@ function VsInput({
 export function AppointmentDetailPage() {
   const { apptId } = useParams<{ apptId: string }>();
   const navigate    = useNavigate();
-  const { appointments, patients, updateAppointment, deleteAppointment } = useCabinet();
+  const { appointments, patients, updateAppointment, deleteAppointment, addInvoice } = useCabinet();
   const { addTransaction } = useApp();
   const { doctorProfile } = useCabinet();
 
@@ -729,6 +729,16 @@ export function AppointmentDetailPage() {
                     const invNum   = nextInvoiceNumber();
                     const issuedAt = new Date().toISOString();
                     updateAppointment({ ...appt, invoiceNumber: invNum, invoiceIssuedAt: issuedAt });
+                    addInvoice({
+                      appointmentId: appt.id,
+                      patientId:     appt.patientId,
+                      patientName:   appt.patientName,
+                      amount:        appt.billedAmount ?? 0,
+                      actLabel:      APPT_TYPE_LABELS[appt.type] + " médicale",
+                      invoiceNumber: invNum,
+                      issuedAt,
+                      cnopsNumber:   pt?.cnopsNumber,
+                    });
                     printFacture({
                       invoiceNumber:  invNum,
                       invoiceDate:    issuedAt.slice(0, 10),

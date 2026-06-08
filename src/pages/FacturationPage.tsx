@@ -2,8 +2,9 @@ import { useState } from "react";
 import { Layout } from "../components/Layout";
 import { FacturesPage } from "./FacturesPage";
 import { RemboursementsPage } from "./RemboursementsPage";
+import { InvoiceHistorySection } from "./InvoiceHistorySection";
 
-type FTab = "factures" | "remboursements";
+type FTab = "factures" | "remboursements" | "historique";
 
 export function FacturationPage() {
   const [tab, setTab] = useState<FTab>("factures");
@@ -24,10 +25,17 @@ export function FacturationPage() {
         >
           Remboursements AMO/CNOPS
         </button>
+        <button
+          className={`tab-btn${tab === "historique" ? " active" : ""}`}
+          onClick={() => setTab("historique")}
+        >
+          Historique
+        </button>
       </div>
 
-      {tab === "factures"        && <FacturesPage        noLayout />}
-      {tab === "remboursements"  && <RemboursementsPage  noLayout />}
+      {tab === "factures"       && <FacturesPage       noLayout />}
+      {tab === "remboursements" && <RemboursementsPage noLayout />}
+      {tab === "historique"     && <InvoiceHistorySection />}
     </Layout>
   );
 }
