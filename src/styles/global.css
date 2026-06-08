@@ -5783,3 +5783,85 @@ a.ana-top-name:hover { color: var(--blue); text-decoration: underline; }
   from { transform: translateY(20px); opacity: 0; }
   to   { transform: translateY(0);    opacity: 1; }
 }
+
+/* ── Onboarding Wizard ───────────────────────────────────────────────────── */
+.ob-overlay {
+  position: fixed; inset: 0; z-index: 1200;
+  background: rgba(10,78,126,0.55); backdrop-filter: blur(3px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+  animation: obFadeIn 0.25s ease;
+}
+@keyframes obFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.ob-card {
+  background: var(--surface); border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(10,78,126,0.22);
+  width: 100%; max-width: 480px;
+  position: relative;
+  animation: obSlideUp 0.3s ease;
+}
+@keyframes obSlideUp {
+  from { transform: translateY(24px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+.ob-skip {
+  position: absolute; top: 14px; right: 16px;
+  background: none; border: none;
+  color: var(--muted); font-size: 12px; cursor: pointer; padding: 4px 8px;
+  border-radius: 4px;
+}
+.ob-skip:hover { color: var(--text); background: var(--surface-alt); }
+
+.ob-body { padding: 36px 40px 32px; }
+.ob-body.ob-center { text-align: center; display: flex; flex-direction: column; align-items: center; }
+
+.ob-icon-hero { font-size: 52px; margin-bottom: 16px; line-height: 1; }
+
+.ob-avatar {
+  width: 72px; height: 72px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--navy), var(--blue));
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 22px; font-weight: 700;
+  margin: 0 auto 16px; box-shadow: 0 4px 14px rgba(10,78,126,0.25);
+}
+
+.ob-title { font-size: 22px; font-weight: 700; color: var(--text); margin-bottom: 10px; }
+.ob-title-green { color: var(--green); }
+.ob-sub { font-size: 14px; color: var(--muted); line-height: 1.55; margin-bottom: 24px; max-width: 360px; }
+
+.ob-dots { display: flex; gap: 8px; margin-bottom: 24px; }
+.ob-body.ob-center .ob-dots { justify-content: center; }
+.ob-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); transition: var(--trans); }
+.ob-dot-active { background: var(--blue); transform: scale(1.25); }
+.ob-dot-done   { background: var(--green); }
+
+.ob-form { display: flex; flex-direction: column; gap: 16px; margin-bottom: 28px; }
+.ob-label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600; color: var(--text); }
+.ob-required { color: var(--coral); }
+.ob-input {
+  padding: 9px 12px; border: 1.5px solid var(--border); border-radius: var(--r);
+  font-size: 14px; color: var(--text); background: var(--surface);
+  transition: border-color 0.15s;
+  outline: none;
+}
+.ob-input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(24,144,197,0.12); }
+.ob-input-err { border-color: var(--coral) !important; }
+.ob-select { appearance: auto; }
+.ob-err { font-size: 12px; font-weight: 400; color: var(--coral); margin-top: 2px; }
+.ob-muted { color: var(--muted); font-size: 13px; }
+
+.ob-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.ob-btn-main { padding: 11px 28px; font-size: 14px; }
+.ob-btn-back { font-size: 13px; padding: 9px 16px; }
+.ob-btn-big  { padding: 13px 40px; font-size: 15px; margin-bottom: 12px; }
+
+.ob-check-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 28px; text-align: left; width: 100%; }
+.ob-check-item { font-size: 13px; color: var(--text); padding: 8px 12px; background: var(--green-soft); border-radius: var(--r); }
+
+.ob-skip-inline {
+  background: none; border: none; color: var(--muted); font-size: 13px; cursor: pointer; padding: 4px;
+}
+.ob-skip-inline:hover { color: var(--text); }

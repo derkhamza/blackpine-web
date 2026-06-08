@@ -1,5 +1,8 @@
 import { Navigate, Route, Routes } from "react-router-dom";
+import { useState } from "react";
 import { useApp } from "./context/AppContext";
+import { useCabinet } from "./context/CabinetContext";
+import { OnboardingWizard } from "./pages/OnboardingWizard";
 import { AuthPage }              from "./pages/AuthPage";
 import { DashboardPage }         from "./pages/DashboardPage";
 import { TransactionsPage }      from "./pages/TransactionsPage";
@@ -41,8 +44,26 @@ function RequireAuth({ children }: { children: JSX.Element }) {
   return isAuthenticated ? children : <Navigate to="/login" replace />;
 }
 
+function OnboardingGate() {
+  const { isAuthenticated } = useApp();
+  const { doctorProfile } = useCabinet();
+  const [dismissed, setDismissed] = useState(false);
+
+  const alreadyDone = !!localStorage.getItem("bp.onboarded");
+  const needsOnboarding =
+    isAuthenticated &&
+    !alreadyDone &&
+    !dismissed &&
+    !doctorProfile.fullName;
+
+  if (!needsOnboarding) return null;
+  return <OnboardingWizard onDone={() => setDismissed(true)} />;
+}
+
 export function App() {
   return (
+    <>
+    <OnboardingGate />
     <Routes>
       <Route path="/login" element={<AuthPage />} />
       <Route path="/" element={
@@ -151,5 +172,6 @@ export function App() {
       } />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </>
   );
 }
