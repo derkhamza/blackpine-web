@@ -401,24 +401,26 @@ export function Layout({ title, subtitle, actions, children }: Props) {
     } as Record<string, number>;
   }, [appointments, stockItems, today]);
 
-  // ── Nav items (18 items — down from 26) ───────────────────────────────────
+  // ── Nav items ─────────────────────────────────────────────────────────────
   const navItems = [
-    // ── Cabinet ───────────────────────────────────────────────────────────
-    { to: "/",              label: "Tableau de bord",   icon: "dashboard",    group: "Cabinet" },
-    { to: "/agenda",        label: "Agenda",            icon: "agenda",       group: "Cabinet" },
-    { to: "/salle-attente", label: "Salle d'attente",   icon: "waiting",      group: "Cabinet" },
-    { to: "/patients",      label: "Patients",          icon: "patients",     group: "Cabinet" },
-    { to: "/documents",     label: "Documents",         icon: "ordonnances",  group: "Cabinet" },
-    { to: "/examens",       label: "Examens & Bio",     icon: "examens",      group: "Cabinet" },
-    { to: "/rappels",       label: "Rappels",           icon: "rappels",      group: "Cabinet" },
-    { to: "/communication", label: "Communication",     icon: "messages",     group: "Cabinet" },
-    { to: "/notes",         label: "Notes & Tâches",    icon: "notes",        group: "Cabinet" },
-    { to: "/stocks",        label: "Stocks",            icon: "stocks",       group: "Cabinet" },
-    { to: "/calculateurs",  label: "Calculateurs",      icon: "calculateurs", group: "Cabinet" },
-    { to: "/analytiques",   label: "Analytiques",       icon: "analytiques",  group: "Cabinet" },
-    // ── Finances ──────────────────────────────────────────────────────────
-    { to: "/transactions",  label: "Transactions",      icon: "transactions", group: "Finances" },
+    // ── Quotidien — daily workflow ─────────────────────────────────────────
+    { to: "/",              label: "Tableau de bord",   icon: "dashboard",    group: "Quotidien" },
+    { to: "/agenda",        label: "Agenda",            icon: "agenda",       group: "Quotidien" },
+    { to: "/salle-attente", label: "Salle d'attente",   icon: "waiting",      group: "Quotidien" },
+    { to: "/patients",      label: "Patients",          icon: "patients",     group: "Quotidien" },
+    // ── Clinique — clinical tools ──────────────────────────────────────────
+    { to: "/documents",     label: "Documents",         icon: "ordonnances",  group: "Clinique" },
+    { to: "/examens",       label: "Examens & Bio",     icon: "examens",      group: "Clinique" },
+    { to: "/communication", label: "Communication",     icon: "messages",     group: "Clinique" },
+    { to: "/rappels",       label: "Rappels",           icon: "rappels",      group: "Clinique" },
+    { to: "/calculateurs",  label: "Calculateurs",      icon: "calculateurs", group: "Clinique" },
+    // ── Gestion — practice management ─────────────────────────────────────
+    { to: "/notes",         label: "Notes & Tâches",    icon: "notes",        group: "Gestion" },
+    { to: "/stocks",        label: "Stocks",            icon: "stocks",       group: "Gestion" },
+    { to: "/analytiques",   label: "Analytiques",       icon: "analytiques",  group: "Gestion" },
+    // ── Finances — secondary ───────────────────────────────────────────────
     { to: "/facturation",   label: "Facturation",       icon: "factures",     group: "Finances" },
+    { to: "/transactions",  label: "Transactions",      icon: "transactions", group: "Finances" },
     { to: "/rapports",      label: "Rapports",          icon: "report",       group: "Finances" },
     { to: "/comptabilite",  label: "Comptabilité",      icon: "comptabilite", group: "Finances" },
     { to: "/salaires",      label: "Salaires",          icon: "payroll",      group: "Finances" },
@@ -456,7 +458,7 @@ export function Layout({ title, subtitle, actions, children }: Props) {
 
       {/* Nav — grouped */}
       <div className="sidebar-nav">
-        {(["Finances", "Cabinet", "Paramètres"] as const).map(group => {
+        {(["Quotidien", "Clinique", "Gestion", "Finances", "Paramètres"] as const).map(group => {
           const items = navItems.filter(n => n.group === group);
           return (
             <div key={group}>
