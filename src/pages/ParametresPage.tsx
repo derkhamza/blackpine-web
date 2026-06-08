@@ -6,6 +6,7 @@ import { ProfilePage } from "./ProfilePage";
 import { useDarkMode } from "../lib/useDarkMode";
 import { exportPatientsCsv, exportAppointmentsCsv } from "../lib/csvExport";
 import { exportAgendaIcal } from "../lib/icalExport";
+import { useInstallPWA } from "../components/PWAPrompts";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -119,6 +120,7 @@ export function ParametresPage() {
   const { transactions, exportFinancesJSON, importFinancesJSON } = useApp();
 
   const { dark, toggle } = useDarkMode();
+  const { canInstall, installed, install } = useInstallPWA();
 
   const fileRef     = useRef<HTMLInputElement>(null);
   const finFileRef  = useRef<HTMLInputElement>(null);
@@ -502,6 +504,61 @@ export function ParametresPage() {
               Effacer les patients
             </button>
           </SettingsRow>
+        </Section>
+
+        {/* ── Application mobile / PWA ── */}
+        <Section
+          title="Installer l'application"
+          subtitle="Accédez à Blackpine Cabinet comme une app native"
+        >
+          {installed ? (
+            <div className="settings-row">
+              <div className="settings-row-label">
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 18 }}>✅</span>
+                  <div>
+                    <div>Application installée</div>
+                    <div className="settings-row-hint">Blackpine Cabinet est installé sur votre appareil</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="settings-row">
+              <div className="settings-row-label">
+                <div>Installer sur cet appareil</div>
+                <div className="settings-row-hint">
+                  {canInstall
+                    ? "Cliquez pour ajouter l'app à votre écran d'accueil ou bureau"
+                    : "Ouvrez ce site dans Chrome/Edge/Safari et utilisez « Ajouter à l'écran d'accueil »"}
+                </div>
+              </div>
+              <div className="settings-row-control">
+                {canInstall && (
+                  <button className="btn btn-navy" onClick={install} style={{ fontSize: 13, padding: "7px 16px" }}>
+                    📲 Installer
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+          <div className="settings-row">
+            <div className="settings-row-label">
+              <div>Mode hors-ligne</div>
+              <div className="settings-row-hint">
+                Les données du cabinet (patients, agenda, notes) sont disponibles sans connexion.
+                La synchronisation financière reprend dès le retour en ligne.
+              </div>
+            </div>
+            <div className="settings-row-control">
+              <span style={{
+                fontSize: 11.5, fontWeight: 600, padding: "3px 10px",
+                borderRadius: 20, background: "var(--green-soft, #e6f4ee)", color: "var(--green)",
+              }}>
+                ✓ Activé
+              </span>
+            </div>
+          </div>
         </Section>
 
         {/* ── À propos ── */}
