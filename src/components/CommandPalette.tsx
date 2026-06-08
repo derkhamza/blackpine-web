@@ -3,11 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 import { useCabinet } from "../context/CabinetContext";
 import { formatMAD, formatDateShort } from "../lib/format";
-import { APPT_TYPE_LABELS, APPT_STATUS_LABELS } from "../lib/cabinetTypes";
+import {
+  APPT_TYPE_LABELS, APPT_STATUS_LABELS,
+  EXAM_TYPE_LABELS, CERT_TYPE_LABELS,
+} from "../lib/cabinetTypes";
 
 // ── Result types ───────────────────────────────────────────────────────────────
 
-type ResultKind = "patient" | "appointment" | "transaction";
+type ResultKind = "patient" | "appointment" | "transaction" | "exam" | "prescription" | "certificate" | "note";
 
 interface SearchResult {
   id:       string;
@@ -19,15 +22,23 @@ interface SearchResult {
 }
 
 const KIND_ICON: Record<ResultKind, string> = {
-  patient:     "👤",
-  appointment: "📅",
-  transaction: "💰",
+  patient:      "👤",
+  appointment:  "📅",
+  transaction:  "💰",
+  exam:         "🔬",
+  prescription: "℞",
+  certificate:  "📄",
+  note:         "📝",
 };
 
 const KIND_LABEL: Record<ResultKind, string> = {
-  patient:     "Patient",
-  appointment: "Rendez-vous",
-  transaction: "Transaction",
+  patient:      "Patients",
+  appointment:  "Rendez-vous",
+  transaction:  "Transactions",
+  exam:         "Examens & Bio",
+  prescription: "Ordonnances",
+  certificate:  "Certificats",
+  note:         "Notes & Tâches",
 };
 
 // ── Component ──────────────────────────────────────────────────────────────────
@@ -39,7 +50,10 @@ interface Props {
 export function CommandPalette({ onClose }: Props) {
   const navigate = useNavigate();
   const { transactions, fiscalYear } = useApp();
-  const { patients, appointments }   = useCabinet();
+  const {
+    patients, appointments,
+    examResults, prescriptions, certificates, notes,
+  } = useCabinet();
 
   const [query,    setQuery]    = useState("");
   const [selected, setSelected] = useState(0);
@@ -130,8 +144,90 @@ export function CommandPalette({ onClose }: Props) {
       }
     }
 
+    // ── Exams ────────────────────────────────────────────────────────────
+    for (const e of examResults) {
+      if (
+        e.title.toLowerCase().includes(q) ||
+        e.patientName.toLowerCase().includes(q) ||
+        e.labName?.toLowerCase().includes(q) ||
+        EXAM_TYPE_LABELS[e.type].toLowerCase().includes(q) ||
+        e.values.some(v => v.label.toLowerCase().includes(q))
+      ) {
+        out.push({
+          id:       e.id,
+          kind:     "exam",
+          title:    e.title,
+          subtitle: `${e.patientName} · ${EXAM_TYPE_LABELS[e.type]} · ${formatDateShort(e.date)}${e.labName ? ` · ${e.labName}` : ""}`,
+          path:     e.patientId ? `/patients/${e.patientId}` : `/examens`,
+          accent:   "#9B72D0",
+        });
+        if (out.filter(r => r.kind === "exam").length >= 4) break;
+      }
+    }
+
+    // ── Standalone prescriptions ─────────────────────────────────────────
+    for (const p of prescriptions) {
+      const drugs = p.lines.map(l => l.drug.toLowerCase()).join(" ");
+      if (
+        p.patientName.toLowerCase().includes(q) ||
+        drugs.includes(q) ||
+        p.notes?.toLowerCase().includes(q)
+      ) {
+        const firstDrug = p.lines[0]?.drug ?? "";
+        out.push({
+          id:       p.id,
+          kind:     "prescription",
+          title:    `Ordonnance — ${p.patientName}`,
+          subtitle: `${formatDateShort(p.date)}${firstDrug ? ` · ${firstDrug}${p.lines.length > 1 ? ` +${p.lines.length - 1}` : ""}` : ""}`,
+          path:     p.patientId ? `/patients/${p.patientId}` : `/documents`,
+          accent:   "#15A876",
+        });
+        if (out.filter(r => r.kind === "prescription").length >= 4) break;
+      }
+    }
+
+    // ── Standalone certificates ──────────────────────────────────────────
+    for (const c of certificates) {
+      if (
+        c.patientName.toLowerCase().includes(q) ||
+        CERT_TYPE_LABELS[c.type].toLowerCase().includes(q) ||
+        c.content?.toLowerCase().includes(q) ||
+        c.reason?.toLowerCase().includes(q) ||
+        c.specialist?.toLowerCase().includes(q)
+      ) {
+        out.push({
+          id:       c.id,
+          kind:     "certificate",
+          title:    `${CERT_TYPE_LABELS[c.type]} — ${c.patientName}`,
+          subtitle: formatDateShort(c.date) + (c.content ? ` · ${c.content.slice(0, 50)}` : c.reason ? ` · ${c.reason.slice(0, 50)}` : ""),
+          path:     c.patientId ? `/patients/${c.patientId}` : `/documents`,
+          accent:   "#1890C5",
+        });
+        if (out.filter(r => r.kind === "certificate").length >= 4) break;
+      }
+    }
+
+    // ── Notes & tasks ────────────────────────────────────────────────────
+    for (const n of notes) {
+      if (
+        n.title.toLowerCase().includes(q) ||
+        n.body?.toLowerCase().includes(q)
+      ) {
+        out.push({
+          id:       n.id,
+          kind:     "note",
+          title:    n.title,
+          subtitle: `${n.type === "task" ? "Tâche" : "Note"}${n.isDone ? " · Terminé" : ""}${n.dueDate ? ` · Échéance ${formatDateShort(n.dueDate)}` : ""}`,
+          path:     `/notes`,
+          accent:   "#D4962A",
+        });
+        if (out.filter(r => r.kind === "note").length >= 4) break;
+      }
+    }
+
     return out;
-  }, [query, patients, appointments, transactions, fiscalYear]);
+  }, [query, patients, appointments, transactions, fiscalYear,
+      examResults, prescriptions, certificates, notes]);
 
   // Reset selected when results change
   useEffect(() => { setSelected(0); }, [results]);
@@ -178,7 +274,7 @@ export function CommandPalette({ onClose }: Props) {
             value={query}
             onChange={e => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Rechercher patients, RDV, transactions…"
+            placeholder="Rechercher patients, RDV, examens, ordonnances, notes…"
             spellCheck={false}
             autoComplete="off"
           />
@@ -192,15 +288,13 @@ export function CommandPalette({ onClose }: Props) {
         {query.length < 2 ? (
           <div className="cmd-empty">
             <div className="cmd-shortcuts">
-              <div className="cmd-shortcut-item">
-                <span className="cmd-shortcut-icon">👤</span> Patients
-              </div>
-              <div className="cmd-shortcut-item">
-                <span className="cmd-shortcut-icon">📅</span> Rendez-vous
-              </div>
-              <div className="cmd-shortcut-item">
-                <span className="cmd-shortcut-icon">💰</span> Transactions
-              </div>
+              <div className="cmd-shortcut-item"><span className="cmd-shortcut-icon">👤</span> Patients</div>
+              <div className="cmd-shortcut-item"><span className="cmd-shortcut-icon">📅</span> Rendez-vous</div>
+              <div className="cmd-shortcut-item"><span className="cmd-shortcut-icon">🔬</span> Examens</div>
+              <div className="cmd-shortcut-item"><span className="cmd-shortcut-icon">℞</span> Ordonnances</div>
+              <div className="cmd-shortcut-item"><span className="cmd-shortcut-icon">📄</span> Certificats</div>
+              <div className="cmd-shortcut-item"><span className="cmd-shortcut-icon">📝</span> Notes</div>
+              <div className="cmd-shortcut-item"><span className="cmd-shortcut-icon">💰</span> Transactions</div>
             </div>
             <div className="cmd-hint-text">Tapez au moins 2 caractères pour rechercher</div>
           </div>
