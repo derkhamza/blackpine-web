@@ -1331,6 +1331,30 @@ img { max-width: 100%; display: block; }
   background: var(--green); margin-left: 5px;
 }
 
+/* ── Patient unified timeline ────────────────────────────────────────────── */
+.tl-list { display: flex; flex-direction: column; }
+.tl-month {
+  font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em;
+  color: var(--tertiary); padding: 14px 0 6px 48px;
+  border-bottom: 1px solid var(--border); margin-bottom: 2px;
+}
+.tl-entry { display: flex; gap: 10px; padding: 8px 0; }
+.tl-icon-col { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; width: 36px; }
+.tl-icon {
+  width: 36px; height: 36px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; flex-shrink: 0;
+}
+.tl-connector { flex: 1; width: 2px; background: var(--border); margin: 3px 0; min-height: 8px; }
+.tl-body { flex: 1; min-width: 0; padding-top: 3px; padding-bottom: 8px; }
+.tl-row-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 2px; }
+.tl-title { font-size: 13px; font-weight: 600; color: var(--text); }
+.tl-date { font-size: 11px; color: var(--muted); white-space: nowrap; flex-shrink: 0; }
+.tl-subtitle { font-size: 12.5px; color: var(--text-secondary, var(--muted)); margin-bottom: 2px; }
+.tl-detail { font-size: 11.5px; color: var(--muted); margin-bottom: 3px; }
+.tl-link { font-size: 11.5px; color: var(--blue); text-decoration: none; font-weight: 500; }
+.tl-link:hover { text-decoration: underline; }
+
 /* ── Patient ordonnance history ─────────────────────────────────────────── */
 .ord-history-list { display: flex; flex-direction: column; gap: 12px; }
 .ord-history-card {

@@ -4,7 +4,12 @@ import { Layout } from "../components/Layout";
 import { useCabinet } from "../context/CabinetContext";
 import { useApp } from "../context/AppContext";
 import type { Patient, PatientGender, VitalSigns, OrdonnanceLine } from "../lib/cabinetTypes";
-import { APPT_TYPE_LABELS, APPT_TYPE_COLORS, APPT_STATUS_LABELS } from "../lib/cabinetTypes";
+import {
+  APPT_TYPE_LABELS, APPT_TYPE_COLORS, APPT_STATUS_LABELS,
+  EXAM_TYPE_LABELS, EXAM_TYPE_COLORS,
+  CERT_TYPE_LABELS, CERT_TYPE_COLORS,
+  TELE_STATUS_LABELS,
+} from "../lib/cabinetTypes";
 import { formatMAD, formatDateShort, todayIso } from "../lib/format";
 import { printPatientReport } from "../lib/patientReportPrinter";
 import { printOrdonnance } from "../lib/ordonnancePrinter";
@@ -123,13 +128,17 @@ function TrendChart({
 export function PatientDetailPage() {
   const { patientId } = useParams<{ patientId: string }>();
   const navigate      = useNavigate();
-  const { patients, appointments, updatePatient, deletePatient, doctorProfile } = useCabinet();
+  const {
+    patients, appointments,
+    examResults, prescriptions, teleSessions, certificates,
+    updatePatient, deletePatient, doctorProfile,
+  } = useCabinet();
   const { transactions } = useApp();
 
   const patient = useMemo(() => patients.find((p) => p.id === patientId), [patients, patientId]);
 
   // ── Tabs ──────────────────────────────────────────────────────────────────
-  const [tab, setTab] = useState<"dossier" | "rdv" | "vitals" | "ordonnances">("dossier");
+  const [tab, setTab] = useState<"timeline" | "dossier" | "rdv" | "vitals" | "ordonnances">("timeline");
 
   // ── Dossier inline fields ─────────────────────────────────────────────────
   const [bloodType,   setBloodType]   = useState("");
@@ -250,6 +259,97 @@ export function PatientDetailPage() {
 
   const hasVitals = bpPoints.length > 0 || hrPoints.length > 0 || tempPoints.length > 0 || weightPoints.length > 0;
 
+  // ── Unified timeline ──────────────────────────────────────────────────────
+  const EXAM_ICONS: Record<string, string> = { biologie: "🔬", imagerie: "🩻", ecg: "💗", autre: "📋" };
+
+  interface TLEntry {
+    id: string; kind: string; date: string; sortKey: string;
+    icon: string; color: string; title: string;
+    subtitle?: string; detail?: string; link?: string;
+  }
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const tlEntries = useMemo<TLEntry[]>(() => {
+    const entries: TLEntry[] = [];
+
+    // Appointments (exclude cancelled / no-show)
+    for (const a of patientAppts.filter((a) => a.status !== "cancelled" && a.status !== "no_show")) {
+      const color = a.status === "completed" ? APPT_TYPE_COLORS[a.type] : "var(--tertiary)";
+      let subtitle = a.consultationNote?.motif || a.consultationNote?.diagnosis || undefined;
+      if (subtitle && subtitle.length > 90) subtitle = subtitle.slice(0, 90) + "…";
+      const chips: string[] = [];
+      if (a.vitalSigns && Object.values(a.vitalSigns).some((v) => v != null)) chips.push("Vitaux");
+      if (a.savedOrdonnance?.lines.length) chips.push(`℞ ${a.savedOrdonnance.lines.length} méd.`);
+      if (a.savedCertificates?.length) chips.push(`${a.savedCertificates.length} cert.`);
+      if (a.billedAt) chips.push("Facturé");
+      entries.push({
+        id: `rdv-${a.id}`, kind: "rdv",
+        date: a.date, sortKey: a.date + "T" + a.startTime,
+        icon: a.status === "completed" ? "🩺" : "📅",
+        color,
+        title: APPT_TYPE_LABELS[a.type] + (a.status !== "completed" ? ` · ${APPT_STATUS_LABELS[a.status]}` : ""),
+        subtitle,
+        detail: chips.length > 0 ? chips.join(" · ") : undefined,
+        link: `/agenda/${a.id}`,
+      });
+    }
+
+    // Standalone exams
+    for (const e of examResults.filter((e) => e.patientId === patientId)) {
+      const abnormal = e.values.filter((v) => v.isAbnormal).length;
+      entries.push({
+        id: `exam-${e.id}`, kind: "exam",
+        date: e.date, sortKey: e.date + "T00:00",
+        icon: EXAM_ICONS[e.type] ?? "📋",
+        color: EXAM_TYPE_COLORS[e.type],
+        title: e.title,
+        subtitle: EXAM_TYPE_LABELS[e.type] + (e.labName ? ` · ${e.labName}` : ""),
+        detail: abnormal > 0 ? `⚠️ ${abnormal} valeur${abnormal > 1 ? "s" : ""} anormale${abnormal > 1 ? "s" : ""}` : undefined,
+      });
+    }
+
+    // Standalone prescriptions
+    for (const p of prescriptions.filter((p) => p.source === "standalone" && (p.patientId === patientId || p.patientName === fullName))) {
+      const first = p.lines[0];
+      entries.push({
+        id: `rx-${p.id}`, kind: "prescription",
+        date: p.date, sortKey: p.date + "T00:01",
+        icon: "℞", color: "#15A876",
+        title: "Ordonnance",
+        subtitle: first
+          ? `${first.drug}${p.lines.length > 1 ? ` + ${p.lines.length - 1} autre${p.lines.length > 2 ? "s" : ""}` : ""}`
+          : undefined,
+      });
+    }
+
+    // Standalone certificates
+    for (const c of certificates.filter((c) => c.source === "standalone" && (c.patientId === patientId || c.patientName === fullName))) {
+      let subtitle = c.content ?? c.reason ?? undefined;
+      if (subtitle && subtitle.length > 80) subtitle = subtitle.slice(0, 80) + "…";
+      entries.push({
+        id: `cert-${c.id}`, kind: "certificate",
+        date: c.date, sortKey: c.date + "T00:02",
+        icon: "📄", color: CERT_TYPE_COLORS[c.type],
+        title: CERT_TYPE_LABELS[c.type],
+        subtitle,
+      });
+    }
+
+    // Teleconsultations
+    for (const s of teleSessions.filter((s) => s.patientId === patientId || s.patientName === fullName)) {
+      entries.push({
+        id: `tele-${s.id}`, kind: "teleconsult",
+        date: s.scheduledDate, sortKey: s.scheduledDate + "T" + s.scheduledTime,
+        icon: "💻", color: "#1890C5",
+        title: "Téléconsultation",
+        subtitle: TELE_STATUS_LABELS[s.status] + (s.duration ? ` · ${s.duration} min` : ""),
+        detail: s.notes ? s.notes.slice(0, 80) : undefined,
+      });
+    }
+
+    return entries.sort((a, b) => b.sortKey.localeCompare(a.sortKey));
+  }, [patientAppts, examResults, prescriptions, certificates, teleSessions, patientId, fullName]);
+
   if (!patient) {
     return (
       <Layout title="Patient" subtitle="introuvable">
@@ -362,6 +462,7 @@ export function PatientDetailPage() {
       {/* ── Tabs ── */}
       <div className="appt-tabs">
         {([
+          { key: "timeline",    label: `Timeline (${tlEntries.length})`,         dot: tlEntries.length > 0 },
           { key: "dossier",     label: "Dossier médical",                        dot: false },
           { key: "rdv",         label: `Rendez-vous (${patientAppts.length})`,   dot: patientAppts.length > 0 },
           { key: "vitals",      label: "Suivi vitaux",                           dot: hasVitals },
@@ -377,6 +478,67 @@ export function PatientDetailPage() {
           </button>
         ))}
       </div>
+
+      {/* ── TIMELINE ── */}
+      {tab === "timeline" && (
+        <div className="appt-tab-panel">
+          <div className="appt-section-header">
+            <div className="appt-section-title">Historique clinique</div>
+            <span style={{ fontSize: 11, color: "var(--tertiary)" }}>
+              {tlEntries.length} événement{tlEntries.length !== 1 ? "s" : ""}
+            </span>
+          </div>
+
+          {tlEntries.length === 0 ? (
+            <div className="tx-empty" style={{ padding: "32px 0" }}>
+              <div style={{ fontSize: 32, marginBottom: 8 }}>🗒️</div>
+              <div style={{ fontWeight: 700, marginBottom: 4 }}>Aucun historique</div>
+              <div style={{ fontSize: 13, color: "var(--muted)" }}>
+                Les consultations, examens, ordonnances et certificats apparaîtront ici.
+              </div>
+            </div>
+          ) : (
+            <div className="tl-list">
+              {tlEntries.map((entry, idx) => {
+                const showMonth =
+                  idx === 0 ||
+                  entry.date.slice(0, 7) !== tlEntries[idx - 1].date.slice(0, 7);
+                const isLast = idx === tlEntries.length - 1;
+                return (
+                  <div key={entry.id}>
+                    {showMonth && (
+                      <div className="tl-month">
+                        {new Date(entry.date + "T12:00:00").toLocaleDateString("fr-FR", {
+                          month: "long", year: "numeric",
+                        })}
+                      </div>
+                    )}
+                    <div className="tl-entry">
+                      <div className="tl-icon-col">
+                        <div className="tl-icon" style={{ background: entry.color + "18", color: entry.color }}>
+                          {entry.icon}
+                        </div>
+                        {!isLast && <div className="tl-connector" />}
+                      </div>
+                      <div className="tl-body">
+                        <div className="tl-row-top">
+                          <span className="tl-title">{entry.title}</span>
+                          <span className="tl-date">{fmtDate(entry.date)}</span>
+                        </div>
+                        {entry.subtitle && <div className="tl-subtitle">{entry.subtitle}</div>}
+                        {entry.detail && <div className="tl-detail">{entry.detail}</div>}
+                        {entry.link && (
+                          <Link to={entry.link} className="tl-link">Voir le détail →</Link>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── DOSSIER MÉDICAL ── */}
       {tab === "dossier" && (
