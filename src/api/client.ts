@@ -143,3 +143,9 @@ export async function requestPasswordReset(email: string): Promise<void> {
   const data = await res.json();
   if (!res.ok) throw new Error((data as any).error || "Request failed");
 }
+
+export async function verifyPasswordReset(email: string, code: string, newPassword: string): Promise<void> {
+  const res  = await request("/reset/verify", { method: "POST", body: JSON.stringify({ email, code, newPassword }) });
+  const data = await res.json();
+  if (!res.ok) throw new Error((data as any).error || "Vérification échouée");
+}

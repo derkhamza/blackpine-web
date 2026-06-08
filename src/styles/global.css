@@ -603,7 +603,8 @@ img { max-width: 100%; display: block; }
 .auth-title { font-size: 18px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
 .auth-sub { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
 .auth-form { display: flex; flex-direction: column; gap: 12px; }
-.auth-error { background: var(--coral-soft); border: 1px solid var(--coral); color: var(--coral); border-radius: var(--r); padding: 8px 10px; font-size: 12px; font-weight: 500; }
+.auth-error   { background: var(--coral-soft); border: 1px solid var(--coral); color: var(--coral); border-radius: var(--r); padding: 8px 10px; font-size: 12px; font-weight: 500; }
+.auth-success { background: #e6f4ee; border: 1px solid var(--green); color: #0d6e3f; border-radius: var(--r); padding: 8px 10px; font-size: 12px; font-weight: 500; }
 .auth-switch { text-align: center; margin-top: 14px; font-size: 12px; color: var(--muted); }
 .auth-switch button { background: none; border: none; color: var(--blue); font-weight: 600; font-size: 12px; padding: 0; }
 .auth-switch button:hover { text-decoration: underline; }
