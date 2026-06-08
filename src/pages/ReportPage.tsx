@@ -106,8 +106,28 @@ export function ReportPage({ noLayout = false }: { noLayout?: boolean } = {}) {
     </div>
   );
 
+  const inlineReportActions = (
+    <div style={{ display: "flex", gap: 8 }}>
+      <button className="btn btn-ghost" onClick={handleExportCSV}>
+        <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 5 }}>
+          <path d="M7 2v8M4 7l3 3 3-3M2 12h10" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+        Exporter CSV
+      </button>
+      <button className="btn btn-primary" onClick={() => window.print()}>
+        <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 5 }}>
+          <rect x="2" y="5" width="10" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
+          <path d="M4 5V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" stroke="currentColor" strokeWidth="1.5"/>
+          <path d="M4 9h6M4 11h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+        </svg>
+        Imprimer / PDF
+      </button>
+    </div>
+  );
+
   const body = (
     <>
+      {noLayout && <div className="inline-actions">{inlineReportActions}</div>}
       {/* ── Print-only letterhead ── */}
       <div className="rpt-letterhead">
         <div className="rpt-letterhead-name">{doctorProfile.fullName || "Médecin"}</div>

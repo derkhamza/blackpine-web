@@ -330,6 +330,7 @@ export function TeleconsultPage({ noLayout = false }: { noLayout?: boolean } = {
 
   const body = (
     <>
+      {noLayout && <div className="inline-actions">{teleActions}</div>}
       {/* ── KPI strip ── */}
       <div className="tele-kpi-strip">
         <div className="tele-kpi-card">

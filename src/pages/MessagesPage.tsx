@@ -181,6 +181,7 @@ export function MessagesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
 
   const body = (
     <>
+      {noLayout && <div className="inline-actions">{msgActions}</div>}
       <div className="msg-page">
 
         {/* ── Left: list ── */}

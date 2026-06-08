@@ -455,6 +455,7 @@ export function FournisseursPage({ noLayout = false }: { noLayout?: boolean } = 
 
   const body = (
     <>
+      {noLayout && <div className="inline-actions">{fourActions}</div>}
       {/* ── KPI strip ── */}
       <div className="four-kpi-strip">
         <div className="stock-kpi-card">

@@ -69,7 +69,7 @@ function RecordRow({ icon, label, value, sub }: {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
-export function StatsPage() {
+export function StatsPage({ noLayout = false }: { noLayout?: boolean } = {}) {
   const { appointments, patients } = useCabinet();
   const { transactions }           = useApp();
 
@@ -182,11 +182,8 @@ export function StatsPage() {
   // ── Empty state ───────────────────────────────────────────────────────────
   const isEmpty = completedAppts.length === 0;
 
-  return (
-    <Layout
-      title="Activité du cabinet"
-      subtitle={`${thisYear} · ${totalConsultations} consultation${totalConsultations !== 1 ? "s" : ""} au total`}
-    >
+  const body = (
+    <>
       {/* ── Hero ── */}
       <div className="stats-hero">
         <div className="stats-hero-highlight" />
@@ -411,6 +408,15 @@ export function StatsPage() {
           )}
         </div>
       </div>
+    </>
+  );
+  if (noLayout) return body;
+  return (
+    <Layout
+      title="Activité du cabinet"
+      subtitle={`${thisYear} · ${totalConsultations} consultation${totalConsultations !== 1 ? "s" : ""} au total`}
+    >
+      {body}
     </Layout>
   );
 }

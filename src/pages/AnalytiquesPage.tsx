@@ -1,8 +1,9 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import { useCabinet } from "../context/CabinetContext";
 import { todayIso, formatMAD } from "../lib/format";
+import { StatsPage } from "./StatsPage";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -89,7 +90,28 @@ function HBar({ label, value, max, color, pct }: {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export function AnalytiquesPage() {
+type ATab = "patients" | "activite";
+
+export function AnalytiquesPage({ noLayout = false }: { noLayout?: boolean } = {}) {
+  const [anaTab, setAnaTab] = useState<ATab>("patients");
+  if (noLayout) return <AnalytiquesContent />;
+  return (
+    <Layout title="Analytiques" subtitle="Patients & activité du cabinet">
+      <div className="tab-bar" style={{ marginBottom: 20 }}>
+        <button className={`tab-btn${anaTab === "patients" ? " active" : ""}`} onClick={() => setAnaTab("patients")}>
+          Patients
+        </button>
+        <button className={`tab-btn${anaTab === "activite" ? " active" : ""}`} onClick={() => setAnaTab("activite")}>
+          Activité
+        </button>
+      </div>
+      {anaTab === "patients" ? <AnalytiquesContent /> : <StatsPage noLayout />}
+    </Layout>
+  );
+}
+
+// ── Inner demographics content (no Layout) ─────────────────────────────────────
+function AnalytiquesContent() {
   const { patients, appointments } = useCabinet();
   const today = todayIso();
   const thisMonth = today.slice(0, 7);
@@ -195,10 +217,7 @@ export function AnalytiquesPage() {
   const maxGender = Math.max(...genderDist.map(g => g.value), 1);
 
   return (
-    <Layout
-      title="Analytiques"
-      subtitle={`${patients.length} patients · ${appointments.length} rendez-vous au total`}
-    >
+    <>
       {/* ── Patient KPIs ── */}
       <div className="ana-kpi-strip">
         <div className="ana-kpi" style={{ borderTopColor: "var(--blue)" }}>
@@ -370,6 +389,6 @@ export function AnalytiquesPage() {
           )}
         </div>
       </div>
-    </Layout>
+    </>
   );
 }

@@ -579,6 +579,9 @@ img { max-width: 100%; display: block; }
 .tab-btn.active { background: #fff; color: var(--navy); font-weight: 600; box-shadow: 0 1px 3px rgba(18,43,66,0.10); }
 [data-theme="dark"] .tab-btn.active { background: var(--surface); color: var(--text); }
 
+/* Inline action bar shown when a page is embedded with noLayout */
+.inline-actions { display: flex; justify-content: flex-end; gap: 8px; margin-bottom: 16px; }
+
 /* ── Auth page ──────────────────────────────────────────────────────────── */
 .auth-page {
   min-height: 100vh;

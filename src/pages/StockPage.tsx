@@ -283,7 +283,7 @@ export function StockPage({ noLayout = false }: { noLayout?: boolean } = {}) {
 
   const body = (
     <>
-
+      {noLayout && <div className="inline-actions">{stockActions}</div>}
       {/* ── KPI strip ── */}
       <div className="stock-kpi-strip">
         <div className="stock-kpi-card">
