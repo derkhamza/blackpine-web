@@ -276,24 +276,47 @@ export function CabinetProvider({ children }: { children: ReactNode }) {
   // ── Backup / restore ─────────────────────────────────────────────────────
   const exportCabinetJSON = useCallback(() =>
     JSON.stringify({
-      version: 1,
+      version: 2,
       exportedAt: new Date().toISOString(),
+      // Clinical
       appointments, patients, employees, doctorProfile,
+      // Documents
+      prescriptions, certificates,
+      // Exams & tele
+      examResults, teleSessions,
+      // Messaging
+      waTemplates,
+      // Notes
+      notes,
+      // Stock & supply
+      stockItems, suppliers, purchaseOrders,
     }, null, 2),
-  [appointments, patients, employees, doctorProfile]);
+  [appointments, patients, employees, doctorProfile,
+   prescriptions, certificates, examResults, teleSessions,
+   waTemplates, notes, stockItems, suppliers, purchaseOrders]);
 
   const importCabinetJSON = useCallback((json: string) => {
     try {
-      const d = JSON.parse(json) as {
-        appointments?: Appointment[];
-        patients?:     Patient[];
-        employees?:    Employee[];
-        doctorProfile?: CabinetDoctorProfile;
-      };
-      if (Array.isArray(d.appointments)) setAppts(d.appointments);
-      if (Array.isArray(d.patients))     setPatients(d.patients);
-      if (Array.isArray(d.employees))    setEmployees(d.employees);
-      if (d.doctorProfile)               setDoctorProfileState(d.doctorProfile);
+      const d = JSON.parse(json) as Record<string, unknown>;
+      // Core clinical
+      if (Array.isArray(d.appointments)) setAppts(d.appointments as Appointment[]);
+      if (Array.isArray(d.patients))     setPatients(d.patients as Patient[]);
+      if (Array.isArray(d.employees))    setEmployees(d.employees as Employee[]);
+      if (d.doctorProfile && typeof d.doctorProfile === "object") setDoctorProfileState(d.doctorProfile as CabinetDoctorProfile);
+      // Documents
+      if (Array.isArray(d.prescriptions))  setPrescriptions(d.prescriptions as Prescription[]);
+      if (Array.isArray(d.certificates))   setCertificates(d.certificates as Certificate[]);
+      // Exams & tele
+      if (Array.isArray(d.examResults))    setExamResults(d.examResults as ExamResult[]);
+      if (Array.isArray(d.teleSessions))   setTele(d.teleSessions as TeleSession[]);
+      // Messaging
+      if (Array.isArray(d.waTemplates))    setWaTpls(d.waTemplates as WaTemplate[]);
+      // Notes
+      if (Array.isArray(d.notes))          setNotes(d.notes as InternalNote[]);
+      // Stock & supply
+      if (Array.isArray(d.stockItems))     setStock(d.stockItems as StockItem[]);
+      if (Array.isArray(d.suppliers))      setSuppliers(d.suppliers as Supplier[]);
+      if (Array.isArray(d.purchaseOrders)) setPurchaseOrders(d.purchaseOrders as PurchaseOrder[]);
     } catch (e) {
       throw new Error("Fichier JSON invalide");
     }

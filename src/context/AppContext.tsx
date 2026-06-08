@@ -68,6 +68,10 @@ interface AppCtx {
   syncStatus: SyncStatus;
   lastSyncedAt: string | null;
   retrySync: () => Promise<void>;
+
+  // backup
+  exportFinancesJSON: () => string;
+  importFinancesJSON: (json: string) => void;
 }
 
 const Ctx = createContext<AppCtx | null>(null);
@@ -227,6 +231,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [profile, transactions, assets, recurringRules, fiscalYear]);
 
+  const exportFinancesJSON = useCallback(() =>
+    JSON.stringify({
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      transactions, assets, recurringRules, profile,
+    }, null, 2),
+  [transactions, assets, recurringRules, profile]);
+
+  const importFinancesJSON = useCallback((json: string) => {
+    try {
+      const d = JSON.parse(json) as Record<string, unknown>;
+      if (Array.isArray(d.transactions))    setTx(d.transactions as Transaction[]);
+      if (Array.isArray(d.assets))          setAssets(d.assets as FixedAsset[]);
+      if (Array.isArray(d.recurringRules))  setRules(d.recurringRules as RecurringRule[]);
+      if (d.profile && typeof d.profile === "object") setProfileState(d.profile as DoctorProfile);
+    } catch {
+      throw new Error("Fichier JSON invalide");
+    }
+  }, []);
+
   const value: AppCtx = {
     user, isAuthenticated, login, signup, logout,
     profile, setProfile,
@@ -235,6 +259,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     recurringRules, addRecurringRule, deleteRecurringRule,
     result, fiscalYear, setFiscalYear, FISCAL_MIN, FISCAL_MAX,
     syncStatus, lastSyncedAt, retrySync,
+    exportFinancesJSON, importFinancesJSON,
   };
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

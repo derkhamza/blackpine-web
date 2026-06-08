@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { Layout } from "../components/Layout";
 import { useCabinet } from "../context/CabinetContext";
+import { useApp } from "../context/AppContext";
 import { ProfilePage } from "./ProfilePage";
 import { useDarkMode } from "../lib/useDarkMode";
 import { exportPatientsCsv, exportAppointmentsCsv } from "../lib/csvExport";
@@ -74,21 +75,33 @@ function DarkToggle({ dark, toggle }: { dark: boolean; toggle: () => void }) {
 // ── Import preview ─────────────────────────────────────────────────────────────
 
 interface ImportPreview {
-  raw:          string;
-  appointments: number;
-  patients:     number;
-  employees:    number;
-  exportedAt?:  string;
+  raw:           string;
+  appointments:  number;
+  patients:      number;
+  employees:     number;
+  examResults:   number;
+  prescriptions: number;
+  certificates:  number;
+  teleSessions:  number;
+  exportedAt?:   string;
+}
+
+function count(d: Record<string, unknown>, key: string): number {
+  return Array.isArray(d[key]) ? (d[key] as unknown[]).length : 0;
 }
 
 function parsePreview(json: string): ImportPreview {
-  const d = JSON.parse(json);
+  const d = JSON.parse(json) as Record<string, unknown>;
   return {
-    raw:          json,
-    appointments: Array.isArray(d.appointments) ? d.appointments.length : 0,
-    patients:     Array.isArray(d.patients)     ? d.patients.length     : 0,
-    employees:    Array.isArray(d.employees)    ? d.employees.length    : 0,
-    exportedAt:   d.exportedAt,
+    raw:           json,
+    appointments:  count(d, "appointments"),
+    patients:      count(d, "patients"),
+    employees:     count(d, "employees"),
+    examResults:   count(d, "examResults"),
+    prescriptions: count(d, "prescriptions"),
+    certificates:  count(d, "certificates"),
+    teleSessions:  count(d, "teleSessions"),
+    exportedAt:    typeof d.exportedAt === "string" ? d.exportedAt : undefined,
   };
 }
 
@@ -98,14 +111,17 @@ export function ParametresPage() {
   const [settingsTab, setSettingsTab] = useState<"profil" | "parametres">("profil");
   const {
     appointments, patients, employees,
+    examResults, prescriptions, certificates, teleSessions,
     doctorProfile,
     exportCabinetJSON, importCabinetJSON,
     clearAppointments, clearPatients,
   } = useCabinet();
+  const { transactions, exportFinancesJSON, importFinancesJSON } = useApp();
 
   const { dark, toggle } = useDarkMode();
 
-  const fileRef = useRef<HTMLInputElement>(null);
+  const fileRef     = useRef<HTMLInputElement>(null);
+  const finFileRef  = useRef<HTMLInputElement>(null);
 
   const [preview,   setPreview]   = useState<ImportPreview | null>(null);
   const [importing, setImporting] = useState(false);
@@ -122,7 +138,30 @@ export function ParametresPage() {
     const json = exportCabinetJSON();
     const date = new Date().toISOString().slice(0, 10);
     downloadText(json, `blackpine-cabinet-${date}.json`);
-    showToast("Sauvegarde téléchargée");
+    showToast("Sauvegarde cabinet téléchargée");
+  };
+
+  const handleFinancesExport = () => {
+    const json = exportFinancesJSON();
+    const date = new Date().toISOString().slice(0, 10);
+    downloadText(json, `blackpine-finances-${date}.json`);
+    showToast("Sauvegarde finances téléchargée");
+  };
+
+  const handleFinancesFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        importFinancesJSON(ev.target?.result as string);
+        showToast("✓ Données financières importées");
+      } catch {
+        showToast("❌ Fichier JSON invalide ou corrompu");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
   };
 
   // ── Import ──────────────────────────────────────────────────────────────────
@@ -148,7 +187,7 @@ export function ParametresPage() {
     try {
       importCabinetJSON(preview.raw);
       setPreview(null);
-      showToast(`✓ Importé : ${preview.appointments} RDV, ${preview.patients} patients, ${preview.employees} employés`);
+      showToast(`✓ Importé : ${preview.appointments} RDV, ${preview.patients} patients, ${preview.examResults} examens, ${preview.prescriptions} ordonnances`);
     } catch (err: unknown) {
       showToast(`❌ ${err instanceof Error ? err.message : "Erreur d'importation"}`);
     } finally {
@@ -209,39 +248,72 @@ export function ParametresPage() {
 
         {/* ── Données du cabinet ── */}
         <Section
-          title="Données du cabinet"
-          subtitle="Sauvegarde et restauration des rendez-vous, patients et employés"
+          title="Sauvegarde & Restauration"
+          subtitle="Exportez ou restaurez l'intégralité des données cliniques et financières"
         >
           {/* Summary */}
           <div className="settings-data-summary">
-            <div className="settings-data-stat">
-              <div className="settings-data-val">{appointments.length}</div>
-              <div className="settings-data-lbl">Rendez-vous</div>
-            </div>
             <div className="settings-data-stat">
               <div className="settings-data-val">{patients.length}</div>
               <div className="settings-data-lbl">Patients</div>
             </div>
             <div className="settings-data-stat">
-              <div className="settings-data-val">{employees.length}</div>
-              <div className="settings-data-lbl">Employés</div>
+              <div className="settings-data-val">{appointments.length}</div>
+              <div className="settings-data-lbl">RDV</div>
             </div>
             <div className="settings-data-stat">
-              <div className="settings-data-val" style={{ fontSize: 12 }}>{today}</div>
-              <div className="settings-data-lbl">Aujourd'hui</div>
+              <div className="settings-data-val">{examResults.length}</div>
+              <div className="settings-data-lbl">Examens</div>
+            </div>
+            <div className="settings-data-stat">
+              <div className="settings-data-val">{prescriptions.length}</div>
+              <div className="settings-data-lbl">Ordonnances</div>
+            </div>
+            <div className="settings-data-stat">
+              <div className="settings-data-val">{certificates.length}</div>
+              <div className="settings-data-lbl">Certificats</div>
+            </div>
+            <div className="settings-data-stat">
+              <div className="settings-data-val">{teleSessions.length}</div>
+              <div className="settings-data-lbl">Téléconsults</div>
+            </div>
+            <div className="settings-data-stat">
+              <div className="settings-data-val">{transactions.length}</div>
+              <div className="settings-data-lbl">Transactions</div>
+            </div>
+            <div className="settings-data-stat">
+              <div className="settings-data-val">{employees.length}</div>
+              <div className="settings-data-lbl">Employés</div>
             </div>
           </div>
 
           <SettingsRow
-            label="Exporter les données"
-            hint="Télécharge un fichier JSON contenant tous vos rendez-vous, patients et employés"
+            label="Exporter les données du cabinet"
+            hint="Patients, RDV, ordonnances, examens, certificats, stocks, notes…"
           >
             <button className="btn btn-primary settings-action-btn" onClick={handleExport}>
               <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 6 }}>
                 <path d="M7 2v8M4 7l3 3 3-3M2 12h10"
                   stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
-              Exporter (.json)
+              Cabinet.json
+            </button>
+          </SettingsRow>
+
+          <SettingsRow
+            label="Exporter les données financières"
+            hint="Transactions, immobilisations et règles récurrentes"
+          >
+            <button
+              className="btn btn-ghost settings-action-btn"
+              onClick={handleFinancesExport}
+              disabled={transactions.length === 0}
+            >
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 6 }}>
+                <path d="M7 2v8M4 7l3 3 3-3M2 12h10"
+                  stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Finances.json
             </button>
           </SettingsRow>
 
@@ -305,8 +377,8 @@ export function ParametresPage() {
           </SettingsRow>
 
           <SettingsRow
-            label="Importer une sauvegarde"
-            hint="Restaure les données depuis un fichier exporté précédemment. Les données existantes sont remplacées."
+            label="Restaurer les données cabinet"
+            hint="Remplace toutes les données cliniques depuis un fichier Cabinet.json exporté précédemment"
           >
             <>
               <button
@@ -317,7 +389,7 @@ export function ParametresPage() {
                   <path d="M7 10V2M4 5l3-3 3 3M2 12h10"
                     stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
-                Choisir un fichier
+                Restaurer Cabinet.json
               </button>
               <input
                 ref={fileRef}
@@ -325,6 +397,31 @@ export function ParametresPage() {
                 accept=".json,application/json"
                 style={{ display: "none" }}
                 onChange={handleFileChange}
+              />
+            </>
+          </SettingsRow>
+
+          <SettingsRow
+            label="Restaurer les données financières"
+            hint="Remplace toutes les transactions depuis un fichier Finances.json exporté précédemment"
+          >
+            <>
+              <button
+                className="btn btn-ghost settings-action-btn"
+                onClick={() => finFileRef.current?.click()}
+              >
+                <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 6 }}>
+                  <path d="M7 10V2M4 5l3-3 3 3M2 12h10"
+                    stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                Restaurer Finances.json
+              </button>
+              <input
+                ref={finFileRef}
+                type="file"
+                accept=".json,application/json"
+                style={{ display: "none" }}
+                onChange={handleFinancesFileChange}
               />
             </>
           </SettingsRow>
@@ -340,9 +437,13 @@ export function ParametresPage() {
                 Aperçu de l'importation
               </div>
               <div className="settings-import-stats">
-                <span><strong>{preview.appointments}</strong> rendez-vous</span>
                 <span><strong>{preview.patients}</strong> patients</span>
-                <span><strong>{preview.employees}</strong> employés</span>
+                <span><strong>{preview.appointments}</strong> RDV</span>
+                {preview.examResults   > 0 && <span><strong>{preview.examResults}</strong> examens</span>}
+                {preview.prescriptions > 0 && <span><strong>{preview.prescriptions}</strong> ordonnances</span>}
+                {preview.certificates  > 0 && <span><strong>{preview.certificates}</strong> certificats</span>}
+                {preview.teleSessions  > 0 && <span><strong>{preview.teleSessions}</strong> téléconsults</span>}
+                {preview.employees     > 0 && <span><strong>{preview.employees}</strong> employés</span>}
                 {preview.exportedAt && (
                   <span style={{ color: "var(--muted)" }}>
                     Sauvegardé le {new Date(preview.exportedAt).toLocaleDateString("fr-FR")}
