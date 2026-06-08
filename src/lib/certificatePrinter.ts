@@ -225,6 +225,82 @@ export interface CertOrientationOpts {
   doctorProfile:    CabinetDoctorProfile;
 }
 
+// ── Certificat d'aptitude ─────────────────────────────────────────────────────
+
+export interface CertAptitudeOpts {
+  patientName:   string;
+  apptDate:      string;
+  purpose?:      string;
+  doctorProfile: CabinetDoctorProfile;
+}
+
+export function printAptitude(opts: CertAptitudeOpts): void {
+  const { patientName, apptDate, purpose, doctorProfile: doc } = opts;
+  const body = `
+    <div class="cert-title">Certificat d'Aptitude Médicale</div>
+    <div class="cert-body">
+      <p>
+        Je soussigné(e), <strong>${esc(doc.fullName || "le médecin soussigné")}</strong>${doc.specialtyLabel ? ", " + esc(doc.specialtyLabel) : ""},
+        certifie avoir examiné ce jour :
+      </p>
+      <p style="margin:12px 0;font-size:12pt;">
+        <span class="cert-patient">${esc(patientName)}</span>
+      </p>
+      <p>Consulté(e) le <strong>${fmtDate(apptDate)}</strong>.</p>
+      <p style="margin-top:14px;">
+        ${purpose
+          ? `À l'issue de cet examen, je certifie que <strong>${esc(patientName)}</strong> est <strong>${esc(purpose)}</strong>.`
+          : `À l'issue de cet examen, je certifie l'aptitude de <strong>${esc(patientName)}</strong> à l'activité concernée.`
+        }
+      </p>
+      <p style="margin-top:12px;">
+        Ce certificat est délivré à la demande de l'intéressé(e) pour servir et valoir ce que de droit.
+      </p>
+    </div>`;
+  popup(wrap(`Certificat d'aptitude — ${patientName}`, body,
+    "Document médical confidentiel — usage exclusif prévu", doc));
+}
+
+// ── Attestation de présence ───────────────────────────────────────────────────
+
+export interface CertPresenceOpts {
+  patientName:   string;
+  dateFrom:      string;
+  dateTo:        string;
+  notes?:        string;
+  doctorProfile: CabinetDoctorProfile;
+}
+
+export function printPresence(opts: CertPresenceOpts): void {
+  const { patientName, dateFrom, dateTo, notes, doctorProfile: doc } = opts;
+  const sameDay = dateFrom === dateTo;
+  const body = `
+    <div class="cert-title">Attestation de Présence</div>
+    <div class="cert-body">
+      <p>
+        Je soussigné(e), <strong>${esc(doc.fullName || "le médecin soussigné")}</strong>${doc.specialtyLabel ? ", " + esc(doc.specialtyLabel) : ""},
+        atteste la présence de :
+      </p>
+      <p style="margin:12px 0;font-size:12pt;">
+        <span class="cert-patient">${esc(patientName)}</span>
+      </p>
+      <div class="cert-at-box">
+        ${sameDay
+          ? `<div class="cert-at-duration">Le ${fmtDate(dateFrom)}</div>`
+          : `<div class="cert-at-duration">Du ${fmtDate(dateFrom)} au ${fmtDate(dateTo)}</div>`
+        }
+      </div>
+      ${notes ? `<p class="cert-diag">${esc(notes)}</p>` : ""}
+      <p style="margin-top:14px;">
+        Cette attestation est délivrée à la demande de l'intéressé(e) pour servir et valoir ce que de droit.
+      </p>
+    </div>`;
+  popup(wrap(`Attestation de présence — ${patientName}`, body,
+    "Document médical confidentiel", doc));
+}
+
+// ── Lettre d'orientation ──────────────────────────────────────────────────────
+
 export function printOrientation(opts: CertOrientationOpts): void {
   const { patientName, apptDate, specialist, reason, clinicalSummary, doctorProfile: doc } = opts;
   const body = `

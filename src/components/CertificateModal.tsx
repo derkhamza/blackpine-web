@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { Appointment, SavedCertificate, CertificateType, CabinetDoctorProfile } from "../lib/cabinetTypes";
-import { printCertificatMedical, printArretTravail, printOrientation } from "../lib/certificatePrinter";
+import { printCertificatMedical, printArretTravail, printOrientation, printAptitude, printPresence } from "../lib/certificatePrinter";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -8,11 +8,15 @@ const TYPE_LABELS: Record<CertificateType, string> = {
   medical:       "Certificat médical",
   arret_travail: "Arrêt de travail",
   orientation:   "Lettre d'orientation",
+  aptitude:      "Aptitude",
+  presence:      "Présence",
 };
 const TYPE_ICONS: Record<CertificateType, string> = {
   medical:       "📋",
   arret_travail: "🏥",
   orientation:   "📩",
+  aptitude:      "✅",
+  presence:      "📅",
 };
 
 function addDays(iso: string, n: number): string {
@@ -36,6 +40,10 @@ function reprintCert(cert: SavedCertificate, patientName: string, apptDate: stri
     printArretTravail({ patientName, dateFrom: cert.dateFrom, dateTo: cert.dateTo, diagnosis: cert.content, doctorProfile: doc });
   } else if (cert.type === "orientation" && cert.specialist) {
     printOrientation({ patientName, apptDate, specialist: cert.specialist, reason: cert.reason ?? "", clinicalSummary: cert.clinicalSummary, doctorProfile: doc });
+  } else if (cert.type === "aptitude") {
+    printAptitude({ patientName, apptDate, purpose: cert.content, doctorProfile: doc });
+  } else if (cert.type === "presence" && cert.dateFrom && cert.dateTo) {
+    printPresence({ patientName, dateFrom: cert.dateFrom, dateTo: cert.dateTo, notes: cert.content, doctorProfile: doc });
   }
 }
 
@@ -67,6 +75,14 @@ export function CertificateModal({ appt, patientName, doctorProfile, onSave, onC
   const [oriReason,     setOriReason]     = useState(appt.consultationNote?.motif ?? "");
   const [oriClinical,   setOriClinical]   = useState(appt.consultationNote?.diagnosis ?? "");
 
+  // ── Aptitude fields ───────────────────────────────────────────────────────
+  const [aptPurpose, setAptPurpose] = useState("");
+
+  // ── Présence fields ───────────────────────────────────────────────────────
+  const [presFrom,  setPresFrom]  = useState(appt.date);
+  const [presTo,    setPresTo]    = useState(appt.date);
+  const [presNotes, setPresNotes] = useState("");
+
   const history = appt.savedCertificates ?? [];
 
   // ── Build cert object ─────────────────────────────────────────────────────
@@ -95,6 +111,20 @@ export function CertificateModal({ appt, patientName, doctorProfile, onSave, onC
         clinicalSummary: oriClinical.trim() || undefined,
       };
     }
+    if (certType === "aptitude") {
+      return {
+        id, type: "aptitude", issuedAt,
+        content: aptPurpose.trim() || undefined,
+      };
+    }
+    if (certType === "presence") {
+      if (!presFrom || !presTo) return null;
+      return {
+        id, type: "presence", issuedAt,
+        dateFrom: presFrom, dateTo: presTo,
+        content: presNotes.trim() || undefined,
+      };
+    }
     return null;
   }
 
@@ -118,7 +148,9 @@ export function CertificateModal({ appt, patientName, doctorProfile, onSave, onC
   }
 
   const canSubmit =
-    certType === "orientation" ? oriSpecialist.trim().length > 0 : true;
+    certType === "orientation" ? oriSpecialist.trim().length > 0
+    : certType === "presence"  ? !!presFrom && !!presTo
+    : true;
 
   const atDays = atFrom && atTo ? daysBetween(atFrom, atTo) : 0;
 
@@ -133,7 +165,7 @@ export function CertificateModal({ appt, patientName, doctorProfile, onSave, onC
         <div className="modal-body">
           {/* ── Type picker ── */}
           <div className="cert-type-picker">
-            {(["medical", "arret_travail", "orientation"] as CertificateType[]).map(t => (
+            {(["medical", "arret_travail", "orientation", "aptitude", "presence"] as CertificateType[]).map(t => (
               <button
                 key={t}
                 className={`cert-type-btn${certType === t ? " active" : ""}`}
@@ -249,6 +281,70 @@ export function CertificateModal({ appt, patientName, doctorProfile, onSave, onC
                   placeholder="Antécédents pertinents, examens réalisés, résultats biologiques…"
                   value={oriClinical}
                   onChange={(e) => setOriClinical(e.target.value)}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* ── Aptitude ── */}
+          {certType === "aptitude" && (
+            <div className="cert-form">
+              <div className="form-group">
+                <label className="form-label">
+                  Objet / finalité
+                  <span className="cert-optional"> (facultatif)</span>
+                </label>
+                <input
+                  className="form-input"
+                  type="text"
+                  placeholder="Ex : apte à la pratique sportive, absence de contre-indication au travail…"
+                  value={aptPurpose}
+                  onChange={(e) => setAptPurpose(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              <div className="cert-preview-hint">
+                Certifie que le patient est apte à… selon examen du {new Date(appt.date + "T12:00:00").toLocaleDateString("fr-FR")}.
+              </div>
+            </div>
+          )}
+
+          {/* ── Présence ── */}
+          {certType === "presence" && (
+            <div className="cert-form">
+              <div className="cert-at-row">
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label className="form-label">Du</label>
+                  <input
+                    className="form-input"
+                    type="date"
+                    value={presFrom}
+                    onChange={(e) => setPresFrom(e.target.value)}
+                    autoFocus
+                  />
+                </div>
+                <div className="cert-at-arrow">→</div>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label className="form-label">Au</label>
+                  <input
+                    className="form-input"
+                    type="date"
+                    value={presTo}
+                    onChange={(e) => setPresTo(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="form-group">
+                <label className="form-label">
+                  Observations
+                  <span className="cert-optional"> (facultatif)</span>
+                </label>
+                <input
+                  className="form-input"
+                  type="text"
+                  placeholder="Ex : présent pour soins, hospitalisation…"
+                  value={presNotes}
+                  onChange={(e) => setPresNotes(e.target.value)}
                 />
               </div>
             </div>

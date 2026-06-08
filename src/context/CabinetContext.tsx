@@ -1,7 +1,7 @@
 import {
   createContext, useCallback, useContext, useEffect, useState, type ReactNode,
 } from "react";
-import type { Appointment, CabinetDoctorProfile, Certificate, Employee, Patient, Prescription, PrescriptionTemplate, StockItem, WaTemplate, TeleSession, InternalNote, Supplier, PurchaseOrder, PurchaseOrderLine, ExamResult } from "../lib/cabinetTypes";
+import type { Appointment, CabinetDoctorProfile, Certificate, Employee, InvoiceRecord, Patient, Prescription, PrescriptionTemplate, StockItem, WaTemplate, TeleSession, InternalNote, Supplier, PurchaseOrder, PurchaseOrderLine, ExamResult } from "../lib/cabinetTypes";
 import { BLANK_DOCTOR_PROFILE } from "../lib/cabinetTypes";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -25,9 +25,10 @@ function save(key: string, value: unknown) {
 
 interface CabinetCtx {
   appointments: Appointment[];
-  addAppointment:    (a: Omit<Appointment, "id">) => void;
-  updateAppointment: (a: Appointment) => void;
-  deleteAppointment: (id: string) => void;
+  addAppointment:          (a: Omit<Appointment, "id">) => void;
+  updateAppointment:       (a: Appointment) => void;
+  deleteAppointment:       (id: string) => void;
+  deleteAppointmentSeries: (ruleId: string, fromDate: string) => void;
 
   patients: Patient[];
   addPatient:    (p: Omit<Patient, "id" | "createdAt">) => void;
@@ -105,6 +106,11 @@ interface CabinetCtx {
   addCertificate:      (c: Omit<Certificate, "id" | "createdAt">) => void;
   updateCertificate:   (c: Certificate) => void;
   deleteCertificate:   (id: string) => void;
+
+  // Invoice records
+  invoices:      InvoiceRecord[];
+  addInvoice:    (inv: Omit<InvoiceRecord, "id">) => void;
+  deleteInvoice: (id: string) => void;
 
   // Backup / restore
   exportCabinetJSON: () => string;
@@ -228,6 +234,9 @@ export function CabinetProvider({ children }: { children: ReactNode }) {
   const [certificates, setCertificates] = useState<Certificate[]>(
     () => load("bp.certificates", [])
   );
+  const [invoices, setInvoices] = useState<InvoiceRecord[]>(
+    () => load("bp.invoices", [])
+  );
 
   // Persist to localStorage on every change
   useEffect(() => { save("bp.appts",     appointments);  }, [appointments]);
@@ -244,6 +253,7 @@ export function CabinetProvider({ children }: { children: ReactNode }) {
   useEffect(() => { save("bp.examResults",    examResults);    }, [examResults]);
   useEffect(() => { save("bp.prescriptions",  prescriptions);  }, [prescriptions]);
   useEffect(() => { save("bp.certificates",   certificates);   }, [certificates]);
+  useEffect(() => { save("bp.invoices",       invoices);       }, [invoices]);
 
   const setDoctorProfile = useCallback(
     (p: CabinetDoctorProfile) => setDoctorProfileState(p), []);
@@ -255,6 +265,11 @@ export function CabinetProvider({ children }: { children: ReactNode }) {
     (a: Appointment) => setAppts(p => p.map(x => x.id === a.id ? a : x)), []);
   const deleteAppointment = useCallback(
     (id: string) => setAppts(p => p.filter(x => x.id !== id)), []);
+  /** Delete all appointments in the same recurring series from `fromDate` onwards (inclusive). */
+  const deleteAppointmentSeries = useCallback(
+    (ruleId: string, fromDate: string) =>
+      setAppts(p => p.filter(x => !(x.recurringRuleId === ruleId && x.date >= fromDate))),
+    []);
 
   // ── Patients ──────────────────────────────────────────────────────────────
   const addPatient = useCallback(
@@ -290,10 +305,12 @@ export function CabinetProvider({ children }: { children: ReactNode }) {
       notes,
       // Stock & supply
       stockItems, suppliers, purchaseOrders,
+      // Invoice history
+      invoices,
     }, null, 2),
   [appointments, patients, employees, doctorProfile,
    prescriptions, certificates, examResults, teleSessions,
-   waTemplates, notes, stockItems, suppliers, purchaseOrders]);
+   waTemplates, notes, stockItems, suppliers, purchaseOrders, invoices]);
 
   const importCabinetJSON = useCallback((json: string) => {
     try {
@@ -317,6 +334,7 @@ export function CabinetProvider({ children }: { children: ReactNode }) {
       if (Array.isArray(d.stockItems))     setStock(d.stockItems as StockItem[]);
       if (Array.isArray(d.suppliers))      setSuppliers(d.suppliers as Supplier[]);
       if (Array.isArray(d.purchaseOrders)) setPurchaseOrders(d.purchaseOrders as PurchaseOrder[]);
+      if (Array.isArray(d.invoices))       setInvoices(d.invoices as InvoiceRecord[]);
     } catch (e) {
       throw new Error("Fichier JSON invalide");
     }
@@ -453,8 +471,15 @@ export function CabinetProvider({ children }: { children: ReactNode }) {
   const deleteExamResult = useCallback(
     (id: string) => setExamResults(prev => prev.filter(x => x.id !== id)), []);
 
+  // ── Invoice records ───────────────────────────────────────────────────────
+  const addInvoice = useCallback(
+    (inv: Omit<InvoiceRecord, "id">) =>
+      setInvoices(prev => [...prev, { ...inv, id: uid() }]), []);
+  const deleteInvoice = useCallback(
+    (id: string) => setInvoices(prev => prev.filter(x => x.id !== id)), []);
+
   const value: CabinetCtx = {
-    appointments, addAppointment, updateAppointment, deleteAppointment,
+    appointments, addAppointment, updateAppointment, deleteAppointment, deleteAppointmentSeries,
     patients,     addPatient,     updatePatient,     deletePatient,
     employees,    addEmployee,    updateEmployee,    deleteEmployee,
     doctorProfile, setDoctorProfile,
@@ -468,6 +493,7 @@ export function CabinetProvider({ children }: { children: ReactNode }) {
     suppliers, addSupplier, updateSupplier, deleteSupplier,
     purchaseOrders, addPurchaseOrder, updatePurchaseOrder, deletePurchaseOrder, receiveOrder,
     examResults, addExamResult, updateExamResult, deleteExamResult,
+    invoices, addInvoice, deleteInvoice,
     exportCabinetJSON, importCabinetJSON, clearAppointments, clearPatients,
   };
 

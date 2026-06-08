@@ -7,6 +7,7 @@ import { useDarkMode } from "../lib/useDarkMode";
 import { exportPatientsCsv, exportAppointmentsCsv } from "../lib/csvExport";
 import { exportAgendaIcal } from "../lib/icalExport";
 import { useInstallPWA } from "../components/PWAPrompts";
+import type { CabinetLocation } from "../lib/cabinetTypes";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -73,6 +74,137 @@ function DarkToggle({ dark, toggle }: { dark: boolean; toggle: () => void }) {
   );
 }
 
+// ── Location manager ───────────────────────────────────────────────────────────
+
+const LOC_PALETTE = [
+  "#0A4E7E", "#15A876", "#E8622A", "#D4962A", "#8B5CF6",
+  "#EC4899", "#06B6D4", "#64748B", "#16A34A", "#DC2626",
+];
+
+const BLANK_LOC: Omit<CabinetLocation, "id"> = { name: "", address: "", color: LOC_PALETTE[0] };
+
+function LocationsSection({
+  locations,
+  onChange,
+}: {
+  locations: CabinetLocation[];
+  onChange: (locs: CabinetLocation[]) => void;
+}) {
+  const [showForm, setShowForm] = useState(false);
+  const [editId,   setEditId]   = useState<string | null>(null);
+  const [draft, setDraft] = useState<Omit<CabinetLocation, "id">>(BLANK_LOC);
+
+  function uid() { return Math.random().toString(36).slice(2, 9); }
+
+  function openAdd() {
+    setDraft(BLANK_LOC);
+    setEditId(null);
+    setShowForm(true);
+  }
+
+  function openEdit(loc: CabinetLocation) {
+    setDraft({ name: loc.name, address: loc.address ?? "", color: loc.color ?? LOC_PALETTE[0] });
+    setEditId(loc.id);
+    setShowForm(true);
+  }
+
+  function handleSave() {
+    if (!draft.name.trim()) return;
+    if (editId) {
+      onChange(locations.map(l => l.id === editId ? { ...l, ...draft, name: draft.name.trim() } : l));
+    } else {
+      onChange([...locations, { id: uid(), ...draft, name: draft.name.trim() }]);
+    }
+    setShowForm(false);
+    setEditId(null);
+  }
+
+  function handleDelete(id: string) {
+    if (confirm("Supprimer cet emplacement ?")) {
+      onChange(locations.filter(l => l.id !== id));
+    }
+  }
+
+  return (
+    <div>
+      {locations.length > 0 && (
+        <div className="loc-list">
+          {locations.map(loc => (
+            <div key={loc.id} className="loc-row">
+              <div
+                className="loc-color-dot"
+                style={{ background: loc.color ?? LOC_PALETTE[0] }}
+              />
+              <div className="loc-info">
+                <div className="loc-name">{loc.name}</div>
+                {loc.address && <div className="loc-address">{loc.address}</div>}
+              </div>
+              <button className="loc-edit-btn" onClick={() => openEdit(loc)}>Modifier</button>
+              <button className="loc-del-btn" onClick={() => handleDelete(loc.id)}>Supprimer</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {showForm ? (
+        <div className="loc-form">
+          <div className="form-group">
+            <label className="form-label">Nom de l'emplacement <span style={{ color: "var(--coral)" }}>*</span></label>
+            <input
+              className="form-input"
+              type="text"
+              placeholder="Ex : Cabinet principal, Clinique Ibn Sina…"
+              value={draft.name}
+              onChange={e => setDraft(d => ({ ...d, name: e.target.value }))}
+              autoFocus
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Adresse <span style={{ fontSize: 11, color: "var(--muted)" }}>(facultatif)</span></label>
+            <input
+              className="form-input"
+              type="text"
+              placeholder="Ex : 12 Rue Ibn Battouta, Casablanca"
+              value={draft.address ?? ""}
+              onChange={e => setDraft(d => ({ ...d, address: e.target.value }))}
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Couleur</label>
+            <div className="loc-color-picker">
+              {LOC_PALETTE.map(c => (
+                <button
+                  key={c}
+                  className={`loc-color-swatch${draft.color === c ? " selected" : ""}`}
+                  style={{ background: c }}
+                  title={c}
+                  onClick={() => setDraft(d => ({ ...d, color: c }))}
+                />
+              ))}
+            </div>
+          </div>
+          <div className="loc-form-row">
+            <button className="btn btn-ghost" onClick={() => { setShowForm(false); setEditId(null); }}>
+              Annuler
+            </button>
+            <button
+              className="btn btn-primary"
+              disabled={!draft.name.trim()}
+              onClick={handleSave}
+            >
+              {editId ? "Enregistrer" : "Ajouter"}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button className="btn btn-ghost" style={{ marginTop: 4 }} onClick={openAdd}>
+          + Ajouter un emplacement
+        </button>
+      )}
+    </div>
+  );
+}
+
 // ── Import preview ─────────────────────────────────────────────────────────────
 
 interface ImportPreview {
@@ -113,7 +245,7 @@ export function ParametresPage() {
   const {
     appointments, patients, employees,
     examResults, prescriptions, certificates, teleSessions,
-    doctorProfile,
+    doctorProfile, setDoctorProfile,
     exportCabinetJSON, importCabinetJSON,
     clearAppointments, clearPatients,
   } = useCabinet();
@@ -246,6 +378,17 @@ export function ParametresPage() {
               <DarkToggle dark={dark} toggle={toggle} />
             </div>
           </SettingsRow>
+        </Section>
+
+        {/* ── Emplacements du cabinet ── */}
+        <Section
+          title="Emplacements du cabinet"
+          subtitle="Gérez vos différents lieux de consultation (cabinet principal, clinique, domicile…)"
+        >
+          <LocationsSection
+            locations={doctorProfile?.locations ?? []}
+            onChange={locs => setDoctorProfile({ ...doctorProfile, locations: locs })}
+          />
         </Section>
 
         {/* ── Données du cabinet ── */}

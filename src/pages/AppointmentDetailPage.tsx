@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import { useCabinet } from "../context/CabinetContext";
@@ -14,8 +14,10 @@ import { NOTE_TEMPLATES, TEMPLATE_CATEGORIES } from "../lib/noteTemplates";
 import { todayIso, formatMAD } from "../lib/format";
 import { printReceipt } from "../lib/receiptPrinter";
 import { nextInvoiceNumber, printFacture } from "../lib/facturePrinter";
-import { OrdonnanceModal }    from "../components/OrdonnanceModal";
-import { CertificateModal }  from "../components/CertificateModal";
+import { OrdonnanceModal }  from "../components/OrdonnanceModal";
+import { CertificateModal } from "../components/CertificateModal";
+import { Icd10Picker }      from "../components/Icd10Picker";
+import type { Icd10Entry }  from "../lib/icd10";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -128,6 +130,33 @@ export function AppointmentDetailPage() {
   // ── Template selector ─────────────────────────────────────────────────────
   const [templateCat, setTemplateCat] = useState<string>("Général");
   const [showTemplates, setShowTemplates] = useState(false);
+
+  // ── ICD-10 picker ─────────────────────────────────────────────────────────
+  const [showIcd10, setShowIcd10] = useState(false);
+
+  // ── Consultation timer ────────────────────────────────────────────────────
+  const [timerRunning, setTimerRunning]   = useState(false);
+  const [timerSeconds, setTimerSeconds]   = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  useEffect(() => {
+    if (timerRunning) {
+      timerRef.current = setInterval(() => setTimerSeconds(s => s + 1), 1000);
+    } else {
+      if (timerRef.current) clearInterval(timerRef.current);
+    }
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [timerRunning]);
+  const fmtTimer = (s: number) => {
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
+  };
+  const stopAndSaveTimer = () => {
+    setTimerRunning(false);
+    if (timerSeconds > 0 && appt) {
+      updateAppointment({ ...appt, consultationDuration: timerSeconds });
+    }
+  };
 
   // Sync state from appointment
   useEffect(() => {
@@ -292,7 +321,22 @@ export function AppointmentDetailPage() {
             ))}
           </select>
 
-          <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+          <div style={{ marginLeft: "auto", display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            {/* Consultation timer */}
+            <div className="consult-timer" title={appt.consultationDuration ? `Dernière durée : ${fmtTimer(appt.consultationDuration)}` : "Chronomètre de consultation"}>
+              <span className="consult-timer-display" style={{ color: timerRunning ? "var(--green)" : undefined }}>
+                ⏱ {timerSeconds > 0 ? fmtTimer(timerSeconds) : appt.consultationDuration ? fmtTimer(appt.consultationDuration) : "00:00"}
+              </span>
+              {!timerRunning ? (
+                <button className="btn btn-ghost consult-timer-btn" onClick={() => setTimerRunning(true)} style={{ fontSize: 11 }}>
+                  ▶
+                </button>
+              ) : (
+                <button className="btn btn-ghost consult-timer-btn" onClick={stopAndSaveTimer} style={{ fontSize: 11, color: "var(--coral)" }}>
+                  ■
+                </button>
+              )}
+            </div>
             <button
               className="btn btn-ghost ord-open-btn"
               onClick={() => setShowOrd(true)}
@@ -423,11 +467,22 @@ export function AppointmentDetailPage() {
               />
             </div>
             <div className="form-group">
-              <label className="form-label">Diagnostic</label>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                <label className="form-label" style={{ margin: 0 }}>Diagnostic</label>
+                <button
+                  className="btn btn-ghost"
+                  style={{ fontSize: 11, padding: "2px 8px", gap: 4 }}
+                  onClick={() => setShowIcd10(true)}
+                  title="Sélectionner un code CIM-10"
+                  type="button"
+                >
+                  🔬 CIM-10
+                </button>
+              </div>
               <textarea
                 className="form-input appt-textarea"
                 rows={2}
-                placeholder="Diagnostic retenu…"
+                placeholder="Diagnostic retenu… (ou choisir un code CIM-10)"
                 value={diag}
                 onChange={(e) => setDiag(e.target.value)}
                 onBlur={saveNotes}
@@ -775,6 +830,25 @@ export function AppointmentDetailPage() {
             });
           }}
           onClose={() => setShowCert(false)}
+        />
+      )}
+
+      {/* ── ICD-10 picker ── */}
+      {showIcd10 && (
+        <Icd10Picker
+          onSelect={(entry: Icd10Entry) => {
+            const prefix = diag.trim() ? diag.trim() + " | " : "";
+            const next = prefix + entry.code + " — " + entry.desc;
+            setDiag(next);
+            updateAppointment({
+              ...appt,
+              consultationNote: {
+                ...(appt.consultationNote ?? {}),
+                diagnosis: next,
+              },
+            });
+          }}
+          onClose={() => setShowIcd10(false)}
         />
       )}
     </Layout>

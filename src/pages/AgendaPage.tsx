@@ -241,7 +241,8 @@ function ApptModal({ initial, defaultDate, isEdit, patients, onSave, onSaveBatch
     };
     if (!isEdit && recurring && onSaveBatch) {
       const dates = generateRecurringDates(date, recurrFreq, recurrCount);
-      onSaveBatch(dates.map(d => ({ ...base, date: d })));
+      const ruleId = Math.random().toString(36).slice(2, 9);
+      onSaveBatch(dates.map(d => ({ ...base, date: d, recurringRuleId: ruleId })));
     } else {
       onSave({ ...base, date });
     }
@@ -738,7 +739,7 @@ export function AgendaPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const {
     appointments, patients, doctorProfile,
-    addAppointment, updateAppointment, deleteAppointment,
+    addAppointment, updateAppointment, deleteAppointment, deleteAppointmentSeries,
     waTemplates,
   } = useCabinet();
   const { addTransaction } = useApp();
@@ -754,6 +755,7 @@ export function AgendaPage() {
   const [billAmt,   setBillAmt]   = useState("200");
   const [bulkItems, setBulkItems] = useState<BulkBillItem[]>([]);
   const [showBulk,  setShowBulk]  = useState(false);
+  const [seriesDeleteTarget, setSeriesDeleteTarget] = useState<Appointment | null>(null);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -1319,7 +1321,9 @@ export function AgendaPage() {
                     doctorProfile,
                   })}
                   onDelete={() => {
-                    if (confirm("Supprimer ce rendez-vous ?")) {
+                    if (appt.recurringRuleId) {
+                      setSeriesDeleteTarget(appt);
+                    } else if (confirm("Supprimer ce rendez-vous ?")) {
                       deleteAppointment(appt.id);
                       showToast("Rendez-vous supprimé");
                     }
@@ -1409,6 +1413,55 @@ export function AgendaPage() {
           doctorFullName={doctorProfile?.fullName}
           onClose={() => setWaPickerTarget(null)}
         />
+      )}
+
+      {/* ── Series delete modal ── */}
+      {seriesDeleteTarget && (
+        <div className="modal-overlay" onClick={() => setSeriesDeleteTarget(null)}>
+          <div className="modal" style={{ maxWidth: 420 }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2 className="modal-title">🔁 Rendez-vous récurrent</h2>
+              <button className="modal-close" onClick={() => setSeriesDeleteTarget(null)}>×</button>
+            </div>
+            <div className="modal-body">
+              <p style={{ fontSize: 14, lineHeight: 1.6, marginBottom: 8 }}>
+                Ce rendez-vous fait partie d'une série récurrente.
+                Que souhaitez-vous supprimer ?
+              </p>
+              <p style={{ fontSize: 13, color: "var(--muted)" }}>
+                <strong>{seriesDeleteTarget.patientName}</strong> · {seriesDeleteTarget.date}
+              </p>
+            </div>
+            <div className="modal-footer" style={{ flexDirection: "column", gap: 8, alignItems: "stretch" }}>
+              <button
+                className="btn btn-ghost"
+                onClick={() => {
+                  deleteAppointment(seriesDeleteTarget.id);
+                  setSeriesDeleteTarget(null);
+                  showToast("Rendez-vous supprimé");
+                }}
+              >
+                Supprimer uniquement ce rendez-vous
+              </button>
+              <button
+                className="btn"
+                style={{ background: "var(--coral)", color: "#fff" }}
+                onClick={() => {
+                  if (seriesDeleteTarget.recurringRuleId) {
+                    deleteAppointmentSeries(seriesDeleteTarget.recurringRuleId, seriesDeleteTarget.date);
+                  }
+                  setSeriesDeleteTarget(null);
+                  showToast("Série supprimée à partir de cette date");
+                }}
+              >
+                Supprimer la série à partir de cette date
+              </button>
+              <button className="btn btn-ghost" onClick={() => setSeriesDeleteTarget(null)}>
+                Annuler
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {toast && <div className="toast">{toast}</div>}

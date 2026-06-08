@@ -3,13 +3,23 @@
 
 // ── Doctor / cabinet identity ─────────────────────────────────────────────────
 
+// ── Cabinet locations ─────────────────────────────────────────────────────────
+
+export interface CabinetLocation {
+  id:       string;
+  name:     string;         // e.g. "Cabinet principal", "Clinique Sud"
+  address?: string;
+  color?:   string;         // hex — color-codes appointments on agenda
+}
+
 export interface CabinetDoctorProfile {
   fullName:        string;
   specialtyLabel?: string;
   inpe?:           string;   // N° d'inscription registre national professionnel
-  address?:        string;   // Adresse du cabinet
+  address?:        string;   // Adresse principale du cabinet
   phone?:          string;
   accountantPhone?: string;  // WhatsApp expert-comptable
+  locations?:      CabinetLocation[];  // multi-location support
 }
 
 export const SPECIALTIES: { id: string; label: string }[] = [
@@ -58,7 +68,7 @@ export interface PrescriptionTemplate {
 
 // ── Certificates ──────────────────────────────────────────────────────────────
 
-export type CertificateType = "medical" | "arret_travail" | "orientation";
+export type CertificateType = "medical" | "arret_travail" | "orientation" | "aptitude" | "presence";
 
 export interface SavedCertificate {
   id:               string;
@@ -78,12 +88,16 @@ export const CERT_TYPE_LABELS: Record<CertificateType, string> = {
   medical:       "Certificat médical",
   arret_travail: "Arrêt de travail",
   orientation:   "Lettre d'orientation",
+  aptitude:      "Certificat d'aptitude",
+  presence:      "Attestation de présence",
 };
 
 export const CERT_TYPE_COLORS: Record<CertificateType, string> = {
   medical:       "#1890C5",
   arret_travail: "#E85B5B",
   orientation:   "#9B72D0",
+  aptitude:      "#15A876",
+  presence:      "#D4962A",
 };
 
 export interface Certificate {
@@ -170,6 +184,12 @@ export interface Appointment {
   // Invoice
   invoiceNumber?:   string;   // FAC-YYYY-NNNN — set when formal invoice is issued
   invoiceIssuedAt?: string;   // ISO datetime
+  // Recurring series — shared ID for all appointments in the same recurring series
+  recurringRuleId?: string;
+  // Multi-location — refers to DoctorProfile.locations[].id
+  locationId?:      string;
+  // Consultation duration tracking (seconds, set by consultation timer)
+  consultationDuration?: number;
 }
 
 export type PatientGender = "M" | "F";
@@ -469,4 +489,21 @@ export interface ExamResult {
   values:       ExamValue[];
   notes?:       string;
   createdAt:    string;   // ISO
+}
+
+// ── Invoice record ─────────────────────────────────────────────────────────────
+// Lightweight history entry created each time a formal invoice (Note d'honoraires)
+// is generated, mirroring the mobile app's InvoiceRecord.
+
+export interface InvoiceRecord {
+  id:            string;
+  appointmentId: string;
+  patientId?:    string;
+  patientName:   string;
+  amount:        number;         // MAD
+  actLabel:      string;         // e.g. "Consultation médicale"
+  invoiceNumber: string;         // FAC-YYYY-NNNN
+  issuedAt:      string;         // ISO timestamp
+  cnopsNumber?:  string;
+  taux?:         number;         // reimbursement rate (0–100)
 }
