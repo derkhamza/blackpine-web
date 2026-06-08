@@ -437,7 +437,14 @@ export function PatientDetailPage() {
             <button
               className="btn btn-ghost"
               style={{ fontSize: 12 }}
-              onClick={() => printPatientReport({ patient, appointments: patientAppts, doctorProfile })}
+              onClick={() => printPatientReport({
+                patient,
+                appointments:   patientAppts,
+                doctorProfile,
+                prescriptions:  prescriptions.filter(p => p.source === "standalone" && (p.patientId === patientId || p.patientName === fullName)),
+                examResults:    examResults.filter(e => e.patientId === patientId),
+                certificates:   certificates.filter(c => c.patientId === patientId || c.patientName === fullName),
+              })}
               title="Imprimer le dossier complet A4"
             >
               <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 5 }}>

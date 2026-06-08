@@ -1,5 +1,10 @@
-import type { Patient, Appointment, CabinetDoctorProfile } from "./cabinetTypes";
-import { APPT_TYPE_LABELS } from "./cabinetTypes";
+import type {
+  Patient, Appointment, CabinetDoctorProfile,
+  Prescription, ExamResult, Certificate,
+} from "./cabinetTypes";
+import {
+  APPT_TYPE_LABELS, EXAM_TYPE_LABELS, CERT_TYPE_LABELS,
+} from "./cabinetTypes";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -34,10 +39,12 @@ function latestVitals(appts: Appointment[]): string {
   if (vs.spo2   != null) parts.push(`SpO₂ ${vs.spo2}%`);
   if (vs.weight != null) parts.push(`Poids ${vs.weight} kg`);
   if (vs.height != null) parts.push(`Taille ${vs.height} cm`);
-  return parts.length > 0 ? `<div class="vs-line"><strong>Dernières constantes (${date})</strong> : ${parts.join(" · ")}</div>` : "";
+  return parts.length > 0
+    ? `<div class="vs-line"><strong>Dernières constantes (${date})</strong> : ${parts.join(" · ")}</div>`
+    : "";
 }
 
-// ── Ordonnances summary ───────────────────────────────────────────────────────
+// ── Ordonnances from appointments ─────────────────────────────────────────────
 
 function activeOrdonnances(appts: Appointment[]): string {
   const withOrd = [...appts]
@@ -57,7 +64,7 @@ function activeOrdonnances(appts: Appointment[]): string {
     .join("");
   return `
     <div class="section-block">
-      <div class="section-title">Dernière ordonnance <span class="date-chip">${date}</span></div>
+      <div class="section-title">Dernière ordonnance (consultation) <span class="date-chip">${date}</span></div>
       <table class="ord-table">
         <thead><tr><th></th><th>Médicament</th><th>Fréquence</th><th>Durée</th></tr></thead>
         <tbody>${lines}</tbody>
@@ -65,14 +72,134 @@ function activeOrdonnances(appts: Appointment[]): string {
     </div>`;
 }
 
+// ── Standalone prescriptions ──────────────────────────────────────────────────
+
+function standalonePrescriptionsSection(prescriptions: Prescription[]): string {
+  if (prescriptions.length === 0) return "";
+  const sorted = [...prescriptions].sort((a, b) => b.date.localeCompare(a.date));
+  const items = sorted.map(p => {
+    const rows = p.lines.map((l, i) => `
+      <tr>
+        <td class="ord-n">${i + 1}.</td>
+        <td><strong>${escHtml(l.drug)}</strong>${l.dosage ? " — " + escHtml(l.dosage) : ""}</td>
+        <td>${escHtml(l.frequency)}</td>
+        <td>${escHtml(l.duration)}</td>
+      </tr>`).join("");
+    return `
+      <div class="rx-block">
+        <div class="rx-header">
+          <span class="rx-tag">℞</span>
+          <span class="rx-date">${fmtDate(p.date)}</span>
+          ${p.notes ? `<span class="rx-notes">${escHtml(p.notes)}</span>` : ""}
+        </div>
+        <table class="ord-table">
+          <thead><tr><th></th><th>Médicament</th><th>Fréquence</th><th>Durée</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }).join("");
+  return `
+    <div class="section-block">
+      <div class="section-title">Ordonnances <span class="date-chip">${sorted.length} ordonnance${sorted.length > 1 ? "s" : ""}</span></div>
+      ${items}
+    </div>`;
+}
+
+// ── Exam results ──────────────────────────────────────────────────────────────
+
+function examResultsSection(examResults: ExamResult[]): string {
+  if (examResults.length === 0) return "";
+  const sorted = [...examResults].sort((a, b) => b.date.localeCompare(a.date));
+  const rows = sorted.map(e => {
+    const abnormal = e.values.filter(v => v.isAbnormal).length;
+    const valSummary = e.values.length > 0
+      ? e.values.slice(0, 4).map(v =>
+          `${escHtml(v.label)}: <strong${v.isAbnormal ? ' class="val-abnormal"' : ""}>${escHtml(v.value)}</strong>${v.unit ? " " + escHtml(v.unit) : ""}`
+        ).join(", ") + (e.values.length > 4 ? `, <em>+${e.values.length - 4} autres</em>` : "")
+      : (e.notes ? escHtml(e.notes.slice(0, 120)) : "—");
+    const abnormalBadge = abnormal > 0
+      ? `<span class="badge-abnormal">⚠ ${abnormal} anormal${abnormal > 1 ? "es" : "e"}</span>`
+      : "";
+    return `
+    <tr>
+      <td class="no-wrap">${fmtDate(e.date)}</td>
+      <td><span class="exam-type-label">${EXAM_TYPE_LABELS[e.type] ?? e.type}</span></td>
+      <td><strong>${escHtml(e.title)}</strong>${e.labName ? `<br/><small>${escHtml(e.labName)}</small>` : ""}</td>
+      <td class="exam-values">${valSummary} ${abnormalBadge}</td>
+    </tr>`;
+  }).join("");
+  return `
+    <div class="section-block">
+      <div class="section-title">Examens complémentaires <span class="date-chip">${sorted.length} résultat${sorted.length > 1 ? "s" : ""}</span></div>
+      <table class="consult-table">
+        <thead>
+          <tr>
+            <th>Date</th><th>Type</th><th>Examen / Labo</th><th>Résultats</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+// ── Certificates ──────────────────────────────────────────────────────────────
+
+function certificatesSection(certificates: Certificate[]): string {
+  if (certificates.length === 0) return "";
+  const sorted = [...certificates].sort((a, b) => b.date.localeCompare(a.date));
+  const rows = sorted.map(c => {
+    let detail = "";
+    if (c.type === "arret_travail") {
+      const parts: string[] = [];
+      if (c.dateFrom) parts.push(`du ${fmtDate(c.dateFrom)}`);
+      if (c.dateTo)   parts.push(`au ${fmtDate(c.dateTo)}`);
+      if (c.duration) parts.push(`(${c.duration} j)`);
+      detail = parts.join(" ");
+      if (c.content) detail += `<br/><em>${escHtml(c.content.slice(0, 120))}</em>`;
+    } else if (c.type === "orientation") {
+      const parts: string[] = [];
+      if (c.specialist) parts.push(`→ ${escHtml(c.specialist)}`);
+      if (c.reason)     parts.push(escHtml(c.reason.slice(0, 80)));
+      detail = parts.join(" · ");
+      if (c.clinicalSummary) detail += `<br/><em>${escHtml(c.clinicalSummary.slice(0, 120))}</em>`;
+    } else {
+      if (c.content) detail = escHtml(c.content.slice(0, 160));
+    }
+    return `
+    <tr>
+      <td class="no-wrap">${fmtDate(c.date)}</td>
+      <td><span class="cert-type-label">${CERT_TYPE_LABELS[c.type] ?? c.type}</span></td>
+      <td class="note-cell">${detail || "—"}</td>
+    </tr>`;
+  }).join("");
+  return `
+    <div class="section-block">
+      <div class="section-title">Certificats &amp; courriers <span class="date-chip">${sorted.length} document${sorted.length > 1 ? "s" : ""}</span></div>
+      <table class="consult-table">
+        <thead>
+          <tr><th>Date</th><th>Type</th><th>Détails</th></tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
 // ── Main export ───────────────────────────────────────────────────────────────
 
 export function printPatientReport(opts: {
-  patient:       Patient;
-  appointments:  Appointment[];
-  doctorProfile: CabinetDoctorProfile;
+  patient:         Patient;
+  appointments:    Appointment[];
+  doctorProfile:   CabinetDoctorProfile;
+  prescriptions?:  Prescription[];
+  examResults?:    ExamResult[];
+  certificates?:   Certificate[];
 }): void {
-  const { patient, appointments, doctorProfile } = opts;
+  const {
+    patient, appointments, doctorProfile,
+    prescriptions  = [],
+    examResults    = [],
+    certificates   = [],
+  } = opts;
   const fullName = `${patient.firstName} ${patient.lastName}`;
 
   // Sort appointments newest-first
@@ -94,7 +221,7 @@ export function printPatientReport(opts: {
       : "status-pending";
     return `
     <tr>
-      <td>${fmtDate(a.date)}</td>
+      <td class="no-wrap">${fmtDate(a.date)}</td>
       <td>${APPT_TYPE_LABELS[a.type] ?? a.type}</td>
       <td><span class="${statusClass}">${a.status === "completed" ? "Terminé" : a.status === "cancelled" ? "Annulé" : a.status === "no_show" ? "Absent" : "Planifié"}</span></td>
       <td class="note-cell">${hasNote ? escHtml(noteText) + (noteText.length >= 80 ? "…" : "") : "—"}</td>
@@ -148,7 +275,7 @@ export function printPatientReport(opts: {
     .alert-icon { font-size: 14pt; line-height: 1; flex-shrink: 0; }
 
     /* Sections */
-    .section-block { margin-bottom: 12px; }
+    .section-block { margin-bottom: 14px; }
     .section-title {
       font-size: 10pt; font-weight: 700; color: #0A4E7E; margin-bottom: 6px;
       border-bottom: 1px solid #c8dff0; padding-bottom: 3px;
@@ -165,7 +292,7 @@ export function printPatientReport(opts: {
     /* Vitals */
     .vs-line { font-size: 9.5pt; margin-bottom: 8px; color: #222; }
 
-    /* Consultation table */
+    /* Shared table style */
     table.consult-table { width: 100%; border-collapse: collapse; font-size: 9pt; margin-top: 6px; }
     .consult-table th {
       background: #0A4E7E; color: #fff; padding: 5px 8px; text-align: left;
@@ -176,14 +303,32 @@ export function printPatientReport(opts: {
     .status-ok     { color: #15a876; font-weight: 600; }
     .status-cancel { color: #e85b5b; font-weight: 600; }
     .status-pending { color: #d4962a; }
-    .note-cell { color: #444; font-style: italic; max-width: 180px; }
+    .note-cell { color: #444; font-style: italic; max-width: 220px; }
     .amount-cell { text-align: right; white-space: nowrap; }
+    .no-wrap { white-space: nowrap; }
 
     /* Ordonnance table */
     table.ord-table { width: 100%; border-collapse: collapse; font-size: 9pt; margin-top: 4px; }
     .ord-table th { background: #EFF6FB; color: #0A4E7E; padding: 4px 8px; font-size: 8pt; text-align: left; }
     .ord-table td { padding: 4px 8px; border-bottom: 1px solid #eee; vertical-align: top; }
     .ord-n { color: #0A4E7E; font-weight: 700; width: 18px; }
+
+    /* Standalone Rx blocks */
+    .rx-block { margin-bottom: 10px; }
+    .rx-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+    .rx-tag { font-size: 11pt; font-weight: 700; color: #15a876; }
+    .rx-date { font-size: 9pt; color: #555; }
+    .rx-notes { font-size: 8.5pt; color: #888; font-style: italic; }
+
+    /* Exam values */
+    .exam-values { font-size: 8.5pt; color: #333; }
+    .val-abnormal { color: #e85b5b; }
+    .badge-abnormal { display: inline-block; background: #fde8e8; color: #c0392b;
+                      border-radius: 10px; padding: 1px 6px; font-size: 7.5pt; font-weight: 700; margin-left: 4px; }
+    .exam-type-label { display: inline-block; background: #EFF6FB; color: #0A4E7E;
+                       border-radius: 10px; padding: 1px 6px; font-size: 8pt; font-weight: 600; white-space: nowrap; }
+    .cert-type-label { display: inline-block; background: #f0e8ff; color: #6b46c1;
+                       border-radius: 10px; padding: 1px 6px; font-size: 8pt; font-weight: 600; white-space: nowrap; }
 
     /* Footer */
     .footer-row {
@@ -226,7 +371,7 @@ export function printPatientReport(opts: {
       </div>
     </div>
     <div>
-      ${patient.bloodType ? `<span class="patient-badge badge-blood">🩸 ${patient.bloodType}</span>` : ""}
+      ${patient.bloodType  ? `<span class="patient-badge badge-blood">🩸 ${patient.bloodType}</span>`        : ""}
       ${patient.cnopsNumber ? `<span class="patient-badge badge-cnops">AMO ${escHtml(patient.cnopsNumber)}</span>` : ""}
     </div>
   </div>
@@ -270,8 +415,17 @@ export function printPatientReport(opts: {
     </table>
   </div>` : ""}
 
-  <!-- Active ordonnance -->
+  <!-- Latest ordonnance from appointments -->
   ${activeOrdonnances(patientAppts)}
+
+  <!-- Standalone prescriptions -->
+  ${standalonePrescriptionsSection(prescriptions)}
+
+  <!-- Exam results -->
+  ${examResultsSection(examResults)}
+
+  <!-- Certificates -->
+  ${certificatesSection(certificates)}
 
   <!-- Notes -->
   ${patient.notes ? `
