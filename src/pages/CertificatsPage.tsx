@@ -405,7 +405,7 @@ function CertCard({ cert, doctor, onEdit, onDelete }: CertCardProps) {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
-export function CertificatsPage() {
+export function CertificatsPage({ noLayout = false }: { noLayout?: boolean } = {}) {
   const today = todayIso();
 
   const {
@@ -481,8 +481,8 @@ export function CertificatsPage() {
     setEditing(undefined);
   }, [editing, addCertificate, updateCertificate]);
 
-  return (
-    <Layout title="Certificats" subtitle="Documents médicaux">
+  const body = (
+    <>
 
       {/* ── KPI strip ── */}
       <div className="stock-kpi-row">
@@ -587,6 +587,12 @@ export function CertificatsPage() {
           onClose={() => { setShowModal(false); setEditing(undefined); }}
         />
       )}
+    </>
+  );
+  if (noLayout) return body;
+  return (
+    <Layout title="Certificats" subtitle="Documents médicaux">
+      {body}
     </Layout>
   );
 }

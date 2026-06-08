@@ -22,7 +22,7 @@ function downloadCSV(content: string, filename: string) {
 
 // ── Page ───────────────────────────────────────────────────────────────────────
 
-export function ReportPage() {
+export function ReportPage({ noLayout = false }: { noLayout?: boolean } = {}) {
   const {
     transactions, result, fiscalYear, setFiscalYear, FISCAL_MIN, FISCAL_MAX,
   } = useApp();
@@ -78,38 +78,36 @@ export function ReportPage() {
     downloadCSV(csv, `blackpine-${fiscalYear}.csv`);
   };
 
-  return (
-    <Layout
-      title="Rapport financier"
-      subtitle={`Compte de résultat · ${fiscalYear}`}
-      actions={
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <select
-            className="form-select"
-            value={fiscalYear}
-            onChange={e => setFiscalYear(Number(e.target.value))}
-            style={{ width: 90 }}
-          >
-            {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
-          </select>
-          <button className="btn btn-ghost" onClick={handleExportCSV} title="Exporter les transactions en CSV">
-            <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 5 }}>
-              <path d="M7 2v8M4 7l3 3 3-3M2 12h10"
-                stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            Exporter CSV
-          </button>
-          <button className="btn btn-primary" onClick={() => window.print()}>
-            <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 5 }}>
-              <rect x="2" y="5" width="10" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
-              <path d="M4 5V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" stroke="currentColor" strokeWidth="1.5"/>
-              <path d="M4 9h6M4 11h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
-            </svg>
-            Imprimer / PDF
-          </button>
-        </div>
-      }
-    >
+  const reportActions = (
+    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+      <select
+        className="form-select"
+        value={fiscalYear}
+        onChange={e => setFiscalYear(Number(e.target.value))}
+        style={{ width: 90 }}
+      >
+        {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
+      </select>
+      <button className="btn btn-ghost" onClick={handleExportCSV} title="Exporter les transactions en CSV">
+        <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 5 }}>
+          <path d="M7 2v8M4 7l3 3 3-3M2 12h10"
+            stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+        Exporter CSV
+      </button>
+      <button className="btn btn-primary" onClick={() => window.print()}>
+        <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 5 }}>
+          <rect x="2" y="5" width="10" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
+          <path d="M4 5V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" stroke="currentColor" strokeWidth="1.5"/>
+          <path d="M4 9h6M4 11h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+        </svg>
+        Imprimer / PDF
+      </button>
+    </div>
+  );
+
+  const body = (
+    <>
       {/* ── Print-only letterhead ── */}
       <div className="rpt-letterhead">
         <div className="rpt-letterhead-name">{doctorProfile.fullName || "Médecin"}</div>
@@ -314,6 +312,16 @@ export function ReportPage() {
           </div>
         </div>
       )}
+    </>
+  );
+  if (noLayout) return body;
+  return (
+    <Layout
+      title="Rapport financier"
+      subtitle={`Compte de résultat · ${fiscalYear}`}
+      actions={reportActions}
+    >
+      {body}
     </Layout>
   );
 }

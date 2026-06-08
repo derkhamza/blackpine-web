@@ -1,10 +1,10 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useApp } from "./context/AppContext";
-import { AuthPage }         from "./pages/AuthPage";
-import { DashboardPage }    from "./pages/DashboardPage";
-import { TransactionsPage } from "./pages/TransactionsPage";
-import { ExplainPage }      from "./pages/ExplainPage";
-import { ProfilePage }      from "./pages/ProfilePage";
+import { AuthPage }              from "./pages/AuthPage";
+import { DashboardPage }         from "./pages/DashboardPage";
+import { TransactionsPage }      from "./pages/TransactionsPage";
+import { ExplainPage }           from "./pages/ExplainPage";
+import { ProfilePage }           from "./pages/ProfilePage";
 import { AgendaPage }            from "./pages/AgendaPage";
 import { AppointmentDetailPage } from "./pages/AppointmentDetailPage";
 import { PatientsPage }          from "./pages/PatientsPage";
@@ -13,14 +13,15 @@ import { StatsPage }             from "./pages/StatsPage";
 import { PayrollPage }           from "./pages/PayrollPage";
 import { RemboursementsPage }    from "./pages/RemboursementsPage";
 import { WaitingRoomPage }       from "./pages/WaitingRoomPage";
-import { FacturesPage }         from "./pages/FacturesPage";
-import { RappelsPage }          from "./pages/RappelsPage";
-import { AnalytiquesPage }      from "./pages/AnalytiquesPage";
-import { StockPage }            from "./pages/StockPage";
-import { CalculateursPage }     from "./pages/CalculateursPage";
-import { MessagesPage }         from "./pages/MessagesPage";
-import { TeleconsultPage }      from "./pages/TeleconsultPage";
-import { NotesPage }            from "./pages/NotesPage";
+import { FacturesPage }          from "./pages/FacturesPage";
+import { RappelsPage }           from "./pages/RappelsPage";
+import { AnalytiquesPage }       from "./pages/AnalytiquesPage";
+import { StocksSupplyPage }      from "./pages/StocksSupplyPage";
+import { StockPage }             from "./pages/StockPage";
+import { CalculateursPage }      from "./pages/CalculateursPage";
+import { MessagesPage }          from "./pages/MessagesPage";
+import { TeleconsultPage }       from "./pages/TeleconsultPage";
+import { NotesPage }             from "./pages/NotesPage";
 import { FournisseursPage }      from "./pages/FournisseursPage";
 import { ExamensPage }           from "./pages/ExamensPage";
 import { OrdonancesPage }        from "./pages/OrdonancesPage";
@@ -29,6 +30,11 @@ import { ReportPage }            from "./pages/ReportPage";
 import { ComptabilitePage }      from "./pages/ComptabilitePage";
 import { OptimisationPage }      from "./pages/OptimisationPage";
 import { ParametresPage }        from "./pages/ParametresPage";
+// ── Combined/merged pages ─────────────────────────────────────────────────────
+import { DocumentsPage }         from "./pages/DocumentsPage";
+import { CommunicationPage }     from "./pages/CommunicationPage";
+import { RapportsPage }          from "./pages/RapportsPage";
+import { FacturationPage }       from "./pages/FacturationPage";
 
 function RequireAuth({ children }: { children: JSX.Element }) {
   const { isAuthenticated } = useApp();
@@ -45,9 +51,31 @@ export function App() {
       <Route path="/transactions" element={
         <RequireAuth><TransactionsPage /></RequireAuth>
       } />
-      <Route path="/expliquer" element={
-        <RequireAuth><ExplainPage /></RequireAuth>
+      {/* ── Combined pages (new primary routes) ── */}
+      <Route path="/documents" element={
+        <RequireAuth><DocumentsPage /></RequireAuth>
       } />
+      <Route path="/communication" element={
+        <RequireAuth><CommunicationPage /></RequireAuth>
+      } />
+      <Route path="/rapports" element={
+        <RequireAuth><RapportsPage /></RequireAuth>
+      } />
+      <Route path="/facturation" element={
+        <RequireAuth><FacturationPage /></RequireAuth>
+      } />
+      {/* ── Legacy routes (kept for deep links / bookmarks) ── */}
+      <Route path="/expliquer"    element={<Navigate to="/rapports" replace />} />
+      <Route path="/optimisation" element={<Navigate to="/rapports" replace />} />
+      <Route path="/rapport"      element={<Navigate to="/rapports" replace />} />
+      <Route path="/factures"     element={<Navigate to="/facturation" replace />} />
+      <Route path="/remboursements" element={<Navigate to="/facturation" replace />} />
+      <Route path="/ordonnances"  element={<Navigate to="/documents" replace />} />
+      <Route path="/certificats"  element={<Navigate to="/documents" replace />} />
+      <Route path="/messages"     element={<Navigate to="/communication" replace />} />
+      <Route path="/teleconsult"  element={<Navigate to="/communication" replace />} />
+      <Route path="/fournisseurs" element={<Navigate to="/stocks" replace />} />
+      <Route path="/profil"       element={<Navigate to="/parametres" replace />} />
       <Route path="/activite" element={
         <RequireAuth><StatsPage /></RequireAuth>
       } />
@@ -91,7 +119,7 @@ export function App() {
         <RequireAuth><AnalytiquesPage /></RequireAuth>
       } />
       <Route path="/stocks" element={
-        <RequireAuth><StockPage /></RequireAuth>
+        <RequireAuth><StocksSupplyPage /></RequireAuth>
       } />
       <Route path="/calculateurs" element={
         <RequireAuth><CalculateursPage /></RequireAuth>

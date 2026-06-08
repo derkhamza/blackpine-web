@@ -252,7 +252,7 @@ function SessionModal({ initial, patients, onSave, onClose }: SessionModalProps)
 
 // ── Main page ──────────────────────────────────────────────────────────────────
 
-export function TeleconsultPage() {
+export function TeleconsultPage({ noLayout = false }: { noLayout?: boolean } = {}) {
   const today = todayIso();
   const {
     teleSessions, addTeleSession, updateTeleSession, deleteTeleSession,
@@ -319,19 +319,17 @@ export function TeleconsultPage() {
       ),
     [teleSessions, filterStatus, search]);
 
-  return (
-    <Layout
-      title="Téléconsultation"
-      subtitle={`${kpi.total} session${kpi.total !== 1 ? "s" : ""} au total`}
-      actions={
-        <button className="btn btn-primary" onClick={() => setModal({})}>
-          <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 6 }}>
-            <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-          </svg>
-          Nouvelle session
-        </button>
-      }
-    >
+  const teleActions = (
+    <button className="btn btn-primary" onClick={() => setModal({})}>
+      <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 6 }}>
+        <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+      </svg>
+      Nouvelle session
+    </button>
+  );
+
+  const body = (
+    <>
       {/* ── KPI strip ── */}
       <div className="tele-kpi-strip">
         <div className="tele-kpi-card">
@@ -580,6 +578,16 @@ export function TeleconsultPage() {
       )}
 
       {toast && <div className="toast">{toast}</div>}
+    </>
+  );
+  if (noLayout) return body;
+  return (
+    <Layout
+      title="Téléconsultation"
+      subtitle={`${kpi.total} session${kpi.total !== 1 ? "s" : ""} au total`}
+      actions={teleActions}
+    >
+      {body}
     </Layout>
   );
 }

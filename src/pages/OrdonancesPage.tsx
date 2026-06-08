@@ -517,7 +517,7 @@ function TplCard({ tpl, onEdit, onDelete, onUse }: TplCardProps) {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
-export function OrdonancesPage() {
+export function OrdonancesPage({ noLayout = false }: { noLayout?: boolean } = {}) {
   const today = todayIso();
 
   const {
@@ -611,8 +611,8 @@ export function OrdonancesPage() {
     setEditingTpl(undefined);
   };
 
-  return (
-    <Layout title="Ordonnances" subtitle="Prescriptions & Modèles">
+  const body = (
+    <>
 
       {/* ── KPI strip ── */}
       <div className="stock-kpi-row">
@@ -772,6 +772,12 @@ export function OrdonancesPage() {
           onClose={() => { setTplModal(false); setEditingTpl(undefined); }}
         />
       )}
+    </>
+  );
+  if (noLayout) return body;
+  return (
+    <Layout title="Ordonnances" subtitle="Prescriptions & Modèles">
+      {body}
     </Layout>
   );
 }

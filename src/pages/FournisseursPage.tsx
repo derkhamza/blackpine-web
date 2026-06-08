@@ -377,7 +377,7 @@ function ReceiveModal({
 
 type Tab = "suppliers" | "orders";
 
-export function FournisseursPage() {
+export function FournisseursPage({ noLayout = false }: { noLayout?: boolean } = {}) {
   const today = todayIso();
   const {
     suppliers, addSupplier, updateSupplier, deleteSupplier,
@@ -436,29 +436,25 @@ export function FournisseursPage() {
     ).sort((a, b) => a.name.localeCompare(b.name)),
     [suppliers, search]);
 
-  return (
-    <Layout
-      title="Fournisseurs & Commandes"
-      subtitle={`${suppliers.length} fournisseur${suppliers.length !== 1 ? "s" : ""} · ${purchaseOrders.length} commande${purchaseOrders.length !== 1 ? "s" : ""}`}
-      actions={
-        tab === "suppliers"
-          ? (
-            <button className="btn btn-primary" onClick={() => setSupModal({})}>
-              <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 6 }}>
-                <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-              </svg>
-              Nouveau fournisseur
-            </button>
-          ) : (
-            <button className="btn btn-primary" onClick={() => setPoModal({})}>
-              <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 6 }}>
-                <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-              </svg>
-              Nouvelle commande
-            </button>
-          )
-      }
-    >
+  const fourActions = tab === "suppliers"
+    ? (
+      <button className="btn btn-primary" onClick={() => setSupModal({})}>
+        <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 6 }}>
+          <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+        </svg>
+        Nouveau fournisseur
+      </button>
+    ) : (
+      <button className="btn btn-primary" onClick={() => setPoModal({})}>
+        <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 6 }}>
+          <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+        </svg>
+        Nouvelle commande
+      </button>
+    );
+
+  const body = (
+    <>
       {/* ── KPI strip ── */}
       <div className="four-kpi-strip">
         <div className="stock-kpi-card">
@@ -784,6 +780,16 @@ export function FournisseursPage() {
       )}
 
       {toast && <div className="toast">{toast}</div>}
+    </>
+  );
+  if (noLayout) return body;
+  return (
+    <Layout
+      title="Fournisseurs & Commandes"
+      subtitle={`${suppliers.length} fournisseur${suppliers.length !== 1 ? "s" : ""} · ${purchaseOrders.length} commande${purchaseOrders.length !== 1 ? "s" : ""}`}
+      actions={fourActions}
+    >
+      {body}
     </Layout>
   );
 }

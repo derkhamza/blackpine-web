@@ -20,7 +20,7 @@ function yearOf(iso: string) {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export function FacturesPage() {
+export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) {
   const { appointments, patients, updateAppointment, doctorProfile } = useCabinet();
 
   const today = todayIso();
@@ -111,11 +111,8 @@ export function FacturesPage() {
     });
   };
 
-  return (
-    <Layout
-      title="Factures"
-      subtitle={`${kpis.total} consultation${kpis.total !== 1 ? "s" : ""} facturée${kpis.total !== 1 ? "s" : ""} · ${selYear}`}
-    >
+  const body = (
+    <>
       {/* KPI strip */}
       <div className="fac-kpi-strip">
         <div className="fac-kpi" style={{ borderTopColor: "var(--blue)" }}>
@@ -239,6 +236,15 @@ export function FacturesPage() {
           </table>
         </div>
       )}
+    </>
+  );
+  if (noLayout) return body;
+  return (
+    <Layout
+      title="Factures"
+      subtitle={`${kpis.total} consultation${kpis.total !== 1 ? "s" : ""} facturée${kpis.total !== 1 ? "s" : ""} · ${selYear}`}
+    >
+      {body}
     </Layout>
   );
 }

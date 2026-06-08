@@ -152,7 +152,7 @@ function BracketBar({
 
 // ── Main page ──────────────────────────────────────────────────────────────────
 
-export function OptimisationPage() {
+export function OptimisationPage({ noLayout = false }: { noLayout?: boolean } = {}) {
   const {
     result, fiscalYear, assets, recurringRules, transactions,
   } = useApp();
@@ -328,11 +328,8 @@ export function OptimisationPage() {
   const urgentCount    = tips.filter(t => t.priority === "urgent").length;
   const totalPotential = tips.reduce((s, t) => s + (t.saving ?? 0), 0);
 
-  return (
-    <Layout
-      title="Optimisation fiscale"
-      subtitle={`Conseils personnalisés · ${fiscalYear}`}
-    >
+  const body = (
+    <>
       {/* ── Hero KPIs ── */}
       <div className="opt-hero-grid">
         <div className="opt-hero-card opt-hero-main">
@@ -540,6 +537,12 @@ export function OptimisationPage() {
           })}
         </div>
       </div>
+    </>
+  );
+  if (noLayout) return body;
+  return (
+    <Layout title="Optimisation fiscale" subtitle={`Conseils personnalisés · ${fiscalYear}`}>
+      {body}
     </Layout>
   );
 }

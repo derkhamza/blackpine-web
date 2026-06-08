@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { Layout } from "../components/Layout";
 import { useCabinet } from "../context/CabinetContext";
+import { ProfilePage } from "./ProfilePage";
 import { useDarkMode } from "../lib/useDarkMode";
 import { exportPatientsCsv, exportAppointmentsCsv } from "../lib/csvExport";
 import { exportAgendaIcal } from "../lib/icalExport";
@@ -94,6 +95,7 @@ function parsePreview(json: string): ImportPreview {
 // ── Main page ──────────────────────────────────────────────────────────────────
 
 export function ParametresPage() {
+  const [settingsTab, setSettingsTab] = useState<"profil" | "parametres">("profil");
   const {
     appointments, patients, employees,
     doctorProfile,
@@ -171,8 +173,26 @@ export function ParametresPage() {
   });
 
   return (
-    <Layout title="Paramètres" subtitle="Apparence, données et préférences">
-      <div className="settings-page">
+    <Layout title="Paramètres" subtitle="Profil & préférences">
+      {/* ── Tab bar ── */}
+      <div className="tab-bar" style={{ marginBottom: 20 }}>
+        <button
+          className={`tab-btn${settingsTab === "profil" ? " active" : ""}`}
+          onClick={() => setSettingsTab("profil")}
+        >
+          Mon profil
+        </button>
+        <button
+          className={`tab-btn${settingsTab === "parametres" ? " active" : ""}`}
+          onClick={() => setSettingsTab("parametres")}
+        >
+          Paramètres
+        </button>
+      </div>
+
+      {settingsTab === "profil" && <ProfilePage noLayout />}
+
+      {settingsTab === "parametres" && <div className="settings-page">
 
         {/* ── Apparence ── */}
         <Section title="Apparence" subtitle="Personnalisez l'affichage de l'application">
@@ -400,9 +420,9 @@ export function ParametresPage() {
             </div>
           </div>
         </Section>
-      </div>
+      </div>}
 
-      {/* ── Confirm clear modal ── */}
+      {/* ── Confirm clear modal (always rendered when triggered) ── */}
       {confirmClear && (
         <div className="modal-overlay" onClick={() => setConfirmClear(null)}>
           <div className="modal" style={{ maxWidth: 420 }} onClick={e => e.stopPropagation()}>

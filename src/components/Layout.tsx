@@ -330,15 +330,14 @@ export function Layout({ title, subtitle, actions, children }: Props) {
           p: "/patients",
           w: "/salle-attente",
           r: "/rappels",
-          f: "/factures",
+          f: "/facturation",
           s: "/stocks",
-          m: "/messages",
-          t: "/teleconsult",
+          m: "/communication",
           n: "/notes",
-          v: "/fournisseurs",
           e: "/examens",
-          o: "/ordonnances",
-          c: "/certificats",
+          o: "/documents",
+          t: "/transactions",
+          c: "/calculateurs",
         };
         if (routes[key]) {
           e.preventDefault();
@@ -394,45 +393,37 @@ export function Layout({ title, subtitle, actions, children }: Props) {
     }).length;
 
     return {
-      "/agenda":         unbilledToday + followUpsSoon,
-      "/remboursements": cnopsPending,
-      "/salle-attente":  waitingNow,
-      "/rappels":        overdueFollowUps,
-      "/stocks":         lowStock,
+      "/agenda":       unbilledToday + followUpsSoon,
+      "/facturation":  cnopsPending,
+      "/salle-attente":waitingNow,
+      "/rappels":      overdueFollowUps,
+      "/stocks":       lowStock,
     } as Record<string, number>;
   }, [appointments, stockItems, today]);
 
-  // ── Nav items ─────────────────────────────────────────────────────────────
+  // ── Nav items (18 items — down from 26) ───────────────────────────────────
   const navItems = [
-    // ── Cabinet — clinical core ────────────────────────────────────────────
-    { to: "/",             label: "Tableau de bord",  icon: "dashboard",    group: "Cabinet" },
-    { to: "/agenda",          label: "Agenda",          icon: "agenda",          group: "Cabinet" },
-    { to: "/salle-attente",   label: "Salle d'attente", icon: "waiting",         group: "Cabinet" },
-    { to: "/patients",        label: "Patients",        icon: "patients",        group: "Cabinet" },
-    { to: "/ordonnances",     label: "Ordonnances",     icon: "ordonnances",     group: "Cabinet" },
-    { to: "/certificats",     label: "Certificats",     icon: "certificats",     group: "Cabinet" },
-    { to: "/examens",         label: "Examens & Bio",   icon: "examens",         group: "Cabinet" },
-    { to: "/rappels",         label: "Rappels",         icon: "rappels",         group: "Cabinet" },
-    { to: "/teleconsult",     label: "Téléconsult",     icon: "teleconsult",     group: "Cabinet" },
-    { to: "/messages",        label: "Messages WA",     icon: "messages",        group: "Cabinet" },
-    { to: "/notes",           label: "Notes & Tâches",  icon: "notes",           group: "Cabinet" },
-    { to: "/stocks",          label: "Stocks",          icon: "stocks",          group: "Cabinet" },
-    { to: "/fournisseurs",    label: "Fournisseurs",    icon: "fournisseurs",    group: "Cabinet" },
-    { to: "/calculateurs",    label: "Calculateurs",    icon: "calculateurs",    group: "Cabinet" },
-    { to: "/analytiques",     label: "Analytiques",     icon: "analytiques",     group: "Cabinet" },
-    { to: "/salaires",        label: "Salaires",        icon: "payroll",         group: "Cabinet" },
+    // ── Cabinet ───────────────────────────────────────────────────────────
+    { to: "/",              label: "Tableau de bord",   icon: "dashboard",    group: "Cabinet" },
+    { to: "/agenda",        label: "Agenda",            icon: "agenda",       group: "Cabinet" },
+    { to: "/salle-attente", label: "Salle d'attente",   icon: "waiting",      group: "Cabinet" },
+    { to: "/patients",      label: "Patients",          icon: "patients",     group: "Cabinet" },
+    { to: "/documents",     label: "Documents",         icon: "ordonnances",  group: "Cabinet" },
+    { to: "/examens",       label: "Examens & Bio",     icon: "examens",      group: "Cabinet" },
+    { to: "/rappels",       label: "Rappels",           icon: "rappels",      group: "Cabinet" },
+    { to: "/communication", label: "Communication",     icon: "messages",     group: "Cabinet" },
+    { to: "/notes",         label: "Notes & Tâches",    icon: "notes",        group: "Cabinet" },
+    { to: "/stocks",        label: "Stocks",            icon: "stocks",       group: "Cabinet" },
+    { to: "/calculateurs",  label: "Calculateurs",      icon: "calculateurs", group: "Cabinet" },
+    { to: "/analytiques",   label: "Analytiques",       icon: "analytiques",  group: "Cabinet" },
     // ── Finances ──────────────────────────────────────────────────────────
-    { to: "/transactions", label: "Transactions",    icon: "transactions", group: "Finances" },
-    { to: "/factures",     label: "Factures",        icon: "factures",     group: "Finances" },
-    { to: "/remboursements", label: "Remboursements", icon: "remboursements", group: "Finances" },
-    { to: "/rapport",      label: "Rapport",         icon: "report",       group: "Finances" },
-    { to: "/comptabilite", label: "Comptabilité",    icon: "comptabilite", group: "Finances" },
-    { to: "/expliquer",    label: "Calcul fiscal",   icon: "explain",      group: "Finances" },
-    { to: "/optimisation", label: "Optimisation",    icon: "optimisation", group: "Finances" },
-    { to: "/activite",     label: "Activité",        icon: "stats",        group: "Finances" },
+    { to: "/transactions",  label: "Transactions",      icon: "transactions", group: "Finances" },
+    { to: "/facturation",   label: "Facturation",       icon: "factures",     group: "Finances" },
+    { to: "/rapports",      label: "Rapports",          icon: "report",       group: "Finances" },
+    { to: "/comptabilite",  label: "Comptabilité",      icon: "comptabilite", group: "Finances" },
+    { to: "/salaires",      label: "Salaires",          icon: "payroll",      group: "Finances" },
     // ── Paramètres ────────────────────────────────────────────────────────
-    { to: "/profil",       label: "Mon profil",      icon: "profile",      group: "Paramètres" },
-    { to: "/parametres",   label: "Paramètres",      icon: "parametres",   group: "Paramètres" },
+    { to: "/parametres",    label: "Paramètres",        icon: "parametres",   group: "Paramètres" },
   ];
 
   // ── Shared sidebar content ────────────────────────────────────────────────
@@ -440,12 +431,7 @@ export function Layout({ title, subtitle, actions, children }: Props) {
     <>
       {/* Logo */}
       <div className="sidebar-logo">
-        <div className="sidebar-logo-mark">
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-            <circle cx="10" cy="10" r="9" stroke="white" strokeWidth="1.2" strokeOpacity="0.9"/>
-            <path d="M10,2.5 L6.9,7.5 L8.1,7.5 L5,12 L7.5,12 L7.5,16.3 L12.5,16.3 L12.5,12 L15,12 L11.9,7.5 L13.1,7.5 Z" fill="white" fillOpacity="0.9"/>
-          </svg>
-        </div>
+        <img src="/icon.png" width="32" height="32" alt="Blackpine" style={{ borderRadius: 8, display: "block", flexShrink: 0 }} />
         <div>
           <div className="sidebar-logo-text">Blackpine</div>
           <div className="sidebar-logo-sub">Cabinet</div>

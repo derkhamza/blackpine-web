@@ -39,7 +39,7 @@ function Section({ title, subtitle, children }: {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
-export function ProfilePage() {
+export function ProfilePage({ noLayout = false }: { noLayout?: boolean } = {}) {
   const { profile, setProfile, user, logout } = useApp();
   const { doctorProfile, setDoctorProfile }   = useCabinet();
   const navigate = useNavigate();
@@ -70,8 +70,8 @@ export function ProfilePage() {
   const avatarText = doc.fullName ? initials(doc.fullName) : "?";
   const hasName    = doc.fullName.trim().length > 0;
 
-  return (
-    <Layout title="Mon profil" subtitle="Identité et paramètres fiscaux">
+  const body = (
+    <>
       <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 20 }}>
 
         {/* ── Section 1 : Identité du médecin ── */}
@@ -314,6 +314,12 @@ export function ProfilePage() {
       </div>
 
       {toast && <div className="toast">{toast}</div>}
+    </>
+  );
+  if (noLayout) return body;
+  return (
+    <Layout title="Mon profil" subtitle="Identité et paramètres fiscaux">
+      {body}
     </Layout>
   );
 }

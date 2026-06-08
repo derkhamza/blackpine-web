@@ -225,7 +225,7 @@ function RestockModal({
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
-export function StockPage() {
+export function StockPage({ noLayout = false }: { noLayout?: boolean } = {}) {
   const { stockItems, addStockItem, updateStockItem, deleteStockItem, adjustStock } = useCabinet();
 
   const [catFilter,    setCatFilter]    = useState<StockCategory | "all">("all");
@@ -272,19 +272,17 @@ export function StockPage() {
   }, [stockItems, catFilter, search]);
 
   // ── Render ────────────────────────────────────────────────────────────────
-  return (
-    <Layout
-      title="Stocks"
-      subtitle={`${stockItems.length} article${stockItems.length !== 1 ? "s" : ""}`}
-      actions={
-        <button className="btn btn-primary" onClick={() => setModal({})}>
-          <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 6 }}>
-            <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-          </svg>
-          Nouvel article
-        </button>
-      }
-    >
+  const stockActions = (
+    <button className="btn btn-primary" onClick={() => setModal({})}>
+      <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 6 }}>
+        <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+      </svg>
+      Nouvel article
+    </button>
+  );
+
+  const body = (
+    <>
 
       {/* ── KPI strip ── */}
       <div className="stock-kpi-strip">
@@ -561,6 +559,16 @@ export function StockPage() {
       )}
 
       {toast && <div className="toast">{toast}</div>}
+    </>
+  );
+  if (noLayout) return body;
+  return (
+    <Layout
+      title="Stocks"
+      subtitle={`${stockItems.length} article${stockItems.length !== 1 ? "s" : ""}`}
+      actions={stockActions}
+    >
+      {body}
     </Layout>
   );
 }

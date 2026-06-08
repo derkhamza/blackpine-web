@@ -553,6 +553,32 @@ img { max-width: 100%; display: block; }
 .btn-secondary:hover { background: var(--navy-mid); opacity: 1; }
 .btn-secondary:disabled { opacity: 0.45; cursor: default; }
 
+/* ── Tab bar (combined pages) ───────────────────────────────────────────── */
+.tab-bar {
+  display: flex;
+  gap: 2px;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 3px;
+  width: fit-content;
+}
+.tab-btn {
+  padding: 5px 14px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  border-radius: calc(var(--r) - 2px);
+  cursor: pointer;
+  transition: all var(--trans);
+  white-space: nowrap;
+}
+.tab-btn:hover { color: var(--text); background: var(--bg); }
+.tab-btn.active { background: #fff; color: var(--navy); font-weight: 600; box-shadow: 0 1px 3px rgba(18,43,66,0.10); }
+[data-theme="dark"] .tab-btn.active { background: var(--surface); color: var(--text); }
+
 /* ── Auth page ──────────────────────────────────────────────────────────── */
 .auth-page {
   min-height: 100vh;

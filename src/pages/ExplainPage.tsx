@@ -16,7 +16,7 @@ function kindMeta(kind: TraceEvent["kind"]) {
   }
 }
 
-export function ExplainPage() {
+export function ExplainPage({ noLayout = false }: { noLayout?: boolean } = {}) {
   const { result, fiscalYear } = useApp();
 
   // Group events by SECTION marker
@@ -34,8 +34,8 @@ export function ExplainPage() {
 
   const irNet = Math.max(0, result.tax.ir.grossIR - result.tax.familyDeduction);
 
-  return (
-    <Layout title="Calcul fiscal" subtitle={`Estimation IR/CM · ${fiscalYear}`}>
+  const body = (
+    <>
 
       {/* ── Hero ── */}
       <div className="explain-hero">
@@ -121,6 +121,12 @@ export function ExplainPage() {
         Ces calculs sont des estimations basées sur les barèmes officiels.
         Ils ne remplacent pas l'avis d'un expert-comptable agréé.
       </p>
+    </>
+  );
+  if (noLayout) return body;
+  return (
+    <Layout title="Calcul fiscal" subtitle={`Estimation IR/CM · ${fiscalYear}`}>
+      {body}
     </Layout>
   );
 }

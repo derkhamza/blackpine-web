@@ -147,7 +147,7 @@ function TplForm({ initial, onSave, onCancel }: TplFormProps) {
 
 // ── Main page ──────────────────────────────────────────────────────────────────
 
-export function MessagesPage() {
+export function MessagesPage({ noLayout = false }: { noLayout?: boolean } = {}) {
   const { waTemplates, addWaTemplate, updateWaTemplate, deleteWaTemplate } = useCabinet();
 
   const [activeCat, setActiveCat] = useState<WaTemplateCategory | "all">("all");
@@ -170,19 +170,17 @@ export function MessagesPage() {
     return acc;
   }, {} as Record<WaTemplateCategory, number>);
 
-  return (
-    <Layout
-      title="Messages WhatsApp"
-      subtitle={`${waTemplates.length} modèle${waTemplates.length !== 1 ? "s" : ""}`}
-      actions={
-        <button className="btn btn-primary" onClick={() => setEditId("new")}>
-          <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 6 }}>
-            <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-          </svg>
-          Nouveau modèle
-        </button>
-      }
-    >
+  const msgActions = (
+    <button className="btn btn-primary" onClick={() => setEditId("new")}>
+      <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 6 }}>
+        <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+      </svg>
+      Nouveau modèle
+    </button>
+  );
+
+  const body = (
+    <>
       <div className="msg-page">
 
         {/* ── Left: list ── */}
@@ -340,6 +338,16 @@ export function MessagesPage() {
           )}
         </div>
       </div>
+    </>
+  );
+  if (noLayout) return body;
+  return (
+    <Layout
+      title="Messages WhatsApp"
+      subtitle={`${waTemplates.length} modèle${waTemplates.length !== 1 ? "s" : ""}`}
+      actions={msgActions}
+    >
+      {body}
     </Layout>
   );
 }

@@ -152,7 +152,7 @@ function ClaimRow({
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
-export function RemboursementsPage() {
+export function RemboursementsPage({ noLayout = false }: { noLayout?: boolean } = {}) {
   const { appointments, patients, updateAppointment } = useCabinet();
   const { fiscalYear } = useApp();
 
@@ -217,11 +217,8 @@ export function RemboursementsPage() {
     { key: "to_declare", label: "À déclarer",     count: kpis.toDeclare },
   ];
 
-  return (
-    <Layout
-      title="Remboursements AMO/CNOPS"
-      subtitle={`${kpis.pending} dossier${kpis.pending !== 1 ? "s" : ""} en attente · ${yearFilter}`}
-    >
+  const body = (
+    <>
       {/* ── KPI cards ── */}
       <div className="stats-grid" style={{ marginBottom: 20 }}>
         <div className="stat-card">
@@ -406,6 +403,15 @@ export function RemboursementsPage() {
       )}
 
       {toast && <div className="toast">{toast}</div>}
+    </>
+  );
+  if (noLayout) return body;
+  return (
+    <Layout
+      title="Remboursements AMO/CNOPS"
+      subtitle={`${kpis.pending} dossier${kpis.pending !== 1 ? "s" : ""} en attente · ${yearFilter}`}
+    >
+      {body}
     </Layout>
   );
 }
