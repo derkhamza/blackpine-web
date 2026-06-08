@@ -5690,3 +5690,55 @@ a.ana-top-name:hover { color: var(--blue); text-decoration: underline; }
   max-height: 90vh;
   overflow-y: auto;
 }
+
+/* ── Clinical stats (ClinicalStatsPage) ─────────────────────────────────── */
+
+.clin-hbar-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 5px 0; border-bottom: 1px solid var(--border);
+}
+.clin-hbar-row:last-child { border-bottom: none; }
+.clin-hbar-label {
+  font-size: 12px; font-weight: 500; color: var(--text);
+  width: 180px; min-width: 100px; flex-shrink: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.clin-hbar-track {
+  flex: 1; height: 7px; border-radius: 4px;
+  background: var(--border); overflow: hidden;
+}
+.clin-hbar-fill {
+  height: 100%; border-radius: 4px;
+  transition: width 0.3s ease;
+  min-width: 4px;
+}
+.clin-hbar-count {
+  width: 28px; text-align: right;
+  font-size: 12px; font-weight: 600; color: var(--muted); flex-shrink: 0;
+}
+
+/* Prescription trend mini-chart */
+.clin-rx-trend {
+  display: flex; align-items: flex-end; gap: 6px;
+  height: 110px; padding-top: 4px;
+}
+.clin-rx-bar-wrap {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; gap: 3px;
+}
+.clin-rx-count {
+  font-size: 11px; font-weight: 600; height: 16px;
+  display: flex; align-items: center; justify-content: center;
+}
+.clin-rx-bar-track {
+  width: 100%; display: flex; align-items: flex-end;
+  justify-content: center; height: 80px;
+}
+.clin-rx-bar-fill {
+  width: 70%; border-radius: 3px 3px 0 0;
+  min-height: 0; transition: height 0.3s;
+}
+.clin-rx-label {
+  font-size: 11px; color: var(--tertiary); font-weight: 500;
+  text-align: center;
+}

@@ -4,6 +4,7 @@ import { Layout } from "../components/Layout";
 import { useCabinet } from "../context/CabinetContext";
 import { todayIso, formatMAD } from "../lib/format";
 import { StatsPage } from "./StatsPage";
+import { ClinicalStatsContent } from "./ClinicalStatsPage";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -90,13 +91,13 @@ function HBar({ label, value, max, color, pct }: {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-type ATab = "patients" | "activite";
+type ATab = "patients" | "activite" | "clinique";
 
 export function AnalytiquesPage({ noLayout = false }: { noLayout?: boolean } = {}) {
   const [anaTab, setAnaTab] = useState<ATab>("patients");
   if (noLayout) return <AnalytiquesContent />;
   return (
-    <Layout title="Analytiques" subtitle="Patients & activité du cabinet">
+    <Layout title="Analytiques" subtitle="Patients, activité & statistiques cliniques">
       <div className="tab-bar" style={{ marginBottom: 20 }}>
         <button className={`tab-btn${anaTab === "patients" ? " active" : ""}`} onClick={() => setAnaTab("patients")}>
           Patients
@@ -104,8 +105,13 @@ export function AnalytiquesPage({ noLayout = false }: { noLayout?: boolean } = {
         <button className={`tab-btn${anaTab === "activite" ? " active" : ""}`} onClick={() => setAnaTab("activite")}>
           Activité
         </button>
+        <button className={`tab-btn${anaTab === "clinique" ? " active" : ""}`} onClick={() => setAnaTab("clinique")}>
+          Clinique
+        </button>
       </div>
-      {anaTab === "patients" ? <AnalytiquesContent /> : <StatsPage noLayout />}
+      {anaTab === "patients" ? <AnalytiquesContent />
+        : anaTab === "activite" ? <StatsPage noLayout />
+        : <ClinicalStatsContent />}
     </Layout>
   );
 }
