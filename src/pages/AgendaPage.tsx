@@ -56,6 +56,36 @@ function generateRecurringDates(start: string, freq: RecurrFreq, count: number):
 type AgendaView = "day" | "week" | "month";
 
 function colour(hex: string, muted = false) { return muted ? "var(--border)" : hex; }
+
+// ── Time-grid constants ────────────────────────────────────────────────────────
+const TG_START  = 7;    // 07:00
+const TG_END    = 20;   // 20:00
+const TG_PX_H   = 64;   // pixels per hour
+const TG_TOTAL  = (TG_END - TG_START) * TG_PX_H;        // 832 px
+const TG_HLIST  = Array.from({ length: TG_END - TG_START }, (_, i) => TG_START + i);
+
+function tTop(hhmm: string): number {
+  const [h, m] = hhmm.split(":").map(Number);
+  return Math.max(0, Math.min(TG_TOTAL, ((h - TG_START) * 60 + m) / 60 * TG_PX_H));
+}
+function tHeight(start: string, end: string): number {
+  const [sh, sm] = start.split(":").map(Number);
+  const [eh, em] = end.split(":").map(Number);
+  return Math.max(26, ((eh * 60 + em) - (sh * 60 + sm)) / 60 * TG_PX_H);
+}
+function snapTime(yPx: number): string {
+  const totalMins = (TG_END - TG_START) * 60;
+  const raw = Math.round((yPx / TG_TOTAL) * totalMins / 30) * 30;
+  const clipped = Math.max(0, Math.min(totalMins - 30, raw));
+  const h = TG_START + Math.floor(clipped / 60);
+  const m = clipped % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+function addMinutes(hhmm: string, mins: number): string {
+  const [h, m] = hhmm.split(":").map(Number);
+  const total = h * 60 + m + mins;
+  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+}
 const DAY_HEADERS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
 const TYPE_OPTS: AppointmentType[] = ["consultation", "suivi", "procedure", "urgence", "autre"];
 const STATUS_OPTS: AppointmentStatus[] = ["scheduled", "arrived", "in_consultation", "completed", "cancelled", "no_show"];
@@ -632,6 +662,74 @@ function BulkBillModal({ items, onChange, onConfirm, onClose }: BulkBillModalPro
   );
 }
 
+// ── Time-slot grid body ────────────────────────────────────────────────────────
+
+function TGSlotGrid({
+  appts, isToday, nowTop, onSlotClick, onApptClick,
+}: {
+  appts:       Appointment[];
+  isToday:     boolean;
+  nowTop:      number;
+  onSlotClick: (startTime: string, endTime: string) => void;
+  onApptClick: (appt: Appointment) => void;
+}) {
+  return (
+    <div
+      className="tgrid-body"
+      style={{ height: TG_TOTAL }}
+      onClick={(e) => {
+        if ((e.target as HTMLElement).closest(".tgrid-event")) return;
+        const rect = e.currentTarget.getBoundingClientRect();
+        const y    = e.clientY - rect.top;
+        const t    = snapTime(y);
+        onSlotClick(t, addMinutes(t, 30));
+      }}
+    >
+      {/* Grid lines */}
+      {TG_HLIST.map((h, idx) => (
+        <span key={h}>
+          <div className="tgrid-hour-line" style={{ top: idx * TG_PX_H }} />
+          <div className="tgrid-half-line" style={{ top: idx * TG_PX_H + TG_PX_H / 2 }} />
+        </span>
+      ))}
+      <div className="tgrid-hour-line" style={{ top: TG_TOTAL }} />
+
+      {/* Now indicator */}
+      {isToday && nowTop >= 0 && nowTop <= TG_TOTAL && (
+        <div className="tgrid-now-line" style={{ top: nowTop }} />
+      )}
+
+      {/* Appointments */}
+      {appts.map(appt => {
+        const color  = APPT_TYPE_COLORS[appt.type];
+        const done   = appt.status === "completed";
+        const canc   = appt.status === "cancelled" || appt.status === "no_show";
+        const top    = tTop(appt.startTime);
+        const height = tHeight(appt.startTime, appt.endTime);
+        return (
+          <div
+            key={appt.id}
+            className={`tgrid-event${done ? " done" : ""}${canc ? " cancelled" : ""}`}
+            style={{
+              top, height,
+              background:      canc ? "var(--surface-alt)" : color + "1a",
+              borderLeftColor: canc ? "var(--border)"      : color,
+              color:           canc ? "var(--muted)"       : color,
+            }}
+            onClick={(e) => { e.stopPropagation(); onApptClick(appt); }}
+            title={`${appt.patientName} · ${appt.startTime}–${appt.endTime}`}
+          >
+            <div className="tgrid-event-time">{appt.startTime}</div>
+            <div className="tgrid-event-name">{appt.patientName}</div>
+            {appt.billedAt        && <span className="tgrid-badge green">✓</span>}
+            {appt.savedOrdonnance && <span className="tgrid-badge blue">℞</span>}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Main page ──────────────────────────────────────────────────────────────────
 
 export function AgendaPage() {
@@ -646,7 +744,7 @@ export function AgendaPage() {
   const { addTransaction } = useApp();
 
   const [selDate,   setSelDate]   = useState(today);
-  const [view,      setView]      = useState<AgendaView>("day");
+  const [view,      setView]      = useState<AgendaView>("week");
   const [calYear,   setCalYear]   = useState(new Date().getFullYear());
   const [calMonth,  setCalMonth]  = useState(new Date().getMonth());
   const [modal,          setModal]          = useState<{ appt?: Appointment; prefill?: Partial<Appointment> } | null>(null);
@@ -661,6 +759,18 @@ export function AgendaPage() {
     setToast(msg);
     setTimeout(() => setToast(null), 2600);
   };
+
+  // Current-time indicator (updates every minute)
+  const [nowMinutes, setNowMinutes] = useState(() => {
+    const n = new Date(); return n.getHours() * 60 + n.getMinutes();
+  });
+  useEffect(() => {
+    const id = setInterval(() => {
+      const n = new Date(); setNowMinutes(n.getHours() * 60 + n.getMinutes());
+    }, 60_000);
+    return () => clearInterval(id);
+  }, []);
+  const nowTop = ((nowMinutes - TG_START * 60) / 60) * TG_PX_H;
 
   // Auto-open new-appointment modal when navigated from a patient page
   useEffect(() => {
@@ -1011,7 +1121,7 @@ export function AgendaPage() {
         </div>
       )}
 
-      {/* ── Week view ── */}
+      {/* ── Week view (time-grid) ── */}
       {view === "week" && (
         <div className="agenda-week-view">
           {/* Nav bar */}
@@ -1024,74 +1134,67 @@ export function AgendaPage() {
             )}
           </div>
 
-          {/* 7-column grid */}
-          <div className="agenda-week-grid">
-            {weekDays.map(iso => {
-              const appts    = weekApptsByDay.get(iso) ?? [];
-              const isToday  = iso === today;
-              const isSel    = iso === selDate;
-              const d        = new Date(iso + "T12:00:00");
-              const dayName  = d.toLocaleDateString("fr-FR", { weekday: "short" });
-              const dayNum   = d.getDate();
-              const monthSh  = d.toLocaleDateString("fr-FR", { month: "short" });
-              return (
-                <div
-                  key={iso}
-                  className={`agenda-week-col${isToday ? " agenda-week-today" : ""}${isSel ? " agenda-week-sel" : ""}`}
-                >
-                  {/* Column header */}
-                  <button
-                    className="agenda-week-col-hdr"
-                    onClick={() => { setSelDate(iso); setView("day"); }}
-                    title={`Voir le ${dayNum} ${monthSh}`}
-                  >
-                    <span className="agenda-week-day-name">{dayName}</span>
-                    <span className={`agenda-week-day-num${isToday ? " today-ring" : ""}`}>{dayNum}</span>
-                    {appts.length > 0 && (
-                      <span className="agenda-week-day-count">{appts.length}</span>
-                    )}
-                  </button>
+          {/* Time-grid */}
+          <div className="tgrid-scroll">
+            <div className="tgrid-inner">
+              {/* Column headers row */}
+              <div className="tgrid-hdr-row">
+                <div className="tgrid-time-gutter" />
+                {weekDays.map(iso => {
+                  const isToday = iso === today;
+                  const d       = new Date(iso + "T12:00:00");
+                  const dayName = d.toLocaleDateString("fr-FR", { weekday: "short" });
+                  const dayNum  = d.getDate();
+                  const appts   = weekApptsByDay.get(iso) ?? [];
+                  return (
+                    <div key={iso} className={`tgrid-col-hdr${isToday ? " tgrid-col-hdr-today" : ""}`}>
+                      <button
+                        className="tgrid-hdr-btn"
+                        onClick={() => { setSelDate(iso); setView("day"); }}
+                      >
+                        <span className="tgrid-hdr-day">{dayName}</span>
+                        <span className={`tgrid-hdr-num${isToday ? " tgrid-today-ring" : ""}`}>{dayNum}</span>
+                        {appts.length > 0 && (
+                          <span className="tgrid-hdr-badge">{appts.length}</span>
+                        )}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
 
-                  {/* Appointment chips */}
-                  <div className="agenda-week-appts">
-                    {appts.map(appt => {
-                      const color = APPT_TYPE_COLORS[appt.type];
-                      const done  = appt.status === "completed";
-                      const cancelled = appt.status === "cancelled" || appt.status === "no_show";
-                      return (
-                        <div
-                          key={appt.id}
-                          className={`agenda-week-chip${done ? " done" : ""}${cancelled ? " cancelled" : ""}`}
-                          style={{ borderLeftColor: colour(color, cancelled) }}
-                          onClick={() => navigate(`/agenda/${appt.id}`)}
-                          title={`${appt.patientName} · ${appt.startTime}`}
-                        >
-                          <div className="agenda-week-chip-time">{appt.startTime}</div>
-                          <div className="agenda-week-chip-name">{appt.patientName}</div>
-                          <div className="agenda-week-chip-icons">
-                            {appt.billedAt     && <span className="wchip-icon green">✓</span>}
-                            {appt.savedOrdonnance && <span className="wchip-icon blue">℞</span>}
-                            {cancelled         && <span className="wchip-icon coral">✗</span>}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Add button */}
-                  <button
-                    className="agenda-week-add"
-                    onClick={() => {
-                      setSelDate(iso);
-                      setModal({ prefill: { date: iso, startTime: "09:00", endTime: "09:30" } });
-                    }}
-                    title={`Ajouter un RDV le ${dayNum} ${monthSh}`}
-                  >
-                    + RDV
-                  </button>
+              {/* Grid body */}
+              <div className="tgrid-body-row">
+                {/* Time labels */}
+                <div className="tgrid-time-gutter">
+                  {TG_HLIST.map(h => (
+                    <div key={h} className="tgrid-time-cell">
+                      <span className="tgrid-time-lbl">{String(h).padStart(2, "0")}:00</span>
+                    </div>
+                  ))}
                 </div>
-              );
-            })}
+
+                {/* Day columns */}
+                {weekDays.map(iso => {
+                  const isToday = iso === today;
+                  const appts   = weekApptsByDay.get(iso) ?? [];
+                  return (
+                    <div key={iso} className={`tgrid-col${isToday ? " tgrid-col-today" : ""}`}>
+                      <TGSlotGrid
+                        appts={appts}
+                        isToday={isToday}
+                        nowTop={nowTop}
+                        onSlotClick={(start, end) => {
+                          setSelDate(iso);
+                          setModal({ prefill: { date: iso, startTime: start, endTime: end } });
+                        }}
+                        onApptClick={appt => navigate(`/agenda/${appt.id}`)}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </div>
       )}
