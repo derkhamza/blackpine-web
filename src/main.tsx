@@ -5,7 +5,8 @@ import { AppProvider } from "./context/AppContext";
 import { CabinetProvider } from "./context/CabinetContext";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { App } from "./App";
-import { OfflineBanner, PWAUpdateToast } from "./components/PWAPrompts";
+import { OfflineBanner, PWAUpdateToast } from "./components/PWAPrompts"
+import { ToastProvider } from "./components/Toast";
 import { initDarkMode } from "./lib/useDarkMode";
 import "./styles/global.css";
 
@@ -18,9 +19,11 @@ createRoot(document.getElementById("root")!).render(
       <BrowserRouter>
         <AppProvider>
           <CabinetProvider>
-            <OfflineBanner />
-            <PWAUpdateToast />
-            <App />
+            <ToastProvider>
+              <OfflineBanner />
+              <PWAUpdateToast />
+              <App />
+            </ToastProvider>
           </CabinetProvider>
         </AppProvider>
       </BrowserRouter>
