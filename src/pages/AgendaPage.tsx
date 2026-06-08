@@ -207,14 +207,18 @@ interface ApptModalProps {
 }
 
 function ApptModal({ initial, defaultDate, isEdit, patients, onSave, onSaveBatch, onClose }: ApptModalProps) {
-  const [patientName, setName]  = useState(initial?.patientName ?? "");
-  const [linkedPid,   setPid]   = useState(initial?.patientId   ?? "");
-  const [date,   setDate]       = useState(initial?.date ?? defaultDate);
-  const [start,  setStart]      = useState(initial?.startTime ?? "09:00");
-  const [end,    setEnd]        = useState(initial?.endTime ?? "09:30");
-  const [type,   setType]       = useState<AppointmentType>(initial?.type ?? "consultation");
-  const [status, setStatus]     = useState<AppointmentStatus>(initial?.status ?? "scheduled");
-  const [notes,  setNotes]      = useState(initial?.notes ?? "");
+  const { doctorProfile } = useCabinet();
+  const locations = doctorProfile?.locations ?? [];
+
+  const [patientName, setName]      = useState(initial?.patientName ?? "");
+  const [linkedPid,   setPid]       = useState(initial?.patientId   ?? "");
+  const [date,        setDate]      = useState(initial?.date ?? defaultDate);
+  const [start,       setStart]     = useState(initial?.startTime ?? "09:00");
+  const [end,         setEnd]       = useState(initial?.endTime ?? "09:30");
+  const [type,        setType]      = useState<AppointmentType>(initial?.type ?? "consultation");
+  const [status,      setStatus]    = useState<AppointmentStatus>(initial?.status ?? "scheduled");
+  const [notes,       setNotes]     = useState(initial?.notes ?? "");
+  const [locationId,  setLocationId] = useState(initial?.locationId ?? "");
   // Recurrence (new appointments only)
   const [recurring,   setRecurring]   = useState(false);
   const [recurrFreq,  setRecurrFreq]  = useState<RecurrFreq>("weekly");
@@ -237,7 +241,8 @@ function ApptModal({ initial, defaultDate, isEdit, patients, onSave, onSaveBatch
       patientName: patientName.trim(),
       patientId:   linkedPid || undefined,
       startTime: start, endTime: end, type, status,
-      notes: notes || undefined,
+      notes:       notes || undefined,
+      locationId:  locationId || undefined,
     };
     if (!isEdit && recurring && onSaveBatch) {
       const dates = generateRecurringDates(date, recurrFreq, recurrCount);
@@ -314,6 +319,23 @@ function ApptModal({ initial, defaultDate, isEdit, patients, onSave, onSaveBatch
               <label className="form-label">Notes (optionnel)</label>
               <input className="form-input" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Motif, remarques…" />
             </div>
+
+            {/* ── Location — only when locations are configured ── */}
+            {locations.length > 0 && (
+              <div className="form-group">
+                <label className="form-label">Emplacement</label>
+                <select
+                  className="form-select"
+                  value={locationId}
+                  onChange={e => setLocationId(e.target.value)}
+                >
+                  <option value="">— Non spécifié —</option>
+                  {locations.map(loc => (
+                    <option key={loc.id} value={loc.id}>{loc.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* ── Recurrence — new appointments only ── */}
             {!isEdit && (
@@ -486,9 +508,13 @@ function ApptCard({
   onDelete:       () => void;
   onWaClick?:     () => void;
 }) {
+  const { doctorProfile } = useCabinet();
   const isDone = appt.status === "completed";
   const color  = APPT_TYPE_COLORS[appt.type];
   const hasNotes = !!(appt.consultationNote?.motif || appt.consultationNote?.diagnosis || appt.vitalSigns);
+  const locName = appt.locationId
+    ? (doctorProfile?.locations ?? []).find(l => l.id === appt.locationId)?.name
+    : undefined;
 
   return (
     <div className="appt-card" style={{ opacity: isDone ? 0.75 : 1 }} onClick={onDetail}>
@@ -516,6 +542,16 @@ function ApptCard({
           {appt.followUpDate && (
             <span className="appt-badge" style={{ background: "#FFF8E1", color: "var(--gold)" }}>
               🔁 {new Date(appt.followUpDate + "T12:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
+            </span>
+          )}
+          {appt.recurringRuleId && (
+            <span className="appt-badge" style={{ background: "var(--surface-alt)", color: "var(--muted)" }}>
+              🔄 Récurrent
+            </span>
+          )}
+          {locName && (
+            <span className="appt-badge" style={{ background: "var(--surface-alt)", color: "var(--muted)" }}>
+              📍 {locName}
             </span>
           )}
         </div>
