@@ -262,9 +262,37 @@ export function ParametresPage() {
   const [toast,     setToast]     = useState<string | null>(null);
   const [confirmClear, setConfirmClear] = useState<"appointments" | "patients" | null>(null);
 
+  // ── Secretary PIN ──────────────────────────────────────────────────────────
+  const [pinInput,    setPinInput]    = useState("");
+  const [pinConfirm,  setPinConfirm]  = useState("");
+  const [showPinForm, setShowPinForm] = useState(false);
+  const [pinError,    setPinError]    = useState("");
+
   const showToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 2800);
+  };
+
+  // ── Secretary PIN helpers ───────────────────────────────────────────────────
+  const handleSavePin = () => {
+    if (!/^\d{4}$/.test(pinInput)) {
+      setPinError("Le code doit contenir exactement 4 chiffres.");
+      return;
+    }
+    if (pinInput !== pinConfirm) {
+      setPinError("Les deux codes ne correspondent pas.");
+      return;
+    }
+    setDoctorProfile({ ...doctorProfile, secretaryPin: pinInput });
+    setPinInput(""); setPinConfirm(""); setPinError(""); setShowPinForm(false);
+    showToast("✓ Code secrétaire enregistré");
+  };
+  const handleRemovePin = () => {
+    if (!confirm("Supprimer le code secrétaire ? Le mode secrétaire sera désactivé.")) return;
+    const next = { ...doctorProfile };
+    delete next.secretaryPin;
+    setDoctorProfile(next);
+    showToast("Code secrétaire supprimé");
   };
 
   // ── Export ──────────────────────────────────────────────────────────────────
@@ -389,6 +417,88 @@ export function ParametresPage() {
             locations={doctorProfile?.locations ?? []}
             onChange={locs => setDoctorProfile({ ...doctorProfile, locations: locs })}
           />
+        </Section>
+
+        {/* ── Mode secrétaire ── */}
+        <Section
+          title="Mode secrétaire"
+          subtitle="Limitez l'accès à l'agenda et aux tâches quotidiennes — idéal pour votre secrétariat"
+        >
+          <div className="settings-secretary-info">
+            <div className="settings-secretary-info-row">
+              <span className="secretary-info-icon">👤</span>
+              <div>
+                <div className="secretary-info-title">Accès secrétaire</div>
+                <div className="secretary-info-desc">
+                  En mode secrétaire, seuls l'agenda, les patients (lecture) et les tâches du jour sont accessibles.
+                  Les données médicales, financières et les paramètres restent masqués.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {doctorProfile?.secretaryPin ? (
+            <SettingsRow
+              label="Code secrétaire"
+              hint="Un code à 4 chiffres protège le retour en mode médecin"
+            >
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="btn btn-ghost" onClick={() => { setShowPinForm(f => !f); setPinError(""); setPinInput(""); setPinConfirm(""); }}>
+                  {showPinForm ? "Annuler" : "Modifier le code"}
+                </button>
+                <button className="btn btn-danger-ghost" onClick={handleRemovePin}>
+                  Supprimer
+                </button>
+              </div>
+            </SettingsRow>
+          ) : (
+            <SettingsRow
+              label="Activer le code secrétaire"
+              hint="Sans code, n'importe qui peut quitter le mode secrétaire"
+            >
+              <button className="btn btn-primary" onClick={() => { setShowPinForm(true); setPinError(""); }}>
+                Définir un code
+              </button>
+            </SettingsRow>
+          )}
+
+          {showPinForm && (
+            <div className="secretary-pin-form">
+              <div className="secretary-pin-form-row">
+                <label className="secretary-pin-label">Nouveau code (4 chiffres)</label>
+                <input
+                  className="secretary-pin-input"
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={pinInput}
+                  placeholder="••••"
+                  onChange={e => { setPinInput(e.target.value.replace(/\D/g, "").slice(0, 4)); setPinError(""); }}
+                />
+              </div>
+              <div className="secretary-pin-form-row">
+                <label className="secretary-pin-label">Confirmer le code</label>
+                <input
+                  className="secretary-pin-input"
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={pinConfirm}
+                  placeholder="••••"
+                  onChange={e => { setPinConfirm(e.target.value.replace(/\D/g, "").slice(0, 4)); setPinError(""); }}
+                />
+              </div>
+              {pinError && <div className="secretary-pin-error">{pinError}</div>}
+              <div className="secretary-pin-form-actions">
+                <button className="btn btn-ghost" onClick={() => { setShowPinForm(false); setPinInput(""); setPinConfirm(""); setPinError(""); }}>
+                  Annuler
+                </button>
+                <button className="btn btn-primary" onClick={handleSavePin}>
+                  Enregistrer
+                </button>
+              </div>
+            </div>
+          )}
         </Section>
 
         {/* ── Données du cabinet ── */}

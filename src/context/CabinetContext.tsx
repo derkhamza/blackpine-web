@@ -1,7 +1,7 @@
 import {
   createContext, useCallback, useContext, useEffect, useState, type ReactNode,
 } from "react";
-import type { Appointment, CabinetDoctorProfile, Certificate, Employee, InvoiceRecord, Patient, Prescription, PrescriptionTemplate, StockItem, WaTemplate, TeleSession, InternalNote, Supplier, PurchaseOrder, PurchaseOrderLine, ExamResult } from "../lib/cabinetTypes";
+import type { Appointment, ApptDocument, CabinetDoctorProfile, Certificate, Employee, InvoiceRecord, Patient, Prescription, PrescriptionTemplate, StockItem, WaTemplate, TeleSession, InternalNote, Supplier, PurchaseOrder, PurchaseOrderLine, ExamResult } from "../lib/cabinetTypes";
 import { BLANK_DOCTOR_PROFILE } from "../lib/cabinetTypes";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -111,6 +111,15 @@ interface CabinetCtx {
   invoices:      InvoiceRecord[];
   addInvoice:    (inv: Omit<InvoiceRecord, "id">) => void;
   deleteInvoice: (id: string) => void;
+
+  // Appointment document attachments
+  apptDocuments:       ApptDocument[];
+  addApptDocument:     (doc: Omit<ApptDocument, "id">) => void;
+  deleteApptDocument:  (id: string) => void;
+
+  // Secretary mode (local, PIN-protected)
+  secretaryMode:    boolean;
+  setSecretaryMode: (v: boolean) => void;
 
   // Backup / restore
   exportCabinetJSON: () => string;
@@ -237,6 +246,11 @@ export function CabinetProvider({ children }: { children: ReactNode }) {
   const [invoices, setInvoices] = useState<InvoiceRecord[]>(
     () => load("bp.invoices", [])
   );
+  const [apptDocuments, setApptDocuments] = useState<ApptDocument[]>(
+    () => load("bp.apptDocs", [])
+  );
+  // Secretary mode — session only (resets on page reload for security)
+  const [secretaryMode, setSecretaryMode] = useState(false);
 
   // Persist to localStorage on every change
   useEffect(() => { save("bp.appts",     appointments);  }, [appointments]);
@@ -254,6 +268,7 @@ export function CabinetProvider({ children }: { children: ReactNode }) {
   useEffect(() => { save("bp.prescriptions",  prescriptions);  }, [prescriptions]);
   useEffect(() => { save("bp.certificates",   certificates);   }, [certificates]);
   useEffect(() => { save("bp.invoices",       invoices);       }, [invoices]);
+  useEffect(() => { save("bp.apptDocs",      apptDocuments);  }, [apptDocuments]);
 
   const setDoctorProfile = useCallback(
     (p: CabinetDoctorProfile) => setDoctorProfileState(p), []);
@@ -478,6 +493,13 @@ export function CabinetProvider({ children }: { children: ReactNode }) {
   const deleteInvoice = useCallback(
     (id: string) => setInvoices(prev => prev.filter(x => x.id !== id)), []);
 
+  // ── Appointment document attachments ──────────────────────────────────────
+  const addApptDocument = useCallback(
+    (doc: Omit<ApptDocument, "id">) =>
+      setApptDocuments(prev => [...prev, { ...doc, id: uid() }]), []);
+  const deleteApptDocument = useCallback(
+    (id: string) => setApptDocuments(prev => prev.filter(x => x.id !== id)), []);
+
   const value: CabinetCtx = {
     appointments, addAppointment, updateAppointment, deleteAppointment, deleteAppointmentSeries,
     patients,     addPatient,     updatePatient,     deletePatient,
@@ -494,6 +516,8 @@ export function CabinetProvider({ children }: { children: ReactNode }) {
     purchaseOrders, addPurchaseOrder, updatePurchaseOrder, deletePurchaseOrder, receiveOrder,
     examResults, addExamResult, updateExamResult, deleteExamResult,
     invoices, addInvoice, deleteInvoice,
+    apptDocuments, addApptDocument, deleteApptDocument,
+    secretaryMode, setSecretaryMode,
     exportCabinetJSON, importCabinetJSON, clearAppointments, clearPatients,
   };
 

@@ -82,9 +82,12 @@ function VsInput({
 export function AppointmentDetailPage() {
   const { apptId } = useParams<{ apptId: string }>();
   const navigate    = useNavigate();
-  const { appointments, patients, updateAppointment, deleteAppointment, addInvoice } = useCabinet();
+  const {
+    appointments, patients, updateAppointment, deleteAppointment, addInvoice,
+    doctorProfile,
+    apptDocuments, addApptDocument, deleteApptDocument,
+  } = useCabinet();
   const { addTransaction } = useApp();
-  const { doctorProfile } = useCabinet();
 
   const appt = useMemo(
     () => appointments.find((a) => a.id === apptId),
@@ -133,6 +136,49 @@ export function AppointmentDetailPage() {
 
   // ── ICD-10 picker ─────────────────────────────────────────────────────────
   const [showIcd10, setShowIcd10] = useState(false);
+
+  // ── Document attachments ──────────────────────────────────────────────────
+  const docFileRef = useRef<HTMLInputElement>(null);
+  const [docSizeWarn, setDocSizeWarn] = useState(false);
+
+  const apptDocs = useMemo(
+    () => apptDocuments.filter(d => d.appointmentId === apptId),
+    [apptDocuments, apptId],
+  );
+
+  const handleDocUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    files.forEach(file => {
+      const MB2 = 2 * 1024 * 1024;
+      if (file.size > MB2) { setDocSizeWarn(true); return; }
+      const reader = new FileReader();
+      reader.onload = ev => {
+        addApptDocument({
+          appointmentId: apptId!,
+          filename:      file.name,
+          mimeType:      file.type || "application/octet-stream",
+          sizeBytes:     file.size,
+          data:          ev.target?.result as string,
+          uploadedAt:    new Date().toISOString(),
+        });
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  function fmtBytes(n: number): string {
+    if (n < 1024)       return n + " o";
+    if (n < 1024*1024)  return (n / 1024).toFixed(0) + " Ko";
+    return (n / (1024*1024)).toFixed(1) + " Mo";
+  }
+
+  function docIcon(mime: string): string {
+    if (mime.startsWith("image/"))            return "🖼️";
+    if (mime === "application/pdf")           return "📄";
+    if (mime.includes("word") || mime.includes("document")) return "📝";
+    return "📎";
+  }
 
   // ── Consultation timer ────────────────────────────────────────────────────
   const [timerRunning, setTimerRunning]   = useState(false);
@@ -772,6 +818,86 @@ export function AppointmentDetailPage() {
           )}
         </div>
       )}
+
+      {/* ── Pièces jointes ── */}
+      <div className="appt-docs-section">
+        <div className="appt-section-header">
+          <div className="appt-section-title">
+            📎 Pièces jointes
+            {apptDocs.length > 0 && (
+              <span className="appt-docs-count">{apptDocs.length}</span>
+            )}
+          </div>
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => { setDocSizeWarn(false); docFileRef.current?.click(); }}
+          >
+            + Ajouter
+          </button>
+          <input
+            ref={docFileRef}
+            type="file"
+            accept="image/*,.pdf,.doc,.docx"
+            multiple
+            style={{ display: "none" }}
+            onChange={handleDocUpload}
+          />
+        </div>
+
+        {docSizeWarn && (
+          <div className="appt-docs-warn">
+            ⚠️ Un ou plusieurs fichiers dépassent 2 Mo et n'ont pas été ajoutés.
+            <button className="appt-docs-warn-close" onClick={() => setDocSizeWarn(false)}>×</button>
+          </div>
+        )}
+
+        {apptDocs.length === 0 ? (
+          <div className="appt-docs-empty">
+            Aucun document joint à ce rendez-vous.
+          </div>
+        ) : (
+          <div className="appt-docs-list">
+            {apptDocs.map(doc => (
+              <div key={doc.id} className="appt-doc-row">
+                <span className="appt-doc-icon">{docIcon(doc.mimeType)}</span>
+                <div className="appt-doc-info">
+                  <div className="appt-doc-name">
+                    {doc.mimeType.startsWith("image/") ? (
+                      <a
+                        href={doc.data}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="appt-doc-link"
+                      >
+                        {doc.filename}
+                      </a>
+                    ) : (
+                      <a
+                        href={doc.data}
+                        download={doc.filename}
+                        className="appt-doc-link"
+                      >
+                        {doc.filename}
+                      </a>
+                    )}
+                  </div>
+                  <div className="appt-doc-meta">
+                    {fmtBytes(doc.sizeBytes)} · {new Date(doc.uploadedAt).toLocaleDateString("fr-FR")}
+                    {doc.label && <span className="appt-doc-label"> · {doc.label}</span>}
+                  </div>
+                </div>
+                <button
+                  className="appt-doc-delete"
+                  title="Supprimer"
+                  onClick={() => { if (confirm(`Supprimer « ${doc.filename} » ?`)) deleteApptDocument(doc.id); }}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* ── Bill modal ── */}
       {showBill && (

@@ -4,6 +4,7 @@ import { useApp } from "../context/AppContext";
 import { useCabinet } from "../context/CabinetContext";
 import { CommandPalette }  from "./CommandPalette";
 import { ShortcutsModal } from "./ShortcutsModal";
+import { PinModal }       from "./PinModal";
 import { todayIso } from "../lib/format";
 import { useDarkMode } from "../lib/useDarkMode";
 
@@ -260,12 +261,13 @@ interface Props {
 
 export function Layout({ title, subtitle, actions, children }: Props) {
   const { user, logout } = useApp();
-  const { appointments, stockItems }  = useCabinet();
+  const { appointments, stockItems, doctorProfile, secretaryMode, setSecretaryMode } = useCabinet();
   const navigate = useNavigate();
 
   const [searchOpen,    setSearchOpen]    = useState(false);
   const [drawerOpen,    setDrawerOpen]    = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [pinOpen,       setPinOpen]       = useState(false);
   const { dark, toggle: toggleDark } = useDarkMode();
 
   const handleLogout = () => { logout(); navigate("/login"); };
@@ -402,7 +404,7 @@ export function Layout({ title, subtitle, actions, children }: Props) {
   }, [appointments, stockItems, today]);
 
   // ── Nav items ─────────────────────────────────────────────────────────────
-  const navItems = [
+  const allNavItems = [
     // ── Quotidien — daily workflow ─────────────────────────────────────────
     { to: "/",              label: "Tableau de bord",   icon: "dashboard",    group: "Quotidien" },
     { to: "/agenda",        label: "Agenda",            icon: "agenda",       group: "Quotidien" },
@@ -427,6 +429,11 @@ export function Layout({ title, subtitle, actions, children }: Props) {
     // ── Paramètres ────────────────────────────────────────────────────────
     { to: "/parametres",    label: "Paramètres",        icon: "parametres",   group: "Paramètres" },
   ];
+
+  // Secretary mode: only show Quotidien group
+  const navItems = secretaryMode
+    ? allNavItems.filter(i => i.group === "Quotidien")
+    : allNavItems;
 
   // ── Shared sidebar content ────────────────────────────────────────────────
   const sidebarContent = (
@@ -519,10 +526,37 @@ export function Layout({ title, subtitle, actions, children }: Props) {
             </button>
           </div>
         )}
-        <button className="sidebar-logout" onClick={handleLogout}>
-          <Icon name="logout" />
-          Déconnexion
-        </button>
+        {/* ── Secretary mode controls ── */}
+        {secretaryMode ? (
+          <button
+            className="sidebar-secretary-exit"
+            onClick={() => {
+              if (doctorProfile.secretaryPin) {
+                setPinOpen(true);
+              } else {
+                setSecretaryMode(false);
+              }
+            }}
+          >
+            🔐 Revenir en mode médecin
+          </button>
+        ) : (
+          doctorProfile.secretaryPin && (
+            <button
+              className="sidebar-secretary-enter"
+              onClick={() => { setSecretaryMode(true); closeDrawer(); }}
+              title="Passer en mode accès secrétaire (navigation réduite)"
+            >
+              👤 Mode secrétaire
+            </button>
+          )
+        )}
+        {!secretaryMode && (
+          <button className="sidebar-logout" onClick={handleLogout}>
+            <Icon name="logout" />
+            Déconnexion
+          </button>
+        )}
       </div>
     </>
   );
@@ -573,6 +607,21 @@ export function Layout({ title, subtitle, actions, children }: Props) {
           </div>
           {actions && <div style={{ display: "flex", gap: 10, flexShrink: 0 }}>{actions}</div>}
         </div>
+        {/* Secretary mode banner */}
+        {secretaryMode && (
+          <div className="secretary-banner">
+            <span>👤 Mode secrétaire — accès restreint</span>
+            <button
+              className="secretary-banner-btn"
+              onClick={() => {
+                if (doctorProfile.secretaryPin) setPinOpen(true);
+                else setSecretaryMode(false);
+              }}
+            >
+              Revenir en mode médecin
+            </button>
+          </div>
+        )}
         <div className="page-body">{children}</div>
       </main>
 
@@ -581,6 +630,15 @@ export function Layout({ title, subtitle, actions, children }: Props) {
 
       {/* ── Shortcuts overlay ── */}
       {shortcutsOpen && <ShortcutsModal onClose={() => setShortcutsOpen(false)} />}
+
+      {/* ── PIN modal (exit secretary mode) ── */}
+      {pinOpen && (
+        <PinModal
+          verify={pin => pin === (doctorProfile.secretaryPin ?? "")}
+          onSuccess={() => { setPinOpen(false); setSecretaryMode(false); }}
+          onCancel={() => setPinOpen(false)}
+        />
+      )}
     </div>
   );
 }

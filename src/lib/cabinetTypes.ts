@@ -20,6 +20,7 @@ export interface CabinetDoctorProfile {
   phone?:          string;
   accountantPhone?: string;  // WhatsApp expert-comptable
   locations?:      CabinetLocation[];  // multi-location support
+  secretaryPin?:   string;   // 4-digit PIN to exit secretary mode (doctor sets this)
 }
 
 export const SPECIALTIES: { id: string; label: string }[] = [
@@ -506,4 +507,19 @@ export interface InvoiceRecord {
   issuedAt:      string;         // ISO timestamp
   cnopsNumber?:  string;
   taux?:         number;         // reimbursement rate (0–100)
+}
+
+// ── Appointment document attachment ──────────────────────────────────────────
+// Files attached to a specific appointment (scan, photo, PDF result…).
+// Stored as base64 in localStorage — max 2 MB per file recommended.
+
+export interface ApptDocument {
+  id:            string;
+  appointmentId: string;
+  filename:      string;
+  mimeType:      string;   // "image/jpeg", "application/pdf" …
+  sizeBytes:     number;
+  data:          string;   // base64 data URL ("data:image/jpeg;base64,…")
+  label?:        string;   // optional user label (e.g. "Radio pulmonaire")
+  uploadedAt:    string;   // ISO
 }
