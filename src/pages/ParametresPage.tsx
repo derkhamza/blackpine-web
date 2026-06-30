@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import { useToast } from "../components/Toast";
 import { useCabinet } from "../context/CabinetContext";
@@ -1820,6 +1821,13 @@ export function ParametresPage() {
             </div>
           </div>
         </Section>
+
+        {/* ── Danger zone: delete account ── */}
+        <div className="settings-danger">
+          <Link to="/supprimer-compte" className="settings-danger-link">
+            {t("settings.deleteAccountLink")}
+          </Link>
+        </div>
       </div>}
 
       {/* ── Confirm clear modal ── */}

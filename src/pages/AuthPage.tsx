@@ -1,5 +1,5 @@
 import { FormEvent, useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 import { requestPasswordReset, verifyPasswordReset, warmup } from "../api/client";
 import { BlackpineLogo } from "../components/Logo";
@@ -349,6 +349,11 @@ export function AuthPage() {
 
           <p className="auth-footer-note">
             {t("auth.syncNote")}
+          </p>
+          <p className="auth-footer-note" style={{ marginTop: 6 }}>
+            <Link to="/supprimer-compte" className="auth-link" style={{ fontSize: 11 }}>
+              {t("auth.deleteAccountLink")}
+            </Link>
           </p>
         </div>
       </div>

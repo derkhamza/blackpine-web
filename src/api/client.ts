@@ -155,6 +155,21 @@ export function logout(): void {
   clearToken();
 }
 
+// Permanently delete the signed-in doctor's own account + all associated data.
+// Requires re-typing the account email as confirmation. Clears the local session
+// on success. Irreversible.
+export async function deleteMyAccount(confirmEmail: string): Promise<void> {
+  const res = await request("/account", {
+    method: "DELETE",
+    body: JSON.stringify({ confirmEmail }),
+  });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error((d as any).error || "Échec de la suppression");
+  }
+  clearToken();
+}
+
 // Best-effort pre-warm of the serverless backend so the user's first real
 // request (login) hits an already-booted function with the DB initialised.
 // Fire-and-forget; safe to call repeatedly. Pings /health (which also triggers

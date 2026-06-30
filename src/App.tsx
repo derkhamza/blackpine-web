@@ -8,6 +8,7 @@ import { DEFAULT_SECRETARY_PERMISSIONS } from "./lib/cabinetTypes";
 import { OnboardingWizard } from "./pages/OnboardingWizard";
 import { AuthPage }              from "./pages/AuthPage";
 import { BookingPage }           from "./pages/BookingPage";
+import { DeleteAccountPage }     from "./pages/DeleteAccountPage";
 import { AdminPage }             from "./pages/AdminPage";
 import { DashboardPage }         from "./pages/DashboardPage";
 import { ExplainPage }           from "./pages/ExplainPage";
@@ -93,6 +94,9 @@ export function App() {
       <Route path="/login" element={<AuthPage />} />
       {/* Public patient self-booking — no auth */}
       <Route path="/book/:slug" element={<BookingPage />} />
+      {/* Public account-deletion page — reachable without the app (Play / GDPR) */}
+      <Route path="/supprimer-compte" element={<DeleteAccountPage />} />
+      <Route path="/delete-account"   element={<DeleteAccountPage />} />
       <Route path="/" element={
         <RequireAuth><DashboardPage /></RequireAuth>
       } />

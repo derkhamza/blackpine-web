@@ -6554,6 +6554,43 @@ a.ana-top-name:hover { color: var(--blue); text-decoration: underline; }
 .auth-form-panel { flex: 1; display: flex; align-items: center; justify-content: center; padding: 40px 28px; background: var(--bg); overflow-y: auto; }
 .auth-form-panel .auth-card { max-width: 400px; border: 1px solid var(--border); box-shadow: 0 4px 24px rgba(18,43,66,0.09); }
 .auth-logo-mobile { display: none !important; }
+
+/* ── Account-deletion page (public /supprimer-compte) ────────────────────── */
+.delacc-root {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  padding: 32px 20px; background: var(--bg);
+}
+.delacc-card {
+  width: 100%; max-width: 440px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--r-lg);
+  box-shadow: var(--shadow-card); padding: 28px 26px;
+}
+.delacc-logo { display: flex; align-items: center; gap: 10px; font-weight: 800; color: var(--navy); margin-bottom: 20px; }
+.delacc-title { font-size: 20px; font-weight: 800; color: var(--text); margin: 0 0 6px; }
+.delacc-sub { font-size: 13.5px; color: var(--muted); line-height: 1.55; margin: 0 0 16px; }
+.delacc-list { background: var(--surface-alt); border-radius: 10px; padding: 12px 14px; margin-bottom: 14px; }
+.delacc-list-head { font-size: 12px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+.delacc-list ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+.delacc-list li { font-size: 13px; color: var(--muted); line-height: 1.4; }
+.delacc-warn {
+  background: var(--coral-soft, rgba(232,91,91,.1)); color: var(--coral);
+  border: 1px solid rgba(232,91,91,.3); border-radius: 9px;
+  padding: 10px 12px; font-size: 12.5px; font-weight: 600; margin-bottom: 16px; line-height: 1.45;
+}
+.delacc-confirm-label { font-size: 13px; font-weight: 600; color: var(--text); margin: 0 0 8px; }
+.delacc-cancel { display: block; text-align: center; margin-top: 12px; font-size: 13px; color: var(--muted); }
+.delacc-cancel:hover { color: var(--text); text-decoration: underline; }
+.delacc-mailto { font-size: 12.5px; color: var(--muted); margin-top: 14px; text-align: center; }
+.delacc-mailto a { color: var(--blue); }
+[dir="rtl"] .delacc-list ul { padding-left: 0; padding-right: 18px; }
+
+/* Settings danger-zone link (delete account) */
+.settings-danger { display: flex; justify-content: center; padding: 4px 0 8px; }
+.settings-danger-link {
+  font-size: 13px; font-weight: 600; color: var(--coral);
+  padding: 6px 12px; border-radius: 8px; transition: background var(--dur) var(--ease-out);
+}
+.settings-danger-link:hover { background: var(--coral-soft, rgba(232,91,91,.1)); text-decoration: underline; }
 .auth-submit-btn { width: 100%; justify-content: center; padding: 12px 0; font-size: 14px; font-weight: 600; margin-top: 6px; }
 .auth-code-input { letter-spacing: 0.35em; font-size: 22px !important; text-align: center; font-weight: 700; }
 .auth-link { background: none; border: none; color: var(--blue); font-weight: 600; font-size: inherit; padding: 0; cursor: pointer; transition: opacity var(--trans); }
