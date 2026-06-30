@@ -84,6 +84,8 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
       serviceLabel:  APPT_TYPE_LABELS[appt.type] + " médicale",
       serviceDate:   appt.date,
       amount:        appt.billedAmount ?? 0,
+      items:         appt.billedItems,
+      reduction:     appt.billedReduction,
       doctorProfile,
     });
   };
@@ -100,6 +102,8 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
       serviceLabel:  APPT_TYPE_LABELS[appt.type] + " médicale",
       serviceDate:   appt.date,
       amount:        appt.billedAmount ?? 0,
+      items:         appt.billedItems,
+      reduction:     appt.billedReduction,
       doctorProfile,
     });
   };

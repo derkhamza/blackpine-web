@@ -9,7 +9,7 @@ import { useToast } from "../components/Toast";
 import { findOrphanAppts } from "../lib/orphanAppts";
 import type {
   Appointment, AppointmentStatus, AppointmentType,
-  ConsultationNote, VitalSigns, OrdonnanceLine, SavedCertificate,
+  ConsultationNote, VitalSigns, OrdonnanceLine, SavedCertificate, BillingLine,
 } from "../lib/cabinetTypes";
 import {
   APPT_TYPE_LABELS, APPT_TYPE_COLORS, APPT_STATUS_LABELS, DEFAULT_SECRETARY_PERMISSIONS,
@@ -307,7 +307,8 @@ export function AppointmentDetailPage() {
 
   // ── Billing modal ─────────────────────────────────────────────────────────
   const [showBill,  setShowBill]  = useState(false);
-  const [billAmt,   setBillAmt]   = useState("200");
+  const [billItems,     setBillItems]     = useState<BillingLine[]>([]);
+  const [billReduction, setBillReduction] = useState("");
 
   // ── Link-to-patient modal ─────────────────────────────────────────────────
   const [showLink, setShowLink] = useState(false);
@@ -469,10 +470,6 @@ export function AppointmentDetailPage() {
     setWeight(vs.weight != null ? String(vs.weight) : "");
     setHeight(vs.height != null ? String(vs.height) : "");
     setRmbAmount(appt.reimbursementAmount != null ? String(appt.reimbursementAmount) : "");
-    // Pre-fill the billing amount from the doctor's per-type price (fallback 200).
-    const typePrice = doctorProfile.appointmentPrices?.[appt.type];
-    setBillAmt(appt.billedAmount != null ? String(appt.billedAmount)
-             : typePrice != null ? String(typePrice) : "200");
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appt?.id]);
 
@@ -571,21 +568,54 @@ export function AppointmentDetailPage() {
     updateAppointment({ ...appt, status: s });
   };
 
+  // ── Itemized billing ──────────────────────────────────────────────────────
+  const billSubtotal  = billItems.reduce((s, l) => s + (l.qty || 0) * (l.unitPrice || 0), 0);
+  const billReductionN = Math.max(0, parseFloat(billReduction.replace(",", ".")) || 0);
+  const billTotal     = Math.max(0, billSubtotal - billReductionN);
+
+  const openBillModal = () => {
+    if (appt.billedItems && appt.billedItems.length) {
+      setBillItems(appt.billedItems.map(l => ({ ...l })));
+      setBillReduction(appt.billedReduction ? String(appt.billedReduction) : "");
+    } else {
+      const base = doctorProfile.appointmentPrices?.[appt.type] ?? appt.billedAmount ?? 200;
+      setBillItems([{ label: APPT_TYPE_LABELS[appt.type], qty: 1, unitPrice: Number(base) || 0 }]);
+      setBillReduction("");
+    }
+    setShowBill(true);
+  };
+
+  const addBillLine = (line: BillingLine) => setBillItems(prev => [...prev, line]);
+  const updateBillLine = (i: number, patch: Partial<BillingLine>) =>
+    setBillItems(prev => prev.map((l, idx) => idx === i ? { ...l, ...patch } : l));
+  const removeBillLine = (i: number) => setBillItems(prev => prev.filter((_, idx) => idx !== i));
+
   const handleBill = () => {
-    const n = parseFloat(billAmt);
-    if (isNaN(n) || n <= 0) return;
+    const items = billItems
+      .map(l => ({ label: l.label.trim(), qty: Math.max(1, Math.round(l.qty) || 1), unitPrice: Number(l.unitPrice) || 0 }))
+      .filter(l => l.label.length > 0);
+    if (items.length === 0) return;
+    const subtotal = items.reduce((s, l) => s + l.qty * l.unitPrice, 0);
+    const total    = Math.max(0, subtotal - billReductionN);
+    if (total <= 0) return;
     // A secretary records the billing on the appointment (which syncs to the
     // cabinet and feeds the facture history) but does not write to the doctor's
     // personal accounting ledger — that stays the doctor's to reconcile.
     if (role !== "secretary") {
       addTransaction({
-        type: "RECETTE", amount: n, date: appt.date,
+        type: "RECETTE", amount: total, date: appt.date,
         category: appt.type === "procedure" ? "acte_chirurgical" : "consultation",
         deductibilityStatus: "FULLY_DEDUCTIBLE", professionalUseRatio: 1,
         description: `${APPT_TYPE_LABELS[appt.type]} – ${appt.patientName}`,
       });
     }
-    updateAppointment({ ...appt, billedAt: new Date().toISOString(), billedAmount: n });
+    updateAppointment({
+      ...appt,
+      billedAt: new Date().toISOString(),
+      billedAmount: total,
+      billedItems: items,
+      billedReduction: billReductionN > 0 ? billReductionN : undefined,
+    });
     setShowBill(false);
   };
 
@@ -771,7 +801,7 @@ export function AppointmentDetailPage() {
             </button>
             {!appt.billedAt && (
               <button className="btn btn-primary" style={{ background: "var(--green)" }}
-                onClick={() => setShowBill(true)}>
+                onClick={openBillModal}>
                 {t("apptDetail.bill")}
               </button>
             )}
@@ -783,7 +813,7 @@ export function AppointmentDetailPage() {
             {/* Secretary (read-only clinically) may still bill at the front desk. */}
             {readOnly && secretaryPerms.handleBilling && !appt.billedAt && (
               <button className="btn btn-primary" style={{ background: "var(--green)" }}
-                onClick={() => setShowBill(true)}>
+                onClick={openBillModal}>
                 {t("apptDetail.bill")}
               </button>
             )}
@@ -1127,6 +1157,8 @@ export function AppointmentDetailPage() {
                   appointmentDate:  appt.date,
                   appointmentTime:  appt.startTime,
                   amount:           appt.billedAmount ?? 0,
+                  items:            appt.billedItems,
+                  reduction:        appt.billedReduction,
                   doctorProfile,
                 })}
                 title={t("apptDetail.printReceiptTitle")}
@@ -1154,6 +1186,8 @@ export function AppointmentDetailPage() {
                       serviceLabel:   APPT_TYPE_LABELS[appt.type] + " médicale",
                       serviceDate:    appt.date,
                       amount:         appt.billedAmount ?? 0,
+                      items:          appt.billedItems,
+                      reduction:      appt.billedReduction,
                       doctorProfile,
                     });
                   }}
@@ -1188,6 +1222,8 @@ export function AppointmentDetailPage() {
                       serviceLabel:   APPT_TYPE_LABELS[appt.type] + " médicale",
                       serviceDate:    appt.date,
                       amount:         appt.billedAmount ?? 0,
+                      items:          appt.billedItems,
+                      reduction:      appt.billedReduction,
                       doctorProfile,
                     });
                   }}
@@ -1202,7 +1238,7 @@ export function AppointmentDetailPage() {
               <button
                 className="btn btn-primary"
                 style={{ background: "var(--green)" }}
-                onClick={() => setShowBill(true)}
+                onClick={openBillModal}
               >
                 {t("apptDetail.billThisConsult")}
               </button>
@@ -1299,44 +1335,108 @@ export function AppointmentDetailPage() {
       {/* ── Bill modal ── */}
       {showBill && (
         <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setShowBill(false); }}>
-          <div className="modal" style={{ maxWidth: 380 }}>
+          <div className="modal" style={{ maxWidth: 480 }}>
             <div className="modal-header">
               <h2 className="modal-title">{t("apptDetail.billConsult")}</h2>
               <button className="modal-close" onClick={() => setShowBill(false)}>×</button>
             </div>
             <div className="modal-body">
-              {(doctorProfile.acteCodes?.length ?? 0) > 0 && (
-                <div className="form-group">
-                  <label className="form-label">{t("apptDetail.acteLabel")}</label>
+              <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 10 }}>
+                {t("apptDetail.billPatient", { name: appt.patientName, type: APPT_TYPE_LABELS[appt.type] })}
+              </div>
+
+              {/* Itemized lines: consultation base + each act performed */}
+              <div className="bill-lines">
+                {billItems.map((l, i) => (
+                  <div className="bill-line" key={i}>
+                    <input
+                      className="form-input bill-line-label"
+                      placeholder={t("apptDetail.billItemLabel")}
+                      value={l.label}
+                      onChange={(e) => updateBillLine(i, { label: e.target.value })}
+                    />
+                    <input
+                      className="form-input bill-line-qty"
+                      type="number" min="1" step="1"
+                      value={l.qty}
+                      onChange={(e) => updateBillLine(i, { qty: parseInt(e.target.value, 10) || 1 })}
+                      title={t("apptDetail.billQty")}
+                    />
+                    <input
+                      className="form-input bill-line-price"
+                      type="number" min="0" step="0.01"
+                      value={l.unitPrice}
+                      onChange={(e) => updateBillLine(i, { unitPrice: parseFloat(e.target.value) || 0 })}
+                      title={t("apptDetail.billUnitPrice")}
+                    />
+                    <button
+                      type="button"
+                      className="bill-line-remove"
+                      onClick={() => removeBillLine(i)}
+                      disabled={billItems.length <= 1}
+                      title={t("common.delete")}
+                    >×</button>
+                  </div>
+                ))}
+              </div>
+
+              {/* Add an act — from the doctor's act list, or a blank custom line */}
+              <div className="bill-add-row">
+                {(doctorProfile.acteCodes?.length ?? 0) > 0 && (
                   <select
-                    className="form-select"
-                    defaultValue=""
+                    className="form-select bill-act-select"
+                    value=""
                     onChange={(e) => {
                       const a = doctorProfile.acteCodes?.find(c => c.id === e.target.value);
-                      if (a?.price != null) setBillAmt(String(a.price));
+                      if (a) addBillLine({ label: a.label || a.code, qty: 1, unitPrice: a.price ?? 0 });
+                      e.target.value = "";
                     }}
                   >
-                    <option value="">{t("apptDetail.acteNone")}</option>
+                    <option value="">{t("apptDetail.billAddAct")}</option>
                     {doctorProfile.acteCodes!.map(a => (
                       <option key={a.id} value={a.id}>
                         {a.code} · {a.label}{a.price != null ? ` · ${a.price} MAD` : ""}
                       </option>
                     ))}
                   </select>
-                </div>
-              )}
-              <div className="form-group">
-                <label className="form-label">{t("apptDetail.amountMAD")}</label>
+                )}
+                <button
+                  type="button"
+                  className="btn btn-ghost bill-add-custom"
+                  onClick={() => addBillLine({ label: "", qty: 1, unitPrice: 0 })}
+                >
+                  + {t("apptDetail.billAddLine")}
+                </button>
+              </div>
+
+              {/* Reduction */}
+              <div className="form-group" style={{ marginTop: 12 }}>
+                <label className="form-label">{t("apptDetail.billReduction")}</label>
                 <input
                   className="form-input"
-                  type="number" min="0" step="0.01" autoFocus
-                  value={billAmt}
-                  onChange={(e) => setBillAmt(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleBill()}
+                  type="number" min="0" step="0.01"
+                  placeholder="0"
+                  value={billReduction}
+                  onChange={(e) => setBillReduction(e.target.value)}
                 />
               </div>
-              <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}>
-                {t("apptDetail.billPatient", { name: appt.patientName, type: APPT_TYPE_LABELS[appt.type] })}
+
+              {/* Totals */}
+              <div className="bill-totals">
+                <div className="bill-total-row">
+                  <span>{t("apptDetail.billSubtotal")}</span>
+                  <span>{formatMAD(billSubtotal)}</span>
+                </div>
+                {billReductionN > 0 && (
+                  <div className="bill-total-row bill-total-reduction">
+                    <span>{t("apptDetail.billReduction")}</span>
+                    <span>− {formatMAD(billReductionN)}</span>
+                  </div>
+                )}
+                <div className="bill-total-row bill-total-net">
+                  <span>{t("apptDetail.billTotal")}</span>
+                  <span>{formatMAD(billTotal)}</span>
+                </div>
               </div>
             </div>
             <div className="modal-footer">
@@ -1345,6 +1445,7 @@ export function AppointmentDetailPage() {
                 className="btn btn-primary"
                 style={{ background: "var(--green)" }}
                 onClick={handleBill}
+                disabled={billTotal <= 0}
               >
                 {t("apptDetail.addRevenue")}
               </button>

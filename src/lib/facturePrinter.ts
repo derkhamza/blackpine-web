@@ -1,4 +1,4 @@
-import type { CabinetDoctorProfile } from "./cabinetTypes";
+import type { CabinetDoctorProfile, BillingLine } from "./cabinetTypes";
 import { DEFAULT_DOCUMENT_SETTINGS } from "./cabinetTypes";
 import { amountInWords } from "./receiptPrinter";
 
@@ -19,9 +19,11 @@ export interface FactureOptions {
   invoiceDate:     string;       // YYYY-MM-DD
   patientName:     string;
   patientCnops?:   string;
-  serviceLabel:    string;       // e.g. "Consultation médicale"
+  serviceLabel:    string;       // e.g. "Consultation médicale" (fallback single line)
   serviceDate:     string;       // YYYY-MM-DD — appointment date
-  amount:          number;
+  amount:          number;       // net total (after reduction)
+  items?:          BillingLine[]; // itemized breakdown (base + acts); overrides serviceLabel
+  reduction?:      number;        // MAD discount applied to the subtotal
   doctorProfile:   CabinetDoctorProfile;
 }
 
@@ -46,6 +48,31 @@ function fmtMAD(n: number): string {
 export function printFacture(opts: FactureOptions): void {
   const { invoiceNumber, invoiceDate, patientName, patientCnops, serviceLabel, serviceDate, amount, doctorProfile: doc } = opts;
   const ds = { ...DEFAULT_DOCUMENT_SETTINGS, ...(doc.documentSettings ?? {}) };
+
+  // Build the itemized rows. Falls back to a single line for legacy records.
+  const lines: BillingLine[] = (opts.items && opts.items.length)
+    ? opts.items
+    : [{ label: serviceLabel, qty: 1, unitPrice: amount }];
+  const subtotal  = lines.reduce((s, l) => s + l.qty * l.unitPrice, 0);
+  const reduction = opts.reduction && opts.reduction > 0 ? opts.reduction : 0;
+  const net       = opts.items && opts.items.length ? Math.max(0, subtotal - reduction) : amount;
+
+  const itemRows = lines.map((l, i) => `
+      <tr>
+        <td>${i + 1}</td>
+        <td>${esc(l.label)}</td>
+        <td>${fmtDateLong(serviceDate)}</td>
+        <td class="r">${l.qty}</td>
+        <td class="r">${fmtMAD(l.unitPrice)}</td>
+        <td class="r">${fmtMAD(l.qty * l.unitPrice)}</td>
+      </tr>`).join("");
+
+  const reductionRow = reduction > 0 ? `
+      <tr>
+        <td colspan="4"></td>
+        <td class="lbl">Remise</td>
+        <td class="val">− ${fmtMAD(reduction)}</td>
+      </tr>` : "";
 
   const html = `<!DOCTYPE html>
 <html lang="fr">
@@ -195,22 +222,14 @@ export function printFacture(opts: FactureOptions): void {
         <th class="r">Montant</th>
       </tr>
     </thead>
-    <tbody>
-      <tr>
-        <td>1</td>
-        <td>${esc(serviceLabel)}</td>
-        <td>${fmtDateLong(serviceDate)}</td>
-        <td class="r">1</td>
-        <td class="r">${fmtMAD(amount)}</td>
-        <td class="r">${fmtMAD(amount)}</td>
-      </tr>
+    <tbody>${itemRows}
     </tbody>
     <tfoot>
       <tr>
         <td colspan="4"></td>
         <td class="lbl">Total HT</td>
-        <td class="val sep">${fmtMAD(amount)}</td>
-      </tr>
+        <td class="val sep">${fmtMAD(subtotal)}</td>
+      </tr>${reductionRow}
       <tr>
         <td colspan="4"></td>
         <td class="lbl">TVA</td>
@@ -219,7 +238,7 @@ export function printFacture(opts: FactureOptions): void {
       <tr>
         <td colspan="4"></td>
         <td class="total-lbl">TOTAL TTC</td>
-        <td class="total-val">${fmtMAD(amount)}</td>
+        <td class="total-val">${fmtMAD(net)}</td>
       </tr>
     </tfoot>
   </table>
@@ -227,7 +246,7 @@ export function printFacture(opts: FactureOptions): void {
   <!-- Amount in words -->
   <div class="amount-words">
     <strong>Arrêté la présente facture à la somme de :</strong>
-    ${esc(amountInWords(amount))}
+    ${esc(amountInWords(net))}
   </div>
 
   <!-- TVA note -->

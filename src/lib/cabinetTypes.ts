@@ -42,6 +42,13 @@ export interface ActeCode {
   price?: number;   // default fee in MAD
 }
 
+// One line on a facture / receipt: the consultation base or a performed act.
+export interface BillingLine {
+  label:     string;   // "Consultation", "Petite chirurgie"…
+  qty:       number;   // usually 1
+  unitPrice: number;   // MAD per unit
+}
+
 export type DocumentLayout = "classic" | "compact" | "letterhead";
 
 export const DOCUMENT_LAYOUT_LABELS: Record<DocumentLayout, string> = {
@@ -304,7 +311,11 @@ export interface Appointment {
   vitalSigns?: VitalSigns;
   followUpDate?: string;
   billedAt?:     string;   // ISO — set when fee is added to finances
-  billedAmount?: number;   // MAD — amount billed (for receipt printing)
+  billedAmount?: number;   // MAD — net amount billed (base + acts − reduction)
+  // Itemized billing: the consultation base fee plus every act performed. Each
+  // act has its own doctor-set price. billedAmount is the net after reduction.
+  billedItems?:     BillingLine[];
+  billedReduction?: number;   // MAD discount applied to the subtotal
   // Mutuelle paperwork — doctors have no visibility on the actual reimbursement,
   // so we only track whether the mutuelle forms were filled, and when.
   mutuellePapersFilled?: boolean;

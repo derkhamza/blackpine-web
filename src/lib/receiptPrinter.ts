@@ -1,4 +1,4 @@
-import type { CabinetDoctorProfile } from "./cabinetTypes";
+import type { CabinetDoctorProfile, BillingLine } from "./cabinetTypes";
 
 // ── French number-to-words ─────────────────────────────────────────────────────
 
@@ -78,7 +78,9 @@ export interface ReceiptOptions {
   consultationType: string;   // e.g. "Consultation"
   appointmentDate:  string;   // ISO "YYYY-MM-DD"
   appointmentTime?: string;   // "HH:MM"
-  amount:           number;
+  amount:           number;   // net total
+  items?:           BillingLine[]; // itemized breakdown (base + acts)
+  reduction?:       number;        // MAD discount
   doctorProfile:    CabinetDoctorProfile;
 }
 
@@ -87,6 +89,16 @@ export function printReceipt(opts: ReceiptOptions): void {
     patientName, consultationType, appointmentDate, appointmentTime,
     amount, doctorProfile,
   } = opts;
+
+  const fmtMAD = (n: number) =>
+    n.toLocaleString("fr-MA", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " MAD";
+  const items     = opts.items && opts.items.length > 1 ? opts.items : null;
+  const reduction = opts.reduction && opts.reduction > 0 ? opts.reduction : 0;
+  const breakdownRows = items
+    ? items.map(l => `<tr><td>${l.label}${l.qty > 1 ? ` ×${l.qty}` : ""}</td>`
+        + `<td style="text-align:right;white-space:nowrap;">${fmtMAD(l.qty * l.unitPrice)}</td></tr>`).join("")
+      + (reduction > 0 ? `<tr><td>Remise</td><td style="text-align:right;white-space:nowrap;">− ${fmtMAD(reduction)}</td></tr>` : "")
+    : "";
 
   const year      = new Date(appointmentDate + "T12:00:00").getFullYear();
   const receiptNo = getNextReceiptNumber(year);
@@ -210,6 +222,11 @@ export function printReceipt(opts: ReceiptOptions): void {
       <td>${dateLabel}${appointmentTime ? " à " + appointmentTime : ""}</td>
     </tr>
   </table>
+
+  ${breakdownRows ? `<!-- Breakdown -->
+  <table class="info-table" style="margin-bottom:12px;">
+    <tbody>${breakdownRows}</tbody>
+  </table>` : ""}
 
   <!-- Amount -->
   <div class="amount-block">
