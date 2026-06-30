@@ -1584,10 +1584,19 @@ export function AgendaPage() {
             <button className="agenda-week-arrow" onClick={prevMonth} title={t("agenda.prevMonth")}>‹</button>
             <span className="agenda-month-label">{monthLabel}</span>
             <button className="agenda-week-arrow" onClick={nextMonth} title={t("agenda.nextMonth")}>›</button>
-            {!(calYear === new Date(today + "T12:00:00").getFullYear() &&
-               calMonth === new Date(today + "T12:00:00").getMonth()) && (
-              <button className="agenda-week-today-btn" onClick={jumpToToday}>{t("agenda.today")}</button>
-            )}
+            {(() => {
+              const onCurrentMonth = calYear === new Date(today + "T12:00:00").getFullYear() &&
+                calMonth === new Date(today + "T12:00:00").getMonth();
+              return (
+                <button
+                  className="agenda-week-today-btn"
+                  onClick={jumpToToday}
+                  style={onCurrentMonth ? { visibility: "hidden" } : undefined}
+                  tabIndex={onCurrentMonth ? -1 : undefined}
+                  aria-hidden={onCurrentMonth || undefined}
+                >{t("agenda.today")}</button>
+              );
+            })()}
           </div>
 
           {/* Grid */}
@@ -1663,9 +1672,14 @@ export function AgendaPage() {
             <button className="agenda-week-arrow" onClick={prevWeek} title={t("agenda.prevWeek")}>‹</button>
             <span className="agenda-week-label">{weekLabel}</span>
             <button className="agenda-week-arrow" onClick={nextWeek} title={t("agenda.nextWeek")}>›</button>
-            {!weekDays.includes(today) && (
-              <button className="agenda-week-today-btn" onClick={jumpToToday}>{t("agenda.today")}</button>
-            )}
+            {/* Always rendered so the arrows never shift; hidden (but space kept) on the current week. */}
+            <button
+              className="agenda-week-today-btn"
+              onClick={jumpToToday}
+              style={weekDays.includes(today) ? { visibility: "hidden" } : undefined}
+              tabIndex={weekDays.includes(today) ? -1 : undefined}
+              aria-hidden={weekDays.includes(today) || undefined}
+            >{t("agenda.today")}</button>
           </div>
 
           {/* Time-grid */}
