@@ -1583,7 +1583,6 @@ export function AgendaPage() {
           <div className="agenda-month-nav">
             <button className="agenda-week-arrow" onClick={prevMonth} title={t("agenda.prevMonth")}>‹</button>
             <span className="agenda-month-label">{monthLabel}</span>
-            <button className="agenda-week-arrow" onClick={nextMonth} title={t("agenda.nextMonth")}>›</button>
             {(() => {
               const onCurrentMonth = calYear === new Date(today + "T12:00:00").getFullYear() &&
                 calMonth === new Date(today + "T12:00:00").getMonth();
@@ -1597,6 +1596,7 @@ export function AgendaPage() {
                 >{t("agenda.today")}</button>
               );
             })()}
+            <button className="agenda-week-arrow" onClick={nextMonth} title={t("agenda.nextMonth")}>›</button>
           </div>
 
           {/* Grid */}
@@ -1671,8 +1671,8 @@ export function AgendaPage() {
           <div className="agenda-week-nav">
             <button className="agenda-week-arrow" onClick={prevWeek} title={t("agenda.prevWeek")}>‹</button>
             <span className="agenda-week-label">{weekLabel}</span>
-            <button className="agenda-week-arrow" onClick={nextWeek} title={t("agenda.nextWeek")}>›</button>
-            {/* Always rendered so the arrows never shift; hidden (but space kept) on the current week. */}
+            {/* Today sits just left of the next arrow; always rendered (space kept,
+                hidden on the current week) so the next arrow stays on the edge. */}
             <button
               className="agenda-week-today-btn"
               onClick={jumpToToday}
@@ -1680,6 +1680,7 @@ export function AgendaPage() {
               tabIndex={weekDays.includes(today) ? -1 : undefined}
               aria-hidden={weekDays.includes(today) || undefined}
             >{t("agenda.today")}</button>
+            <button className="agenda-week-arrow" onClick={nextWeek} title={t("agenda.nextWeek")}>›</button>
           </div>
 
           {/* Time-grid */}
