@@ -2046,6 +2046,12 @@
     "deleteSupConfirm": "حذف \"{{name}}\"؟",
     "deleteOrderConfirm": "حذف هذا الطلب؟"
   },
+  "patientPicker": {
+    "ambiguous": "عدة مرضى يحملون هذا الاسم — اختر الصحيح:",
+    "change": "تغيير",
+    "noInfo": "لا توجد معلومات",
+    "unknown": "مريض جديد (غير مسجل)"
+  },
   "ordonnances": {
     "title": "الوصفات الطبية",
     "subtitle": "الوصفات والنماذج",

@@ -61,23 +61,7 @@ function PatientModal({ initial, existingPatients = [], onSave, onClose }: Patie
   const [city,        setCity]    = useState(initial?.city ?? "");
   const [dupWarning,  setDupWarn] = useState<string | null>(null);
 
-  const handleSubmit = (e: FormEvent) => {
-    e.preventDefault();
-    if (!firstName.trim() || !lastName.trim()) return;
-
-    // Duplicate detection (only on creation)
-    if (!initial) {
-      const norm = normalizeName(`${firstName.trim()} ${lastName.trim()}`);
-      const dup = existingPatients.find(p =>
-        normalizeName(`${p.firstName} ${p.lastName}`) === norm
-      );
-      if (dup && !dupWarning) {
-        const dob = dup.dateOfBirth ? ` · ${dup.dateOfBirth}` : "";
-        setDupWarn(`${dup.firstName} ${dup.lastName}${dob}`);
-        return;
-      }
-    }
-
+  const doSave = () => {
     onSave({
       firstName: firstName.trim(),
       lastName: lastName.trim(),
@@ -92,6 +76,27 @@ function PatientModal({ initial, existingPatients = [], onSave, onClose }: Patie
       city: city.trim() || undefined,
     });
     onClose();
+  };
+
+  const handleSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    if (!firstName.trim() || !lastName.trim()) return;
+
+    // Duplicate-name detection (only on creation). Two patients may legitimately
+    // share a name, so this is a soft warning — "Créer quand même" forces it.
+    if (!initial && !dupWarning) {
+      const norm = normalizeName(`${firstName.trim()} ${lastName.trim()}`);
+      const dup = existingPatients.find(p =>
+        normalizeName(`${p.firstName} ${p.lastName}`) === norm
+      );
+      if (dup) {
+        const dob = dup.dateOfBirth ? ` · ${dup.dateOfBirth}` : "";
+        setDupWarn(`${dup.firstName} ${dup.lastName}${dob}`);
+        return;
+      }
+    }
+
+    doSave();
   };
 
   return (
@@ -182,7 +187,7 @@ function PatientModal({ initial, existingPatients = [], onSave, onClose }: Patie
                   <path d="M7 6v2.5M7 10v.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
                 </svg>
                 <span>{t("patients.dupWarning", { name: dupWarning })}</span>
-                <button type="button" className="patient-dup-ignore" onClick={() => setDupWarn(null)}>
+                <button type="button" className="patient-dup-ignore" onClick={doSave}>
                   {t("patients.dupIgnore")}
                 </button>
               </div>

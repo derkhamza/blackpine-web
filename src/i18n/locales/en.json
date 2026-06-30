@@ -2046,6 +2046,12 @@
     "deleteSupConfirm": "Delete \"{{name}}\"?",
     "deleteOrderConfirm": "Delete this order?"
   },
+  "patientPicker": {
+    "ambiguous": "Several patients share this name — pick the right one:",
+    "change": "Change",
+    "noInfo": "No information",
+    "unknown": "New patient (not registered)"
+  },
   "ordonnances": {
     "title": "Prescriptions",
     "subtitle": "Prescriptions & Templates",

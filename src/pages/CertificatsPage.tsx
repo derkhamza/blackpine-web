@@ -4,6 +4,7 @@ import { Layout } from "../components/Layout";
 import { useCabinet } from "../context/CabinetContext";
 import type { Certificate, CertificateType } from "../lib/cabinetTypes";
 import { CERT_TYPE_LABELS, CERT_TYPE_COLORS } from "../lib/cabinetTypes";
+import { PatientPicker, type PickerPatient } from "../components/PatientPicker";
 import { todayIso } from "../lib/format";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -149,7 +150,7 @@ function printCertificate(cert: Certificate, doctor: {
 
 interface CertModalProps {
   editing?: Certificate;
-  patients: { id: string; name: string }[];
+  patients: PickerPatient[];
   today: string;
   onSave: (c: Omit<Certificate, "id" | "createdAt">) => void;
   onClose: () => void;
@@ -159,6 +160,7 @@ function CertModal({ editing, patients, today, onSave, onClose }: CertModalProps
   const { t } = useTranslation();
   const [type, setType]               = useState<CertificateType>(editing?.type ?? "medical");
   const [patientName, setPatient]     = useState(editing?.patientName ?? "");
+  const [patientId,   setPatientId]   = useState<string | undefined>(editing?.patientId);
   const [date, setDate]               = useState(editing?.date ?? today);
   const [content, setContent]         = useState(editing?.content ?? "");
   const [dateFrom, setDateFrom]       = useState(editing?.dateFrom ?? today);
@@ -176,6 +178,7 @@ function CertModal({ editing, patients, today, onSave, onClose }: CertModalProps
     onSave({
       type,
       patientName: patientName.trim(),
+      patientId,
       date,
       content:         content.trim() || undefined,
       dateFrom:        type === "arret_travail" ? dateFrom : undefined,
@@ -188,8 +191,6 @@ function CertModal({ editing, patients, today, onSave, onClose }: CertModalProps
       appointmentId:   editing?.appointmentId,
     });
   };
-
-  const patientMatch = patients.find(p => p.name.toLowerCase() === patientName.toLowerCase());
 
   return (
     <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
@@ -220,23 +221,16 @@ function CertModal({ editing, patients, today, onSave, onClose }: CertModalProps
           </div>
 
           <div className="rx-top-row">
-            <div className="form-group" style={{ flex: 2 }}>
-              <label className="form-label">{t("certificats.patientLabel")}</label>
-              <input
-                className="form-input"
-                placeholder={t("certificats.patientPlaceholder")}
+            <div style={{ flex: 2 }}>
+              <PatientPicker
                 value={patientName}
-                onChange={e => setPatient(e.target.value)}
-                list="cert-patients-list"
+                patientId={patientId}
+                patients={patients}
+                label={t("certificats.patientLabel")}
+                placeholder={t("certificats.patientPlaceholder")}
+                listId="cert-patients-list"
+                onChange={(name, id) => { setPatient(name); setPatientId(id); }}
               />
-              <datalist id="cert-patients-list">
-                {patients.map(p => <option key={p.id} value={p.name} />)}
-              </datalist>
-              {patientName && !patientMatch && (
-                <div className="form-hint" style={{ color: "var(--gold)" }}>
-                  {t("certificats.patientNotFound")}
-                </div>
-              )}
             </div>
             <div className="form-group" style={{ flex: 1 }}>
               <label className="form-label">{t("certificats.dateLabel")}</label>
@@ -465,8 +459,11 @@ export function CertificatsPage({ noLayout = false }: { noLayout?: boolean } = {
     orientation: allCerts.filter(c => c.type === "orientation").length,
   }), [allCerts, thisMonth]);
 
-  const patientsList = useMemo(() =>
-    patients.map(p => ({ id: p.id, name: `${p.firstName} ${p.lastName}`.trim() })),
+  const patientsList = useMemo<PickerPatient[]>(() =>
+    patients.map(p => ({
+      id: p.id, firstName: p.firstName, lastName: p.lastName,
+      dateOfBirth: p.dateOfBirth, phone: p.phone, city: p.city, cin: p.cin,
+    })),
     [patients]);
 
   const handleSave = useCallback((c: Omit<Certificate, "id" | "createdAt">) => {

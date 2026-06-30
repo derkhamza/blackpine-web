@@ -7570,3 +7570,63 @@ html { scroll-behavior: smooth; }
     scroll-behavior: auto !important;
   }
 }
+
+/* ── Same-name patient picker ──────────────────────────────────────────────── */
+.patient-picker-ambig {
+  margin-top: 8px;
+  border: 1px solid var(--gold);
+  border-radius: 12px;
+  background: var(--gold-soft, rgba(212,150,42,.08));
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  animation: rvRise var(--dur, .28s) var(--ease-out, ease) both;
+}
+.patient-picker-ambig-title {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--gold);
+  padding: 2px 4px;
+}
+.patient-picker-choice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--border, rgba(0,0,0,.08));
+  border-radius: 10px;
+  background: var(--card, #fff);
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: border-color var(--dur-fast, .15s) var(--ease-out, ease),
+              transform var(--dur-fast, .15s) var(--ease-out, ease);
+}
+.patient-picker-choice:hover {
+  border-color: var(--gold);
+  transform: translateY(-1px);
+}
+.patient-picker-choice-name { font-size: 14px; font-weight: 700; color: var(--text, #111); }
+.patient-picker-choice-meta { font-size: 12px; color: var(--muted, #777); }
+.patient-picker-selected {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 12.5px;
+  color: var(--muted, #777);
+}
+.patient-picker-selected-tick { color: var(--green, #15A876); font-weight: 900; }
+.patient-picker-change {
+  margin-left: auto;
+  border: none;
+  background: none;
+  color: var(--blue, #1890C5);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+.patient-picker-change:hover { text-decoration: underline; }

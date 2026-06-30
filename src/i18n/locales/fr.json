@@ -2046,6 +2046,12 @@
     "deleteSupConfirm": "Supprimer \"{{name}}\" ?",
     "deleteOrderConfirm": "Supprimer cette commande ?"
   },
+  "patientPicker": {
+    "ambiguous": "Plusieurs patients portent ce nom — sélectionnez le bon :",
+    "change": "Changer",
+    "noInfo": "Aucune information",
+    "unknown": "Nouveau patient (non enregistré)"
+  },
   "ordonnances": {
     "title": "Ordonnances",
     "subtitle": "Prescriptions & Modèles",

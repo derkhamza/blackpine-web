@@ -370,38 +370,59 @@ function ApptModal({ initial, defaultDate, isEdit, patients, appointments, onSav
   const [recurrFreq,    setRecurrFreq]  = useState<RecurrFreq>("weekly");
   const [recurrCount,   setRecurrCount] = useState(4);
   const [conflictWarn,  setConflictWarn] = useState<string | null>(null);
+  // When the typed name belongs to two or more patients, we ask which one
+  // rather than silently linking the first match.
+  const [nameChoices,   setNameChoices]  = useState<Patient[]>([]);
+
+  const applyLink = (match: Patient) => {
+    setPid(match.id);
+    setNameChoices([]);
+    setName(`${match.firstName} ${match.lastName}`.trim());
+    if (!isEdit) {
+      const prefill = getSmartPrefill(match.id, appointments);
+      if (prefill) {
+        setType(prefill.type);
+        setStart(prefill.startTime);
+        setEnd(prefill.endTime);
+        setAutoFilled(true);
+        setFollowUpHint(
+          prefill.suggestedDate
+            ? new Date(prefill.suggestedDate + "T12:00:00").toLocaleDateString(locale, {
+                day: "numeric", month: "long", year: "numeric",
+              })
+            : null,
+        );
+      } else {
+        setAutoFilled(false);
+        setFollowUpHint(null);
+      }
+    }
+  };
 
   const handleNameChange = (val: string) => {
     setName(val);
-    const match = patients.find(
-      p => `${p.firstName} ${p.lastName}`.toLowerCase() === val.trim().toLowerCase()
+    const v = val.trim().toLowerCase();
+    const exact = patients.filter(
+      p => `${p.firstName} ${p.lastName}`.toLowerCase() === v
     );
-    if (match) {
-      setPid(match.id);
-      if (!isEdit) {
-        const prefill = getSmartPrefill(match.id, appointments);
-        if (prefill) {
-          setType(prefill.type);
-          setStart(prefill.startTime);
-          setEnd(prefill.endTime);
-          setAutoFilled(true);
-          setFollowUpHint(
-            prefill.suggestedDate
-              ? new Date(prefill.suggestedDate + "T12:00:00").toLocaleDateString(locale, {
-                  day: "numeric", month: "long", year: "numeric",
-                })
-              : null,
-          );
-        } else {
-          setAutoFilled(false);
-          setFollowUpHint(null);
-        }
-      }
+    if (exact.length === 1) {
+      applyLink(exact[0]);
     } else {
+      // zero matches (new patient) or several (ambiguous → ask)
       setPid("");
+      setNameChoices(exact.length >= 2 ? exact : []);
       setAutoFilled(false);
       setFollowUpHint(null);
     }
+  };
+
+  const patientDistinguisher = (p: Patient): string => {
+    const parts: string[] = [];
+    if (p.dateOfBirth) parts.push(p.dateOfBirth);
+    if (p.phone)       parts.push(p.phone);
+    else if (p.cin)    parts.push(p.cin);
+    else if (p.city)   parts.push(p.city);
+    return parts.join("  ·  ");
   };
 
   const linkedPatient = patients.find(p => p.id === linkedPid);
@@ -466,6 +487,24 @@ function ApptModal({ initial, defaultDate, isEdit, patients, appointments, onSav
                   <option key={p.id} value={`${p.firstName} ${p.lastName}`} />
                 ))}
               </datalist>
+              {nameChoices.length >= 2 && !linkedPid && (
+                <div className="patient-picker-ambig">
+                  <div className="patient-picker-ambig-title">{t("patientPicker.ambiguous")}</div>
+                  {nameChoices.map(p => (
+                    <button
+                      type="button"
+                      key={p.id}
+                      className="patient-picker-choice rv-press"
+                      onClick={() => applyLink(p)}
+                    >
+                      <span className="patient-picker-choice-name">{p.firstName} {p.lastName}</span>
+                      <span className="patient-picker-choice-meta">
+                        {patientDistinguisher(p) || t("patientPicker.noInfo")}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
               {linkedPatient && (
                 <div className="appt-linked-patient">
                   <svg width="11" height="11" viewBox="0 0 12 12" fill="none">

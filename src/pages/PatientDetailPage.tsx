@@ -247,6 +247,13 @@ export function PatientDetailPage() {
 
   const fullName = patient ? `${patient.firstName} ${patient.lastName}` : "";
 
+  // A document belongs to this patient when it carries this patient's id. As a
+  // fallback for legacy documents that were saved with no id, we match by name —
+  // but ONLY when the document has no id at all, so a document explicitly linked
+  // to a *different* same-name patient never leaks onto this record.
+  const belongsHere = (it: { patientId?: string; patientName?: string }) =>
+    it.patientId === patientId || (!it.patientId && it.patientName === fullName);
+
   const patientRevenue = useMemo(() => {
     if (!fullName) return 0;
     return transactions
@@ -380,7 +387,7 @@ export function PatientDetailPage() {
     }
 
     // Standalone prescriptions
-    for (const p of prescriptions.filter((p) => p.source === "standalone" && (p.patientId === patientId || p.patientName === fullName))) {
+    for (const p of prescriptions.filter((p) => p.source === "standalone" && belongsHere(p))) {
       const first = p.lines[0];
       entries.push({
         id: `rx-${p.id}`, kind: "prescription",
@@ -395,7 +402,7 @@ export function PatientDetailPage() {
     }
 
     // Standalone certificates
-    for (const c of certificates.filter((c) => c.source === "standalone" && (c.patientId === patientId || c.patientName === fullName))) {
+    for (const c of certificates.filter((c) => c.source === "standalone" && belongsHere(c))) {
       let subtitle = c.content ?? c.reason ?? undefined;
       if (subtitle && subtitle.length > 80) subtitle = subtitle.slice(0, 80) + "…";
       entries.push({
@@ -409,7 +416,7 @@ export function PatientDetailPage() {
     }
 
     // Teleconsultations
-    for (const s of teleSessions.filter((s) => s.patientId === patientId || s.patientName === fullName)) {
+    for (const s of teleSessions.filter((s) => belongsHere(s))) {
       entries.push({
         id: `tele-${s.id}`, kind: "teleconsult",
         date: s.scheduledDate, sortKey: s.scheduledDate + "T" + s.scheduledTime,
@@ -530,9 +537,9 @@ export function PatientDetailPage() {
                 patient,
                 appointments:   patientAppts,
                 doctorProfile,
-                prescriptions:  prescriptions.filter(p => p.source === "standalone" && (p.patientId === patientId || p.patientName === fullName)),
+                prescriptions:  prescriptions.filter(p => p.source === "standalone" && belongsHere(p)),
                 examResults:    examResults.filter(e => e.patientId === patientId),
-                certificates:   certificates.filter(c => c.patientId === patientId || c.patientName === fullName),
+                certificates:   certificates.filter(c => belongsHere(c)),
               })}
               title={t("patientDetail.printTitle")}
             >

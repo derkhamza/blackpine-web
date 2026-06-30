@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Layout } from "../components/Layout";
 import { useCabinet } from "../context/CabinetContext";
 import type { OrdonnanceLine, Prescription, PrescriptionTemplate } from "../lib/cabinetTypes";
+import { PatientPicker, type PickerPatient } from "../components/PatientPicker";
 import { todayIso } from "../lib/format";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -151,7 +152,7 @@ function DrugLineRow({ line, index, onChange, onRemove, canRemove }: DrugLineRow
 interface RxModalProps {
   editing?:          Prescription;
   initialTemplate?:  PrescriptionTemplate;
-  patients:          { id: string; name: string }[];
+  patients:          PickerPatient[];
   templates:         PrescriptionTemplate[];
   today:             string;
   onSave:            (p: Omit<Prescription, "id" | "createdAt">) => void;
@@ -161,6 +162,7 @@ interface RxModalProps {
 function RxModal({ editing, initialTemplate, patients, templates, today, onSave, onClose }: RxModalProps) {
   const { t } = useTranslation();
   const [patientName,   setPatientName]   = useState(editing?.patientName ?? "");
+  const [patientId,     setPatientId]     = useState<string | undefined>(editing?.patientId);
   const [date,          setDate]          = useState(editing?.date ?? today);
   const [lines,         setLines]         = useState<OrdonnanceLine[]>(() => {
     if (editing?.lines?.length) return editing.lines.map(l => ({ ...l }));
@@ -191,6 +193,7 @@ function RxModal({ editing, initialTemplate, patients, templates, today, onSave,
     const cleanLines = lines.filter(l => l.drug.trim());
     onSave({
       patientName: patientName.trim(),
+      patientId,
       date,
       lines: cleanLines,
       notes: notes.trim() || undefined,
@@ -198,8 +201,6 @@ function RxModal({ editing, initialTemplate, patients, templates, today, onSave,
       appointmentId: editing?.appointmentId,
     });
   };
-
-  const patientMatch = patients.find(p => p.name.toLowerCase() === patientName.toLowerCase());
 
   return (
     <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
@@ -210,19 +211,16 @@ function RxModal({ editing, initialTemplate, patients, templates, today, onSave,
         </div>
         <div className="modal-body">
           <div className="rx-top-row">
-            <div className="form-group" style={{ flex: 2 }}>
-              <label className="form-label">{t("ordonnances.patientField")}</label>
-              <input className="form-input" placeholder={t("ordonnances.patientPlaceholder")}
-                value={patientName} onChange={e => setPatientName(e.target.value)}
-                list="rx-patients-list" />
-              <datalist id="rx-patients-list">
-                {patients.map(p => <option key={p.id} value={p.name} />)}
-              </datalist>
-              {patientName && !patientMatch && (
-                <div className="form-hint" style={{ color: "var(--gold)" }}>
-                  {t("ordonnances.patientNotFound")}
-                </div>
-              )}
+            <div style={{ flex: 2 }}>
+              <PatientPicker
+                value={patientName}
+                patientId={patientId}
+                patients={patients}
+                label={t("ordonnances.patientField")}
+                placeholder={t("ordonnances.patientPlaceholder")}
+                listId="rx-patients-list"
+                onChange={(name, id) => { setPatientName(name); setPatientId(id); }}
+              />
             </div>
             <div className="form-group" style={{ flex: 1 }}>
               <label className="form-label">{t("ordonnances.dateField")}</label>
@@ -512,8 +510,11 @@ export function OrdonancesPage({ noLayout = false }: { noLayout?: boolean } = {}
     patients:  new Set(allRx.map(r => r.patientName)).size,
   }), [allRx, thisMonth, prescriptionTemplates]);
 
-  const patientsList = useMemo(() =>
-    patients.map(p => ({ id: p.id, name: `${p.firstName} ${p.lastName}`.trim() })),
+  const patientsList = useMemo<PickerPatient[]>(() =>
+    patients.map(p => ({
+      id: p.id, firstName: p.firstName, lastName: p.lastName,
+      dateOfBirth: p.dateOfBirth, phone: p.phone, city: p.city, cin: p.cin,
+    })),
     [patients]);
 
   const openNewRx = (tpl?: PrescriptionTemplate) => {
