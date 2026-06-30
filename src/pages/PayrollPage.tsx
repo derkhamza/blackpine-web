@@ -1,17 +1,20 @@
 import { FormEvent, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Layout } from "../components/Layout";
+import { useToast } from "../components/Toast";
 import { useCabinet } from "../context/CabinetContext";
 import { useApp } from "../context/AppContext";
-import type { Employee, EmployeeRole } from "../lib/cabinetTypes";
-import { EMPLOYEE_ROLE_LABELS } from "../lib/cabinetTypes";
+import type { Employee, EmployeeRole, ContractType } from "../lib/cabinetTypes";
+import { EMPLOYEE_ROLE_LABELS, CONTRACT_TYPE_LABELS } from "../lib/cabinetTypes";
 import { computePayroll, fmtMAD, printBulletin } from "../lib/payrollCalc";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const MONTH_NAMES_FR = [
-  "Janvier","Février","Mars","Avril","Mai","Juin",
-  "Juillet","Août","Septembre","Octobre","Novembre","Décembre",
-];
+function getMonthNames(locale: string): string[] {
+  return Array.from({ length: 12 }, (_, i) =>
+    new Date(2000, i, 1).toLocaleDateString(locale, { month: "long" })
+  );
+}
 
 const ROLE_COLORS: Record<EmployeeRole, string> = {
   secretaire:    "var(--blue)",
@@ -25,9 +28,12 @@ const ROLES: EmployeeRole[] = ["secretaire", "infirmier", "aide_soignant", "tech
 
 // ── Employee modal ────────────────────────────────────────────────────────────
 
+const CONTRACTS: ContractType[] = ["cdi", "cdd", "anapec"];
+
 const BLANK: Omit<Employee, "id"> = {
   firstName: "", lastName: "", role: "secretaire",
   baseSalary: 3_000, cnssNumber: "", hireDate: "", dependents: 0, notes: "",
+  contractType: "cdi",
 };
 
 function EmployeeModal({
@@ -37,8 +43,9 @@ function EmployeeModal({
   onSave: (e: Omit<Employee, "id">) => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [draft, setDraft] = useState<Omit<Employee, "id">>(initial ? { ...initial } : { ...BLANK });
-  const p = computePayroll(draft.baseSalary, draft.dependents ?? 0);
+  const p = computePayroll(draft.baseSalary, draft.dependents ?? 0, draft.contractType ?? "cdi");
 
   const field = (patch: Partial<Omit<Employee, "id">>) => setDraft(d => ({ ...d, ...patch }));
 
@@ -53,33 +60,33 @@ function EmployeeModal({
     <div className="modal-overlay" onClick={ev => { if (ev.target === ev.currentTarget) onClose(); }}>
       <div className="modal" style={{ maxWidth: 560, maxHeight: "90vh", overflowY: "auto" }}>
         <div className="modal-header">
-          <h2 className="modal-title">{initial ? "Modifier" : "Nouvel"} employé</h2>
+          <h2 className="modal-title">{initial ? t("payroll.modalTitleEdit") : t("payroll.modalTitleNew")}</h2>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
         <form onSubmit={handleSubmit}>
           <div className="modal-body" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <div className="form-row">
               <div className="form-group">
-                <label className="form-label">Prénom</label>
+                <label className="form-label">{t("payroll.firstNameLabel")}</label>
                 <input className="form-input" value={draft.firstName}
                   onChange={e => field({ firstName: e.target.value })} required autoFocus />
               </div>
               <div className="form-group">
-                <label className="form-label">Nom</label>
+                <label className="form-label">{t("payroll.lastNameLabel")}</label>
                 <input className="form-input" value={draft.lastName}
                   onChange={e => field({ lastName: e.target.value })} required />
               </div>
             </div>
             <div className="form-row">
               <div className="form-group">
-                <label className="form-label">Fonction</label>
+                <label className="form-label">{t("payroll.roleLabel")}</label>
                 <select className="form-select" value={draft.role}
                   onChange={e => field({ role: e.target.value as EmployeeRole })}>
                   {ROLES.map(r => <option key={r} value={r}>{EMPLOYEE_ROLE_LABELS[r]}</option>)}
                 </select>
               </div>
               <div className="form-group">
-                <label className="form-label">Salaire brut (MAD/mois)</label>
+                <label className="form-label">{t("payroll.salaryLabel")}</label>
                 <input className="form-input" type="number" min="1" step="100"
                   value={draft.baseSalary}
                   onChange={e => field({ baseSalary: parseFloat(e.target.value) || 0 })} required />
@@ -87,18 +94,34 @@ function EmployeeModal({
             </div>
             <div className="form-row">
               <div className="form-group">
-                <label className="form-label">Personnes à charge</label>
+                <label className="form-label">{t("payroll.contractLabel")}</label>
+                <select className="form-select" value={draft.contractType ?? "cdi"}
+                  onChange={e => field({ contractType: e.target.value as ContractType })}>
+                  {CONTRACTS.map(c => <option key={c} value={c}>{CONTRACT_TYPE_LABELS[c]}</option>)}
+                </select>
+              </div>
+              <div className="form-group" />
+            </div>
+            {draft.contractType === "anapec" && (
+              <div style={{ fontSize: 12, color: "var(--green)", marginTop: -6 }}>
+                {t("payroll.anapecHint")}
+              </div>
+            )}
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">{t("payroll.dependentsLabel")}</label>
                 <input className="form-input" type="number" min="0" max="10"
                   value={draft.dependents ?? 0}
+                  disabled={draft.contractType === "anapec"}
                   onChange={e => field({ dependents: parseInt(e.target.value) || 0 })} />
               </div>
               <div className="form-group">
-                <label className="form-label">N° CNSS</label>
+                <label className="form-label">{t("payroll.cnssLabel")}</label>
                 <input className="form-input" value={draft.cnssNumber ?? ""}
-                  onChange={e => field({ cnssNumber: e.target.value })} placeholder="Optionnel" />
+                  onChange={e => field({ cnssNumber: e.target.value })} placeholder={t("payroll.optional")} />
               </div>
               <div className="form-group">
-                <label className="form-label">Date d'embauche</label>
+                <label className="form-label">{t("payroll.hireDateLabel")}</label>
                 <input className="form-input" type="date" value={draft.hireDate ?? ""}
                   onChange={e => field({ hireDate: e.target.value })} />
               </div>
@@ -106,44 +129,44 @@ function EmployeeModal({
 
             {/* Live payroll preview */}
             <div className="payroll-preview">
-              <div className="payroll-preview-title">Simulation de la paie mensuelle</div>
+              <div className="payroll-preview-title">{t("payroll.previewTitle")}</div>
               <div className="payroll-preview-rows">
                 <div className="payroll-row-item">
-                  <span>Salaire brut</span>
+                  <span>{t("payroll.previewGross")}</span>
                   <span style={{ fontWeight: 700 }}>{fmtMAD(p.grossSalary)}</span>
                 </div>
                 <div className="payroll-row-item muted">
-                  <span>CNSS salarié (6,74 %)</span>
+                  <span>{t("payroll.previewCnssEmployee")}</span>
                   <span>− {fmtMAD(p.cnssEmployee)}</span>
                 </div>
                 <div className="payroll-row-item muted">
-                  <span>Déduction forfaitaire (20 %)</span>
+                  <span>{t("payroll.previewDeduction")}</span>
                   <span>− {fmtMAD(p.deductionPro)}</span>
                 </div>
                 <div className="payroll-row-item muted">
-                  <span>IR net mensuel</span>
+                  <span>{t("payroll.previewIr")}</span>
                   <span>− {fmtMAD(p.irNet)}</span>
                 </div>
                 <div className="payroll-divider" />
                 <div className="payroll-row-item" style={{ color: "var(--green)" }}>
-                  <span style={{ fontWeight: 700 }}>Salaire net à payer</span>
+                  <span style={{ fontWeight: 700 }}>{t("payroll.previewNet")}</span>
                   <span style={{ fontWeight: 800, fontSize: 16 }}>{fmtMAD(p.netSalary)}</span>
                 </div>
                 <div className="payroll-divider" />
                 <div className="payroll-row-item muted" style={{ fontSize: 11 }}>
-                  <span>Charge patronale CNSS (21,09 %)</span>
+                  <span>{t("payroll.previewCnssEmployer")}</span>
                   <span>+ {fmtMAD(p.cnssEmployer)}</span>
                 </div>
                 <div className="payroll-row-item" style={{ fontSize: 12, color: "var(--coral)" }}>
-                  <span style={{ fontWeight: 600 }}>Coût total employeur</span>
+                  <span style={{ fontWeight: 600 }}>{t("payroll.previewCostTotal")}</span>
                   <span style={{ fontWeight: 700 }}>{fmtMAD(p.grossSalary + p.cnssEmployer)}</span>
                 </div>
               </div>
             </div>
           </div>
           <div className="modal-footer">
-            <button type="button" className="btn btn-ghost" onClick={onClose}>Annuler</button>
-            <button type="submit" className="btn btn-primary">Enregistrer</button>
+            <button type="button" className="btn btn-ghost" onClick={onClose}>{t("common.cancel")}</button>
+            <button type="submit" className="btn btn-primary">{t("common.save")}</button>
           </div>
         </form>
       </div>
@@ -154,13 +177,15 @@ function EmployeeModal({
 // ── Employee card ─────────────────────────────────────────────────────────────
 
 function EmployeeCard({
-  employee, onEdit, onDelete,
+  employee, onEdit, onDelete, locale,
 }: {
   employee: Employee;
   onEdit: () => void;
   onDelete: () => void;
+  locale: string;
 }) {
-  const p     = computePayroll(employee.baseSalary, employee.dependents ?? 0);
+  const { t } = useTranslation();
+  const p     = computePayroll(employee.baseSalary, employee.dependents ?? 0, employee.contractType ?? "cdi");
   const color = ROLE_COLORS[employee.role];
 
   return (
@@ -175,17 +200,19 @@ function EmployeeCard({
         </span>
         {employee.hireDate && (
           <span style={{ fontSize: 11, color: "var(--muted)", marginLeft: 8 }}>
-            depuis {new Date(employee.hireDate).toLocaleDateString("fr-FR", { month: "short", year: "numeric" })}
+            {t("payroll.employeeSince", {
+              date: new Date(employee.hireDate).toLocaleDateString(locale, { month: "short", year: "numeric" })
+            })}
           </span>
         )}
       </div>
       <div className="employee-salary">
         <div className="employee-net">{fmtMAD(p.netSalary)}</div>
-        <div className="employee-gross">brut {fmtMAD(p.grossSalary)}</div>
+        <div className="employee-gross">{t("payroll.employeeGross", { amount: fmtMAD(p.grossSalary) })}</div>
       </div>
       <button
         className="tx-delete"
-        title="Supprimer"
+        title={t("payroll.deleteTitle")}
         onClick={e => { e.stopPropagation(); onDelete(); }}
       >
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
@@ -199,27 +226,29 @@ function EmployeeCard({
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export function PayrollPage() {
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language?.slice(0, 2) === "ar" ? "ar-MA"
+               : i18n.language?.slice(0, 2) === "en" ? "en-US" : "fr-FR";
+
   const { employees, addEmployee, updateEmployee, deleteEmployee, doctorProfile } = useCabinet();
   const { addTransaction } = useApp();
+
+  const monthNames = getMonthNames(locale);
 
   const now = new Date();
   const [selMonth, setSelMonth] = useState(now.getMonth() + 1);   // 1–12
   const [selYear,  setSelYear]  = useState(now.getFullYear());
   const [modal,    setModal]    = useState<{ employee?: Employee } | null>(null);
-  const [toast,    setToast]    = useState<string | null>(null);
   const [postedKey, setPostedKey] = useState<Set<string>>(new Set());
 
-  const showToast = (msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 2800);
-  };
+  const showToast = useToast();
 
-  const monthLabel = `${MONTH_NAMES_FR[selMonth - 1]} ${selYear}`;
+  const monthLabel = `${monthNames[selMonth - 1]} ${selYear}`;
 
   const totals = useMemo(() => {
     let grossSum = 0, netSum = 0, cnssPatTotal = 0;
     for (const e of employees) {
-      const p = computePayroll(e.baseSalary, e.dependents ?? 0);
+      const p = computePayroll(e.baseSalary, e.dependents ?? 0, e.contractType ?? "cdi");
       grossSum    += p.grossSalary;
       netSum      += p.netSalary;
       cnssPatTotal += p.cnssEmployer;
@@ -249,7 +278,7 @@ export function PayrollPage() {
       deductibilityStatus: "FULLY_DEDUCTIBLE",
     });
     setPostedKey(s => new Set(s).add(key));
-    showToast(`Paie de ${monthLabel} enregistrée dans les finances (${fmtMAD(totals.coutTotal)})`);
+    showToast(t("payroll.payrollPosted", { month: monthLabel, amount: fmtMAD(totals.coutTotal) }));
   };
 
   const alreadyPosted = postedKey.has(`${selYear}-${selMonth}`);
@@ -260,14 +289,14 @@ export function PayrollPage() {
 
   return (
     <Layout
-      title="Salaires"
-      subtitle={`${employees.length} employé${employees.length !== 1 ? "s" : ""} · ${monthLabel}`}
+      title={t("payroll.title")}
+      subtitle={t("payroll.subtitle", { n: employees.length, s: employees.length !== 1 ? "s" : "", month: monthLabel })}
       actions={
         <button className="btn btn-primary" onClick={() => setModal({})}>
           <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 6 }}>
             <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
           </svg>
-          Ajouter un employé
+          {t("payroll.addEmployee")}
         </button>
       }
     >
@@ -278,14 +307,14 @@ export function PayrollPage() {
             <rect x="2" y="3" width="12" height="11" rx="2" stroke="currentColor" strokeWidth="1.5"/>
             <path d="M5 2v2M11 2v2M2 7h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
           </svg>
-          <span style={{ fontWeight: 700, fontSize: 13 }}>Mois de paie :</span>
+          <span style={{ fontWeight: 700, fontSize: 13 }}>{t("payroll.monthLabel")}</span>
           <select
             className="form-select"
             style={{ padding: "5px 10px", fontSize: 13, width: "auto" }}
             value={selMonth}
             onChange={e => setSelMonth(Number(e.target.value))}
           >
-            {MONTH_NAMES_FR.map((m, i) => (
+            {monthNames.map((m, i) => (
               <option key={i} value={i + 1}>{m}</option>
             ))}
           </select>
@@ -304,21 +333,21 @@ export function PayrollPage() {
             className={`btn ${alreadyPosted ? "btn-ghost" : "btn-secondary"}`}
             onClick={handlePostPayroll}
             disabled={alreadyPosted}
-            title={alreadyPosted ? "Déjà enregistré ce mois" : "Ajouter les charges salariales aux finances"}
+            title={alreadyPosted ? t("payroll.postedTitle") : t("payroll.postTitle")}
           >
             {alreadyPosted ? (
               <>
                 <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 5 }}>
                   <path d="M2 7l4 4 6-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
-                Paie enregistrée
+                {t("payroll.postedBtn")}
               </>
             ) : (
               <>
                 <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 5 }}>
                   <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
                 </svg>
-                Enregistrer la paie
+                {t("payroll.postBtn")}
               </>
             )}
           </button>
@@ -329,24 +358,24 @@ export function PayrollPage() {
       {employees.length > 0 && (
         <div className="stats-grid" style={{ marginBottom: 20 }}>
           <div className="stat-card">
-            <div className="stat-label">Masse salariale brute</div>
+            <div className="stat-label">{t("payroll.kpiGross")}</div>
             <div className="stat-value">{fmtMAD(totals.grossSum)}</div>
-            <div className="stat-sub">{employees.length} employé{employees.length !== 1 ? "s" : ""}</div>
+            <div className="stat-sub">{t("payroll.employeeCount", { n: employees.length, s: employees.length !== 1 ? "s" : "" })}</div>
           </div>
           <div className="stat-card">
-            <div className="stat-label">Salaires nets à payer</div>
+            <div className="stat-label">{t("payroll.kpiNet")}</div>
             <div className="stat-value" style={{ color: "var(--green)" }}>{fmtMAD(totals.netSum)}</div>
-            <div className="stat-sub">après CNSS et IR</div>
+            <div className="stat-sub">{t("payroll.kpiNetSub")}</div>
           </div>
           <div className="stat-card">
-            <div className="stat-label">Charges patronales CNSS</div>
+            <div className="stat-label">{t("payroll.kpiCnss")}</div>
             <div className="stat-value" style={{ color: "var(--gold)" }}>{fmtMAD(totals.cnssPatTotal)}</div>
-            <div className="stat-sub">21,09 % du cotisable</div>
+            <div className="stat-sub">{t("payroll.kpiCnssSub")}</div>
           </div>
           <div className="stat-card">
-            <div className="stat-label">Coût total employeur</div>
+            <div className="stat-label">{t("payroll.kpiTotal")}</div>
             <div className="stat-value" style={{ color: "var(--coral)" }}>{fmtMAD(totals.coutTotal)}</div>
-            <div className="stat-sub">brut + charges patronales</div>
+            <div className="stat-sub">{t("payroll.kpiTotalSub")}</div>
           </div>
         </div>
       )}
@@ -355,26 +384,26 @@ export function PayrollPage() {
       {employees.length > 0 && (
         <div className="payroll-table-wrap" style={{ marginBottom: 24 }}>
           <div className="payroll-table-title">
-            Détail de la paie — {monthLabel}
+            {t("payroll.tableTitle", { month: monthLabel })}
           </div>
           <div style={{ overflowX: "auto" }}>
             <table className="payroll-table">
               <thead>
                 <tr>
-                  <th>Employé</th>
-                  <th>Brut</th>
-                  <th>CNSS sal.</th>
-                  <th>Déd. pro.</th>
-                  <th>Net imposable</th>
-                  <th>IR net</th>
-                  <th style={{ color: "var(--green)" }}>Net à payer</th>
-                  <th style={{ color: "var(--coral)" }}>Charge pat.</th>
-                  <th>Bulletin</th>
+                  <th>{t("payroll.colEmployee")}</th>
+                  <th>{t("payroll.colGross")}</th>
+                  <th>{t("payroll.colCnss")}</th>
+                  <th>{t("payroll.colDed")}</th>
+                  <th>{t("payroll.colNetTax")}</th>
+                  <th>{t("payroll.colIr")}</th>
+                  <th style={{ color: "var(--green)" }}>{t("payroll.colNet")}</th>
+                  <th style={{ color: "var(--coral)" }}>{t("payroll.colCharge")}</th>
+                  <th>{t("payroll.colBulletin")}</th>
                 </tr>
               </thead>
               <tbody>
                 {employees.map(e => {
-                  const p     = computePayroll(e.baseSalary, e.dependents ?? 0);
+                  const p     = computePayroll(e.baseSalary, e.dependents ?? 0, e.contractType ?? "cdi");
                   const color = ROLE_COLORS[e.role];
                   return (
                     <tr key={e.id}>
@@ -398,7 +427,7 @@ export function PayrollPage() {
                       <td>
                         <button
                           className="payroll-print-btn"
-                          title={`Imprimer bulletin de ${monthLabel}`}
+                          title={t("payroll.bulletinTitle", { month: monthLabel })}
                           onClick={() => printBulletin(e, selMonth, selYear, doctorProfile)}
                         >
                           <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
@@ -407,7 +436,7 @@ export function PayrollPage() {
                             <path d="M4 9h6M4 11h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
                             <circle cx="11" cy="7.5" r="0.8" fill="currentColor"/>
                           </svg>
-                          Bulletin
+                          {t("payroll.bulletinBtn")}
                         </button>
                       </td>
                     </tr>
@@ -416,7 +445,7 @@ export function PayrollPage() {
               </tbody>
               <tfoot>
                 <tr>
-                  <td>Total</td>
+                  <td>{t("payroll.colTotal")}</td>
                   <td>{fmtMAD(totals.grossSum)}</td>
                   <td></td>
                   <td></td>
@@ -435,18 +464,16 @@ export function PayrollPage() {
       {/* Employee cards */}
       <div style={{ marginBottom: 8, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>
-          Fiche des employés
+          {t("payroll.employeesTitle")}
         </h3>
       </div>
 
       {employees.length === 0 ? (
         <div className="tx-empty">
           <div style={{ fontSize: 36, marginBottom: 10 }}>👤</div>
-          <div style={{ fontWeight: 700, marginBottom: 6 }}>Aucun employé</div>
-          <div style={{ marginBottom: 16, color: "var(--muted)" }}>
-            Ajoutez vos employés pour calculer automatiquement la paie (CNSS + IR salarial).
-          </div>
-          <button className="btn btn-primary" onClick={() => setModal({})}>Ajouter un employé</button>
+          <div style={{ fontWeight: 700, marginBottom: 6 }}>{t("payroll.emptyTitle")}</div>
+          <div style={{ marginBottom: 16, color: "var(--muted)" }}>{t("payroll.emptyHint")}</div>
+          <button className="btn btn-primary" onClick={() => setModal({})}>{t("payroll.addEmployeeBtn")}</button>
         </div>
       ) : (
         <div className="tx-list">
@@ -454,11 +481,12 @@ export function PayrollPage() {
             <EmployeeCard
               key={e.id}
               employee={e}
+              locale={locale}
               onEdit={() => setModal({ employee: e })}
               onDelete={() => {
-                if (confirm(`Supprimer ${e.firstName} ${e.lastName} ?`)) {
+                if (confirm(t("payroll.deleteConfirm", { name: `${e.firstName} ${e.lastName}` }))) {
                   deleteEmployee(e.id);
-                  showToast("Employé supprimé");
+                  showToast(t("payroll.deleted"));
                 }
               }}
             />
@@ -473,13 +501,12 @@ export function PayrollPage() {
           onSave={e => {
             if (modal.employee) updateEmployee({ ...e, id: modal.employee.id });
             else addEmployee(e);
-            showToast(modal.employee ? "Employé modifié" : "Employé ajouté");
+            showToast(modal.employee ? t("payroll.modified") : t("payroll.added"));
           }}
           onClose={() => setModal(null)}
         />
       )}
 
-      {toast && <div className="toast">{toast}</div>}
     </Layout>
   );
 }

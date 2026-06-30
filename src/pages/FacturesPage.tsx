@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import { useCabinet } from "../context/CabinetContext";
@@ -8,12 +9,6 @@ import { todayIso, formatMAD } from "../lib/format";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function fmtDate(iso: string) {
-  return new Date(iso + "T12:00:00").toLocaleDateString("fr-FR", {
-    day: "2-digit", month: "2-digit", year: "numeric",
-  });
-}
-
 function yearOf(iso: string) {
   return iso.slice(0, 4);
 }
@@ -21,15 +16,24 @@ function yearOf(iso: string) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) {
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language?.slice(0, 2) === "ar" ? "ar-MA"
+               : i18n.language?.slice(0, 2) === "en" ? "en-US" : "fr-FR";
+
   const { appointments, patients, updateAppointment, doctorProfile } = useCabinet();
 
   const today = todayIso();
   const currentYear = today.slice(0, 4);
 
+  function fmtDate(iso: string) {
+    return new Date(iso + "T12:00:00").toLocaleDateString(locale, {
+      day: "2-digit", month: "2-digit", year: "numeric",
+    });
+  }
+
   const [selYear, setSelYear] = useState(currentYear);
   const [search,  setSearch]  = useState("");
 
-  // All billed appointments (have billedAt set)
   const billed = useMemo(
     () => [...appointments]
       .filter(a => !!a.billedAt)
@@ -37,14 +41,12 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
     [appointments],
   );
 
-  // Available years for filter
   const years = useMemo(() => {
     const ys = new Set(billed.map(a => yearOf(a.billedAt!)));
     ys.add(currentYear);
     return [...ys].sort((a, b) => b.localeCompare(a));
   }, [billed, currentYear]);
 
-  // Filtered rows
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return billed.filter(a => {
@@ -55,11 +57,10 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
     });
   }, [billed, selYear, search]);
 
-  // KPIs
   const kpis = useMemo(() => {
-    const withInv   = filtered.filter(a => !!a.invoiceNumber);
+    const withInv    = filtered.filter(a => !!a.invoiceNumber);
     const withoutInv = filtered.filter(a => !a.invoiceNumber);
-    const total     = filtered.reduce((s, a) => s + (a.billedAmount ?? 0), 0);
+    const total      = filtered.reduce((s, a) => s + (a.billedAmount ?? 0), 0);
     return {
       total:     filtered.length,
       withInv:   withInv.length,
@@ -68,45 +69,37 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
     };
   }, [filtered]);
 
-  // Emit invoice for an appointment
   const emitInvoice = (apptId: string) => {
     const appt = appointments.find(a => a.id === apptId);
     if (!appt) return;
-    const invNum     = nextInvoiceNumber();
-    const issuedAt   = new Date().toISOString();
-    const patient    = patients.find(p => p.id === appt.patientId);
-
-    updateAppointment({
-      ...appt,
-      invoiceNumber:   invNum,
-      invoiceIssuedAt: issuedAt,
-    });
-
+    const invNum   = nextInvoiceNumber();
+    const issuedAt = new Date().toISOString();
+    const patient  = patients.find(p => p.id === appt.patientId);
+    updateAppointment({ ...appt, invoiceNumber: invNum, invoiceIssuedAt: issuedAt });
     printFacture({
-      invoiceNumber:  invNum,
-      invoiceDate:    today,
-      patientName:    appt.patientName,
-      patientCnops:   patient?.cnopsNumber,
-      serviceLabel:   APPT_TYPE_LABELS[appt.type] + " médicale",
-      serviceDate:    appt.date,
-      amount:         appt.billedAmount ?? 0,
+      invoiceNumber: invNum,
+      invoiceDate:   today,
+      patientName:   appt.patientName,
+      patientCnops:  patient?.cnopsNumber,
+      serviceLabel:  APPT_TYPE_LABELS[appt.type] + " médicale",
+      serviceDate:   appt.date,
+      amount:        appt.billedAmount ?? 0,
       doctorProfile,
     });
   };
 
-  // Reprint existing invoice
   const reprintInvoice = (apptId: string) => {
     const appt = appointments.find(a => a.id === apptId);
     if (!appt?.invoiceNumber) return;
     const patient = patients.find(p => p.id === appt.patientId);
     printFacture({
-      invoiceNumber:  appt.invoiceNumber,
-      invoiceDate:    appt.invoiceIssuedAt ? appt.invoiceIssuedAt.slice(0, 10) : appt.date,
-      patientName:    appt.patientName,
-      patientCnops:   patient?.cnopsNumber,
-      serviceLabel:   APPT_TYPE_LABELS[appt.type] + " médicale",
-      serviceDate:    appt.date,
-      amount:         appt.billedAmount ?? 0,
+      invoiceNumber: appt.invoiceNumber,
+      invoiceDate:   appt.invoiceIssuedAt ? appt.invoiceIssuedAt.slice(0, 10) : appt.date,
+      patientName:   appt.patientName,
+      patientCnops:  patient?.cnopsNumber,
+      serviceLabel:  APPT_TYPE_LABELS[appt.type] + " médicale",
+      serviceDate:   appt.date,
+      amount:        appt.billedAmount ?? 0,
       doctorProfile,
     });
   };
@@ -117,21 +110,21 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
       <div className="fac-kpi-strip">
         <div className="fac-kpi" style={{ borderTopColor: "var(--blue)" }}>
           <div className="fac-kpi-val" style={{ color: "var(--blue)" }}>{kpis.total}</div>
-          <div className="fac-kpi-lbl">Consultations facturées</div>
+          <div className="fac-kpi-lbl">{t("factures.kpiBilled")}</div>
         </div>
         <div className="fac-kpi" style={{ borderTopColor: "var(--green)" }}>
           <div className="fac-kpi-val" style={{ color: "var(--green)" }}>{kpis.withInv}</div>
-          <div className="fac-kpi-lbl">Factures émises</div>
+          <div className="fac-kpi-lbl">{t("factures.kpiEmitted")}</div>
         </div>
         <div className="fac-kpi" style={{ borderTopColor: "var(--gold)" }}>
           <div className="fac-kpi-val" style={{ color: "var(--gold)" }}>{kpis.withoutInv}</div>
-          <div className="fac-kpi-lbl">Sans facture</div>
+          <div className="fac-kpi-lbl">{t("factures.kpiWithout")}</div>
         </div>
         <div className="fac-kpi" style={{ borderTopColor: "var(--navy)" }}>
           <div className="fac-kpi-val" style={{ color: "var(--navy)", fontSize: 18 }}>
             {formatMAD(kpis.totalMAD)}
           </div>
-          <div className="fac-kpi-lbl">Total facturé</div>
+          <div className="fac-kpi-lbl">{t("factures.kpiTotal")}</div>
         </div>
       </div>
 
@@ -155,7 +148,7 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
           </svg>
           <input
             className="rmb-search"
-            placeholder="Patient ou N° facture…"
+            placeholder={t("factures.searchPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -166,22 +159,20 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
       {filtered.length === 0 ? (
         <div className="tx-empty">
           <div style={{ fontSize: 40, marginBottom: 12 }}>🧾</div>
-          <div style={{ fontWeight: 700, marginBottom: 6 }}>Aucune consultation facturée pour {selYear}</div>
-          <div style={{ fontSize: 13, color: "var(--muted)" }}>
-            Les factures apparaissent ici une fois la consultation réglée depuis l'agenda.
-          </div>
+          <div style={{ fontWeight: 700, marginBottom: 6 }}>{t("factures.emptyTitle", { year: selYear })}</div>
+          <div style={{ fontSize: 13, color: "var(--muted)" }}>{t("factures.emptyHint")}</div>
         </div>
       ) : (
         <div className="fac-table-wrap">
           <table className="fac-table">
             <thead>
               <tr>
-                <th>N° Facture</th>
-                <th>Patient</th>
-                <th>Date RDV</th>
-                <th>Type</th>
-                <th className="fac-r">Montant</th>
-                <th className="fac-r">Actions</th>
+                <th>{t("factures.colInvoice")}</th>
+                <th>{t("factures.colPatient")}</th>
+                <th>{t("factures.colDate")}</th>
+                <th>{t("factures.colType")}</th>
+                <th className="fac-r">{t("factures.colAmount")}</th>
+                <th className="fac-r">{t("factures.colActions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -190,7 +181,7 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
                   <td>
                     {a.invoiceNumber
                       ? <span className="fac-inv-num">{a.invoiceNumber}</span>
-                      : <span className="fac-no-inv">— Non émise</span>
+                      : <span className="fac-no-inv">{t("factures.notEmitted")}</span>
                     }
                   </td>
                   <td>
@@ -210,13 +201,13 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
                     <div className="fac-actions">
                       {a.invoiceNumber
                         ? <button className="fac-reprint-btn" onClick={() => reprintInvoice(a.id)}>
-                            Réimprimer
+                            {t("factures.reprint")}
                           </button>
                         : <button className="fac-emit-btn" onClick={() => emitInvoice(a.id)}>
-                            📄 Émettre
+                            {t("factures.emit")}
                           </button>
                       }
-                      <Link to={`/agenda/${a.id}`} className="fac-rdv-link">RDV →</Link>
+                      <Link to={`/agenda/${a.id}`} className="fac-rdv-link">{t("factures.rdvLink")}</Link>
                     </div>
                   </td>
                 </tr>
@@ -225,7 +216,7 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
             <tfoot>
               <tr>
                 <td colSpan={4} className="fac-total-label">
-                  Total ({filtered.length} consultation{filtered.length !== 1 ? "s" : ""})
+                  {t("factures.footerTotal", { n: filtered.length, s: filtered.length !== 1 ? "s" : "" })}
                 </td>
                 <td className="fac-r fac-total-val">
                   {formatMAD(filtered.reduce((s, a) => s + (a.billedAmount ?? 0), 0))}
@@ -241,8 +232,8 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
   if (noLayout) return body;
   return (
     <Layout
-      title="Factures"
-      subtitle={`${kpis.total} consultation${kpis.total !== 1 ? "s" : ""} facturée${kpis.total !== 1 ? "s" : ""} · ${selYear}`}
+      title={t("factures.title")}
+      subtitle={t("factures.subtitle", { n: kpis.total, s: kpis.total !== 1 ? "s" : "", year: selYear })}
     >
       {body}
     </Layout>

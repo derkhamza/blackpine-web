@@ -15,34 +15,168 @@ export interface CabinetLocation {
 export interface CabinetDoctorProfile {
   fullName:        string;
   specialtyLabel?: string;
-  inpe?:           string;   // N° d'inscription registre national professionnel
+  inpe?:           string;   // INPE — Identifiant National des Professionnels et Établissements de santé
+  ordre?:          string;   // N° d'inscription au Conseil National de l'Ordre des Médecins
+  ice?:            string;   // ICE — Identifiant Commun de l'Entreprise (obligatoire sur les factures)
+  rib?:            string;   // RIB / IBAN du cabinet (affiché sur la facture)
   address?:        string;   // Adresse principale du cabinet
-  phone?:          string;
+  phone?:          string;   // Téléphone fixe du cabinet
+  whatsApp?:       string;   // WhatsApp cabinet (patients)
   accountantPhone?: string;  // WhatsApp expert-comptable
   locations?:      CabinetLocation[];  // multi-location support
   secretaryPin?:   string;   // 4-digit PIN to exit secretary mode (doctor sets this)
+  customDrugs?:    string[]; // Custom medications added by the doctor
+  hiddenConsultationTypes?: AppointmentType[]; // types hidden from the type selector
+  appointmentPrices?: Partial<Record<AppointmentType, number>>; // doctor-set fee (MAD) per RDV type
+  secretaryPermissions?: SecretaryPermissions; // granular access the doctor grants the secretary
+  acteCodes?:      ActeCode[];        // doctor-maintained list of medical act codes
+  documentSettings?: DocumentSettings; // facture / ordonnance customisation
 }
 
+// A medical act code the doctor maintains themselves (no official tariff is
+// shipped — the doctor controls codes, labels and default prices).
+export interface ActeCode {
+  id:     string;
+  code:   string;   // e.g. "C", "CS", "K50", a CCAM/ANAM code…
+  label:  string;   // "Consultation spécialisée", "Petite chirurgie"…
+  price?: number;   // default fee in MAD
+}
+
+export type DocumentLayout = "classic" | "compact" | "letterhead";
+
+export const DOCUMENT_LAYOUT_LABELS: Record<DocumentLayout, string> = {
+  classic:    "Classique",
+  compact:    "Compact",
+  letterhead: "Papier à en-tête",
+};
+
+// Customisation applied to printed factures and ordonnances.
+export interface DocumentSettings {
+  layout?:     DocumentLayout;
+  showInpe?:   boolean;
+  showIce?:    boolean;
+  showRib?:    boolean;
+  headerNote?: string;   // extra line under the doctor's identity
+  footerNote?: string;   // custom footer text
+}
+
+export const DEFAULT_DOCUMENT_SETTINGS: DocumentSettings = {
+  layout: "classic", showInpe: true, showIce: true, showRib: true,
+};
+
+// What a secretary account is allowed to see/do. Undefined → sensible defaults
+// (agenda + waiting room + patient contact info; no clinical/financial detail).
+export interface SecretaryPermissions {
+  recordVitals?:        boolean; // take measurements (TA, poids, taille, T°, SpO₂…)
+  handleBilling?:       boolean; // facturation: encaisser, émettre factures/reçus
+  viewFinances?:        boolean; // full accounting: comptabilité, transactions, rapports
+  viewClinical?:        boolean; // consultation notes, diagnoses, ordonnances
+  viewDocuments?:       boolean; // attachments, certificates
+  editPatients?:        boolean; // create/edit patient records
+  managePayroll?:       boolean; // salaries / bulletins
+}
+
+// In Morocco a secretary commonly takes vital-sign measurements and handles
+// billing/payments, so those are granted by default; clinical detail, full
+// accounting and payroll stay off until the doctor enables them.
+export const DEFAULT_SECRETARY_PERMISSIONS: SecretaryPermissions = {
+  recordVitals:  true,
+  handleBilling: true,
+  viewFinances:  false,
+  viewClinical:  false,
+  viewDocuments: false,
+  editPatients:  true,
+  managePayroll: false,
+};
+
 export const SPECIALTIES: { id: string; label: string }[] = [
-  { id: "medecin_generaliste",  label: "Médecin généraliste" },
-  { id: "medecin_specialiste",  label: "Médecin spécialiste" },
-  { id: "dentiste",             label: "Dentiste" },
-  { id: "kinesitherapeute",     label: "Kinésithérapeute" },
-  { id: "sage_femme",           label: "Sage-femme" },
-  { id: "autre",                label: "Autre profession de santé" },
+  // Médecine générale
+  { id: "medecin_generaliste",     label: "Médecin généraliste" },
+  // Médecines spécialisées
+  { id: "allergologie",            label: "Allergologie et immunologie clinique" },
+  { id: "anesthesie",              label: "Anesthésie-Réanimation" },
+  { id: "cardiologie",             label: "Cardiologie et maladies vasculaires" },
+  { id: "chirurgie_generale",      label: "Chirurgie générale" },
+  { id: "chirurgie_ortho",         label: "Chirurgie orthopédique et traumatologie" },
+  { id: "chirurgie_pediatrique",   label: "Chirurgie pédiatrique" },
+  { id: "chirurgie_plastique",     label: "Chirurgie plastique, reconstructrice et esthétique" },
+  { id: "chirurgie_cardio",        label: "Chirurgie thoracique et cardio-vasculaire" },
+  { id: "urologie_chir",           label: "Chirurgie urologique" },
+  { id: "dermatologie",            label: "Dermatologie-vénérologie" },
+  { id: "endocrinologie",          label: "Endocrinologie et maladies métaboliques" },
+  { id: "gastroenterologie",       label: "Gastro-entérologie et hépatologie" },
+  { id: "geriatrie",               label: "Gériatrie" },
+  { id: "gynecologie",             label: "Gynécologie-Obstétrique" },
+  { id: "gynecologie_med",         label: "Gynécologie médicale" },
+  { id: "hematologie",             label: "Hématologie clinique" },
+  { id: "infectiologie",           label: "Infectiologie" },
+  { id: "medecine_interne",        label: "Médecine interne" },
+  { id: "medecine_urgence",        label: "Médecine d'urgence" },
+  { id: "medecine_physique",       label: "Médecine physique et réadaptation" },
+  { id: "medecine_travail",        label: "Médecine du travail" },
+  { id: "nephrologie",             label: "Néphrologie" },
+  { id: "neurochirurgie",          label: "Neurochirurgie" },
+  { id: "neurologie",              label: "Neurologie" },
+  { id: "oncologie",               label: "Oncologie médicale" },
+  { id: "ophtalmologie",           label: "Ophtalmologie" },
+  { id: "orl",                     label: "ORL (Oto-rhino-laryngologie)" },
+  { id: "pediatrie",               label: "Pédiatrie" },
+  { id: "pneumologie",             label: "Pneumologie" },
+  { id: "psychiatrie",             label: "Psychiatrie" },
+  { id: "radiologie",              label: "Radiologie et imagerie médicale" },
+  { id: "rhumatologie",            label: "Rhumatologie" },
+  { id: "stomatologie",            label: "Stomatologie et chirurgie maxillo-faciale" },
+  { id: "urologie",                label: "Urologie" },
+  // Paramédicaux
+  { id: "dentiste",                label: "Chirurgien-dentiste" },
+  { id: "kinesitherapeute",        label: "Kinésithérapeute" },
+  { id: "sage_femme",              label: "Sage-femme" },
+  { id: "autre",                   label: "Autre profession de santé" },
+];
+
+export const MOROCCAN_CITIES: string[] = [
+  "Casablanca", "Rabat", "Marrakech", "Fès", "Agadir", "Tanger",
+  "Meknès", "Oujda", "Kénitra", "Tétouan", "Safi", "El Jadida",
+  "Beni Mellal", "Nador", "Settat", "Berrechid", "Khemisset",
+  "Khouribga", "Taza", "Mohammedia", "Dakhla", "Laâyoune",
+  "Errachidia", "Ouarzazate", "Taroudant", "Guelmim", "Ifrane",
+  "Chefchaouen", "Larache", "Al Hoceima",
+];
+
+export const MUTUELLES: string[] = [
+  "CNOPS",
+  "MGPAP",
+  "MGEN",
+  "MGPPS",
+  "CMR",
+  "FAR",
+  "OMFAM",
+  "ONDH",
+  "CNSS – AMO",
+  "RAMED",
+  "Allianz Maroc",
+  "AXA Assurance Maroc",
+  "Atlanta",
+  "Saham Assurance",
+  "RMA",
+  "Wafa Assurance",
+  "Zurich Maroc",
+  "MCM",
+  "Aucune",
 ];
 
 export const BLANK_DOCTOR_PROFILE: CabinetDoctorProfile = {
-  fullName: "", specialtyLabel: "", inpe: "", address: "", phone: "", accountantPhone: "",
+  fullName: "", specialtyLabel: "", inpe: "", address: "", phone: "", whatsApp: "", accountantPhone: "",
 };
 
 // ── Clinical record types ─────────────────────────────────────────────────────
 
 export interface ConsultationNote {
-  motif?:       string;
+  motif?:        string;
   examination?:  string;
   diagnosis?:    string;
   treatment?:    string;
+  extraFields?:  Record<string, string>;
 }
 
 export interface VitalSigns {
@@ -57,7 +191,7 @@ export interface VitalSigns {
 
 // ── Appointment types ─────────────────────────────────────────────────────────
 
-export type AppointmentType = "consultation" | "suivi" | "procedure" | "urgence" | "autre";
+export type AppointmentType = "consultation" | "controle" | "suivi" | "procedure" | "urgence" | "autre";
 
 // ── Prescription templates ────────────────────────────────────────────────────
 
@@ -171,12 +305,19 @@ export interface Appointment {
   followUpDate?: string;
   billedAt?:     string;   // ISO — set when fee is added to finances
   billedAmount?: number;   // MAD — amount billed (for receipt printing)
-  // AMO / CNOPS reimbursement
+  // Mutuelle paperwork — doctors have no visibility on the actual reimbursement,
+  // so we only track whether the mutuelle forms were filled, and when.
+  mutuellePapersFilled?: boolean;
+  mutuellePapersDate?:   string;   // YYYY-MM-DD
+  // AMO / CNOPS reimbursement (legacy — kept for back-compat with old records)
   reimbursementStatus?: "pending" | "received" | "rejected";
   reimbursementAmount?: number;
   reimbursementDate?: string;
   // Ordonnance
   savedOrdonnance?: SavedOrdonnance;
+  // Online self-booking (created via the public booking page)
+  bookingSource?: "online";
+  bookingPhone?:  string;
   // Waiting-room timestamps
   checkedInAt?:      string;  // ISO — set when patient marks "arrived"
   inConsultationAt?: string;  // ISO — set when doctor calls patient
@@ -195,6 +336,15 @@ export interface Appointment {
 
 export type PatientGender = "M" | "F";
 
+// A free-form event the doctor adds directly to a patient's timeline
+// (hospitalisation, phone call, external report received…).
+export interface PatientTimelineEvent {
+  id:     string;
+  date:   string;   // YYYY-MM-DD
+  title:  string;
+  notes?: string;
+}
+
 export interface Patient {
   id: string;
   firstName: string;
@@ -210,6 +360,9 @@ export interface Patient {
   createdAt: string;
   cin?: string;
   cnopsNumber?: string;
+  mutuelle?: string;
+  city?: string;
+  timelineEvents?: PatientTimelineEvent[];
 }
 
 export type EmployeeRole =
@@ -218,6 +371,14 @@ export type EmployeeRole =
   | "aide_soignant"
   | "technicien"
   | "autre";
+
+export type ContractType = "cdi" | "cdd" | "anapec";
+
+export const CONTRACT_TYPE_LABELS: Record<ContractType, string> = {
+  cdi:    "CDI",
+  cdd:    "CDD",
+  anapec: "ANAPEC (Idmaj)",
+};
 
 export interface Employee {
   id: string;
@@ -229,12 +390,16 @@ export interface Employee {
   hireDate?: string;
   dependents?: number;
   notes?: string;
+  // ANAPEC (contrat d'insertion Idmaj): salary is exempt from CNSS/AMO/IR — the
+  // employee receives the entire gross, the cabinet pays no charges.
+  contractType?: ContractType;
 }
 
 // ── Display helpers ───────────────────────────────────────────────────────────
 
 export const APPT_TYPE_LABELS: Record<AppointmentType, string> = {
   consultation: "Consultation",
+  controle:     "Contrôle",
   suivi:        "Suivi",
   procedure:    "Procédure",
   urgence:      "Urgence",
@@ -243,6 +408,7 @@ export const APPT_TYPE_LABELS: Record<AppointmentType, string> = {
 
 export const APPT_TYPE_COLORS: Record<AppointmentType, string> = {
   consultation: "#1890C5",
+  controle:     "#0FB5C4",
   suivi:        "#15A876",
   procedure:    "#9B72D0",
   urgence:      "#E85B5B",
@@ -293,7 +459,22 @@ export interface StockItem {
   minThreshold: number;       // alert when quantity ≤ this
   supplier?:    string;
   notes?:       string;
+  expiryDate?:  string;       // YYYY-MM-DD — péremption (alert when approaching)
   updatedAt:    string;       // ISO — last adjustment
+}
+
+// Days before an expiry date at which to start warning the doctor.
+export const EXPIRY_WARN_DAYS = 60;
+
+// Returns "expired" | "soon" | "ok" | null(no date) for a stock item's péremption.
+export function expiryStatus(expiryDate: string | undefined, today: Date): "expired" | "soon" | "ok" | null {
+  if (!expiryDate) return null;
+  const exp = new Date(expiryDate + "T00:00:00");
+  if (Number.isNaN(exp.getTime())) return null;
+  const days = Math.floor((exp.getTime() - today.getTime()) / 86_400_000);
+  if (days < 0) return "expired";
+  if (days <= EXPIRY_WARN_DAYS) return "soon";
+  return "ok";
 }
 
 // ── WhatsApp message templates ────────────────────────────────────────────────

@@ -1,12 +1,16 @@
-import { type ReactNode, useEffect, useMemo, useState } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { type ReactNode, useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 import { useCabinet } from "../context/CabinetContext";
+import { BlackpineLogo } from "./Logo";
 import { CommandPalette }  from "./CommandPalette";
 import { ShortcutsModal } from "./ShortcutsModal";
 import { PinModal }       from "./PinModal";
 import { todayIso } from "../lib/format";
+import { DEFAULT_SECRETARY_PERMISSIONS } from "../lib/cabinetTypes";
 import { useDarkMode } from "../lib/useDarkMode";
+import { useTranslation } from "react-i18next";
+import i18n from "../i18n";
 
 // ── Icons ──────────────────────────────────────────────────────────────────────
 function Icon({ name }: { name: string }) {
@@ -202,23 +206,64 @@ function Icon({ name }: { name: string }) {
   return icons[name] ?? null;
 }
 
+// ── Language switcher ──────────────────────────────────────────────────────────
+const LANGS = [
+  { code: "fr", flag: "🇫🇷", label: "FR" },
+  { code: "en", flag: "🇬🇧", label: "EN" },
+  { code: "ar", flag: "🇲🇦", label: "ع" },
+] as const;
+
+function LangSwitcher() {
+  const { i18n: i } = useTranslation();
+  const current = i.language?.slice(0, 2) ?? "fr";
+  return (
+    <div className="lang-switcher">
+      {LANGS.map(l => (
+        <button
+          key={l.code}
+          className={`lang-btn${current === l.code ? " active" : ""}`}
+          onClick={() => i18n.changeLanguage(l.code)}
+          title={l.label}
+        >
+          {l.flag} {l.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 // ── Sync indicator ─────────────────────────────────────────────────────────────
 function SyncPill() {
   const { syncStatus, lastSyncedAt } = useApp();
+  const { syncState: cabinetSync, lastSynced: cabinetSyncedAt } = useCabinet();
+  const { t, i18n: i } = useTranslation();
+  const locale = i.language?.slice(0, 2) === "ar" ? "ar-MA" : i.language?.slice(0, 2) === "en" ? "en-US" : "fr-FR";
+
+  // Combined: worst of financial sync and cabinet sync
+  const combined =
+    syncStatus === "syncing" || cabinetSync === "syncing" ? "syncing"
+    : syncStatus === "error"   || cabinetSync === "error"   ? "error"
+    : syncStatus === "offline"                              ? "offline"
+    : syncStatus === "synced"  || cabinetSync === "synced"  ? "synced"
+    : "idle";
+
+  const latestAtArr = [lastSyncedAt, cabinetSyncedAt].filter((x): x is string => !!x).sort();
+  const latestAt = latestAtArr.length ? latestAtArr[latestAtArr.length - 1] : null;
+
   const label =
-    syncStatus === "syncing" ? "Sync…"
-    : syncStatus === "error"   ? "Sync échoué"
-    : syncStatus === "offline" ? "Hors ligne"
-    : lastSyncedAt
-      ? `Sync ${new Date(lastSyncedAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`
-      : "Prêt";
+    combined === "syncing" ? t("sidebar.syncing")
+    : combined === "error"   ? t("sidebar.syncFailed")
+    : combined === "offline" ? t("sidebar.offline")
+    : latestAt
+      ? `Sync ${new Date(latestAt).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}`
+      : t("sidebar.syncReady");
 
   return (
     <div className="sync-bar" style={{ padding: "6px 10px" }}>
       <div className={`sync-dot ${
-        syncStatus === "syncing" ? "syncing"
-        : syncStatus === "synced" ? "synced"
-        : syncStatus === "error" || syncStatus === "offline" ? "error"
+        combined === "syncing" ? "syncing"
+        : combined === "synced" ? "synced"
+        : combined === "error" || combined === "offline" ? "error"
         : ""
       }`} />
       <span>{label}</span>
@@ -230,7 +275,7 @@ function SyncPill() {
 function NavDot({ count }: { count: number }) {
   if (count === 0) return null;
   return (
-    <span className="nav-badge" title={`${count} action${count > 1 ? "s" : ""} en attente`}>
+    <span className="nav-badge">
       {count > 9 ? "9+" : count}
     </span>
   );
@@ -259,10 +304,37 @@ interface Props {
   children: ReactNode;
 }
 
+// Each page renders its own <Layout>, so navigating remounts the sidebar and
+// would reset its scroll to the top. We persist the nav scroll position at the
+// module level (survives remounts) and restore it before paint.
+let lastNavScroll = 0;
+
 export function Layout({ title, subtitle, actions, children }: Props) {
-  const { user, logout } = useApp();
-  const { appointments, stockItems, doctorProfile, secretaryMode, setSecretaryMode } = useCabinet();
+  const { t } = useTranslation();
+  const { user, logout, isSecretary, endSecretarySession } = useApp();
+  const { appointments, stockItems, doctorProfile, secretaryMode, setSecretaryMode, role, secretaryOwnerName } = useCabinet();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const isRealSecretary = role === "secretary";
+  // Home page differs by role (doctor → dashboard, secretary → agenda).
+  const homePath = isRealSecretary ? "/agenda" : "/";
+  const showBack = pathname !== homePath;
+
+  // Restore the desktop sidebar's scroll position across page navigations
+  // (the Layout — and thus the sidebar — remounts on every route change).
+  useLayoutEffect(() => {
+    const nav = document.querySelector(".sidebar:not(.sidebar-drawer) .sidebar-nav") as HTMLElement | null;
+    if (!nav) return;
+    nav.scrollTop = lastNavScroll;
+    const onScroll = () => { lastNavScroll = nav.scrollTop; };
+    nav.addEventListener("scroll", onScroll, { passive: true });
+    // Save the live scroll position when this Layout unmounts (i.e. just before
+    // the next page's Layout mounts) so the restore above is never stale.
+    return () => {
+      lastNavScroll = nav.scrollTop;
+      nav.removeEventListener("scroll", onScroll);
+    };
+  }, []);
 
   const [searchOpen,    setSearchOpen]    = useState(false);
   const [drawerOpen,    setDrawerOpen]    = useState(false);
@@ -270,7 +342,11 @@ export function Layout({ title, subtitle, actions, children }: Props) {
   const [pinOpen,       setPinOpen]       = useState(false);
   const { dark, toggle: toggleDark } = useDarkMode();
 
-  const handleLogout = () => { logout(); navigate("/login"); };
+  const handleLogout = () => {
+    if (isRealSecretary) endSecretarySession();
+    else logout();
+    navigate("/login");
+  };
   const closeDrawer  = () => setDrawerOpen(false);
 
   // ── Global shortcuts ──────────────────────────────────────────────────────
@@ -404,49 +480,65 @@ export function Layout({ title, subtitle, actions, children }: Props) {
   }, [appointments, stockItems, today]);
 
   // ── Nav items ─────────────────────────────────────────────────────────────
+  // Owner-only analytics link. Backend enforces the real gate; this just hides
+  // the link for everyone else.
+  const ADMIN_EMAILS = ["derkhamza@gmail.com"];
+  const isAdmin = !isSecretary && !!user && ADMIN_EMAILS.includes(user.email.toLowerCase());
   const allNavItems = [
     // ── Quotidien — daily workflow ─────────────────────────────────────────
-    { to: "/",              label: "Tableau de bord",   icon: "dashboard",    group: "Quotidien" },
-    { to: "/agenda",        label: "Agenda",            icon: "agenda",       group: "Quotidien" },
-    { to: "/salle-attente", label: "Salle d'attente",   icon: "waiting",      group: "Quotidien" },
-    { to: "/patients",      label: "Patients",          icon: "patients",     group: "Quotidien" },
+    { to: "/",              label: t("nav.dashboard"),    icon: "dashboard",    group: "Quotidien" },
+    { to: "/agenda",        label: t("nav.agenda"),       icon: "agenda",       group: "Quotidien" },
+    { to: "/salle-attente", label: t("nav.waiting"),      icon: "waiting",      group: "Quotidien" },
+    { to: "/patients",      label: t("nav.patients"),     icon: "patients",     group: "Quotidien" },
     // ── Clinique — clinical tools ──────────────────────────────────────────
-    { to: "/documents",     label: "Documents",         icon: "ordonnances",  group: "Clinique" },
-    { to: "/examens",       label: "Examens & Bio",     icon: "examens",      group: "Clinique" },
-    { to: "/communication", label: "Communication",     icon: "messages",     group: "Clinique" },
-    { to: "/rappels",       label: "Rappels",           icon: "rappels",      group: "Clinique" },
-    { to: "/calculateurs",  label: "Calculateurs",      icon: "calculateurs", group: "Clinique" },
+    { to: "/documents",     label: t("nav.documents"),    icon: "ordonnances",  group: "Clinique" },
+    { to: "/examens",       label: t("nav.exams"),        icon: "examens",      group: "Clinique" },
+    { to: "/communication", label: t("nav.communication"),icon: "messages",     group: "Clinique" },
+    { to: "/calculateurs",  label: t("nav.calculators"),  icon: "calculateurs", group: "Clinique" },
     // ── Gestion — practice management ─────────────────────────────────────
-    { to: "/notes",         label: "Notes & Tâches",    icon: "notes",        group: "Gestion" },
-    { to: "/stocks",        label: "Stocks",            icon: "stocks",       group: "Gestion" },
-    { to: "/analytiques",   label: "Analytiques",       icon: "analytiques",  group: "Gestion" },
+    { to: "/notes",         label: t("nav.notes"),        icon: "notes",        group: "Gestion" },
+    { to: "/stocks",        label: t("nav.stocks"),       icon: "stocks",       group: "Gestion" },
     // ── Finances — secondary ───────────────────────────────────────────────
-    { to: "/facturation",   label: "Facturation",       icon: "factures",     group: "Finances" },
-    { to: "/transactions",  label: "Transactions",      icon: "transactions", group: "Finances" },
-    { to: "/rapports",      label: "Rapports",          icon: "report",       group: "Finances" },
-    { to: "/comptabilite",  label: "Comptabilité",      icon: "comptabilite", group: "Finances" },
-    { to: "/salaires",      label: "Salaires",          icon: "payroll",      group: "Finances" },
+    { to: "/facturation",   label: t("nav.billing"),      icon: "factures",     group: "Finances" },
+    { to: "/rapports",      label: t("nav.reports"),      icon: "report",       group: "Finances" },
+    { to: "/comptabilite",  label: t("nav.accounting"),   icon: "comptabilite", group: "Finances" },
+    { to: "/salaires",      label: t("nav.payroll"),      icon: "payroll",      group: "Finances" },
     // ── Paramètres ────────────────────────────────────────────────────────
-    { to: "/parametres",    label: "Paramètres",        icon: "parametres",   group: "Paramètres" },
+    { to: "/parametres",    label: t("nav.settings"),     icon: "parametres",   group: "Paramètres" },
+    ...(isAdmin ? [{ to: "/admin", label: t("nav.admin"), icon: "analytiques", group: "Paramètres" }] : []),
   ];
 
-  // Secretary mode: only show Quotidien group
-  const navItems = secretaryMode
-    ? allNavItems.filter(i => i.group === "Quotidien")
-    : allNavItems;
+  // Secretary access: the Quotidien group by default, plus whatever extra areas
+  // the doctor has granted via secretaryPermissions. A real (separate-login)
+  // secretary also can't reach the dashboard ("/"), so drop it for them.
+  const secPerms = doctorProfile.secretaryPermissions ?? DEFAULT_SECRETARY_PERMISSIONS;
+  const secretaryCanSee = (to: string, group: string): boolean => {
+    if (group === "Quotidien" && to !== "/") return true;
+    if (to === "/documents" || to === "/examens") return !!secPerms.viewClinical;
+    if (to === "/facturation") return !!secPerms.handleBilling;
+    if (to === "/transactions" || to === "/comptabilite"
+        || to === "/rapports" || to === "/analytiques") return !!secPerms.viewFinances;
+    if (to === "/salaires") return !!secPerms.managePayroll;
+    return false;
+  };
+  const navItems = isRealSecretary
+    ? allNavItems.filter(i => secretaryCanSee(i.to, i.group))
+    : secretaryMode
+      ? allNavItems.filter(i => i.group === "Quotidien")
+      : allNavItems;
 
   // ── Shared sidebar content ────────────────────────────────────────────────
   const sidebarContent = (
     <>
       {/* Logo */}
       <div className="sidebar-logo">
-        <img src="/icon.png" width="32" height="32" alt="Blackpine" style={{ borderRadius: 8, display: "block", flexShrink: 0 }} />
+        <BlackpineLogo size={32} radius={8} />
         <div>
           <div className="sidebar-logo-text">Blackpine</div>
           <div className="sidebar-logo-sub">Cabinet</div>
         </div>
         {/* Mobile close button */}
-        <button className="sidebar-close-btn" onClick={closeDrawer} aria-label="Fermer le menu">
+        <button className="sidebar-close-btn" onClick={closeDrawer} aria-label={t("sidebar.closeMenu")}>
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
             <path d="M4 4l8 8M12 4L4 12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
           </svg>
@@ -459,7 +551,7 @@ export function Layout({ title, subtitle, actions, children }: Props) {
           <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.4"/>
           <path d="M9.5 9.5l3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
         </svg>
-        <span>Rechercher…</span>
+        <span>{t("sidebar.search")}</span>
         <kbd className="sidebar-search-kbd">⌘K</kbd>
       </button>
 
@@ -467,9 +559,14 @@ export function Layout({ title, subtitle, actions, children }: Props) {
       <div className="sidebar-nav">
         {(["Quotidien", "Clinique", "Gestion", "Finances", "Paramètres"] as const).map(group => {
           const items = navItems.filter(n => n.group === group);
+          const groupLabel = group === "Quotidien" ? t("navGroup.daily")
+            : group === "Clinique"   ? t("navGroup.clinical")
+            : group === "Gestion"    ? t("navGroup.management")
+            : group === "Finances"   ? t("navGroup.finances")
+            : t("navGroup.settings");
           return (
             <div key={group}>
-              <div className="sidebar-section-label">{group}</div>
+              <div className="sidebar-section-label">{groupLabel}</div>
               {items.map(({ to, label, icon }) => (
                 <NavLink
                   key={to}
@@ -490,6 +587,7 @@ export function Layout({ title, subtitle, actions, children }: Props) {
 
       {/* Footer */}
       <div className="sidebar-footer">
+        <LangSwitcher />
         <SyncPill />
         {user && (
           <div className="sidebar-user">
@@ -498,7 +596,7 @@ export function Layout({ title, subtitle, actions, children }: Props) {
             <button
               className="sidebar-dark-btn"
               onClick={() => setShortcutsOpen(true)}
-              title="Raccourcis clavier (?)"
+              title={t("sidebar.shortcuts")}
               style={{ marginRight: 2 }}
             >
               <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
@@ -510,7 +608,7 @@ export function Layout({ title, subtitle, actions, children }: Props) {
             <button
               className="sidebar-dark-btn"
               onClick={toggleDark}
-              title={dark ? "Mode clair" : "Mode sombre"}
+              title={dark ? t("common.lightMode") : t("common.darkMode")}
             >
               {dark
                 ? <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
@@ -526,35 +624,36 @@ export function Layout({ title, subtitle, actions, children }: Props) {
             </button>
           </div>
         )}
-        {/* ── Secretary mode controls ── */}
-        {secretaryMode ? (
-          <button
-            className="sidebar-secretary-exit"
-            onClick={() => {
-              if (doctorProfile.secretaryPin) {
-                setPinOpen(true);
-              } else {
-                setSecretaryMode(false);
-              }
-            }}
-          >
-            🔐 Revenir en mode médecin
-          </button>
-        ) : (
-          doctorProfile.secretaryPin && (
+        {/* ── Local secretary mode controls (doctor's own login only) ── */}
+        {!isRealSecretary && (
+          secretaryMode ? (
             <button
-              className="sidebar-secretary-enter"
-              onClick={() => { setSecretaryMode(true); closeDrawer(); }}
-              title="Passer en mode accès secrétaire (navigation réduite)"
+              className="sidebar-secretary-exit"
+              onClick={() => {
+                if (doctorProfile.secretaryPin) {
+                  setPinOpen(true);
+                } else {
+                  setSecretaryMode(false);
+                }
+              }}
             >
-              👤 Mode secrétaire
+              {t("sidebar.secretaryExit")}
             </button>
+          ) : (
+            doctorProfile.secretaryPin && (
+              <button
+                className="sidebar-secretary-enter"
+                onClick={() => { setSecretaryMode(true); closeDrawer(); }}
+              >
+                {t("sidebar.secretaryEnter")}
+              </button>
+            )
           )
         )}
-        {!secretaryMode && (
+        {(isRealSecretary || !secretaryMode) && (
           <button className="sidebar-logout" onClick={handleLogout}>
             <Icon name="logout" />
-            Déconnexion
+            {isRealSecretary ? t("sidebar.secretaryLogout") : t("sidebar.logout")}
           </button>
         )}
       </div>
@@ -592,7 +691,7 @@ export function Layout({ title, subtitle, actions, children }: Props) {
           <button
             className="hamburger-btn"
             onClick={() => setDrawerOpen(o => !o)}
-            aria-label={drawerOpen ? "Fermer le menu" : "Ouvrir le menu"}
+            aria-label={drawerOpen ? t("sidebar.closeMenu") : t("sidebar.openMenu")}
             aria-expanded={drawerOpen}
           >
             <HamburgerIcon open={drawerOpen} />
@@ -601,16 +700,39 @@ export function Layout({ title, subtitle, actions, children }: Props) {
             )}
           </button>
 
+          {/* Back / previous page */}
+          {showBack && (
+            <button
+              className="page-back-btn"
+              onClick={() => navigate(-1)}
+              title={t("common.back")}
+              aria-label={t("common.back")}
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+          )}
+
           <div style={{ flex: 1, minWidth: 0 }}>
             <div className="page-title">{title}</div>
             {subtitle && <div className="page-sub">{subtitle}</div>}
           </div>
           {actions && <div style={{ display: "flex", gap: 10, flexShrink: 0 }}>{actions}</div>}
         </div>
-        {/* Secretary mode banner */}
-        {secretaryMode && (
+        {/* Real secretary session banner (separate login) */}
+        {isRealSecretary && (
           <div className="secretary-banner">
-            <span>👤 Mode secrétaire — accès restreint</span>
+            <span>{t("sidebar.secretarySessionBanner", { name: secretaryOwnerName ?? "" })}</span>
+            <button className="secretary-banner-btn" onClick={handleLogout}>
+              {t("sidebar.secretaryLogout")}
+            </button>
+          </div>
+        )}
+        {/* Local secretary mode banner (doctor's own login) */}
+        {!isRealSecretary && secretaryMode && (
+          <div className="secretary-banner">
+            <span>{t("sidebar.secretaryBanner")}</span>
             <button
               className="secretary-banner-btn"
               onClick={() => {
@@ -618,11 +740,11 @@ export function Layout({ title, subtitle, actions, children }: Props) {
                 else setSecretaryMode(false);
               }}
             >
-              Revenir en mode médecin
+              {t("sidebar.returnDoctor")}
             </button>
           </div>
         )}
-        <div className="page-body">{children}</div>
+        <div className="page-body" key={pathname}>{children}</div>
       </main>
 
       {/* ── Command Palette ── */}

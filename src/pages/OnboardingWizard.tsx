@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useCabinet } from "../context/CabinetContext";
 import { SPECIALTIES } from "../lib/cabinetTypes";
 
@@ -40,6 +41,7 @@ function Avatar({ name }: { name: string }) {
 // ── Main wizard ───────────────────────────────────────────────────────────────
 
 export function OnboardingWizard({ onDone }: { onDone: () => void }) {
+  const { t } = useTranslation();
   const { setDoctorProfile } = useCabinet();
 
   const [step, setStep] = useState<Step>(0);
@@ -85,26 +87,23 @@ export function OnboardingWizard({ onDone }: { onDone: () => void }) {
   }
 
   return (
-    <div className="ob-overlay" role="dialog" aria-modal="true" aria-label="Configuration du cabinet">
+    <div className="ob-overlay" role="dialog" aria-modal="true" aria-label={t("onboarding.ariaLabel")}>
       <div className="ob-card">
 
         {/* Skip link — only on steps 0-2 */}
         {step < 3 && (
-          <button className="ob-skip" onClick={dismiss}>Passer</button>
+          <button className="ob-skip" onClick={dismiss}>{t("onboarding.skip")}</button>
         )}
 
         {/* ── Step 0: Welcome ── */}
         {step === 0 && (
           <div className="ob-body ob-center">
             <div className="ob-icon-hero">🏥</div>
-            <h1 className="ob-title">Bienvenue sur Blackpine</h1>
-            <p className="ob-sub">
-              Configurons votre cabinet médical en&nbsp;2&nbsp;minutes pour personnaliser
-              vos ordonnances, certificats et dossiers patients.
-            </p>
+            <h1 className="ob-title">{t("onboarding.step0Title")}</h1>
+            <p className="ob-sub">{t("onboarding.step0Sub")}</p>
             <StepDots step={0} />
             <button className="btn btn-primary ob-btn-main" onClick={next}>
-              Configurer mon cabinet →
+              {t("onboarding.step0Btn")}
             </button>
           </div>
         )}
@@ -113,30 +112,30 @@ export function OnboardingWizard({ onDone }: { onDone: () => void }) {
         {step === 1 && (
           <div className="ob-body">
             <StepDots step={1} />
-            <h2 className="ob-title">Votre profil médecin</h2>
-            <p className="ob-sub">Ces informations apparaîtront sur vos documents.</p>
+            <h2 className="ob-title">{t("onboarding.step1Title")}</h2>
+            <p className="ob-sub">{t("onboarding.step1Sub")}</p>
 
             <div className="ob-form">
               <label className="ob-label">
-                Nom complet <span className="ob-required">*</span>
+                {t("onboarding.fullNameLabel")} <span className="ob-required">*</span>
                 <input
                   className={"ob-input" + (nameErr ? " ob-input-err" : "")}
-                  placeholder="Dr. Nom Prénom"
+                  placeholder={t("onboarding.fullNamePlaceholder")}
                   value={fullName}
                   onChange={e => { setFullName(e.target.value); setNameErr(false); }}
                   autoFocus
                 />
-                {nameErr && <span className="ob-err">Ce champ est requis</span>}
+                {nameErr && <span className="ob-err">{t("onboarding.fullNameRequired")}</span>}
               </label>
 
               <label className="ob-label">
-                Spécialité
+                {t("onboarding.specialtyLabel")}
                 <select
                   className="ob-input ob-select"
                   value={specialtyLabel}
                   onChange={e => setSpecialtyLabel(e.target.value)}
                 >
-                  <option value="">— Choisir —</option>
+                  <option value="">{t("onboarding.specialtyDefault")}</option>
                   {SPECIALTIES.map(s => (
                     <option key={s.id} value={s.label}>{s.label}</option>
                   ))}
@@ -144,10 +143,10 @@ export function OnboardingWizard({ onDone }: { onDone: () => void }) {
               </label>
 
               <label className="ob-label">
-                N° INPE
+                {t("onboarding.inpeLabel")}
                 <input
                   className="ob-input"
-                  placeholder="Facultatif"
+                  placeholder={t("onboarding.inpePlaceholder")}
                   value={inpe}
                   onChange={e => setInpe(e.target.value)}
                 />
@@ -155,8 +154,8 @@ export function OnboardingWizard({ onDone }: { onDone: () => void }) {
             </div>
 
             <div className="ob-footer">
-              <button className="btn btn-ghost ob-btn-back" onClick={back}>← Retour</button>
-              <button className="btn btn-primary ob-btn-main" onClick={next}>Continuer →</button>
+              <button className="btn btn-ghost ob-btn-back" onClick={back}>{t("onboarding.back")}</button>
+              <button className="btn btn-primary ob-btn-main" onClick={next}>{t("onboarding.next")}</button>
             </div>
           </div>
         )}
@@ -165,15 +164,15 @@ export function OnboardingWizard({ onDone }: { onDone: () => void }) {
         {step === 2 && (
           <div className="ob-body">
             <StepDots step={2} />
-            <h2 className="ob-title">Votre cabinet</h2>
-            <p className="ob-sub">Coordonnées affichées sur vos documents imprimés.</p>
+            <h2 className="ob-title">{t("onboarding.step2Title")}</h2>
+            <p className="ob-sub">{t("onboarding.step2Sub")}</p>
 
             <div className="ob-form">
               <label className="ob-label">
-                Adresse du cabinet
+                {t("onboarding.addressLabel")}
                 <input
                   className="ob-input"
-                  placeholder="123 Rue des Hôpitaux, Casablanca"
+                  placeholder={t("onboarding.addressPlaceholder")}
                   value={address}
                   onChange={e => setAddress(e.target.value)}
                   autoFocus
@@ -181,10 +180,10 @@ export function OnboardingWizard({ onDone }: { onDone: () => void }) {
               </label>
 
               <label className="ob-label">
-                Téléphone
+                {t("onboarding.phoneLabel")}
                 <input
                   className="ob-input"
-                  placeholder="+212 6XX XXX XXX"
+                  placeholder={t("onboarding.phonePlaceholder")}
                   value={phone}
                   onChange={e => setPhone(e.target.value)}
                 />
@@ -192,8 +191,8 @@ export function OnboardingWizard({ onDone }: { onDone: () => void }) {
             </div>
 
             <div className="ob-footer">
-              <button className="btn btn-ghost ob-btn-back" onClick={back}>← Retour</button>
-              <button className="btn btn-primary ob-btn-main" onClick={next}>Continuer →</button>
+              <button className="btn btn-ghost ob-btn-back" onClick={back}>{t("onboarding.back")}</button>
+              <button className="btn btn-primary ob-btn-main" onClick={next}>{t("onboarding.next")}</button>
             </div>
           </div>
         )}
@@ -202,21 +201,21 @@ export function OnboardingWizard({ onDone }: { onDone: () => void }) {
         {step === 3 && (
           <div className="ob-body ob-center">
             <Avatar name={fullName} />
-            <h2 className="ob-title ob-title-green">Tout est prêt !</h2>
+            <h2 className="ob-title ob-title-green">{t("onboarding.step3Title")}</h2>
             <p className="ob-sub">
               <strong>{fullName}</strong>
               {specialtyLabel ? ` · ${specialtyLabel}` : ""}
               {address ? <><br /><span className="ob-muted">{address}</span></> : null}
             </p>
             <div className="ob-check-list">
-              <div className="ob-check-item">✅ Profil médecin configuré</div>
-              <div className="ob-check-item">✅ Ordonnances &amp; certificats personnalisés</div>
-              <div className="ob-check-item">✅ Dossiers patients prêts</div>
+              <div className="ob-check-item">{t("onboarding.check1")}</div>
+              <div className="ob-check-item">{t("onboarding.check2")}</div>
+              <div className="ob-check-item">{t("onboarding.check3")}</div>
             </div>
             <button className="btn btn-primary ob-btn-main ob-btn-big" onClick={finish}>
-              Commencer →
+              {t("onboarding.finish")}
             </button>
-            <button className="ob-skip-inline" onClick={back}>← Modifier</button>
+            <button className="ob-skip-inline" onClick={back}>{t("onboarding.modify")}</button>
           </div>
         )}
 

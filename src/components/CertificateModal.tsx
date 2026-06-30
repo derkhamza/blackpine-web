@@ -1,16 +1,10 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { Appointment, SavedCertificate, CertificateType, CabinetDoctorProfile } from "../lib/cabinetTypes";
 import { printCertificatMedical, printArretTravail, printOrientation, printAptitude, printPresence } from "../lib/certificatePrinter";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const TYPE_LABELS: Record<CertificateType, string> = {
-  medical:       "Certificat médical",
-  arret_travail: "Arrêt de travail",
-  orientation:   "Lettre d'orientation",
-  aptitude:      "Aptitude",
-  presence:      "Présence",
-};
 const TYPE_ICONS: Record<CertificateType, string> = {
   medical:       "📋",
   arret_travail: "🏥",
@@ -60,6 +54,20 @@ interface Props {
 // ── Modal ─────────────────────────────────────────────────────────────────────
 
 export function CertificateModal({ appt, patientName, doctorProfile, onSave, onClose }: Props) {
+  const { t, i18n } = useTranslation();
+
+  const locale =
+    i18n.language?.slice(0, 2) === "ar" ? "ar-MA" :
+    i18n.language?.slice(0, 2) === "en" ? "en-US" : "fr-FR";
+
+  const TYPE_LABELS: Record<CertificateType, string> = {
+    medical:       t("certType.medical"),
+    arret_travail: t("certType.arret_travail"),
+    orientation:   t("certType.orientation"),
+    aptitude:      t("certType.aptitude"),
+    presence:      t("certType.presence"),
+  };
+
   const [certType, setCertType] = useState<CertificateType>("medical");
 
   // ── Certificat médical fields ─────────────────────────────────────────────
@@ -158,21 +166,21 @@ export function CertificateModal({ appt, patientName, doctorProfile, onSave, onC
     <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modal cert-modal">
         <div className="modal-header">
-          <h2 className="modal-title">📄 Certificats & Attestations</h2>
+          <h2 className="modal-title">{t("certModal.title")}</h2>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
 
         <div className="modal-body">
           {/* ── Type picker ── */}
           <div className="cert-type-picker">
-            {(["medical", "arret_travail", "orientation", "aptitude", "presence"] as CertificateType[]).map(t => (
+            {(["medical", "arret_travail", "orientation", "aptitude", "presence"] as CertificateType[]).map(ct => (
               <button
-                key={t}
-                className={`cert-type-btn${certType === t ? " active" : ""}`}
-                onClick={() => setCertType(t)}
+                key={ct}
+                className={`cert-type-btn${certType === ct ? " active" : ""}`}
+                onClick={() => setCertType(ct)}
               >
-                <span className="cert-type-icon">{TYPE_ICONS[t]}</span>
-                <span className="cert-type-label">{TYPE_LABELS[t]}</span>
+                <span className="cert-type-icon">{TYPE_ICONS[ct]}</span>
+                <span className="cert-type-label">{TYPE_LABELS[ct]}</span>
               </button>
             ))}
           </div>
@@ -182,20 +190,20 @@ export function CertificateModal({ appt, patientName, doctorProfile, onSave, onC
             <div className="cert-form">
               <div className="form-group">
                 <label className="form-label">
-                  Observation / motif du certificat
-                  <span className="cert-optional"> (facultatif)</span>
+                  {t("certModal.medLabel")}
+                  <span className="cert-optional"> {t("common.optional")}</span>
                 </label>
                 <textarea
                   className="form-input cert-textarea"
                   rows={5}
-                  placeholder="Ex : apte à la pratique sportive, absence de contre-indication à la reprise du travail, nécessite un régime alimentaire adapté…"
+                  placeholder={t("certModal.medPlaceholder")}
                   value={medContent}
                   onChange={(e) => setMedContent(e.target.value)}
                   autoFocus
                 />
               </div>
               <div className="cert-preview-hint">
-                Inclura automatiquement : nom du patient · date de consultation · signature du médecin
+                {t("certModal.medHint")}
               </div>
             </div>
           )}
@@ -205,7 +213,7 @@ export function CertificateModal({ appt, patientName, doctorProfile, onSave, onC
             <div className="cert-form">
               <div className="cert-at-row">
                 <div className="form-group" style={{ flex: 1 }}>
-                  <label className="form-label">Du</label>
+                  <label className="form-label">{t("certificats.arretFrom")}</label>
                   <input
                     className="form-input"
                     type="date"
@@ -215,7 +223,7 @@ export function CertificateModal({ appt, patientName, doctorProfile, onSave, onC
                 </div>
                 <div className="cert-at-arrow">→</div>
                 <div className="form-group" style={{ flex: 1 }}>
-                  <label className="form-label">Au (inclus)</label>
+                  <label className="form-label">{t("certModal.arretToLabel")}</label>
                   <input
                     className="form-input"
                     type="date"
@@ -224,18 +232,18 @@ export function CertificateModal({ appt, patientName, doctorProfile, onSave, onC
                   />
                 </div>
                 {atDays > 0 && (
-                  <div className="cert-at-days">{atDays} j.</div>
+                  <div className="cert-at-days">{t("certModal.days", { n: atDays })}</div>
                 )}
               </div>
               <div className="form-group">
                 <label className="form-label">
-                  Diagnostic / raison
-                  <span className="cert-optional"> (facultatif — omis si vide)</span>
+                  {t("certModal.arretDiagLabel")}
+                  <span className="cert-optional"> {t("certModal.arretOptional")}</span>
                 </label>
                 <input
                   className="form-input"
                   type="text"
-                  placeholder="Ex : syndrome grippal, lombalgie aiguë…"
+                  placeholder={t("certModal.arretDiagPlaceholder")}
                   value={atDiag}
                   onChange={(e) => setAtDiag(e.target.value)}
                   autoFocus
@@ -249,36 +257,36 @@ export function CertificateModal({ appt, patientName, doctorProfile, onSave, onC
             <div className="cert-form">
               <div className="form-group">
                 <label className="form-label">
-                  Adressé à <span className="cert-required">*</span>
+                  {t("certModal.oriAddressedTo")} <span className="cert-required">*</span>
                 </label>
                 <input
                   className="form-input"
                   type="text"
-                  placeholder="Ex : Dr. Hassan Benali — Cardiologue, Service de Cardiologie CHU Ibn Sina"
+                  placeholder={t("certModal.oriAddressedPlaceholder")}
                   value={oriSpecialist}
                   onChange={(e) => setOriSpecialist(e.target.value)}
                   autoFocus
                 />
               </div>
               <div className="form-group">
-                <label className="form-label">Motif d'orientation</label>
+                <label className="form-label">{t("certificats.reasonLabel")}</label>
                 <input
                   className="form-input"
                   type="text"
-                  placeholder="Ex : bilan cardiologique, douleurs thoraciques d'effort récurrentes…"
+                  placeholder={t("certificats.reasonPlaceholder")}
                   value={oriReason}
                   onChange={(e) => setOriReason(e.target.value)}
                 />
               </div>
               <div className="form-group">
                 <label className="form-label">
-                  Résumé clinique
-                  <span className="cert-optional"> (facultatif)</span>
+                  {t("certificats.summaryLabel")}
+                  <span className="cert-optional"> {t("common.optional")}</span>
                 </label>
                 <textarea
                   className="form-input cert-textarea"
                   rows={3}
-                  placeholder="Antécédents pertinents, examens réalisés, résultats biologiques…"
+                  placeholder={t("certificats.summaryPlaceholder")}
                   value={oriClinical}
                   onChange={(e) => setOriClinical(e.target.value)}
                 />
@@ -291,20 +299,22 @@ export function CertificateModal({ appt, patientName, doctorProfile, onSave, onC
             <div className="cert-form">
               <div className="form-group">
                 <label className="form-label">
-                  Objet / finalité
-                  <span className="cert-optional"> (facultatif)</span>
+                  {t("certModal.aptPurposeLabel")}
+                  <span className="cert-optional"> {t("common.optional")}</span>
                 </label>
                 <input
                   className="form-input"
                   type="text"
-                  placeholder="Ex : apte à la pratique sportive, absence de contre-indication au travail…"
+                  placeholder={t("certModal.aptPurposePlaceholder")}
                   value={aptPurpose}
                   onChange={(e) => setAptPurpose(e.target.value)}
                   autoFocus
                 />
               </div>
               <div className="cert-preview-hint">
-                Certifie que le patient est apte à… selon examen du {new Date(appt.date + "T12:00:00").toLocaleDateString("fr-FR")}.
+                {t("certModal.aptHint", {
+                  date: new Date(appt.date + "T12:00:00").toLocaleDateString(locale),
+                })}
               </div>
             </div>
           )}
@@ -314,7 +324,7 @@ export function CertificateModal({ appt, patientName, doctorProfile, onSave, onC
             <div className="cert-form">
               <div className="cert-at-row">
                 <div className="form-group" style={{ flex: 1 }}>
-                  <label className="form-label">Du</label>
+                  <label className="form-label">{t("certificats.arretFrom")}</label>
                   <input
                     className="form-input"
                     type="date"
@@ -325,7 +335,7 @@ export function CertificateModal({ appt, patientName, doctorProfile, onSave, onC
                 </div>
                 <div className="cert-at-arrow">→</div>
                 <div className="form-group" style={{ flex: 1 }}>
-                  <label className="form-label">Au</label>
+                  <label className="form-label">{t("certificats.arretTo")}</label>
                   <input
                     className="form-input"
                     type="date"
@@ -336,13 +346,13 @@ export function CertificateModal({ appt, patientName, doctorProfile, onSave, onC
               </div>
               <div className="form-group">
                 <label className="form-label">
-                  Observations
-                  <span className="cert-optional"> (facultatif)</span>
+                  {t("certModal.presObsLabel")}
+                  <span className="cert-optional"> {t("common.optional")}</span>
                 </label>
                 <input
                   className="form-input"
                   type="text"
-                  placeholder="Ex : présent pour soins, hospitalisation…"
+                  placeholder={t("certModal.presObsPlaceholder")}
                   value={presNotes}
                   onChange={(e) => setPresNotes(e.target.value)}
                 />
@@ -354,26 +364,26 @@ export function CertificateModal({ appt, patientName, doctorProfile, onSave, onC
           {history.length > 0 && (
             <div className="cert-history">
               <div className="cert-history-title">
-                Certificats déjà émis pour ce rendez-vous
+                {t("certModal.historyTitle")}
               </div>
               {[...history].reverse().map(c => (
                 <div key={c.id} className="cert-history-row">
                   <span className="cert-history-icon">{TYPE_ICONS[c.type]}</span>
                   <span className="cert-history-type">{TYPE_LABELS[c.type]}</span>
                   {c.type === "arret_travail" && c.duration && (
-                    <span className="cert-history-meta">{c.duration} j.</span>
+                    <span className="cert-history-meta">{t("certModal.days", { n: c.duration })}</span>
                   )}
                   {c.type === "orientation" && c.specialist && (
                     <span className="cert-history-meta">{c.specialist}</span>
                   )}
                   <span className="cert-history-date">
-                    {new Date(c.issuedAt).toLocaleDateString("fr-FR")}
+                    {new Date(c.issuedAt).toLocaleDateString(locale)}
                   </span>
                   <button
                     className="cert-reprint-btn"
                     onClick={() => reprintCert(c, patientName, appt.date, doctorProfile)}
                   >
-                    Réimprimer
+                    {t("certModal.reprint")}
                   </button>
                 </div>
               ))}
@@ -382,12 +392,12 @@ export function CertificateModal({ appt, patientName, doctorProfile, onSave, onC
         </div>
 
         <div className="modal-footer">
-          <button className="btn btn-ghost" onClick={onClose}>Annuler</button>
+          <button className="btn btn-ghost" onClick={onClose}>{t("common.cancel")}</button>
           <button className="btn btn-ghost" onClick={handleSaveOnly} disabled={!canSubmit}>
-            Enregistrer sans imprimer
+            {t("certModal.saveOnly")}
           </button>
           <button className="btn btn-primary" onClick={handlePrintSave} disabled={!canSubmit}>
-            📄 Imprimer & Enregistrer
+            📄 {t("certModal.printSave")}
           </button>
         </div>
       </div>

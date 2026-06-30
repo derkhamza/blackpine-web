@@ -1,44 +1,6 @@
+import { useTranslation } from "react-i18next";
+
 // ── Keyboard shortcuts help overlay ──────────────────────────────────────────
-
-interface Shortcut {
-  keys:        string[];
-  description: string;
-}
-
-interface Group {
-  title:     string;
-  shortcuts: Shortcut[];
-}
-
-const GROUPS: Group[] = [
-  {
-    title: "Navigation (appuyez G, puis la lettre)",
-    shortcuts: [
-      { keys: ["G", "D"], description: "Tableau de bord" },
-      { keys: ["G", "A"], description: "Agenda" },
-      { keys: ["G", "P"], description: "Patients" },
-      { keys: ["G", "W"], description: "Salle d'attente" },
-      { keys: ["G", "R"], description: "Rappels & Suivis" },
-      { keys: ["G", "F"], description: "Factures" },
-      { keys: ["G", "S"], description: "Stocks" },
-      { keys: ["G", "M"], description: "Messages WhatsApp" },
-      { keys: ["G", "T"], description: "Téléconsultation" },
-      { keys: ["G", "N"], description: "Notes & Tâches" },
-      { keys: ["G", "V"], description: "Fournisseurs & Commandes" },
-      { keys: ["G", "E"], description: "Examens & Biologie" },
-      { keys: ["G", "O"], description: "Ordonnances & Modèles" },
-      { keys: ["G", "C"], description: "Certificats médicaux" },
-    ],
-  },
-  {
-    title: "Recherche & Interface",
-    shortcuts: [
-      { keys: ["Ctrl", "K"], description: "Palette de commandes (recherche globale)" },
-      { keys: ["?"],          description: "Afficher / masquer ce panneau" },
-      { keys: ["Échap"],      description: "Fermer le panneau ouvert" },
-    ],
-  },
-];
 
 function Key({ label }: { label: string }) {
   return <kbd className="shortcut-key">{label}</kbd>;
@@ -47,11 +9,43 @@ function Key({ label }: { label: string }) {
 interface Props { onClose: () => void; }
 
 export function ShortcutsModal({ onClose }: Props) {
+  const { t } = useTranslation();
+
+  const GROUPS = [
+    {
+      title: t("shortcuts.navGroupTitle"),
+      shortcuts: [
+        { keys: ["G", "D"], description: t("shortcuts.navDashboard") },
+        { keys: ["G", "A"], description: t("shortcuts.navAgenda") },
+        { keys: ["G", "P"], description: t("shortcuts.navPatients") },
+        { keys: ["G", "W"], description: t("shortcuts.navWaiting") },
+        { keys: ["G", "R"], description: t("shortcuts.navFollowups") },
+        { keys: ["G", "F"], description: t("shortcuts.navFactures") },
+        { keys: ["G", "S"], description: t("shortcuts.navStock") },
+        { keys: ["G", "M"], description: t("shortcuts.navMessages") },
+        { keys: ["G", "T"], description: t("shortcuts.navTeleconsult") },
+        { keys: ["G", "N"], description: t("shortcuts.navNotes") },
+        { keys: ["G", "V"], description: t("shortcuts.navFournisseurs") },
+        { keys: ["G", "E"], description: t("shortcuts.navExamens") },
+        { keys: ["G", "O"], description: t("shortcuts.navOrdonnances") },
+        { keys: ["G", "C"], description: t("shortcuts.navCertificats") },
+      ],
+    },
+    {
+      title: t("shortcuts.uiGroupTitle"),
+      shortcuts: [
+        { keys: ["Ctrl", "K"], description: t("shortcuts.cmdPalette") },
+        { keys: ["?"],         description: t("shortcuts.showHide") },
+        { keys: ["Esc"],       description: t("shortcuts.closePanel") },
+      ],
+    },
+  ];
+
   return (
     <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="shortcuts-modal">
         <div className="shortcuts-header">
-          <div className="shortcuts-title">Raccourcis clavier</div>
+          <div className="shortcuts-title">{t("shortcuts.title")}</div>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
 
@@ -66,7 +60,7 @@ export function ShortcutsModal({ onClose }: Props) {
                       <span key={k}>
                         <Key label={k} />
                         {i < keys.length - 1 && (
-                          <span className="shortcut-then">puis</span>
+                          <span className="shortcut-then">{t("shortcuts.then")}</span>
                         )}
                       </span>
                     ))}
@@ -79,7 +73,10 @@ export function ShortcutsModal({ onClose }: Props) {
         </div>
 
         <div className="shortcuts-footer">
-          Appuyez sur <Key label="?" /> n'importe quand pour afficher ce panneau
+          {(() => {
+            const parts = t("shortcuts.footer", { key: "§§§" }).split("§§§");
+            return <>{parts[0]}<Key label="?" />{parts[1]}</>;
+          })()}
         </div>
       </div>
     </div>

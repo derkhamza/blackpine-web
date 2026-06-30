@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useRegisterSW } from "virtual:pwa-register/react";
 
 // ── Offline banner ─────────────────────────────────────────────────────────────
 
 export function OfflineBanner() {
+  const { t } = useTranslation();
   const [offline, setOffline] = useState(!navigator.onLine);
 
   useEffect(() => {
@@ -19,7 +21,7 @@ export function OfflineBanner() {
   return (
     <div className="pwa-offline-banner" role="status" aria-live="polite">
       <span className="pwa-offline-icon">📡</span>
-      <span>Mode hors-ligne — les données locales restent accessibles</span>
+      <span>{t("pwa.offline")}</span>
     </div>
   );
 }
@@ -27,6 +29,7 @@ export function OfflineBanner() {
 // ── SW update toast ────────────────────────────────────────────────────────────
 
 export function PWAUpdateToast() {
+  const { t } = useTranslation();
   const {
     needRefresh: [needRefresh],
     updateServiceWorker,
@@ -45,11 +48,11 @@ export function PWAUpdateToast() {
     <div className="pwa-update-toast" role="alert">
       <span className="pwa-update-icon">🔄</span>
       <div className="pwa-update-text">
-        <div className="pwa-update-title">Mise à jour disponible</div>
-        <div className="pwa-update-sub">Une nouvelle version de l'app est prête.</div>
+        <div className="pwa-update-title">{t("pwa.updateTitle")}</div>
+        <div className="pwa-update-sub">{t("pwa.updateSub")}</div>
       </div>
       <button className="pwa-update-btn" onClick={() => updateServiceWorker(true)}>
-        Mettre à jour
+        {t("pwa.updateBtn")}
       </button>
     </div>
   );

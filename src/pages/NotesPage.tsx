@@ -1,38 +1,42 @@
 import { FormEvent, useMemo, useState } from "react";
 import { Layout } from "../components/Layout";
+import { AnimatedNumber } from "../components/AnimatedNumber";
+import { useToast } from "../components/Toast";
 import { useCabinet } from "../context/CabinetContext";
 import { todayIso } from "../lib/format";
 import type { InternalNote, NoteColor } from "../lib/cabinetTypes";
 import { NOTE_COLOR_VALUES } from "../lib/cabinetTypes";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 const COLORS: NoteColor[] = ["yellow", "blue", "green", "pink"];
-const COLOR_LABELS: Record<NoteColor, string> = {
-  yellow: "Jaune", blue: "Bleu", green: "Vert", pink: "Rose",
-};
 
-function relativeDate(iso: string): string {
-  const d  = new Date(iso);
-  const now = new Date();
+function relativeDate(iso: string, t: TFunction, locale: string): string {
+  const d    = new Date(iso);
+  const now  = new Date();
   const diff = Math.floor((now.getTime() - d.getTime()) / 1000);
-  if (diff <   60) return "À l'instant";
-  if (diff < 3600) return `Il y a ${Math.floor(diff / 60)} min`;
-  if (diff < 86400) return `Il y a ${Math.floor(diff / 3600)} h`;
+  if (diff <   60) return t("common.justNow");
+  if (diff < 3600) return t("common.ago_min", { n: Math.floor(diff / 60) });
+  if (diff < 86400) return t("common.ago_h", { n: Math.floor(diff / 3600) });
   const days = Math.floor(diff / 86400);
-  if (days === 1) return "Hier";
-  if (days  <  7) return `Il y a ${days} jours`;
-  return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+  if (days === 1) return t("common.yesterday");
+  if (days  <  7) return t("common.ago_days", { n: days });
+  return d.toLocaleDateString(locale, { day: "numeric", month: "short" });
 }
 
-function dueDateLabel(due: string, isDone: boolean): { text: string; color: string } {
-  if (isDone) return { text: "Terminée", color: "var(--muted)" };
+function dueDateLabel(due: string, isDone: boolean, t: TFunction, locale: string): { text: string; color: string } {
+  if (isDone) return { text: t("notes.done"), color: "var(--muted)" };
   const today = todayIso();
-  if (due < today)  return { text: `En retard · ${new Date(due + "T12:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}`, color: "var(--coral)" };
-  if (due === today) return { text: "Aujourd'hui", color: "var(--blue)" };
+  if (due < today)  return {
+    text: `${t("common.overdue")} · ${new Date(due + "T12:00:00").toLocaleDateString(locale, { day: "numeric", month: "short" })}`,
+    color: "var(--coral)",
+  };
+  if (due === today) return { text: t("common.today"), color: "var(--blue)" };
   const diff = Math.ceil((new Date(due + "T12:00:00").getTime() - new Date(today + "T12:00:00").getTime()) / 86400000);
-  if (diff <= 3) return { text: `Dans ${diff} jour${diff > 1 ? "s" : ""}`, color: "var(--gold)" };
-  return { text: new Date(due + "T12:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short" }), color: "var(--muted)" };
+  if (diff <= 3) return { text: t("common.in_days", { n: diff, s: diff > 1 ? "s" : "" }), color: "var(--gold)" };
+  return { text: new Date(due + "T12:00:00").toLocaleDateString(locale, { day: "numeric", month: "short" }), color: "var(--muted)" };
 }
 
 // ── Note form modal ────────────────────────────────────────────────────────────
@@ -44,6 +48,7 @@ interface NoteFormProps {
 }
 
 function NoteFormModal({ initial, onSave, onClose }: NoteFormProps) {
+  const { t } = useTranslation();
   const [type,    setType]    = useState<"note" | "task">(initial?.type    ?? "note");
   const [title,   setTitle]   = useState(initial?.title   ?? "");
   const [body,    setBody]    = useState(initial?.body    ?? "");
@@ -66,12 +71,22 @@ function NoteFormModal({ initial, onSave, onClose }: NoteFormProps) {
   };
 
   const isEdit = !!initial?.id;
+  const colorLabels: Record<NoteColor, string> = {
+    yellow: t("notes.colorYellow"),
+    blue:   t("notes.colorBlue"),
+    green:  t("notes.colorGreen"),
+    pink:   t("notes.colorPink"),
+  };
 
   return (
     <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modal" style={{ maxWidth: 480 }} onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h2 className="modal-title">{isEdit ? "Modifier" : "Nouvelle"} {type === "task" ? "tâche" : "note"}</h2>
+          <h2 className="modal-title">
+            {isEdit
+              ? t("notes.editTitle", { kind: type === "task" ? t("notes.task") : t("notes.note") })
+              : t("notes.newTitle", { kind: type === "task" ? t("notes.task") : t("notes.note") })}
+          </h2>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
         <form onSubmit={handleSubmit}>
@@ -88,7 +103,7 @@ function NoteFormModal({ initial, onSave, onClose }: NoteFormProps) {
                   <rect x="1" y="1" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="1.4"/>
                   <path d="M3.5 5h7M3.5 7.5h7M3.5 10h4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
                 </svg>
-                Note
+                {t("notes.note")}
               </button>
               <button
                 type="button"
@@ -99,18 +114,18 @@ function NoteFormModal({ initial, onSave, onClose }: NoteFormProps) {
                   <rect x="1" y="1" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="1.4"/>
                   <path d="M4 7l2.5 2.5L10 5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
-                Tâche
+                {t("notes.task")}
               </button>
             </div>
 
             {/* Title */}
             <div className="form-group">
-              <label className="form-label">Titre *</label>
+              <label className="form-label">{t("notes.titleLabel")} *</label>
               <input
                 className="form-input"
                 value={title}
                 onChange={e => setTitle(e.target.value)}
-                placeholder={type === "task" ? "Ex : Commander des gants…" : "Ex : Rappel important…"}
+                placeholder={type === "task" ? t("notes.taskTitlePlaceholder") : t("notes.noteTitlePlaceholder")}
                 autoFocus
                 required
               />
@@ -119,13 +134,13 @@ function NoteFormModal({ initial, onSave, onClose }: NoteFormProps) {
             {/* Body (notes only) */}
             {type === "note" && (
               <div className="form-group">
-                <label className="form-label">Contenu</label>
+                <label className="form-label">{t("notes.content")}</label>
                 <textarea
                   className="form-input"
                   value={body}
                   onChange={e => setBody(e.target.value)}
                   rows={5}
-                  placeholder="Contenu de la note…"
+                  placeholder={t("notes.contentPlaceholder")}
                 />
               </div>
             )}
@@ -133,7 +148,7 @@ function NoteFormModal({ initial, onSave, onClose }: NoteFormProps) {
             {/* Due date (tasks only) */}
             {type === "task" && (
               <div className="form-group">
-                <label className="form-label">Date limite</label>
+                <label className="form-label">{t("notes.dueDate")}</label>
                 <input
                   className="form-input"
                   type="date"
@@ -146,7 +161,7 @@ function NoteFormModal({ initial, onSave, onClose }: NoteFormProps) {
             {/* Color + pin */}
             <div className="form-row" style={{ alignItems: "center" }}>
               <div className="form-group" style={{ flex: 1 }}>
-                <label className="form-label">Couleur</label>
+                <label className="form-label">{t("notes.color")}</label>
                 <div className="note-color-picker">
                   {COLORS.map(c => (
                     <button
@@ -157,7 +172,7 @@ function NoteFormModal({ initial, onSave, onClose }: NoteFormProps) {
                         background: NOTE_COLOR_VALUES[c].bg,
                         borderColor: NOTE_COLOR_VALUES[c].border,
                       }}
-                      title={COLOR_LABELS[c]}
+                      title={colorLabels[c]}
                       onClick={() => setColor(c)}
                     >
                       {color === c && (
@@ -180,20 +195,22 @@ function NoteFormModal({ initial, onSave, onClose }: NoteFormProps) {
                     <path d="M9 1L5 5l-3 1 6 6 1-3 4-4L9 1Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
                     <path d="M5 9L2 12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
                   </svg>
-                  Épingler
+                  {t("notes.pin")}
                 </label>
               </div>
             </div>
           </div>
 
           <div className="modal-footer">
-            <button type="button" className="btn btn-ghost" onClick={onClose}>Annuler</button>
+            <button type="button" className="btn btn-ghost" onClick={onClose}>{t("common.cancel")}</button>
             <button
               type="submit"
               className="btn btn-primary"
               style={{ background: NOTE_COLOR_VALUES[color].border, color: NOTE_COLOR_VALUES[color].text }}
             >
-              {isEdit ? "Enregistrer" : type === "task" ? "Créer la tâche" : "Créer la note"}
+              {isEdit
+                ? t("common.save")
+                : type === "task" ? t("notes.createTask") : t("notes.createNote")}
             </button>
           </div>
         </form>
@@ -213,9 +230,12 @@ function NoteCard({
   onTogglePin:  () => void;
   onToggleDone: () => void;
 }) {
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language?.slice(0, 2) === "ar" ? "ar-MA"
+               : i18n.language?.slice(0, 2) === "en" ? "en-US" : "fr-FR";
   const cv = NOTE_COLOR_VALUES[note.color];
   const isTask = note.type === "task";
-  const dueInfo = note.dueDate ? dueDateLabel(note.dueDate, note.isDone) : null;
+  const dueInfo = note.dueDate ? dueDateLabel(note.dueDate, note.isDone, t, locale) : null;
 
   return (
     <div
@@ -238,7 +258,7 @@ function NoteCard({
             className={`note-task-check${note.isDone ? " checked" : ""}`}
             style={{ borderColor: cv.border, background: note.isDone ? cv.border : "transparent" }}
             onClick={onToggleDone}
-            title={note.isDone ? "Marquer non terminée" : "Marquer terminée"}
+            title={note.isDone ? t("notes.markUndone") : t("notes.markDone")}
           >
             {note.isDone && (
               <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
@@ -268,12 +288,12 @@ function NoteCard({
 
       {/* Footer */}
       <div className="note-card-footer" style={{ color: cv.text + "99" }}>
-        <span className="note-card-date">{relativeDate(note.updatedAt)}</span>
+        <span className="note-card-date">{relativeDate(note.updatedAt, t, locale)}</span>
         <div className="note-card-actions">
           <button
             className="note-action-btn"
             style={{ color: cv.text }}
-            title={note.isPinned ? "Désépingler" : "Épingler"}
+            title={note.isPinned ? t("notes.unpin") : t("notes.pinBtn")}
             onClick={onTogglePin}
           >
             <svg width="11" height="11" viewBox="0 0 14 14" fill={note.isPinned ? "currentColor" : "none"}>
@@ -284,7 +304,7 @@ function NoteCard({
           <button
             className="note-action-btn"
             style={{ color: cv.text }}
-            title="Modifier"
+            title={t("common.edit")}
             onClick={onEdit}
           >
             <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
@@ -294,7 +314,7 @@ function NoteCard({
           <button
             className="note-action-btn danger"
             style={{ color: cv.text }}
-            title="Supprimer"
+            title={t("common.delete")}
             onClick={onDelete}
           >
             <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
@@ -312,17 +332,14 @@ function NoteCard({
 type TabView = "all" | "notes" | "tasks" | "pinned";
 
 export function NotesPage() {
+  const { t } = useTranslation();
   const today = todayIso();
   const { notes, addNote, updateNote, deleteNote, toggleNotePin, toggleNoteDone } = useCabinet();
   const [tab,    setTab]    = useState<TabView>("all");
   const [modal,  setModal]  = useState<{ note?: InternalNote } | null>(null);
   const [search, setSearch] = useState("");
-  const [toast,  setToast]  = useState<string | null>(null);
 
-  const showToast = (msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 2400);
-  };
+  const showToast = useToast();
 
   const kpi = useMemo(() => ({
     total:    notes.length,
@@ -366,36 +383,36 @@ export function NotesPage() {
 
   return (
     <Layout
-      title="Notes & Tâches"
-      subtitle={`${kpi.total} élément${kpi.total !== 1 ? "s" : ""}`}
+      title={t("notes.title")}
+      subtitle={t("notes.subtitleCount", { n: kpi.total, s: kpi.total !== 1 ? "s" : "" })}
       actions={
         <button className="btn btn-primary" onClick={() => setModal({})}>
           <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 6 }}>
             <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
           </svg>
-          Nouveau
+          {t("notes.new")}
         </button>
       }
     >
       {/* ── KPI strip ── */}
       <div className="note-kpi-strip">
         <div className="note-kpi-card">
-          <div className="note-kpi-val">{kpi.notesCnt}</div>
-          <div className="note-kpi-lbl">Notes</div>
+          <div className="note-kpi-val"><AnimatedNumber value={kpi.notesCnt} /></div>
+          <div className="note-kpi-lbl">{t("notes.notes")}</div>
         </div>
         <div className="note-kpi-card">
-          <div className="note-kpi-val" style={{ color: "var(--blue)" }}>{kpi.tasksCnt}</div>
-          <div className="note-kpi-lbl">Tâches</div>
+          <div className="note-kpi-val" style={{ color: "var(--blue)" }}><AnimatedNumber value={kpi.tasksCnt} /></div>
+          <div className="note-kpi-lbl">{t("notes.tasks")}</div>
         </div>
         <div className="note-kpi-card">
-          <div className="note-kpi-val" style={{ color: "var(--gold)" }}>{kpi.pinned}</div>
-          <div className="note-kpi-lbl">Épinglées</div>
+          <div className="note-kpi-val" style={{ color: "var(--gold)" }}><AnimatedNumber value={kpi.pinned} /></div>
+          <div className="note-kpi-lbl">{t("notes.pinned")}</div>
         </div>
         <div className="note-kpi-card">
           <div className="note-kpi-val" style={{ color: kpi.overdue > 0 ? "var(--coral)" : "var(--muted)" }}>
-            {kpi.overdue + kpi.todayDue}
+            <AnimatedNumber value={kpi.overdue + kpi.todayDue} />
           </div>
-          <div className="note-kpi-lbl">Urgentes</div>
+          <div className="note-kpi-lbl">{t("notes.urgent")}</div>
         </div>
       </div>
 
@@ -407,9 +424,9 @@ export function NotesPage() {
             <path d="M7 4v3M7 9.5v.5" stroke="var(--coral)" strokeWidth="1.4" strokeLinecap="round"/>
           </svg>
           <span>
-            {urgentTasks.length} tâche{urgentTasks.length > 1 ? "s" : ""} en retard ou à faire aujourd'hui :
+            {t("notes.urgentAlert", { n: urgentTasks.length, s: urgentTasks.length > 1 ? "s" : "" })}
             {" "}
-            <strong>{urgentTasks.map(t => t.title).join(" · ")}</strong>
+            <strong>{urgentTasks.map(n => n.title).join(" · ")}</strong>
           </span>
         </div>
       )}
@@ -418,10 +435,10 @@ export function NotesPage() {
       <div className="note-toolbar">
         <div className="note-tabs">
           {([
-            ["all",    "Tout",    kpi.total],
-            ["notes",  "Notes",   kpi.notesCnt],
-            ["tasks",  "Tâches",  kpi.tasksCnt],
-            ["pinned", "Épinglées", kpi.pinned],
+            ["all",    t("notes.tabAll"),    kpi.total],
+            ["notes",  t("notes.notes"),     kpi.notesCnt],
+            ["tasks",  t("notes.tasks"),     kpi.tasksCnt],
+            ["pinned", t("notes.pinned"),    kpi.pinned],
           ] as [TabView, string, number][]).map(([id, label, cnt]) => (
             <button
               key={id}
@@ -440,7 +457,7 @@ export function NotesPage() {
           </svg>
           <input
             className="stock-search-input"
-            placeholder="Rechercher…"
+            placeholder={t("common.search") + "…"}
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
@@ -452,15 +469,15 @@ export function NotesPage() {
         <div className="agenda-empty" style={{ marginTop: 32 }}>
           <div style={{ fontSize: 32, marginBottom: 8 }}>📋</div>
           <div style={{ fontWeight: 700, marginBottom: 4 }}>
-            {notes.length === 0 ? "Aucune note ni tâche" : "Aucun résultat"}
+            {notes.length === 0 ? t("notes.empty") : t("common.noResults")}
           </div>
           <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 16 }}>
             {notes.length === 0
-              ? "Créez des notes et des tâches pour votre équipe."
-              : "Essayez d'ajuster les filtres."}
+              ? t("notes.emptyHint")
+              : t("notes.adjustFilters")}
           </div>
           {notes.length === 0 && (
-            <button className="btn btn-primary" onClick={() => setModal({})}>Créer</button>
+            <button className="btn btn-primary" onClick={() => setModal({})}>{t("common.create")}</button>
           )}
         </div>
       ) : (
@@ -471,14 +488,14 @@ export function NotesPage() {
               note={note}
               onEdit={() => setModal({ note })}
               onDelete={() => {
-                if (confirm(`Supprimer "${note.title}" ?`)) {
+                if (confirm(t("notes.deleteConfirm", { title: note.title }))) {
                   deleteNote(note.id);
-                  showToast("Supprimé");
+                  showToast(t("notes.deleted"));
                 }
               }}
               onTogglePin={() => {
                 toggleNotePin(note.id);
-                showToast(note.isPinned ? "Désépinglé" : "Épinglé");
+                showToast(note.isPinned ? t("notes.unpinned") : t("notes.pinnedToast"));
               }}
               onToggleDone={() => toggleNoteDone(note.id)}
             />
@@ -493,10 +510,10 @@ export function NotesPage() {
           onSave={n => {
             if (modal.note) {
               updateNote({ ...modal.note, ...n });
-              showToast("Modifié");
+              showToast(t("notes.modified"));
             } else {
               addNote(n);
-              showToast(n.type === "task" ? "Tâche créée" : "Note créée");
+              showToast(n.type === "task" ? t("notes.taskCreated") : t("notes.noteCreated"));
             }
             setModal(null);
           }}
@@ -504,7 +521,6 @@ export function NotesPage() {
         />
       )}
 
-      {toast && <div className="toast">{toast}</div>}
     </Layout>
   );
 }

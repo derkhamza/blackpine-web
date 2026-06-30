@@ -1,10 +1,14 @@
 import { FormEvent, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "../components/Layout";
+import { useToast } from "../components/Toast";
 import { useCabinet } from "../context/CabinetContext";
 import { CsvImportModal } from "../components/CsvImportModal";
 import { exportPatientsCsv } from "../lib/csvExport";
 import type { Patient, PatientGender } from "../lib/cabinetTypes";
+import { MOROCCAN_CITIES } from "../lib/cabinetTypes";
+import { useTranslation } from "react-i18next";
+import { track } from "../lib/analytics";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -31,11 +35,19 @@ function avatarColor(name: string): string {
 
 interface PatientModalProps {
   initial?: Patient | null;
+  existingPatients?: Patient[];
   onSave: (p: Omit<Patient, "id" | "createdAt">) => void;
   onClose: () => void;
 }
 
-function PatientModal({ initial, onSave, onClose }: PatientModalProps) {
+function normalizeName(s: string): string {
+  return s.toLowerCase()
+    .normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9 ]/g, "").replace(/\s+/g, " ").trim();
+}
+
+function PatientModal({ initial, existingPatients = [], onSave, onClose }: PatientModalProps) {
+  const { t } = useTranslation();
   const [firstName,   setFirst]   = useState(initial?.firstName ?? "");
   const [lastName,    setLast]    = useState(initial?.lastName ?? "");
   const [phone,       setPhone]   = useState(initial?.phone ?? "");
@@ -46,10 +58,26 @@ function PatientModal({ initial, onSave, onClose }: PatientModalProps) {
   const [allergies,   setAllerg]  = useState(initial?.allergies ?? "");
   const [antecedents, setAntec]   = useState(initial?.antecedents ?? "");
   const [notes,       setNotes]   = useState(initial?.notes ?? "");
+  const [city,        setCity]    = useState(initial?.city ?? "");
+  const [dupWarning,  setDupWarn] = useState<string | null>(null);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (!firstName.trim() || !lastName.trim()) return;
+
+    // Duplicate detection (only on creation)
+    if (!initial) {
+      const norm = normalizeName(`${firstName.trim()} ${lastName.trim()}`);
+      const dup = existingPatients.find(p =>
+        normalizeName(`${p.firstName} ${p.lastName}`) === norm
+      );
+      if (dup && !dupWarning) {
+        const dob = dup.dateOfBirth ? ` · ${dup.dateOfBirth}` : "";
+        setDupWarn(`${dup.firstName} ${dup.lastName}${dob}`);
+        return;
+      }
+    }
+
     onSave({
       firstName: firstName.trim(),
       lastName: lastName.trim(),
@@ -61,6 +89,7 @@ function PatientModal({ initial, onSave, onClose }: PatientModalProps) {
       allergies: allergies || undefined,
       antecedents: antecedents || undefined,
       notes: notes || undefined,
+      city: city.trim() || undefined,
     });
     onClose();
   };
@@ -69,42 +98,42 @@ function PatientModal({ initial, onSave, onClose }: PatientModalProps) {
     <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modal" style={{ maxWidth: 560, maxHeight: "90vh", overflowY: "auto" }}>
         <div className="modal-header">
-          <h2 className="modal-title">{initial ? "Modifier" : "Nouveau"} patient</h2>
+          <h2 className="modal-title">{initial ? t("patients.editPatient") : t("patients.newPatient")}</h2>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
         <form onSubmit={handleSubmit}>
           <div className="modal-body" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <div className="form-row">
               <div className="form-group">
-                <label className="form-label">Prénom</label>
+                <label className="form-label">{t("patients.firstName")}</label>
                 <input className="form-input" value={firstName} onChange={e => setFirst(e.target.value)} required autoFocus />
               </div>
               <div className="form-group">
-                <label className="form-label">Nom</label>
+                <label className="form-label">{t("patients.lastName")}</label>
                 <input className="form-input" value={lastName} onChange={e => setLast(e.target.value)} required />
               </div>
             </div>
             <div className="form-row">
               <div className="form-group">
-                <label className="form-label">Téléphone</label>
+                <label className="form-label">{t("patients.phone")}</label>
                 <input className="form-input" value={phone} onChange={e => setPhone(e.target.value)} type="tel" placeholder="06XXXXXXXX" />
               </div>
               <div className="form-group">
-                <label className="form-label">Date de naissance</label>
+                <label className="form-label">{t("patients.dob")}</label>
                 <input className="form-input" type="date" value={dateOfBirth} onChange={e => setDob(e.target.value)} />
               </div>
             </div>
             <div className="form-row">
               <div className="form-group">
-                <label className="form-label">Sexe</label>
+                <label className="form-label">{t("patients.gender")}</label>
                 <select className="form-select" value={gender} onChange={e => setGender(e.target.value as PatientGender | "")}>
                   <option value="">—</option>
-                  <option value="M">Masculin</option>
-                  <option value="F">Féminin</option>
+                  <option value="M">{t("patients.maleFull")}</option>
+                  <option value="F">{t("patients.femaleFull")}</option>
                 </select>
               </div>
               <div className="form-group">
-                <label className="form-label">Groupe sanguin</label>
+                <label className="form-label">{t("patients.bloodType")}</label>
                 <select className="form-select" value={bloodType} onChange={e => setBlood(e.target.value)}>
                   <option value="">—</option>
                   {["A+","A-","B+","B-","AB+","AB-","O+","O-"].map(g =>
@@ -112,26 +141,56 @@ function PatientModal({ initial, onSave, onClose }: PatientModalProps) {
                 </select>
               </div>
               <div className="form-group">
-                <label className="form-label">CIN</label>
+                <label className="form-label">{t("patients.cin")}</label>
                 <input className="form-input" value={cin} onChange={e => setCin(e.target.value)} placeholder="AB123456" />
               </div>
             </div>
             <div className="form-group">
-              <label className="form-label">Allergies</label>
-              <input className="form-input" value={allergies} onChange={e => setAllerg(e.target.value)} placeholder="Pénicilline, …" />
+              <label className="form-label">{t("patients.allergies")}</label>
+              <input className="form-input" value={allergies} onChange={e => setAllerg(e.target.value)} placeholder={t("patients.allergiesPlaceholder")} />
             </div>
             <div className="form-group">
-              <label className="form-label">Antécédents médicaux</label>
-              <input className="form-input" value={antecedents} onChange={e => setAntec(e.target.value)} placeholder="Diabète, HTA, …" />
+              <label className="form-label">{t("patients.antecedentsLabel")}</label>
+              <input className="form-input" value={antecedents} onChange={e => setAntec(e.target.value)} placeholder={t("patients.antecedentsPlaceholder")} />
             </div>
-            <div className="form-group">
-              <label className="form-label">Notes</label>
-              <input className="form-input" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Remarques, …" />
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">{t("patients.city")}</label>
+                <input
+                  className="form-input"
+                  list="new-patient-cities"
+                  value={city}
+                  onChange={e => setCity(e.target.value)}
+                  placeholder={t("patients.cityPlaceholder")}
+                />
+                <datalist id="new-patient-cities">
+                  {MOROCCAN_CITIES.map(c => (
+                    <option key={c} value={c} />
+                  ))}
+                </datalist>
+              </div>
+              <div className="form-group">
+                <label className="form-label">{t("common.notes")}</label>
+                <input className="form-input" value={notes} onChange={e => setNotes(e.target.value)} placeholder={t("patients.notesPlaceholder")} />
+              </div>
             </div>
+
+            {dupWarning && (
+              <div className="patient-dup-warning">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0 }}>
+                  <path d="M7 2L13 12H1L7 2Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
+                  <path d="M7 6v2.5M7 10v.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                </svg>
+                <span>{t("patients.dupWarning", { name: dupWarning })}</span>
+                <button type="button" className="patient-dup-ignore" onClick={() => setDupWarn(null)}>
+                  {t("patients.dupIgnore")}
+                </button>
+              </div>
+            )}
           </div>
           <div className="modal-footer">
-            <button type="button" className="btn btn-ghost" onClick={onClose}>Annuler</button>
-            <button type="submit" className="btn btn-primary">Enregistrer</button>
+            <button type="button" className="btn btn-ghost" onClick={onClose}>{t("common.cancel")}</button>
+            <button type="submit" className="btn btn-primary">{t("common.save")}</button>
           </div>
         </form>
       </div>
@@ -147,11 +206,12 @@ function PatientCard({
   patient: Patient; apptCount: number;
   onDetail: () => void; onEdit: () => void; onDelete: () => void;
 }) {
+  const { t } = useTranslation();
   const age   = calcAge(patient.dateOfBirth);
   const color = avatarColor(patient.firstName + patient.lastName);
 
   return (
-    <div className="patient-card" onClick={onDetail}>
+    <div className="patient-card rv-press rv-lift" onClick={onDetail}>
       <div className="patient-avatar" style={{ background: color + "22", color }}>
         {initials(patient)}
       </div>
@@ -161,7 +221,7 @@ function PatientCard({
           {patient.gender && (
             <span style={{ color: "var(--muted)" }}>{patient.gender === "M" ? "♂" : "♀"}</span>
           )}
-          {age !== null && <span style={{ color: "var(--muted)" }}>{age} ans</span>}
+          {age !== null && <span style={{ color: "var(--muted)" }}>{age} {t("patients.age")}</span>}
           {patient.phone && <span style={{ color: "var(--muted)" }}>· {patient.phone}</span>}
         </div>
         <div className="patient-tags">
@@ -172,23 +232,23 @@ function PatientCard({
           )}
           {patient.allergies && (
             <span className="patient-tag" style={{ background: "var(--gold-soft)", color: "var(--gold)" }}>
-              Allergies
+              {t("patients.allergies")}
             </span>
           )}
           {apptCount > 0 && (
             <span className="patient-tag" style={{ background: "var(--blue-soft)", color: "var(--blue)" }}>
-              {apptCount} RDV
+              {t("patients.apptCount", { n: apptCount })}
             </span>
           )}
         </div>
       </div>
       <div className="patient-card-actions" onClick={(e) => e.stopPropagation()}>
-        <button className="appt-edit-btn" title="Modifier" onClick={(e) => { e.stopPropagation(); onEdit(); }}>
+        <button className="appt-edit-btn" title={t("common.edit")} onClick={(e) => { e.stopPropagation(); onEdit(); }}>
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
             <path d="M8.5 1.5a1.5 1.5 0 0 1 2 2L4 10H2v-2L8.5 1.5Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
           </svg>
         </button>
-        <button className="tx-delete" title="Supprimer" onClick={(e) => { e.stopPropagation(); onDelete(); }}>
+        <button className="tx-delete" title={t("common.delete")} onClick={(e) => { e.stopPropagation(); onDelete(); }}>
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
             <path d="M2 3h10M5 3V2h4v1M4 3v9h6V3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
@@ -201,17 +261,14 @@ function PatientCard({
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export function PatientsPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { patients, appointments, addPatient, updatePatient, deletePatient } = useCabinet();
   const [search,    setSearch]    = useState("");
   const [modal,     setModal]     = useState<{ patient?: Patient } | null>(null);
   const [csvOpen,   setCsvOpen]   = useState(false);
-  const [toast,     setToast]     = useState<string | null>(null);
 
-  const showToast = (msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 2600);
-  };
+  const showToast = useToast();
 
   const apptCountMap = useMemo(() => {
     const map: Record<string, number> = {};
@@ -247,34 +304,34 @@ export function PatientsPage() {
 
   return (
     <Layout
-      title="Patients"
-      subtitle={`${patients.length} patient${patients.length !== 1 ? "s" : ""}`}
+      title={t("patients.title")}
+      subtitle={t("patients.subtitleCount", { n: patients.length, s: patients.length !== 1 ? "s" : "" })}
       actions={
         <div style={{ display: "flex", gap: 8 }}>
           <button
             className="btn btn-ghost"
-            onClick={() => { exportPatientsCsv(patients); showToast("Patients exportés"); }}
+            onClick={() => { exportPatientsCsv(patients); showToast(t("patients.exportedCsv")); }}
             disabled={patients.length === 0}
-            title="Télécharger la liste des patients en CSV"
+            title={t("patients.exportCsvTitle")}
           >
             <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 6 }}>
               <path d="M7 2v8M4 7l3 3 3-3M2 12h10"
                 stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
-            Exporter CSV
+            {t("patients.exportCsv")}
           </button>
           <button className="btn btn-ghost" onClick={() => setCsvOpen(true)}>
             <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 6 }}>
               <path d="M7 10V2M4 5l3-3 3 3M2 12h10"
                 stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
-            Importer CSV
+            {t("patients.importCsv")}
           </button>
           <button className="btn btn-primary" onClick={() => setModal({})}>
             <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 6 }}>
               <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
             </svg>
-            Nouveau patient
+            {t("patients.newPatient")}
           </button>
         </div>
       }
@@ -287,7 +344,7 @@ export function PatientsPage() {
         </svg>
         <input
           className="patients-search-input"
-          placeholder="Rechercher par nom ou téléphone…"
+          placeholder={t("patients.searchPlaceholder")}
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
@@ -303,13 +360,13 @@ export function PatientsPage() {
       {patients.length === 0 ? (
         <div className="tx-empty">
           <div style={{ fontSize: 36, marginBottom: 10 }}>👥</div>
-          <div style={{ fontWeight: 700, marginBottom: 6 }}>Aucun patient</div>
-          <div style={{ marginBottom: 16 }}>Ajoutez votre premier patient pour commencer.</div>
-          <button className="btn btn-primary" onClick={() => setModal({})}>Ajouter un patient</button>
+          <div style={{ fontWeight: 700, marginBottom: 6 }}>{t("patients.noPatients")}</div>
+          <div style={{ marginBottom: 16 }}>{t("patients.noPatientsHint")}</div>
+          <button className="btn btn-primary" onClick={() => setModal({})}>{t("patients.addPatient")}</button>
         </div>
       ) : sections.length === 0 ? (
         <div className="tx-empty">
-          <div style={{ fontWeight: 700 }}>Aucun résultat pour « {search} »</div>
+          <div style={{ fontWeight: 700 }}>{t("patients.noResults", { q: search })}</div>
         </div>
       ) : (
         <div>
@@ -324,9 +381,9 @@ export function PatientsPage() {
                   onDetail={() => navigate(`/patients/${p.id}`)}
                   onEdit={() => setModal({ patient: p })}
                   onDelete={() => {
-                    if (confirm(`Supprimer ${p.firstName} ${p.lastName} ?`)) {
+                    if (confirm(t("patients.deleteConfirmName", { firstName: p.firstName, lastName: p.lastName }))) {
                       deletePatient(p.id);
-                      showToast("Patient supprimé");
+                      showToast(t("patients.deleted"));
                     }
                   }}
                 />
@@ -340,10 +397,11 @@ export function PatientsPage() {
       {modal !== null && (
         <PatientModal
           initial={modal.patient}
+          existingPatients={patients}
           onSave={p => {
             if (modal.patient) updatePatient({ ...p, id: modal.patient.id, createdAt: modal.patient.createdAt });
-            else addPatient(p);
-            showToast(modal.patient ? "Patient modifié" : "Patient ajouté");
+            else { addPatient(p); track("action:create_patient"); }
+            showToast(modal.patient ? t("patients.modified") : t("patients.added"));
           }}
           onClose={() => setModal(null)}
         />
@@ -355,13 +413,12 @@ export function PatientsPage() {
           existingPatients={patients}
           onImport={list => {
             list.forEach(p => addPatient(p));
-            showToast(`${list.length} patient${list.length !== 1 ? "s" : ""} importé${list.length !== 1 ? "s" : ""}`);
+            showToast(t("patients.importedN", { n: list.length, s: list.length !== 1 ? "s" : "" }));
           }}
           onClose={() => setCsvOpen(false)}
         />
       )}
 
-      {toast && <div className="toast">{toast}</div>}
     </Layout>
   );
 }

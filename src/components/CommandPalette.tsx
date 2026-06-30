@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 import { useCabinet } from "../context/CabinetContext";
@@ -18,7 +19,7 @@ interface SearchResult {
   title:    string;
   subtitle: string;
   path:     string;
-  accent:   string;  // colour dot
+  accent:   string;
 }
 
 const KIND_ICON: Record<ResultKind, string> = {
@@ -31,16 +32,6 @@ const KIND_ICON: Record<ResultKind, string> = {
   note:         "📝",
 };
 
-const KIND_LABEL: Record<ResultKind, string> = {
-  patient:      "Patients",
-  appointment:  "Rendez-vous",
-  transaction:  "Transactions",
-  exam:         "Examens & Bio",
-  prescription: "Ordonnances",
-  certificate:  "Certificats",
-  note:         "Notes & Tâches",
-};
-
 // ── Component ──────────────────────────────────────────────────────────────────
 
 interface Props {
@@ -48,6 +39,7 @@ interface Props {
 }
 
 export function CommandPalette({ onClose }: Props) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { transactions, fiscalYear } = useApp();
   const {
@@ -59,24 +51,31 @@ export function CommandPalette({ onClose }: Props) {
   const [selected, setSelected] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Focus on open
   useEffect(() => { inputRef.current?.focus(); }, []);
 
-  // Close on Escape (also handled in keydown, but belt-and-suspenders)
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [onClose]);
 
-  // Search
+  const KIND_LABEL: Record<ResultKind, string> = useMemo(() => ({
+    patient:      t("commandPalette.kindPatients"),
+    appointment:  t("commandPalette.kindAppointments"),
+    transaction:  t("commandPalette.kindTransactions"),
+    exam:         t("commandPalette.kindExams"),
+    prescription: t("commandPalette.kindPrescriptions"),
+    certificate:  t("commandPalette.kindCertificates"),
+    note:         t("commandPalette.kindNotes"),
+  }), [t]);
+
   const results = useMemo<SearchResult[]>(() => {
     const q = query.trim().toLowerCase();
     if (q.length < 2) return [];
 
     const out: SearchResult[] = [];
 
-    // ── Patients ─────────────────────────────────────────────────────────
+    // Patients
     for (const p of patients) {
       const full = `${p.firstName} ${p.lastName}`.toLowerCase();
       if (
@@ -85,13 +84,15 @@ export function CommandPalette({ onClose }: Props) {
         p.cin?.toLowerCase().includes(q) ||
         p.cnopsNumber?.toLowerCase().includes(q)
       ) {
-        const meta = [p.phone, p.dateOfBirth ? `Né(e) le ${formatDateShort(p.dateOfBirth)}` : ""]
-          .filter(Boolean).join(" · ");
+        const meta = [
+          p.phone,
+          p.dateOfBirth ? t("commandPalette.patientDob", { date: formatDateShort(p.dateOfBirth) }) : "",
+        ].filter(Boolean).join(" · ");
         out.push({
           id:       p.id,
           kind:     "patient",
           title:    `${p.firstName} ${p.lastName}`,
-          subtitle: meta || "Aucune info supplémentaire",
+          subtitle: meta || t("commandPalette.noInfo"),
           path:     `/patients/${p.id}`,
           accent:   "var(--blue)",
         });
@@ -99,7 +100,7 @@ export function CommandPalette({ onClose }: Props) {
       }
     }
 
-    // ── Appointments (last 300, sorted desc) ─────────────────────────────
+    // Appointments (last 300, sorted desc)
     const sortedAppts = [...appointments].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 300);
     for (const a of sortedAppts) {
       if (
@@ -121,30 +122,29 @@ export function CommandPalette({ onClose }: Props) {
       }
     }
 
-    // ── Transactions (current fiscal year) ───────────────────────────────
-    const yearTx = transactions.filter(t => t.date.startsWith(String(fiscalYear)));
-    for (const t of yearTx) {
-      const desc = (t.description ?? "").toLowerCase();
-      const notes = ((t as { notes?: string }).notes ?? "").toLowerCase();
+    // Transactions (current fiscal year)
+    const yearTx = transactions.filter(tx => tx.date.startsWith(String(fiscalYear)));
+    for (const tx of yearTx) {
+      const desc  = (tx.description ?? "").toLowerCase();
+      const txNotes = ((tx as { notes?: string }).notes ?? "").toLowerCase();
       if (
-        desc.includes(q) ||
-        notes.includes(q) ||
-        t.amount.toString().includes(q) ||
-        t.category.toLowerCase().includes(q)
+        desc.includes(q) || txNotes.includes(q) ||
+        tx.amount.toString().includes(q) ||
+        tx.category.toLowerCase().includes(q)
       ) {
         out.push({
-          id:       t.id,
+          id:       tx.id,
           kind:     "transaction",
-          title:    t.description ?? (t.type === "RECETTE" ? "Recette" : "Charge"),
-          subtitle: `${t.type === "RECETTE" ? "+" : "−"} ${formatMAD(t.amount)} · ${formatDateShort(t.date)}`,
+          title:    tx.description ?? (tx.type === "RECETTE" ? "Recette" : "Charge"),
+          subtitle: `${tx.type === "RECETTE" ? "+" : "−"} ${formatMAD(tx.amount)} · ${formatDateShort(tx.date)}`,
           path:     `/transactions`,
-          accent:   t.type === "RECETTE" ? "var(--green)" : "var(--coral)",
+          accent:   tx.type === "RECETTE" ? "var(--green)" : "var(--coral)",
         });
         if (out.filter(r => r.kind === "transaction").length >= 5) break;
       }
     }
 
-    // ── Exams ────────────────────────────────────────────────────────────
+    // Exams
     for (const e of examResults) {
       if (
         e.title.toLowerCase().includes(q) ||
@@ -165,7 +165,7 @@ export function CommandPalette({ onClose }: Props) {
       }
     }
 
-    // ── Standalone prescriptions ─────────────────────────────────────────
+    // Standalone prescriptions
     for (const p of prescriptions) {
       const drugs = p.lines.map(l => l.drug.toLowerCase()).join(" ");
       if (
@@ -177,7 +177,7 @@ export function CommandPalette({ onClose }: Props) {
         out.push({
           id:       p.id,
           kind:     "prescription",
-          title:    `Ordonnance — ${p.patientName}`,
+          title:    `${t("commandPalette.kindPrescriptions").replace(/s$/, "")} — ${p.patientName}`,
           subtitle: `${formatDateShort(p.date)}${firstDrug ? ` · ${firstDrug}${p.lines.length > 1 ? ` +${p.lines.length - 1}` : ""}` : ""}`,
           path:     p.patientId ? `/patients/${p.patientId}` : `/documents`,
           accent:   "#15A876",
@@ -186,7 +186,7 @@ export function CommandPalette({ onClose }: Props) {
       }
     }
 
-    // ── Standalone certificates ──────────────────────────────────────────
+    // Standalone certificates
     for (const c of certificates) {
       if (
         c.patientName.toLowerCase().includes(q) ||
@@ -207,17 +207,17 @@ export function CommandPalette({ onClose }: Props) {
       }
     }
 
-    // ── Notes & tasks ────────────────────────────────────────────────────
+    // Notes & tasks
     for (const n of notes) {
-      if (
-        n.title.toLowerCase().includes(q) ||
-        n.body?.toLowerCase().includes(q)
-      ) {
+      if (n.title.toLowerCase().includes(q) || n.body?.toLowerCase().includes(q)) {
+        const noteType  = n.type === "task" ? t("commandPalette.task") : t("commandPalette.note");
+        const donePart  = n.isDone ? ` · ${t("commandPalette.done")}` : "";
+        const duePart   = n.dueDate ? ` · ${t("commandPalette.dueDate", { date: formatDateShort(n.dueDate) })}` : "";
         out.push({
           id:       n.id,
           kind:     "note",
           title:    n.title,
-          subtitle: `${n.type === "task" ? "Tâche" : "Note"}${n.isDone ? " · Terminé" : ""}${n.dueDate ? ` · Échéance ${formatDateShort(n.dueDate)}` : ""}`,
+          subtitle: `${noteType}${donePart}${duePart}`,
           path:     `/notes`,
           accent:   "#D4962A",
         });
@@ -227,9 +227,8 @@ export function CommandPalette({ onClose }: Props) {
 
     return out;
   }, [query, patients, appointments, transactions, fiscalYear,
-      examResults, prescriptions, certificates, notes]);
+      examResults, prescriptions, certificates, notes, t]);
 
-  // Reset selected when results change
   useEffect(() => { setSelected(0); }, [results]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -245,7 +244,6 @@ export function CommandPalette({ onClose }: Props) {
     }
   };
 
-  // Group results by kind for headers
   const groups = useMemo(() => {
     const seen = new Set<ResultKind>();
     return results.map((r, i) => {
@@ -256,53 +254,43 @@ export function CommandPalette({ onClose }: Props) {
   }, [results]);
 
   return (
-    <div
-      className="cmd-overlay"
+    <div className="cmd-overlay"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
-      role="dialog" aria-modal="true" aria-label="Recherche rapide"
-    >
+      role="dialog" aria-modal="true">
       <div className="cmd-palette">
-        {/* Search input */}
         <div className="cmd-search-row">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="cmd-search-icon">
             <circle cx="6.5" cy="6.5" r="5" stroke="currentColor" strokeWidth="1.5"/>
             <path d="M10.5 10.5l3.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
           </svg>
-          <input
-            ref={inputRef}
-            className="cmd-input"
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Rechercher patients, RDV, examens, ordonnances, notes…"
-            spellCheck={false}
-            autoComplete="off"
-          />
+          <input ref={inputRef} className="cmd-input"
+            value={query} onChange={e => setQuery(e.target.value)} onKeyDown={handleKeyDown}
+            placeholder={t("commandPalette.placeholder")}
+            spellCheck={false} autoComplete="off" />
           {query && (
-            <button className="cmd-clear" onClick={() => setQuery("")} title="Effacer">×</button>
+            <button className="cmd-clear" onClick={() => setQuery("")}>×</button>
           )}
           <kbd className="cmd-esc" onClick={onClose}>Esc</kbd>
         </div>
 
-        {/* Results */}
         {query.length < 2 ? (
           <div className="cmd-empty">
             <div className="cmd-shortcuts">
-              <div className="cmd-shortcut-item"><span className="cmd-shortcut-icon">👤</span> Patients</div>
-              <div className="cmd-shortcut-item"><span className="cmd-shortcut-icon">📅</span> Rendez-vous</div>
-              <div className="cmd-shortcut-item"><span className="cmd-shortcut-icon">🔬</span> Examens</div>
-              <div className="cmd-shortcut-item"><span className="cmd-shortcut-icon">℞</span> Ordonnances</div>
-              <div className="cmd-shortcut-item"><span className="cmd-shortcut-icon">📄</span> Certificats</div>
-              <div className="cmd-shortcut-item"><span className="cmd-shortcut-icon">📝</span> Notes</div>
-              <div className="cmd-shortcut-item"><span className="cmd-shortcut-icon">💰</span> Transactions</div>
+              <div className="cmd-shortcut-item"><span className="cmd-shortcut-icon">👤</span> {t("commandPalette.kindPatients")}</div>
+              <div className="cmd-shortcut-item"><span className="cmd-shortcut-icon">📅</span> {t("commandPalette.kindAppointments")}</div>
+              <div className="cmd-shortcut-item"><span className="cmd-shortcut-icon">🔬</span> {t("commandPalette.kindExams")}</div>
+              <div className="cmd-shortcut-item"><span className="cmd-shortcut-icon">℞</span> {t("commandPalette.kindPrescriptions")}</div>
+              <div className="cmd-shortcut-item"><span className="cmd-shortcut-icon">📄</span> {t("commandPalette.kindCertificates")}</div>
+              <div className="cmd-shortcut-item"><span className="cmd-shortcut-icon">📝</span> {t("commandPalette.kindNotes")}</div>
+              <div className="cmd-shortcut-item"><span className="cmd-shortcut-icon">💰</span> {t("commandPalette.kindTransactions")}</div>
             </div>
-            <div className="cmd-hint-text">Tapez au moins 2 caractères pour rechercher</div>
+            <div className="cmd-hint-text">{t("commandPalette.hint")}</div>
           </div>
         ) : groups.length === 0 ? (
           <div className="cmd-empty">
             <div style={{ fontSize: 32, marginBottom: 8 }}>🔍</div>
-            <div style={{ fontWeight: 700, marginBottom: 4 }}>Aucun résultat</div>
-            <div className="cmd-hint-text">Aucun résultat pour « {query} »</div>
+            <div style={{ fontWeight: 700, marginBottom: 4 }}>{t("commandPalette.noResults")}</div>
+            <div className="cmd-hint-text">{t("commandPalette.noResultsFor", { q: query })}</div>
           </div>
         ) : (
           <div className="cmd-results" role="listbox">
@@ -315,31 +303,26 @@ export function CommandPalette({ onClose }: Props) {
                   className={`cmd-result${i === selected ? " active" : ""}`}
                   onClick={() => { navigate(r.path); onClose(); }}
                   onMouseEnter={() => setSelected(i)}
-                  role="option"
-                  aria-selected={i === selected}
-                >
+                  role="option" aria-selected={i === selected}>
                   <span className="cmd-result-dot" style={{ background: r.accent }} />
                   <span className="cmd-result-icon">{KIND_ICON[r.kind]}</span>
                   <div className="cmd-result-text">
                     <div className="cmd-result-title">{r.title}</div>
                     <div className="cmd-result-sub">{r.subtitle}</div>
                   </div>
-                  {i === selected && (
-                    <span className="cmd-result-enter" aria-hidden>↵</span>
-                  )}
+                  {i === selected && <span className="cmd-result-enter" aria-hidden>↵</span>}
                 </button>
               </div>
             ))}
           </div>
         )}
 
-        {/* Footer */}
         <div className="cmd-footer">
-          <span><kbd>↑</kbd><kbd>↓</kbd> naviguer</span>
-          <span><kbd>↵</kbd> ouvrir</span>
-          <span><kbd>Esc</kbd> fermer</span>
+          <span><kbd>↑</kbd><kbd>↓</kbd> {t("commandPalette.navFooter")}</span>
+          <span><kbd>↵</kbd> {t("commandPalette.openFooter")}</span>
+          <span><kbd>Esc</kbd> {t("commandPalette.closeFooter")}</span>
           <span style={{ marginLeft: "auto", opacity: 0.5 }}>
-            {results.length > 0 ? `${results.length} résultat${results.length > 1 ? "s" : ""}` : ""}
+            {results.length > 0 ? t("commandPalette.results", { n: results.length, s: results.length > 1 ? "s" : "" }) : ""}
           </span>
         </div>
       </div>

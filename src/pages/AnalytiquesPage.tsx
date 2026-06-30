@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Layout } from "../components/Layout";
 import { useCabinet } from "../context/CabinetContext";
 import { todayIso, formatMAD } from "../lib/format";
@@ -15,12 +16,12 @@ function calcAge(dob: string): number {
   );
 }
 
-function getLast12Months(): { key: string; label: string }[] {
+function getLast12Months(locale: string): { key: string; label: string }[] {
   const now = new Date();
   return Array.from({ length: 12 }, (_, i) => {
     const d = new Date(now.getFullYear(), now.getMonth() - (11 - i), 1);
     const key   = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    const label = d.toLocaleDateString("fr-FR", { month: "short" });
+    const label = d.toLocaleDateString(locale, { month: "short" });
     return { key, label };
   });
 }
@@ -94,35 +95,44 @@ function HBar({ label, value, max, color, pct }: {
 type ATab = "patients" | "activite" | "clinique";
 
 export function AnalytiquesPage({ noLayout = false }: { noLayout?: boolean } = {}) {
+  const { t } = useTranslation();
   const [anaTab, setAnaTab] = useState<ATab>("patients");
-  if (noLayout) return <AnalytiquesContent />;
-  return (
-    <Layout title="Analytiques" subtitle="Patients, activité & statistiques cliniques">
+  const inner = (
+    <>
       <div className="tab-bar" style={{ marginBottom: 20 }}>
         <button className={`tab-btn${anaTab === "patients" ? " active" : ""}`} onClick={() => setAnaTab("patients")}>
-          Patients
+          {t("analytiques.tabPatients")}
         </button>
         <button className={`tab-btn${anaTab === "activite" ? " active" : ""}`} onClick={() => setAnaTab("activite")}>
-          Activité
+          {t("analytiques.tabActivite")}
         </button>
         <button className={`tab-btn${anaTab === "clinique" ? " active" : ""}`} onClick={() => setAnaTab("clinique")}>
-          Clinique
+          {t("analytiques.tabClinique")}
         </button>
       </div>
       {anaTab === "patients" ? <AnalytiquesContent />
         : anaTab === "activite" ? <StatsPage noLayout />
         : <ClinicalStatsContent />}
+    </>
+  );
+  if (noLayout) return inner;
+  return (
+    <Layout title={t("analytiques.title")} subtitle={t("analytiques.subtitle")}>
+      {inner}
     </Layout>
   );
 }
 
 // ── Inner demographics content (no Layout) ─────────────────────────────────────
-function AnalytiquesContent() {
+export function AnalytiquesContent() {
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language?.slice(0, 2) === "ar" ? "ar-MA"
+               : i18n.language?.slice(0, 2) === "en" ? "en-US" : "fr-FR";
   const { patients, appointments } = useCabinet();
   const today = todayIso();
   const thisMonth = today.slice(0, 7);
   const thisYear  = today.slice(0, 4);
-  const months12  = getLast12Months();
+  const months12  = getLast12Months(locale);
 
   // ── Patient KPIs ──────────────────────────────────────────────────────────
   const kpis = useMemo(() => {
@@ -152,20 +162,21 @@ function AnalytiquesContent() {
     const F = patients.filter(p => p.gender === "F").length;
     const U = patients.length - M - F;
     return [
-      { label: "Femmes",          value: F, color: "#c084fc" },
-      { label: "Hommes",          value: M, color: "var(--blue)" },
-      { label: "Non renseigné",   value: U, color: "var(--border-strong)" },
+      { labelKey: "genderFemale",  value: F, color: "#c084fc" },
+      { labelKey: "genderMale",    value: M, color: "var(--blue)" },
+      { labelKey: "genderUnknown", value: U, color: "var(--border-strong)" },
     ];
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patients]);
 
   // ── Blood type distribution ───────────────────────────────────────────────
   const bloodDist = useMemo(() => {
-    const counts = Object.fromEntries(BLOOD_TYPES.map(t => [t, 0]));
+    const counts = Object.fromEntries(BLOOD_TYPES.map(tp => [tp, 0]));
     for (const p of patients) {
       if (p.bloodType && counts[p.bloodType] !== undefined) counts[p.bloodType]++;
     }
     return BLOOD_TYPES
-      .map(t => ({ label: t, value: counts[t] }))
+      .map(tp => ({ label: tp, value: counts[tp] }))
       .filter(b => b.value > 0)
       .sort((a, b) => b.value - a.value);
   }, [patients]);
@@ -228,21 +239,21 @@ function AnalytiquesContent() {
       <div className="ana-kpi-strip">
         <div className="ana-kpi" style={{ borderTopColor: "var(--blue)" }}>
           <div className="ana-kpi-val" style={{ color: "var(--blue)" }}>{kpis.total}</div>
-          <div className="ana-kpi-lbl">Patients</div>
+          <div className="ana-kpi-lbl">{t("analytiques.kpiPatients")}</div>
         </div>
         <div className="ana-kpi" style={{ borderTopColor: "var(--green)" }}>
           <div className="ana-kpi-val" style={{ color: "var(--green)" }}>
-            {kpis.avgAge !== null ? `${kpis.avgAge} ans` : "—"}
+            {kpis.avgAge !== null ? t("analytiques.kpiAvgAgeVal", { n: kpis.avgAge }) : "—"}
           </div>
-          <div className="ana-kpi-lbl">Âge moyen</div>
+          <div className="ana-kpi-lbl">{t("analytiques.kpiAvgAge")}</div>
         </div>
         <div className="ana-kpi" style={{ borderTopColor: "#c084fc" }}>
           <div className="ana-kpi-val" style={{ color: "#c084fc" }}>{kpis.withCnops}</div>
-          <div className="ana-kpi-lbl">Avec AMO/CNOPS</div>
+          <div className="ana-kpi-lbl">{t("analytiques.kpiCnops")}</div>
         </div>
         <div className="ana-kpi" style={{ borderTopColor: "var(--gold)" }}>
           <div className="ana-kpi-val" style={{ color: "var(--gold)" }}>+{kpis.newThisMth}</div>
-          <div className="ana-kpi-lbl">Nouveaux ce mois</div>
+          <div className="ana-kpi-lbl">{t("analytiques.kpiNew")}</div>
         </div>
       </div>
 
@@ -253,9 +264,9 @@ function AnalytiquesContent() {
           {/* Age distribution */}
           <div className="card">
             <div className="card-header">
-              <div className="card-title">Répartition par âge</div>
+              <div className="card-title">{t("analytiques.ageTitle")}</div>
               <span className="ana-card-sub">
-                {patients.filter(p => p.dateOfBirth).length}/{patients.length} avec DDN
+                {t("analytiques.ageDobCount", { n: patients.filter(p => p.dateOfBirth).length, total: patients.length })}
               </span>
             </div>
             <div style={{ padding: "0 18px 16px" }}>
@@ -275,13 +286,13 @@ function AnalytiquesContent() {
           {/* Gender breakdown */}
           <div className="card">
             <div className="card-header">
-              <div className="card-title">Genre</div>
+              <div className="card-title">{t("analytiques.genderTitle")}</div>
             </div>
             <div style={{ padding: "0 18px 16px" }}>
               {genderDist.map(g => (
                 <HBar
-                  key={g.label}
-                  label={g.label}
+                  key={g.labelKey}
+                  label={t(`analytiques.${g.labelKey}`)}
                   value={g.value}
                   max={maxGender}
                   color={g.color}
@@ -295,9 +306,9 @@ function AnalytiquesContent() {
           {bloodDist.length > 0 && (
             <div className="card">
               <div className="card-header">
-                <div className="card-title">Groupes sanguins</div>
+                <div className="card-title">{t("analytiques.bloodTitle")}</div>
                 <span className="ana-card-sub">
-                  {patients.filter(p => p.bloodType).length} renseignés
+                  {t("analytiques.bloodCount", { n: patients.filter(p => p.bloodType).length })}
                 </span>
               </div>
               <div style={{ padding: "0 18px 16px" }}>
@@ -322,18 +333,18 @@ function AnalytiquesContent() {
           {/* Year summary */}
           <div className="card">
             <div className="card-header">
-              <div className="card-title">Activité {thisYear}</div>
+              <div className="card-title">{t("analytiques.yearTitle", { year: thisYear })}</div>
             </div>
             <div className="ana-year-kpis">
               {[
-                { label: "RDV total",   value: yearTotals.total,     color: "var(--blue)" },
-                { label: "Terminés",    value: yearTotals.completed, color: "var(--green)" },
-                { label: "Facturés",    value: yearTotals.billed,    color: "var(--gold)" },
-                { label: "CA",          value: formatMAD(yearTotals.revenue), color: "var(--navy)" },
-              ].map(({ label, value, color }) => (
-                <div key={label} className="ana-year-kpi">
+                { labelKey: "kpiTotalAppts", value: yearTotals.total,                    color: "var(--blue)" },
+                { labelKey: "kpiCompleted",  value: yearTotals.completed,                color: "var(--green)" },
+                { labelKey: "kpiBilled",     value: yearTotals.billed,                   color: "var(--gold)" },
+                { labelKey: "kpiRevenue",    value: formatMAD(yearTotals.revenue),        color: "var(--navy)" },
+              ].map(({ labelKey, value, color }) => (
+                <div key={labelKey} className="ana-year-kpi">
                   <div className="ana-year-val" style={{ color }}>{value}</div>
-                  <div className="ana-year-lbl">{label}</div>
+                  <div className="ana-year-lbl">{t(`analytiques.${labelKey}`)}</div>
                 </div>
               ))}
             </div>
@@ -342,8 +353,8 @@ function AnalytiquesContent() {
           {/* Monthly consultations */}
           <div className="card">
             <div className="card-header">
-              <div className="card-title">Consultations par mois</div>
-              <span className="ana-card-sub">12 derniers mois</span>
+              <div className="card-title">{t("analytiques.monthlyAppts")}</div>
+              <span className="ana-card-sub">{t("analytiques.last12Months")}</span>
             </div>
             <div style={{ padding: "0 18px 12px" }}>
               <BarChart data={monthlyAppts} color="var(--blue)" height={90} />
@@ -353,8 +364,8 @@ function AnalytiquesContent() {
           {/* Monthly revenue */}
           <div className="card">
             <div className="card-header">
-              <div className="card-title">Revenus facturés par mois</div>
-              <span className="ana-card-sub">12 derniers mois</span>
+              <div className="card-title">{t("analytiques.monthlyRev")}</div>
+              <span className="ana-card-sub">{t("analytiques.last12Months")}</span>
             </div>
             <div style={{ padding: "0 18px 12px" }}>
               <BarChart data={monthlyRevenue} color="var(--green)" height={90} />
@@ -365,8 +376,8 @@ function AnalytiquesContent() {
           {topPatients.length > 0 && (
             <div className="card">
               <div className="card-header">
-                <div className="card-title">Patients les plus fidèles</div>
-                <span className="ana-card-sub">par nombre de visites</span>
+                <div className="card-title">{t("analytiques.topPatients")}</div>
+                <span className="ana-card-sub">{t("analytiques.topPatientsSub")}</span>
               </div>
               <div className="ana-top-list">
                 {topPatients.map((p, i) => (
@@ -378,15 +389,15 @@ function AnalytiquesContent() {
                         : <span className="ana-top-name">{p.name}</span>
                       }
                       <span className="ana-top-last">
-                        Dernière visite :{" "}
-                        {new Date(p.last + "T12:00:00").toLocaleDateString("fr-FR", {
+                        {t("analytiques.lastVisit")}{" "}
+                        {new Date(p.last + "T12:00:00").toLocaleDateString(locale, {
                           day: "numeric", month: "short", year: "numeric",
                         })}
                       </span>
                     </div>
                     <div className="ana-top-count">
                       <span className="ana-top-num">{p.count}</span>
-                      <span className="ana-top-visits"> visite{p.count > 1 ? "s" : ""}</span>
+                      <span className="ana-top-visits"> {t("analytiques.visitCount", { n: p.count, s: p.count > 1 ? "s" : "" })}</span>
                     </div>
                   </div>
                 ))}

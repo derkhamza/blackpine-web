@@ -1,11 +1,15 @@
-import { Navigate, Route, Routes } from "react-router-dom";
-import { useState } from "react";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { trackPage } from "./lib/analytics";
 import { useApp } from "./context/AppContext";
 import { useCabinet } from "./context/CabinetContext";
+import type { SecretaryPermissions } from "./lib/cabinetTypes";
+import { DEFAULT_SECRETARY_PERMISSIONS } from "./lib/cabinetTypes";
 import { OnboardingWizard } from "./pages/OnboardingWizard";
 import { AuthPage }              from "./pages/AuthPage";
+import { BookingPage }           from "./pages/BookingPage";
+import { AdminPage }             from "./pages/AdminPage";
 import { DashboardPage }         from "./pages/DashboardPage";
-import { TransactionsPage }      from "./pages/TransactionsPage";
 import { ExplainPage }           from "./pages/ExplainPage";
 import { ProfilePage }           from "./pages/ProfilePage";
 import { AgendaPage }            from "./pages/AgendaPage";
@@ -17,8 +21,6 @@ import { PayrollPage }           from "./pages/PayrollPage";
 import { RemboursementsPage }    from "./pages/RemboursementsPage";
 import { WaitingRoomPage }       from "./pages/WaitingRoomPage";
 import { FacturesPage }          from "./pages/FacturesPage";
-import { RappelsPage }           from "./pages/RappelsPage";
-import { AnalytiquesPage }       from "./pages/AnalytiquesPage";
 import { StocksSupplyPage }      from "./pages/StocksSupplyPage";
 import { StockPage }             from "./pages/StockPage";
 import { CalculateursPage }      from "./pages/CalculateursPage";
@@ -39,8 +41,24 @@ import { CommunicationPage }     from "./pages/CommunicationPage";
 import { RapportsPage }          from "./pages/RapportsPage";
 import { FacturationPage }       from "./pages/FacturationPage";
 
-function RequireAuth({ children }: { children: JSX.Element }) {
-  const { isAuthenticated } = useApp();
+function RequireAuth({ children, secretaryOk = false, perm }: {
+  children: JSX.Element;
+  secretaryOk?: boolean;
+  perm?: keyof SecretaryPermissions;
+}) {
+  const { isAuthenticated, isSecretary } = useApp();
+  const { doctorProfile } = useCabinet();
+  // A secretary may only reach explicitly-allowed routes; everything else
+  // bounces them to their home (the agenda). Routes flagged with a `perm` are
+  // additionally gated on the granular permission the doctor granted.
+  if (isSecretary) {
+    if (!secretaryOk && !perm) return <Navigate to="/agenda" replace />;
+    if (perm) {
+      const perms = doctorProfile.secretaryPermissions ?? DEFAULT_SECRETARY_PERMISSIONS;
+      if (!perms[perm]) return <Navigate to="/agenda" replace />;
+    }
+    return children;
+  }
   return isAuthenticated ? children : <Navigate to="/login" replace />;
 }
 
@@ -60,21 +78,31 @@ function OnboardingGate() {
   return <OnboardingWizard onDone={() => setDismissed(true)} />;
 }
 
+function RouteTracker() {
+  const loc = useLocation();
+  useEffect(() => { trackPage(loc.pathname); }, [loc.pathname]);
+  return null;
+}
+
 export function App() {
   return (
     <>
+    <RouteTracker />
     <OnboardingGate />
     <Routes>
       <Route path="/login" element={<AuthPage />} />
+      {/* Public patient self-booking — no auth */}
+      <Route path="/book/:slug" element={<BookingPage />} />
       <Route path="/" element={
         <RequireAuth><DashboardPage /></RequireAuth>
       } />
-      <Route path="/transactions" element={
-        <RequireAuth><TransactionsPage /></RequireAuth>
+      <Route path="/transactions" element={<Navigate to="/facturation" replace />} />
+      <Route path="/admin" element={
+        <RequireAuth><AdminPage /></RequireAuth>
       } />
       {/* ── Combined pages (new primary routes) ── */}
       <Route path="/documents" element={
-        <RequireAuth><DocumentsPage /></RequireAuth>
+        <RequireAuth perm="viewClinical"><DocumentsPage /></RequireAuth>
       } />
       <Route path="/communication" element={
         <RequireAuth><CommunicationPage /></RequireAuth>
@@ -83,7 +111,7 @@ export function App() {
         <RequireAuth><RapportsPage /></RequireAuth>
       } />
       <Route path="/facturation" element={
-        <RequireAuth><FacturationPage /></RequireAuth>
+        <RequireAuth perm="handleBilling"><FacturationPage /></RequireAuth>
       } />
       {/* ── Legacy routes (kept for deep links / bookmarks) ── */}
       <Route path="/expliquer"    element={<Navigate to="/rapports" replace />} />
@@ -99,44 +127,40 @@ export function App() {
       <Route path="/profil"       element={<Navigate to="/parametres" replace />} />
       <Route path="/activite" element={<Navigate to="/analytiques" replace />} />
       <Route path="/agenda" element={
-        <RequireAuth><AgendaPage /></RequireAuth>
+        <RequireAuth secretaryOk><AgendaPage /></RequireAuth>
       } />
       <Route path="/agenda/:apptId" element={
-        <RequireAuth><AppointmentDetailPage /></RequireAuth>
+        <RequireAuth secretaryOk><AppointmentDetailPage /></RequireAuth>
       } />
       <Route path="/patients" element={
-        <RequireAuth><PatientsPage /></RequireAuth>
+        <RequireAuth secretaryOk><PatientsPage /></RequireAuth>
       } />
       <Route path="/patients/:patientId" element={
-        <RequireAuth><PatientDetailPage /></RequireAuth>
+        <RequireAuth secretaryOk><PatientDetailPage /></RequireAuth>
       } />
       <Route path="/rapport" element={
         <RequireAuth><ReportPage /></RequireAuth>
       } />
       <Route path="/comptabilite" element={
-        <RequireAuth><ComptabilitePage /></RequireAuth>
+        <RequireAuth perm="viewFinances"><ComptabilitePage /></RequireAuth>
       } />
       <Route path="/optimisation" element={
         <RequireAuth><OptimisationPage /></RequireAuth>
       } />
       <Route path="/salaires" element={
-        <RequireAuth><PayrollPage /></RequireAuth>
+        <RequireAuth perm="managePayroll"><PayrollPage /></RequireAuth>
       } />
       <Route path="/remboursements" element={
         <RequireAuth><RemboursementsPage /></RequireAuth>
       } />
       <Route path="/salle-attente" element={
-        <RequireAuth><WaitingRoomPage /></RequireAuth>
+        <RequireAuth secretaryOk><WaitingRoomPage /></RequireAuth>
       } />
       <Route path="/factures" element={
         <RequireAuth><FacturesPage /></RequireAuth>
       } />
-      <Route path="/rappels" element={
-        <RequireAuth><RappelsPage /></RequireAuth>
-      } />
-      <Route path="/analytiques" element={
-        <RequireAuth><AnalytiquesPage /></RequireAuth>
-      } />
+      <Route path="/rappels" element={<Navigate to="/communication" replace />} />
+      <Route path="/analytiques" element={<Navigate to="/rapports" replace />} />
       <Route path="/stocks" element={
         <RequireAuth><StocksSupplyPage /></RequireAuth>
       } />
@@ -156,7 +180,7 @@ export function App() {
         <RequireAuth><FournisseursPage /></RequireAuth>
       } />
       <Route path="/examens" element={
-        <RequireAuth><ExamensPage /></RequireAuth>
+        <RequireAuth perm="viewClinical"><ExamensPage /></RequireAuth>
       } />
       <Route path="/ordonnances" element={
         <RequireAuth><OrdonancesPage /></RequireAuth>

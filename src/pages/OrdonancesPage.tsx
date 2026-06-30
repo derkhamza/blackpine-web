@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { Layout } from "../components/Layout";
 import { useCabinet } from "../context/CabinetContext";
 import type { OrdonnanceLine, Prescription, PrescriptionTemplate } from "../lib/cabinetTypes";
@@ -10,13 +11,13 @@ function blankLine(): OrdonnanceLine {
   return { drug: "", dosage: "", frequency: "", duration: "", notes: "" };
 }
 
-function formatDate(iso: string) {
-  const [y, m, d] = iso.split("-");
-  return `${d}/${m}/${y}`;
+function fmtDateLocale(iso: string, locale: string): string {
+  return new Date(iso + "T12:00:00").toLocaleDateString(locale, {
+    day: "numeric", month: "short", year: "numeric",
+  });
 }
 
-// ── Print ordonnance ──────────────────────────────────────────────────────────
-
+// Print function — intentionally kept in French (official medical document)
 function printOrdonnance(
   patientName: string,
   date: string,
@@ -24,6 +25,11 @@ function printOrdonnance(
   notes: string | undefined,
   doctor: { fullName: string; specialtyLabel?: string; address?: string; phone?: string; inpe?: string },
 ) {
+  const formatDateFr = (iso: string) => {
+    const [y, m, d] = iso.split("-");
+    return `${d}/${m}/${y}`;
+  };
+
   const rows = lines.map((l, i) => `
     <tr>
       <td style="padding:8px 10px;border-bottom:1px solid #eee;color:#666;font-size:13px;vertical-align:top;width:24px;">${i + 1}.</td>
@@ -79,28 +85,22 @@ function printOrdonnance(
     </div>
     <div class="logo-area"><div class="logo-rx">℞</div></div>
   </div>
-
   <div class="title-bar">Ordonnance Médicale</div>
-
   <div class="patient-row">
     <div>
       <span class="patient-label">Patient(e) : </span>
       <span class="patient-name">${patientName}</span>
     </div>
-    <div class="date-val">Le ${formatDate(date)}</div>
+    <div class="date-val">Le ${formatDateFr(date)}</div>
   </div>
-
   <table>${rows}</table>
-
   ${notes ? `<div class="notes-block"><strong>Note :</strong> ${notes}</div>` : ""}
-
   <div class="footer">
     <div class="sig-box">
       <div class="sig-label">Signature et cachet</div>
       <div class="sig-line">${doctor.fullName || ""}</div>
     </div>
   </div>
-
   <script>window.onload = function(){ window.print(); }<\/script>
 </body>
 </html>`;
@@ -109,56 +109,38 @@ function printOrdonnance(
   if (w) { w.document.write(html); w.document.close(); }
 }
 
-// ── Drug line row (used in both modals) ──────────────────────────────────────
+// ── Drug line row ─────────────────────────────────────────────────────────────
 
 interface DrugLineRowProps {
-  line: OrdonnanceLine;
-  index: number;
-  onChange: (i: number, field: keyof OrdonnanceLine, val: string) => void;
-  onRemove: (i: number) => void;
+  line:      OrdonnanceLine;
+  index:     number;
+  onChange:  (i: number, field: keyof OrdonnanceLine, val: string) => void;
+  onRemove:  (i: number) => void;
   canRemove: boolean;
 }
 
 function DrugLineRow({ line, index, onChange, onRemove, canRemove }: DrugLineRowProps) {
+  const { t } = useTranslation();
   return (
     <div className="rx-line-row">
       <div className="rx-line-num">{index + 1}</div>
       <div className="rx-line-fields">
-        <input
-          className="rx-input rx-line-drug"
-          placeholder="Médicament / DCI"
-          value={line.drug}
-          onChange={e => onChange(index, "drug", e.target.value)}
-        />
+        <input className="rx-input rx-line-drug"
+          placeholder={t("ordonnances.drugPlaceholder")}
+          value={line.drug} onChange={e => onChange(index, "drug", e.target.value)} />
         <div className="rx-line-row2">
-          <input
-            className="rx-input"
-            placeholder="Dosage"
-            value={line.dosage ?? ""}
-            onChange={e => onChange(index, "dosage", e.target.value)}
-          />
-          <input
-            className="rx-input"
-            placeholder="Fréquence"
-            value={line.frequency}
-            onChange={e => onChange(index, "frequency", e.target.value)}
-          />
-          <input
-            className="rx-input"
-            placeholder="Durée"
-            value={line.duration}
-            onChange={e => onChange(index, "duration", e.target.value)}
-          />
+          <input className="rx-input" placeholder={t("ordonnances.dosagePlaceholder")}
+            value={line.dosage ?? ""} onChange={e => onChange(index, "dosage", e.target.value)} />
+          <input className="rx-input" placeholder={t("ordonnances.freqPlaceholder")}
+            value={line.frequency} onChange={e => onChange(index, "frequency", e.target.value)} />
+          <input className="rx-input" placeholder={t("ordonnances.durationPlaceholder")}
+            value={line.duration} onChange={e => onChange(index, "duration", e.target.value)} />
         </div>
-        <input
-          className="rx-input rx-line-note"
-          placeholder="Instructions (optionnel)"
-          value={line.notes ?? ""}
-          onChange={e => onChange(index, "notes", e.target.value)}
-        />
+        <input className="rx-input rx-line-note" placeholder={t("ordonnances.instructionsPlaceholder")}
+          value={line.notes ?? ""} onChange={e => onChange(index, "notes", e.target.value)} />
       </div>
       {canRemove && (
-        <button className="rx-line-remove" onClick={() => onRemove(index)} title="Supprimer">×</button>
+        <button className="rx-line-remove" onClick={() => onRemove(index)}>×</button>
       )}
     </div>
   );
@@ -167,28 +149,29 @@ function DrugLineRow({ line, index, onChange, onRemove, canRemove }: DrugLineRow
 // ── Prescription modal ────────────────────────────────────────────────────────
 
 interface RxModalProps {
-  editing?: Prescription;
-  initialTemplate?: PrescriptionTemplate;
-  patients: { id: string; name: string }[];
-  templates: PrescriptionTemplate[];
-  today: string;
-  onSave: (p: Omit<Prescription, "id" | "createdAt">) => void;
-  onClose: () => void;
+  editing?:          Prescription;
+  initialTemplate?:  PrescriptionTemplate;
+  patients:          { id: string; name: string }[];
+  templates:         PrescriptionTemplate[];
+  today:             string;
+  onSave:            (p: Omit<Prescription, "id" | "createdAt">) => void;
+  onClose:           () => void;
 }
 
 function RxModal({ editing, initialTemplate, patients, templates, today, onSave, onClose }: RxModalProps) {
-  const [patientName, setPatientName] = useState(editing?.patientName ?? "");
-  const [date, setDate]               = useState(editing?.date ?? today);
-  const [lines, setLines]             = useState<OrdonnanceLine[]>(() => {
+  const { t } = useTranslation();
+  const [patientName,   setPatientName]   = useState(editing?.patientName ?? "");
+  const [date,          setDate]          = useState(editing?.date ?? today);
+  const [lines,         setLines]         = useState<OrdonnanceLine[]>(() => {
     if (editing?.lines?.length) return editing.lines.map(l => ({ ...l }));
     if (initialTemplate?.lines?.length) return initialTemplate.lines.map(l => ({ ...l }));
     return [blankLine()];
   });
-  const [notes, setNotes]             = useState(editing?.notes ?? "");
-  const [selectedTplId, setTplId]     = useState(initialTemplate?.id ?? "");
+  const [notes,         setNotes]         = useState(editing?.notes ?? "");
+  const [selectedTplId, setTplId]         = useState(initialTemplate?.id ?? "");
 
   const applyTemplate = useCallback((tplId: string) => {
-    const tpl = templates.find(t => t.id === tplId);
+    const tpl = templates.find(x => x.id === tplId);
     if (!tpl) return;
     setLines(tpl.lines.map(l => ({ ...l })));
     setTplId(tplId);
@@ -216,113 +199,81 @@ function RxModal({ editing, initialTemplate, patients, templates, today, onSave,
     });
   };
 
-  const patientMatch = patients.find(p =>
-    p.name.toLowerCase() === patientName.toLowerCase()
-  );
+  const patientMatch = patients.find(p => p.name.toLowerCase() === patientName.toLowerCase());
 
   return (
     <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modal rx-modal">
         <div className="modal-header">
-          <div className="modal-title">{editing ? "Modifier l'ordonnance" : "Nouvelle ordonnance"}</div>
+          <div className="modal-title">{editing ? t("ordonnances.rxModalEdit") : t("ordonnances.rxModalNew")}</div>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
-
         <div className="modal-body">
-          {/* Patient + date row */}
           <div className="rx-top-row">
             <div className="form-group" style={{ flex: 2 }}>
-              <label className="form-label">Patient(e)</label>
-              <input
-                className="form-input"
-                placeholder="Nom du patient"
-                value={patientName}
-                onChange={e => setPatientName(e.target.value)}
-                list="rx-patients-list"
-              />
+              <label className="form-label">{t("ordonnances.patientField")}</label>
+              <input className="form-input" placeholder={t("ordonnances.patientPlaceholder")}
+                value={patientName} onChange={e => setPatientName(e.target.value)}
+                list="rx-patients-list" />
               <datalist id="rx-patients-list">
                 {patients.map(p => <option key={p.id} value={p.name} />)}
               </datalist>
               {patientName && !patientMatch && (
-                <div className="form-hint" style={{ color: "var(--gold)" }}>Patient non trouvé dans la liste</div>
+                <div className="form-hint" style={{ color: "var(--gold)" }}>
+                  {t("ordonnances.patientNotFound")}
+                </div>
               )}
             </div>
             <div className="form-group" style={{ flex: 1 }}>
-              <label className="form-label">Date</label>
-              <input
-                type="date"
-                className="form-input"
-                value={date}
-                onChange={e => setDate(e.target.value)}
-              />
+              <label className="form-label">{t("ordonnances.dateField")}</label>
+              <input type="date" className="form-input" value={date} onChange={e => setDate(e.target.value)} />
             </div>
           </div>
 
-          {/* Template picker */}
           {templates.length > 0 && (
             <div className="form-group">
-              <label className="form-label">Utiliser un modèle (optionnel)</label>
+              <label className="form-label">{t("ordonnances.templateField")}</label>
               <div className="rx-tpl-chips">
-                {templates.map(t => (
-                  <button
-                    key={t.id}
-                    className={`rx-tpl-chip${selectedTplId === t.id ? " active" : ""}`}
-                    onClick={() => applyTemplate(t.id)}
-                    type="button"
-                  >
-                    {t.name}
-                    <span className="rx-tpl-chip-count">{t.lines.length}</span>
+                {templates.map(tpl => (
+                  <button key={tpl.id}
+                    className={`rx-tpl-chip${selectedTplId === tpl.id ? " active" : ""}`}
+                    onClick={() => applyTemplate(tpl.id)} type="button">
+                    {tpl.name}
+                    <span className="rx-tpl-chip-count">{tpl.lines.length}</span>
                   </button>
                 ))}
               </div>
             </div>
           )}
 
-          {/* Drug lines */}
           <div className="form-group">
-            <label className="form-label">Médicaments prescrits</label>
+            <label className="form-label">{t("ordonnances.drugsLabel")}</label>
             <div className="rx-lines-list">
               {lines.map((l, i) => (
-                <DrugLineRow
-                  key={i}
-                  line={l}
-                  index={i}
-                  onChange={changeLine}
-                  onRemove={removeLine}
-                  canRemove={lines.length > 1}
-                />
+                <DrugLineRow key={i} line={l} index={i}
+                  onChange={changeLine} onRemove={removeLine} canRemove={lines.length > 1} />
               ))}
             </div>
-            <button
-              className="rx-add-line-btn"
-              type="button"
-              onClick={() => setLines(prev => [...prev, blankLine()])}
-            >
-              + Ajouter un médicament
+            <button className="rx-add-line-btn" type="button"
+              onClick={() => setLines(prev => [...prev, blankLine()])}>
+              {t("ordonnances.addDrug")}
             </button>
           </div>
 
-          {/* Notes */}
           <div className="form-group">
-            <label className="form-label">Notes / recommandations</label>
-            <textarea
-              className="form-input"
-              rows={2}
-              placeholder="Conseils supplémentaires, régime, repos…"
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-            />
+            <label className="form-label">{t("ordonnances.notesLabel")}</label>
+            <textarea className="form-input" rows={2}
+              placeholder={t("ordonnances.notesPlaceholder")}
+              value={notes} onChange={e => setNotes(e.target.value)} />
           </div>
         </div>
 
         <div className="modal-footer">
-          <button className="btn btn-ghost" onClick={onClose}>Annuler</button>
-          <button
-            className="btn btn-primary"
+          <button className="btn btn-ghost" onClick={onClose}>{t("common.cancel")}</button>
+          <button className="btn btn-primary"
             disabled={!patientName.trim() || lines.every(l => !l.drug.trim())}
-            onClick={handleSave}
-          >
-            {editing ? "Enregistrer" : "Créer l'ordonnance"}
+            onClick={handleSave}>
+            {editing ? t("common.save") : t("ordonnances.createBtn")}
           </button>
         </div>
       </div>
@@ -330,16 +281,17 @@ function RxModal({ editing, initialTemplate, patients, templates, today, onSave,
   );
 }
 
-// ── Template modal ─────────────────────────────────────────────────────────────
+// ── Template modal ────────────────────────────────────────────────────────────
 
 interface TplModalProps {
   editing?: PrescriptionTemplate;
-  onSave: (t: Omit<PrescriptionTemplate, "id"> & { id?: string }) => void;
-  onClose: () => void;
+  onSave:   (t: Omit<PrescriptionTemplate, "id"> & { id?: string }) => void;
+  onClose:  () => void;
 }
 
 function TplModal({ editing, onSave, onClose }: TplModalProps) {
-  const [name, setName]   = useState(editing?.name ?? "");
+  const { t } = useTranslation();
+  const [name,  setName]  = useState(editing?.name ?? "");
   const [lines, setLines] = useState<OrdonnanceLine[]>(
     editing?.lines?.length ? editing.lines.map(l => ({ ...l })) : [blankLine()]
   );
@@ -363,53 +315,35 @@ function TplModal({ editing, onSave, onClose }: TplModalProps) {
     <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modal rx-modal">
         <div className="modal-header">
-          <div className="modal-title">{editing ? "Modifier le modèle" : "Nouveau modèle d'ordonnance"}</div>
+          <div className="modal-title">{editing ? t("ordonnances.tplModalEdit") : t("ordonnances.tplModalNew")}</div>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
-
         <div className="modal-body">
           <div className="form-group">
-            <label className="form-label">Nom du modèle</label>
-            <input
-              className="form-input"
-              placeholder="ex : Grippe, HTA, Diabète…"
-              value={name}
-              onChange={e => setName(e.target.value)}
-            />
+            <label className="form-label">{t("ordonnances.tplNameField")}</label>
+            <input className="form-input" placeholder={t("ordonnances.tplNamePlaceholder")}
+              value={name} onChange={e => setName(e.target.value)} />
           </div>
-
           <div className="form-group">
-            <label className="form-label">Médicaments</label>
+            <label className="form-label">{t("ordonnances.tplDrugsLabel")}</label>
             <div className="rx-lines-list">
               {lines.map((l, i) => (
-                <DrugLineRow
-                  key={i}
-                  line={l}
-                  index={i}
-                  onChange={changeLine}
-                  onRemove={removeLine}
-                  canRemove={lines.length > 1}
-                />
+                <DrugLineRow key={i} line={l} index={i}
+                  onChange={changeLine} onRemove={removeLine} canRemove={lines.length > 1} />
               ))}
             </div>
-            <button
-              className="rx-add-line-btn"
-              type="button"
-              onClick={() => setLines(prev => [...prev, blankLine()])}
-            >
-              + Ajouter un médicament
+            <button className="rx-add-line-btn" type="button"
+              onClick={() => setLines(prev => [...prev, blankLine()])}>
+              {t("ordonnances.addDrug")}
             </button>
           </div>
         </div>
-
         <div className="modal-footer">
-          <button className="btn btn-ghost" onClick={onClose}>Annuler</button>
-          <button
-            className="btn btn-primary"
+          <button className="btn btn-ghost" onClick={onClose}>{t("common.cancel")}</button>
+          <button className="btn btn-primary"
             disabled={!name.trim() || lines.every(l => !l.drug.trim())}
-            onClick={handleSave}
-          >
-            {editing ? "Enregistrer" : "Créer le modèle"}
+            onClick={handleSave}>
+            {editing ? t("common.save") : t("ordonnances.createTplBtn")}
           </button>
         </div>
       </div>
@@ -420,20 +354,22 @@ function TplModal({ editing, onSave, onClose }: TplModalProps) {
 // ── Prescription card ─────────────────────────────────────────────────────────
 
 interface RxCardProps {
-  rx: Prescription;
-  doctor: { fullName: string; specialtyLabel?: string; address?: string; phone?: string; inpe?: string };
-  onEdit: () => void;
-  onDelete: () => void;
+  rx:      Prescription;
+  locale:  string;
+  doctor:  { fullName: string; specialtyLabel?: string; address?: string; phone?: string; inpe?: string };
+  onEdit:  () => void;
+  onDelete:() => void;
 }
 
-function RxCard({ rx, doctor, onEdit, onDelete }: RxCardProps) {
+function RxCard({ rx, locale, doctor, onEdit, onDelete }: RxCardProps) {
+  const { t } = useTranslation();
   return (
     <div className="rx-card">
       <div className="rx-card-accent" />
       <div className="rx-card-body">
         <div className="rx-card-header">
           <div className="rx-card-patient">{rx.patientName}</div>
-          <div className="rx-card-date">{formatDate(rx.date)}</div>
+          <div className="rx-card-date">{fmtDateLocale(rx.date, locale)}</div>
         </div>
         <div className="rx-card-drugs">
           {rx.lines.slice(0, 3).map((l, i) => (
@@ -444,31 +380,30 @@ function RxCard({ rx, doctor, onEdit, onDelete }: RxCardProps) {
             </div>
           ))}
           {rx.lines.length > 3 && (
-            <div className="rx-card-more">+{rx.lines.length - 3} autre{rx.lines.length - 3 > 1 ? "s" : ""}</div>
+            <div className="rx-card-more">
+              {t("ordonnances.nMore", { n: rx.lines.length - 3, s: rx.lines.length - 3 > 1 ? "s" : "" })}
+            </div>
           )}
         </div>
         {rx.notes && <div className="rx-card-notes">{rx.notes}</div>}
         {rx.source === "appointment" && (
-          <div className="rx-source-badge">Liée à une consultation</div>
+          <div className="rx-source-badge">{t("ordonnances.linkedAppt")}</div>
         )}
       </div>
       <div className="rx-card-actions">
-        <button
-          className="btn btn-ghost btn-sm"
-          onClick={() => printOrdonnance(rx.patientName, rx.date, rx.lines, rx.notes, doctor)}
-          title="Imprimer"
-        >
+        <button className="btn btn-ghost btn-sm"
+          onClick={() => printOrdonnance(rx.patientName, rx.date, rx.lines, rx.notes, doctor)}>
           <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
             <rect x="2" y="5" width="10" height="6" rx="1" stroke="currentColor" strokeWidth="1.3"/>
             <path d="M4 5V2h6v3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
             <path d="M4 9h6M4 11h4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
           </svg>
-          Imprimer
+          {t("ordonnances.printBtn")}
         </button>
         {rx.source === "standalone" && (
           <>
-            <button className="btn btn-ghost btn-sm" onClick={onEdit}>Modifier</button>
-            <button className="btn btn-ghost btn-sm danger" onClick={onDelete}>Supprimer</button>
+            <button className="btn btn-ghost btn-sm" onClick={onEdit}>{t("common.edit")}</button>
+            <button className="btn btn-ghost btn-sm danger" onClick={onDelete}>{t("common.delete")}</button>
           </>
         )}
       </div>
@@ -479,18 +414,21 @@ function RxCard({ rx, doctor, onEdit, onDelete }: RxCardProps) {
 // ── Template card ─────────────────────────────────────────────────────────────
 
 interface TplCardProps {
-  tpl: PrescriptionTemplate;
-  onEdit: () => void;
-  onDelete: () => void;
-  onUse: () => void;
+  tpl:     PrescriptionTemplate;
+  onEdit:  () => void;
+  onDelete:() => void;
+  onUse:   () => void;
 }
 
 function TplCard({ tpl, onEdit, onDelete, onUse }: TplCardProps) {
+  const { t } = useTranslation();
   return (
     <div className="rx-tpl-card">
       <div className="rx-tpl-card-top">
         <div className="rx-tpl-card-name">{tpl.name}</div>
-        <div className="rx-tpl-drug-count">{tpl.lines.length} médicament{tpl.lines.length > 1 ? "s" : ""}</div>
+        <div className="rx-tpl-drug-count">
+          {t("ordonnances.nDrugs", { n: tpl.lines.length, s: tpl.lines.length > 1 ? "s" : "" })}
+        </div>
       </div>
       <div className="rx-tpl-drug-list">
         {tpl.lines.map((l, i) => (
@@ -506,10 +444,10 @@ function TplCard({ tpl, onEdit, onDelete, onUse }: TplCardProps) {
           <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
             <path d="M6 1v10M1 6h10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
           </svg>
-          Utiliser
+          {t("ordonnances.useTemplate")}
         </button>
-        <button className="btn btn-ghost btn-sm" onClick={onEdit}>Modifier</button>
-        <button className="btn btn-ghost btn-sm danger" onClick={onDelete}>Supprimer</button>
+        <button className="btn btn-ghost btn-sm" onClick={onEdit}>{t("common.edit")}</button>
+        <button className="btn btn-ghost btn-sm danger" onClick={onDelete}>{t("common.delete")}</button>
       </div>
     </div>
   );
@@ -518,25 +456,25 @@ function TplCard({ tpl, onEdit, onDelete, onUse }: TplCardProps) {
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export function OrdonancesPage({ noLayout = false }: { noLayout?: boolean } = {}) {
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language?.slice(0, 2) === "ar" ? "ar-MA"
+               : i18n.language?.slice(0, 2) === "en" ? "en-US" : "fr-FR";
   const today = todayIso();
 
   const {
     prescriptions, addPrescription, updatePrescription, deletePrescription,
     prescriptionTemplates, addPrescriptionTemplate, updatePrescriptionTemplate, deletePrescriptionTemplate,
-    appointments,
-    patients,
-    doctorProfile,
+    appointments, patients, doctorProfile,
   } = useCabinet();
 
-  const [tab, setTab]           = useState<"ordonnances" | "modeles">("ordonnances");
-  const [search, setSearch]     = useState("");
-  const [showRxModal, setRxModal]   = useState(false);
-  const [showTplModal, setTplModal] = useState(false);
-  const [editingRx, setEditingRx]   = useState<Prescription | undefined>();
-  const [editingTpl, setEditingTpl] = useState<PrescriptionTemplate | undefined>();
-  const [preFillTemplate, setPreFillTemplate] = useState<PrescriptionTemplate | undefined>();
+  const [tab,          setTab]        = useState<"ordonnances" | "modeles">("ordonnances");
+  const [search,       setSearch]     = useState("");
+  const [showRxModal,  setRxModal]    = useState(false);
+  const [showTplModal, setTplModal]   = useState(false);
+  const [editingRx,    setEditingRx]  = useState<Prescription | undefined>();
+  const [editingTpl,   setEditingTpl] = useState<PrescriptionTemplate | undefined>();
+  const [preFillTpl,   setPreFillTpl] = useState<PrescriptionTemplate | undefined>();
 
-  // Extract ordonnances from appointments
   const apptRx: Prescription[] = useMemo(() => {
     const result: Prescription[] = [];
     for (const a of appointments) {
@@ -555,128 +493,105 @@ export function OrdonancesPage({ noLayout = false }: { noLayout?: boolean } = {}
     return result.sort((a, b) => b.date.localeCompare(a.date));
   }, [appointments]);
 
-  // Combined list: standalone first (newest), then appointment-linked
   const allRx = useMemo(() => {
     const standalone = [...prescriptions].sort((a, b) => b.date.localeCompare(a.date));
     return [...standalone, ...apptRx];
   }, [prescriptions, apptRx]);
 
-  // Filtered list
   const filteredRx = useMemo(() => {
     if (!search.trim()) return allRx;
     const q = search.toLowerCase();
     return allRx.filter(r => r.patientName.toLowerCase().includes(q));
   }, [allRx, search]);
 
-  // KPIs
   const thisMonth = today.slice(0, 7);
   const kpis = useMemo(() => ({
-    total:      allRx.length,
-    thisMonth:  allRx.filter(r => r.date.startsWith(thisMonth)).length,
-    templates:  prescriptionTemplates.length,
-    patients:   new Set(allRx.map(r => r.patientName)).size,
+    total:     allRx.length,
+    thisMonth: allRx.filter(r => r.date.startsWith(thisMonth)).length,
+    templates: prescriptionTemplates.length,
+    patients:  new Set(allRx.map(r => r.patientName)).size,
   }), [allRx, thisMonth, prescriptionTemplates]);
 
-  // Patient names for autocomplete
   const patientsList = useMemo(() =>
     patients.map(p => ({ id: p.id, name: `${p.firstName} ${p.lastName}`.trim() })),
     [patients]);
 
-  // Handlers
   const openNewRx = (tpl?: PrescriptionTemplate) => {
     setEditingRx(undefined);
-    setPreFillTemplate(tpl);
+    setPreFillTpl(tpl);
     setRxModal(true);
     if (tpl) setTab("ordonnances");
   };
 
   const handleSaveRx = (p: Omit<Prescription, "id" | "createdAt">) => {
-    if (editingRx) {
-      updatePrescription({ ...p, id: editingRx.id, createdAt: editingRx.createdAt });
-    } else {
-      addPrescription(p);
-    }
+    if (editingRx) { updatePrescription({ ...p, id: editingRx.id, createdAt: editingRx.createdAt }); }
+    else { addPrescription(p); }
     setRxModal(false);
     setEditingRx(undefined);
-    setPreFillTemplate(undefined);
+    setPreFillTpl(undefined);
   };
 
-  const handleSaveTpl = (t: Omit<PrescriptionTemplate, "id"> & { id?: string }) => {
-    if (t.id) {
-      updatePrescriptionTemplate({ id: t.id, name: t.name, lines: t.lines });
-    } else {
-      addPrescriptionTemplate({ name: t.name, lines: t.lines });
-    }
+  const handleSaveTpl = (tplData: Omit<PrescriptionTemplate, "id"> & { id?: string }) => {
+    if (tplData.id) { updatePrescriptionTemplate({ id: tplData.id, name: tplData.name, lines: tplData.lines }); }
+    else { addPrescriptionTemplate({ name: tplData.name, lines: tplData.lines }); }
     setTplModal(false);
     setEditingTpl(undefined);
   };
 
   const body = (
     <>
-
-      {/* ── KPI strip ── */}
       <div className="stock-kpi-row">
         <div className="stock-kpi-card">
           <div className="stock-kpi-val">{kpis.total}</div>
-          <div className="stock-kpi-lbl">Ordonnances</div>
+          <div className="stock-kpi-lbl">{t("ordonnances.kpiTotal")}</div>
         </div>
         <div className="stock-kpi-card">
           <div className="stock-kpi-val" style={{ color: "var(--blue)" }}>{kpis.thisMonth}</div>
-          <div className="stock-kpi-lbl">Ce mois</div>
+          <div className="stock-kpi-lbl">{t("ordonnances.kpiThisMonth")}</div>
         </div>
         <div className="stock-kpi-card">
           <div className="stock-kpi-val" style={{ color: "var(--green)" }}>{kpis.patients}</div>
-          <div className="stock-kpi-lbl">Patients</div>
+          <div className="stock-kpi-lbl">{t("ordonnances.kpiPatients")}</div>
         </div>
         <div className="stock-kpi-card">
           <div className="stock-kpi-val" style={{ color: "var(--gold)" }}>{kpis.templates}</div>
-          <div className="stock-kpi-lbl">Modèles</div>
+          <div className="stock-kpi-lbl">{t("ordonnances.kpiTemplates")}</div>
         </div>
       </div>
 
-      {/* ── Tabs ── */}
       <div className="four-tabs" style={{ marginBottom: 16 }}>
-        <button
-          className={`four-tab${tab === "ordonnances" ? " active" : ""}`}
-          onClick={() => setTab("ordonnances")}
-        >
+        <button className={`four-tab${tab === "ordonnances" ? " active" : ""}`}
+          onClick={() => setTab("ordonnances")}>
           <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
             <path d="M3 2h6l3 3v7a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/>
             <path d="M9 2v3h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
             <path d="M5 8h4M5 10h2.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
           </svg>
-          Ordonnances
+          {t("ordonnances.tabOrd")}
           <span className="badge" style={{ marginLeft: 4 }}>{allRx.length}</span>
         </button>
-        <button
-          className={`four-tab${tab === "modeles" ? " active" : ""}`}
-          onClick={() => setTab("modeles")}
-        >
+        <button className={`four-tab${tab === "modeles" ? " active" : ""}`}
+          onClick={() => setTab("modeles")}>
           <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
             <rect x="1" y="2" width="12" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.3"/>
             <path d="M4 6h6M4 8.5h4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
           </svg>
-          Modèles
+          {t("ordonnances.tabTemplates")}
           <span className="badge" style={{ marginLeft: 4 }}>{prescriptionTemplates.length}</span>
         </button>
       </div>
 
-      {/* ══════════════════ TAB: ORDONNANCES ══════════════════ */}
       {tab === "ordonnances" && (
         <>
           <div className="four-toolbar">
-            <input
-              className="search-input"
-              placeholder="Rechercher un patient…"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              style={{ flex: 1, maxWidth: 320 }}
-            />
+            <input className="search-input" placeholder={t("ordonnances.search")}
+              value={search} onChange={e => setSearch(e.target.value)}
+              style={{ flex: 1, maxWidth: 320 }} />
             <button className="btn btn-primary" onClick={() => openNewRx()}>
               <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
                 <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
               </svg>
-              Nouvelle ordonnance
+              {t("ordonnances.newOrd")}
             </button>
           </div>
 
@@ -689,25 +604,22 @@ export function OrdonancesPage({ noLayout = false }: { noLayout?: boolean } = {}
                 </svg>
               </div>
               <div className="empty-title">
-                {search ? "Aucun résultat" : "Aucune ordonnance"}
+                {search ? t("ordonnances.emptySearch") : t("ordonnances.emptyNone")}
               </div>
               <div className="empty-sub">
-                {search ? "Essayez un autre nom" : "Créez votre première ordonnance"}
+                {search ? t("ordonnances.emptySearchHint") : t("ordonnances.emptyHint")}
               </div>
               {!search && (
                 <button className="btn btn-primary" onClick={() => openNewRx()}>
-                  Nouvelle ordonnance
+                  {t("ordonnances.newOrd")}
                 </button>
               )}
             </div>
           ) : (
             <div className="rx-list">
               {filteredRx.map(rx => (
-                <RxCard
-                  key={rx.id}
-                  rx={rx}
-                  doctor={doctorProfile}
-                  onEdit={() => { setEditingRx(rx); setPreFillTemplate(undefined); setRxModal(true); }}
+                <RxCard key={rx.id} rx={rx} locale={locale} doctor={doctorProfile}
+                  onEdit={() => { setEditingRx(rx); setPreFillTpl(undefined); setRxModal(true); }}
                   onDelete={() => deletePrescription(rx.id)}
                 />
               ))}
@@ -716,7 +628,6 @@ export function OrdonancesPage({ noLayout = false }: { noLayout?: boolean } = {}
         </>
       )}
 
-      {/* ══════════════════ TAB: MODÈLES ══════════════════ */}
       {tab === "modeles" && (
         <>
           <div className="four-toolbar">
@@ -725,24 +636,22 @@ export function OrdonancesPage({ noLayout = false }: { noLayout?: boolean } = {}
               <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
                 <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
               </svg>
-              Nouveau modèle
+              {t("ordonnances.newTemplate")}
             </button>
           </div>
 
           {prescriptionTemplates.length === 0 ? (
             <div className="empty-state">
-              <div className="empty-title">Aucun modèle</div>
-              <div className="empty-sub">Créez des modèles pour accélérer la saisie</div>
+              <div className="empty-title">{t("ordonnances.emptyTpl")}</div>
+              <div className="empty-sub">{t("ordonnances.emptyTplHint")}</div>
               <button className="btn btn-primary" onClick={() => { setEditingTpl(undefined); setTplModal(true); }}>
-                Nouveau modèle
+                {t("ordonnances.newTemplate")}
               </button>
             </div>
           ) : (
             <div className="rx-tpl-grid">
               {prescriptionTemplates.map(tpl => (
-                <TplCard
-                  key={tpl.id}
-                  tpl={tpl}
+                <TplCard key={tpl.id} tpl={tpl}
                   onEdit={() => { setEditingTpl(tpl); setTplModal(true); }}
                   onDelete={() => deletePrescriptionTemplate(tpl.id)}
                   onUse={() => openNewRx(tpl)}
@@ -753,30 +662,25 @@ export function OrdonancesPage({ noLayout = false }: { noLayout?: boolean } = {}
         </>
       )}
 
-      {/* ── Modals ── */}
       {showRxModal && (
-        <RxModal
-          editing={editingRx}
-          initialTemplate={preFillTemplate}
-          patients={patientsList}
-          templates={prescriptionTemplates}
-          today={today}
+        <RxModal editing={editingRx} initialTemplate={preFillTpl}
+          patients={patientsList} templates={prescriptionTemplates} today={today}
           onSave={handleSaveRx}
-          onClose={() => { setRxModal(false); setEditingRx(undefined); setPreFillTemplate(undefined); }}
+          onClose={() => { setRxModal(false); setEditingRx(undefined); setPreFillTpl(undefined); }}
         />
       )}
       {showTplModal && (
-        <TplModal
-          editing={editingTpl}
+        <TplModal editing={editingTpl}
           onSave={handleSaveTpl}
           onClose={() => { setTplModal(false); setEditingTpl(undefined); }}
         />
       )}
     </>
   );
+
   if (noLayout) return body;
   return (
-    <Layout title="Ordonnances" subtitle="Prescriptions & Modèles">
+    <Layout title={t("ordonnances.title")} subtitle={t("ordonnances.subtitle")}>
       {body}
     </Layout>
   );

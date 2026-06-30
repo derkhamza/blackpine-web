@@ -10,6 +10,8 @@ import {
 import {
   getStoredUser, isLoggedIn, login as apiLogin, logout as apiLogout,
   pullData, pushData, signup as apiSignup, type AuthUser,
+  getSecretaryToken, getSecretaryOwner, inviteRedeem, clearSecretarySession,
+  secretaryLogin, warmup, type SecretaryOwner,
 } from "../api/client";
 import { generateRecurringTransactions, type RecurringRule } from "../lib/recurringTransactions";
 import { todayIso } from "../lib/format";
@@ -41,6 +43,13 @@ interface AppCtx {
   login:  (email: string, pass: string) => Promise<void>;
   signup: (email: string, pass: string) => Promise<void>;
   logout: () => void;
+
+  // secretary session (restricted, separate-device login via invite code)
+  secretaryOwner: SecretaryOwner | null;
+  isSecretary: boolean;
+  startSecretarySession: (code: string) => Promise<void>;
+  startSecretaryLogin: (username: string, password: string) => Promise<void>;
+  endSecretarySession: () => void;
 
   // data
   profile: DoctorProfile;
@@ -79,8 +88,14 @@ const uid = () => Math.random().toString(36).slice(2, 9);
 
 // ── Provider ───────────────────────────────────────────────────────────────
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [user, setUser]                 = useState<AuthUser | null>(null);
-  const [isAuthenticated, setIsAuth]    = useState(false);
+  // Restore the session synchronously from localStorage so a fresh page load
+  // (new tab / reopened tab) is already authenticated on the very first render —
+  // otherwise RequireAuth would bounce to /login before the boot effect runs.
+  const [user, setUser]                 = useState<AuthUser | null>(() => (isLoggedIn() ? getStoredUser() : null));
+  const [isAuthenticated, setIsAuth]    = useState<boolean>(() => isLoggedIn());
+  const [secretaryOwner, setSecretaryOwner] = useState<SecretaryOwner | null>(
+    () => (getSecretaryToken() ? getSecretaryOwner() : null),
+  );
   const [profile, setProfileState]      = useState<DoctorProfile>(DEFAULT_PROFILE);
   const [transactions, setTx]           = useState<Transaction[]>([]);
   const [assets, setAssets]             = useState<FixedAsset[]>([]);
@@ -97,14 +112,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!isLoggedIn()) return;
     const stored = getStoredUser();
     if (stored) { setUser(stored); setIsAuth(true); }
-    // pull data on boot
+    // pull data on boot — warm the serverless backend first so a cold-start
+    // hiccup doesn't surface as a 401, and never clear the token on a boot 401
+    // (a valid 365-day session must survive tab reopen).
     setSyncStatus("syncing");
-    pullData()
+    warmup()
+      .then(() => pullData(false))
       .then((d) => {
         if (d.profile)            setProfileState(d.profile);
         if (d.transactions.length) setTx(d.transactions);
         if (d.assets.length)       setAssets(d.assets);
         if (d.recurringRules.length) setRules(d.recurringRules);
+        hydratedRef.current = true;
         setSyncStatus("synced");
         setLastSyncedAt(new Date().toISOString());
       })
@@ -116,9 +135,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const pendingRef = useRef({ profile, transactions, assets, recurringRules });
   useEffect(() => { pendingRef.current = { profile, transactions, assets, recurringRules }; },
     [profile, transactions, assets, recurringRules]);
+  // Don't push until the initial pull has succeeded — otherwise an empty
+  // mount state could clobber the server snapshot on a slow cold start.
+  const hydratedRef = useRef(false);
 
   const triggerSync = useCallback(() => {
     if (!isAuthenticated) return;
+    if (!hydratedRef.current) return;
     if (syncTimer.current) clearTimeout(syncTimer.current);
     syncTimer.current = setTimeout(async () => {
       setSyncStatus("syncing");
@@ -153,30 +176,68 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // ── Auth ───────────────────────────────────────────────────────────────
   const login = useCallback(async (email: string, pass: string) => {
+    // Auth is the only step that must succeed for login. The initial data
+    // pull is best-effort: a cold serverless start can exceed the request
+    // timeout, and we must not fail the login (and strand an already-
+    // authenticated user on the login screen) just because the pull was slow.
+    hydratedRef.current = false;
+    clearSecretarySession(); setSecretaryOwner(null);
     const u = await apiLogin(email, pass);
     setUser(u); setIsAuth(true);
     setSyncStatus("syncing");
-    const d = await pullData();
-    if (d.profile)             setProfileState(d.profile);
-    if (d.transactions.length)  setTx(d.transactions);
-    if (d.assets.length)        setAssets(d.assets);
-    if (d.recurringRules.length) setRules(d.recurringRules);
-    setSyncStatus("synced");
-    setLastSyncedAt(new Date().toISOString());
+    try {
+      const d = await pullData();
+      if (d.profile)             setProfileState(d.profile);
+      if (d.transactions.length)  setTx(d.transactions);
+      if (d.assets.length)        setAssets(d.assets);
+      if (d.recurringRules.length) setRules(d.recurringRules);
+      hydratedRef.current = true;
+      setSyncStatus("synced");
+      setLastSyncedAt(new Date().toISOString());
+    } catch {
+      // Already authenticated; data will load on the next sync / reload.
+      setSyncStatus("error");
+    }
   }, []);
 
   const signup = useCallback(async (email: string, pass: string) => {
+    clearSecretarySession(); setSecretaryOwner(null);
     const u = await apiSignup(email, pass);
     setUser(u); setIsAuth(true);
+    // Brand-new account: nothing on the server to clobber, so allow pushes.
+    hydratedRef.current = true;
     setSyncStatus("synced");
   }, []);
 
   const logout = useCallback(() => {
     apiLogout();
+    hydratedRef.current = false;
     setUser(null); setIsAuth(false);
     setProfileState(DEFAULT_PROFILE);
     setTx([]); setAssets([]); setRules([]);
     setSyncStatus("idle");
+  }, []);
+
+  // ── Secretary session ────────────────────────────────────────────────────
+  const startSecretarySession = useCallback(async (code: string) => {
+    // A secretary login is mutually exclusive with a doctor login.
+    apiLogout();
+    setUser(null); setIsAuth(false);
+    const owner = await inviteRedeem(code.toUpperCase().trim());
+    setSecretaryOwner(owner);
+  }, []);
+
+  // Persistent account login (username + password) — no expiry, revocable by doctor.
+  const startSecretaryLogin = useCallback(async (username: string, password: string) => {
+    apiLogout();
+    setUser(null); setIsAuth(false);
+    const owner = await secretaryLogin(username.trim(), password);
+    setSecretaryOwner(owner);
+  }, []);
+
+  const endSecretarySession = useCallback(() => {
+    clearSecretarySession();
+    setSecretaryOwner(null);
   }, []);
 
   // ── Profile ────────────────────────────────────────────────────────────
@@ -253,6 +314,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const value: AppCtx = {
     user, isAuthenticated, login, signup, logout,
+    secretaryOwner, isSecretary: !!secretaryOwner, startSecretarySession, startSecretaryLogin, endSecretarySession,
     profile, setProfile,
     transactions, addTransaction, updateTransaction, deleteTransaction,
     assets, addAsset, updateAsset, deleteAsset,

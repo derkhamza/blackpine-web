@@ -1,8 +1,15 @@
 import {
-  createContext, useCallback, useContext, useEffect, useState, type ReactNode,
+  createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode,
 } from "react";
 import type { Appointment, ApptDocument, CabinetDoctorProfile, Certificate, Employee, InvoiceRecord, Patient, Prescription, PrescriptionTemplate, StockItem, WaTemplate, TeleSession, InternalNote, Supplier, PurchaseOrder, PurchaseOrderLine, ExamResult } from "../lib/cabinetTypes";
 import { BLANK_DOCTOR_PROFILE } from "../lib/cabinetTypes";
+import {
+  getToken, pullCabinet, pushCabinet, CabinetConflictError, type CabinetSnapshot,
+  getSecretaryToken, secretaryPull, secretaryPushAppointments, secretaryPushPatients,
+  listBackups, restoreBackup, type CabinetBackup,
+} from "../api/client";
+
+export interface SecretarySessionRef { ownerUserId: string; ownerName: string; }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -19,6 +26,45 @@ function load<T>(key: string, fallback: T): T {
 
 function save(key: string, value: unknown) {
   try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
+}
+
+/** Estimate total localStorage usage for the bp. prefix (bytes, approximate). */
+export function estimateStorageBytes(): number {
+  let total = 0;
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i) ?? "";
+    if (!k.startsWith("bp.")) continue;
+    total += (k.length + (localStorage.getItem(k)?.length ?? 0)) * 2; // UTF-16
+  }
+  return total;
+}
+
+const BACKUP_KEY = "bp.lastBackupAt";
+
+// Sub-keys that hold per-cabinet data. Must stay in sync with all save() calls below.
+const CABINET_SUBKEYS = [
+  "appts", "patients", "employees", "doctor", "prescriptionTemplates",
+  "stock", "waTemplates", "teleSessions", "notes", "suppliers",
+  "purchaseOrders", "examResults", "prescriptions", "certificates",
+  "invoices", "apptDocs",
+] as const;
+
+/**
+ * One-time migration: the first time a user logs in after this update, copy
+ * any existing non-namespaced bp.* keys into their user-scoped namespace.
+ * Subsequent logins (same or different users) are no-ops.
+ */
+function migrateToUser(pfx: string): void {
+  if (localStorage.getItem("bp.migrated_to")) return; // already claimed
+  let migrated = false;
+  for (const k of CABINET_SUBKEYS) {
+    const legacy = localStorage.getItem(`bp.${k}`);
+    if (legacy && !localStorage.getItem(`${pfx}.${k}`)) {
+      localStorage.setItem(`${pfx}.${k}`, legacy);
+      migrated = true;
+    }
+  }
+  if (migrated) localStorage.setItem("bp.migrated_to", pfx);
 }
 
 // ── Context shape ─────────────────────────────────────────────────────────────
@@ -126,6 +172,21 @@ interface CabinetCtx {
   importCabinetJSON: (json: string) => void;
   clearAppointments: () => void;
   clearPatients:     () => void;
+
+  // Storage health
+  lastBackupAt: string | null;
+
+  // Remote sync state
+  syncState:  "idle" | "syncing" | "synced" | "error";
+  lastSynced: string | null;
+
+  // Role of the current session
+  role: "doctor" | "secretary";
+  secretaryOwnerName?: string;
+
+  // Automatic backups (doctor only)
+  listCabinetBackups: () => Promise<CabinetBackup[]>;
+  restoreCabinetBackup: (backupId: string) => Promise<void>;
 }
 
 const Ctx = createContext<CabinetCtx | null>(null);
@@ -206,69 +267,85 @@ const DEFAULT_WA_TEMPLATES: WaTemplate[] = [
 
 // ── Provider ──────────────────────────────────────────────────────────────────
 
-export function CabinetProvider({ children }: { children: ReactNode }) {
-  const [appointments,   setAppts]    = useState<Appointment[]>(() => load("bp.appts", []));
-  const [patients,       setPatients] = useState<Patient[]>(() => load("bp.patients", []));
-  const [employees,      setEmployees] = useState<Employee[]>(() => load("bp.employees", []));
+export function CabinetProvider({
+  children, userId, secretarySession = null, onSecretaryRevoked,
+}: {
+  children: ReactNode;
+  userId?: string;
+  secretarySession?: SecretarySessionRef | null;
+  onSecretaryRevoked?: () => void;
+}) {
+  const isSecretary = !!secretarySession;
+  // Namespace: secretary caches under the doctor's id they're linked to.
+  const pfx = secretarySession ? `bp.sec.${secretarySession.ownerUserId}`
+            : userId           ? `bp.${userId}`
+            : "bp";
+
+  // One-time migration: pull legacy non-namespaced data for the first user that logs in.
+  if (userId && !secretarySession) migrateToUser(pfx);
+
+  const [appointments,   setAppts]    = useState<Appointment[]>(() => load(`${pfx}.appts`, []));
+  const [patients,       setPatients] = useState<Patient[]>(() => load(`${pfx}.patients`, []));
+  const [employees,      setEmployees] = useState<Employee[]>(() => load(`${pfx}.employees`, []));
   const [doctorProfile,  setDoctorProfileState] = useState<CabinetDoctorProfile>(
-    () => load("bp.doctor", BLANK_DOCTOR_PROFILE)
+    () => load(`${pfx}.doctor`, BLANK_DOCTOR_PROFILE)
   );
   const [prescriptionTemplates, setTpls] = useState<PrescriptionTemplate[]>(
-    () => load("bp.prescriptionTemplates", DEFAULT_TEMPLATES)
+    () => load(`${pfx}.prescriptionTemplates`, DEFAULT_TEMPLATES)
   );
   const [stockItems, setStock] = useState<StockItem[]>(
-    () => load("bp.stock", [])
+    () => load(`${pfx}.stock`, [])
   );
   const [waTemplates, setWaTpls] = useState<WaTemplate[]>(
-    () => load("bp.waTemplates", DEFAULT_WA_TEMPLATES)
+    () => load(`${pfx}.waTemplates`, DEFAULT_WA_TEMPLATES)
   );
   const [teleSessions, setTele] = useState<TeleSession[]>(
-    () => load("bp.teleSessions", [])
+    () => load(`${pfx}.teleSessions`, [])
   );
   const [notes, setNotes] = useState<InternalNote[]>(
-    () => load("bp.notes", [])
+    () => load(`${pfx}.notes`, [])
   );
   const [suppliers, setSuppliers] = useState<Supplier[]>(
-    () => load("bp.suppliers", [])
+    () => load(`${pfx}.suppliers`, [])
   );
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>(
-    () => load("bp.purchaseOrders", [])
+    () => load(`${pfx}.purchaseOrders`, [])
   );
   const [examResults, setExamResults] = useState<ExamResult[]>(
-    () => load("bp.examResults", [])
+    () => load(`${pfx}.examResults`, [])
   );
   const [prescriptions, setPrescriptions] = useState<Prescription[]>(
-    () => load("bp.prescriptions", [])
+    () => load(`${pfx}.prescriptions`, [])
   );
   const [certificates, setCertificates] = useState<Certificate[]>(
-    () => load("bp.certificates", [])
+    () => load(`${pfx}.certificates`, [])
   );
   const [invoices, setInvoices] = useState<InvoiceRecord[]>(
-    () => load("bp.invoices", [])
+    () => load(`${pfx}.invoices`, [])
   );
   const [apptDocuments, setApptDocuments] = useState<ApptDocument[]>(
-    () => load("bp.apptDocs", [])
+    () => load(`${pfx}.apptDocs`, [])
   );
   // Secretary mode — session only (resets on page reload for security)
   const [secretaryMode, setSecretaryMode] = useState(false);
 
-  // Persist to localStorage on every change
-  useEffect(() => { save("bp.appts",     appointments);  }, [appointments]);
-  useEffect(() => { save("bp.patients",  patients);      }, [patients]);
-  useEffect(() => { save("bp.employees", employees);     }, [employees]);
-  useEffect(() => { save("bp.doctor",    doctorProfile); }, [doctorProfile]);
-  useEffect(() => { save("bp.prescriptionTemplates", prescriptionTemplates); }, [prescriptionTemplates]);
-  useEffect(() => { save("bp.stock",       stockItems);    }, [stockItems]);
-  useEffect(() => { save("bp.waTemplates",  waTemplates);   }, [waTemplates]);
-  useEffect(() => { save("bp.teleSessions", teleSessions);  }, [teleSessions]);
-  useEffect(() => { save("bp.notes",          notes);          }, [notes]);
-  useEffect(() => { save("bp.suppliers",      suppliers);      }, [suppliers]);
-  useEffect(() => { save("bp.purchaseOrders", purchaseOrders); }, [purchaseOrders]);
-  useEffect(() => { save("bp.examResults",    examResults);    }, [examResults]);
-  useEffect(() => { save("bp.prescriptions",  prescriptions);  }, [prescriptions]);
-  useEffect(() => { save("bp.certificates",   certificates);   }, [certificates]);
-  useEffect(() => { save("bp.invoices",       invoices);       }, [invoices]);
-  useEffect(() => { save("bp.apptDocs",      apptDocuments);  }, [apptDocuments]);
+  // Persist to localStorage on every change (namespaced by user)
+  useEffect(() => { save(`${pfx}.appts`,     appointments);  }, [appointments, pfx]);
+  useEffect(() => { save(`${pfx}.patients`,  patients);      }, [patients, pfx]);
+  useEffect(() => { save(`${pfx}.employees`, employees);     }, [employees, pfx]);
+  useEffect(() => { save(`${pfx}.doctor`,    doctorProfile); }, [doctorProfile, pfx]);
+  useEffect(() => { save(`${pfx}.prescriptionTemplates`, prescriptionTemplates); }, [prescriptionTemplates, pfx]);
+  useEffect(() => { save(`${pfx}.stock`,       stockItems);    }, [stockItems, pfx]);
+  useEffect(() => { save(`${pfx}.waTemplates`,  waTemplates);   }, [waTemplates, pfx]);
+  useEffect(() => { save(`${pfx}.teleSessions`, teleSessions);  }, [teleSessions, pfx]);
+  useEffect(() => { save(`${pfx}.notes`,          notes);          }, [notes, pfx]);
+  useEffect(() => { save(`${pfx}.suppliers`,      suppliers);      }, [suppliers, pfx]);
+  useEffect(() => { save(`${pfx}.purchaseOrders`, purchaseOrders); }, [purchaseOrders, pfx]);
+  useEffect(() => { save(`${pfx}.examResults`,    examResults);    }, [examResults, pfx]);
+  useEffect(() => { save(`${pfx}.prescriptions`,  prescriptions);  }, [prescriptions, pfx]);
+  useEffect(() => { save(`${pfx}.certificates`,   certificates);   }, [certificates, pfx]);
+  useEffect(() => { save(`${pfx}.invoices`,       invoices);       }, [invoices, pfx]);
+  useEffect(() => { save(`${pfx}.apptDocs`,      apptDocuments);  }, [apptDocuments, pfx]);
 
   const setDoctorProfile = useCallback(
     (p: CabinetDoctorProfile) => setDoctorProfileState(p), []);
@@ -293,7 +370,12 @@ export function CabinetProvider({ children }: { children: ReactNode }) {
   const updatePatient = useCallback(
     (p: Patient) => setPatients(prev => prev.map(x => x.id === p.id ? p : x)), []);
   const deletePatient = useCallback(
-    (id: string) => setPatients(prev => prev.filter(x => x.id !== id)), []);
+    (id: string) => {
+      // Removing a patient also clears their calendar entries so the agenda
+      // never shows orphaned appointments pointing at a deleted record.
+      setPatients(prev => prev.filter(x => x.id !== id));
+      setAppts(prev => prev.filter(x => x.patientId !== id));
+    }, []);
 
   // ── Employees ─────────────────────────────────────────────────────────────
   const addEmployee = useCallback(
@@ -303,11 +385,199 @@ export function CabinetProvider({ children }: { children: ReactNode }) {
   const deleteEmployee = useCallback(
     (id: string) => setEmployees(p => p.filter(x => x.id !== id)), []);
 
+  // ── Storage health ────────────────────────────────────────────────────────
+  const [lastBackupAt, setLastBackupAt] = useState<string | null>(
+    () => localStorage.getItem(BACKUP_KEY),
+  );
+
+  // ── Remote sync (multi-device, optimistic concurrency) ────────────────────
+  const [syncState,  setSyncState]  = useState<"idle" | "syncing" | "synced" | "error">("idle");
+  const [lastSynced, setLastSynced] = useState<string | null>(null);
+  const pushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Guard: never push to the server until the initial pull has resolved.
+  // Otherwise a fresh device's empty state could overwrite the server snapshot.
+  const hydrated = useRef(false);
+  // The server `updatedAt` our current state is based on (concurrency token).
+  const baseUpdatedAt = useRef<string | null>(null);
+  // True while applying a server snapshot, so the push effect can tell a
+  // remote apply apart from a local user edit and not echo it back.
+  const applyingRemote = useRef(false);
+  // True when there are local edits not yet confirmed on the server.
+  const dirtyRef = useRef(false);
+
+  // Apply a full snapshot received from the server into local state.
+  const applySnapshot = useCallback((snapshot: CabinetSnapshot) => {
+    applyingRemote.current = true;
+    if (Array.isArray(snapshot.appointments))          setAppts(snapshot.appointments as Appointment[]);
+    if (Array.isArray(snapshot.patients))              setPatients(snapshot.patients as Patient[]);
+    if (snapshot.doctorProfile && typeof snapshot.doctorProfile === "object")
+      setDoctorProfileState(snapshot.doctorProfile as CabinetDoctorProfile);
+    if (Array.isArray(snapshot.employees))             setEmployees(snapshot.employees as Employee[]);
+    if (Array.isArray(snapshot.prescriptionTemplates)) setTpls(snapshot.prescriptionTemplates as PrescriptionTemplate[]);
+    if (Array.isArray(snapshot.prescriptions))         setPrescriptions(snapshot.prescriptions as Prescription[]);
+    if (Array.isArray(snapshot.certificates))          setCertificates(snapshot.certificates as Certificate[]);
+    if (Array.isArray(snapshot.stockItems))            setStock(snapshot.stockItems as StockItem[]);
+    if (Array.isArray(snapshot.waTemplates))           setWaTpls(snapshot.waTemplates as WaTemplate[]);
+    if (Array.isArray(snapshot.teleSessions))          setTele(snapshot.teleSessions as TeleSession[]);
+    if (Array.isArray(snapshot.notes))                 setNotes(snapshot.notes as InternalNote[]);
+    if (Array.isArray(snapshot.suppliers))             setSuppliers(snapshot.suppliers as Supplier[]);
+    if (Array.isArray(snapshot.purchaseOrders))        setPurchaseOrders(snapshot.purchaseOrders as PurchaseOrder[]);
+    if (Array.isArray(snapshot.examResults))           setExamResults(snapshot.examResults as ExamResult[]);
+    if (Array.isArray(snapshot.invoices))              setInvoices(snapshot.invoices as InvoiceRecord[]);
+    if (Array.isArray(snapshot.apptDocuments))         setApptDocuments(snapshot.apptDocuments as ApptDocument[]);
+    baseUpdatedAt.current = snapshot.updatedAt ?? null;
+  }, []);
+
+  // ── Automatic backups (doctor only) ───────────────────────────────────────
+  const listCabinetBackups = useCallback(() => listBackups(), []);
+  const restoreCabinetBackup = useCallback(async (backupId: string) => {
+    const snapshot = await restoreBackup(backupId);
+    applySnapshot(snapshot);            // adopt restored data locally
+    setLastSynced(new Date().toISOString());
+    setSyncState("synced");
+  }, [applySnapshot]);
+
+  // Pull the latest snapshot from the server (used on mount and on refocus).
+  const pullFromServer = useCallback(async (boot = false) => {
+    if (secretarySession) {
+      if (!getSecretaryToken()) return;
+      setSyncState("syncing");
+      try {
+        // On boot a cold-start 401 is transient — keep the session so a valid
+        // secretary stays logged in across tab reopens. A genuine revoke is
+        // honoured on the next live refocus pull (boot=false).
+        const snap = await secretaryPull(!boot);
+        applySnapshot({
+          appointments:  snap.appointments,
+          patients:      snap.patients,
+          doctorProfile: snap.doctorProfile,
+        } as CabinetSnapshot);
+        hydrated.current = true;
+        setSyncState("synced");
+        setLastSynced(new Date().toISOString());
+      } catch (err) {
+        if (!boot && (err as Error).message === "SECRETARY_REVOKED") onSecretaryRevoked?.();
+        setSyncState("error");
+      }
+      return;
+    }
+    if (!userId || !getToken()) return;
+    setSyncState("syncing");
+    try {
+      const snapshot = await pullCabinet();
+      if (snapshot) applySnapshot(snapshot);
+      hydrated.current = true;
+      setSyncState("synced");
+      setLastSynced(new Date().toISOString());
+    } catch {
+      // Leave hydrated=false on the first failure so we never push (and risk
+      // clobbering the server) until a successful pull. Local data is saved.
+      setSyncState("error");
+    }
+  }, [userId, secretarySession, applySnapshot, onSecretaryRevoked]);
+
+  // Pull on mount (when a session is active)
+  useEffect(() => {
+    if (!secretarySession && (!userId || !getToken())) { hydrated.current = true; return; }
+    pullFromServer(true); // boot: resilient to transient cold-start 401s
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, secretarySession?.ownerUserId]);
+
+  // Refresh when the app/tab regains focus, so a returning device shows the
+  // latest data — but only when there are no unsynced local edits to protect.
+  useEffect(() => {
+    if (!userId && !secretarySession) return;
+    const onFocus = () => {
+      if (document.visibilityState === "hidden") return;
+      if (!hydrated.current || dirtyRef.current) return;
+      pullFromServer();
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+    };
+  }, [userId, secretarySession, pullFromServer]);
+
+  // Debounced push — fires 3s after the last mutation while a session is active
+  useEffect(() => {
+    if (!secretarySession && (!userId || !getToken())) return;
+    if (!hydrated.current) return;        // wait for initial pull before pushing
+    if (applyingRemote.current) {         // this change came from the server, not the user
+      applyingRemote.current = false;
+      return;
+    }
+    dirtyRef.current = true;
+    if (pushTimer.current) clearTimeout(pushTimer.current);
+    pushTimer.current = setTimeout(() => {
+      setSyncState("syncing");
+
+      // ── Secretary: push only the appointments + patients slices ──
+      if (secretarySession) {
+        Promise.all([
+          secretaryPushAppointments(appointments),
+          secretaryPushPatients(patients),
+        ])
+          .then(([mergedAppts, mergedPatients]) => {
+            // Adopt the server's merged arrays (clinical fields preserved).
+            applyingRemote.current = true;
+            if (Array.isArray(mergedAppts))    setAppts(mergedAppts as Appointment[]);
+            if (Array.isArray(mergedPatients)) setPatients(mergedPatients as Patient[]);
+            dirtyRef.current = false;
+            setSyncState("synced");
+            setLastSynced(new Date().toISOString());
+          })
+          .catch((err) => {
+            if ((err as Error).message === "SECRETARY_REVOKED") onSecretaryRevoked?.();
+            setSyncState("error");
+          });
+        return;
+      }
+
+      // ── Doctor: full snapshot with optimistic concurrency ──
+      pushCabinet({
+        appointments, patients, doctorProfile,
+        employees, prescriptionTemplates, prescriptions, certificates,
+        stockItems, waTemplates, teleSessions, notes, suppliers,
+        purchaseOrders, examResults, invoices, apptDocuments,
+      }, baseUpdatedAt.current)
+        .then((newUpdatedAt) => {
+          if (newUpdatedAt) baseUpdatedAt.current = newUpdatedAt;
+          dirtyRef.current = false;
+          setSyncState("synced");
+          setLastSynced(new Date().toISOString());
+        })
+        .catch((err) => {
+          if (err instanceof CabinetConflictError) {
+            // Another device wrote newer data since we last pulled. Adopt the
+            // server's version so the devices converge instead of clobbering.
+            applySnapshot(err.snapshot);
+            dirtyRef.current = false;
+            setSyncState("synced");
+            setLastSynced(new Date().toISOString());
+          } else {
+            setSyncState("error"); // keep dirty; will retry on next change
+          }
+        });
+    }, 3000);
+    return () => { if (pushTimer.current) clearTimeout(pushTimer.current); };
+  }, [ // eslint-disable-line react-hooks/exhaustive-deps
+    userId, secretarySession,
+    appointments, patients, doctorProfile,
+    employees, prescriptionTemplates, prescriptions, certificates,
+    stockItems, waTemplates, teleSessions, notes, suppliers,
+    purchaseOrders, examResults, invoices, apptDocuments,
+  ]);
+
   // ── Backup / restore ─────────────────────────────────────────────────────
-  const exportCabinetJSON = useCallback(() =>
-    JSON.stringify({
+  const exportCabinetJSON = useCallback(() => {
+    const now = new Date().toISOString();
+    localStorage.setItem(BACKUP_KEY, now);
+    setLastBackupAt(now);
+    return JSON.stringify({
       version: 2,
-      exportedAt: new Date().toISOString(),
+      exportedAt: now,
       // Clinical
       appointments, patients, employees, doctorProfile,
       // Documents
@@ -322,10 +592,10 @@ export function CabinetProvider({ children }: { children: ReactNode }) {
       stockItems, suppliers, purchaseOrders,
       // Invoice history
       invoices,
-    }, null, 2),
-  [appointments, patients, employees, doctorProfile,
-   prescriptions, certificates, examResults, teleSessions,
-   waTemplates, notes, stockItems, suppliers, purchaseOrders, invoices]);
+    }, null, 2);
+  }, [appointments, patients, employees, doctorProfile,
+     prescriptions, certificates, examResults, teleSessions,
+     waTemplates, notes, stockItems, suppliers, purchaseOrders, invoices]);
 
   const importCabinetJSON = useCallback((json: string) => {
     try {
@@ -519,6 +789,11 @@ export function CabinetProvider({ children }: { children: ReactNode }) {
     apptDocuments, addApptDocument, deleteApptDocument,
     secretaryMode, setSecretaryMode,
     exportCabinetJSON, importCabinetJSON, clearAppointments, clearPatients,
+    lastBackupAt,
+    syncState, lastSynced,
+    role: isSecretary ? "secretary" : "doctor",
+    secretaryOwnerName: secretarySession?.ownerName,
+    listCabinetBackups, restoreCabinetBackup,
   };
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

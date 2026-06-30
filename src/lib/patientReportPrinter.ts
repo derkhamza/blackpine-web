@@ -5,6 +5,7 @@ import type {
 import {
   APPT_TYPE_LABELS, EXAM_TYPE_LABELS, CERT_TYPE_LABELS,
 } from "./cabinetTypes";
+import { mmHgToCmHg } from "./format";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -33,7 +34,7 @@ function latestVitals(appts: Appointment[]): string {
   const vs = withVitals[0].vitalSigns!;
   const date = fmtDate(withVitals[0].date);
   const parts: string[] = [];
-  if (vs.bpSys != null && vs.bpDia != null) parts.push(`TA ${vs.bpSys}/${vs.bpDia} mmHg`);
+  if (vs.bpSys != null && vs.bpDia != null) parts.push(`TA ${mmHgToCmHg(vs.bpSys)}/${mmHgToCmHg(vs.bpDia)} cmHg`);
   if (vs.hr     != null) parts.push(`FC ${vs.hr} bpm`);
   if (vs.temp   != null) parts.push(`T° ${vs.temp} °C`);
   if (vs.spo2   != null) parts.push(`SpO₂ ${vs.spo2}%`);
@@ -279,6 +280,7 @@ export function printPatientReport(opts: {
     .section-title {
       font-size: 10pt; font-weight: 700; color: #0A4E7E; margin-bottom: 6px;
       border-bottom: 1px solid #c8dff0; padding-bottom: 3px;
+      break-after: avoid; page-break-after: avoid;   /* keep heading with its content */
     }
     .date-chip {
       font-weight: normal; font-size: 8.5pt; color: #666;
@@ -294,6 +296,8 @@ export function printPatientReport(opts: {
 
     /* Shared table style */
     table.consult-table { width: 100%; border-collapse: collapse; font-size: 9pt; margin-top: 6px; }
+    .consult-table thead { display: table-header-group; }
+    .consult-table tbody tr, .consult-table tr { break-inside: avoid; page-break-inside: avoid; }
     .consult-table th {
       background: #0A4E7E; color: #fff; padding: 5px 8px; text-align: left;
       font-size: 8pt; text-transform: uppercase; letter-spacing: 0.3px;
@@ -351,6 +355,7 @@ export function printPatientReport(opts: {
         ${doctorProfile.specialtyLabel ? escHtml(doctorProfile.specialtyLabel) + "<br/>" : ""}
         ${doctorProfile.address        ? escHtml(doctorProfile.address)        + "<br/>" : ""}
         ${doctorProfile.phone          ? "Tél : " + escHtml(doctorProfile.phone) + "<br/>" : ""}
+        ${doctorProfile.ordre          ? "N° Ordre : " + escHtml(doctorProfile.ordre) + "<br/>" : ""}
         ${doctorProfile.inpe           ? "INPE : " + escHtml(doctorProfile.inpe) : ""}
       </div>
     </div>
@@ -436,7 +441,7 @@ export function printPatientReport(opts: {
 
   <!-- Footer -->
   <div class="footer-row">
-    <div>Dossier confidentiel — usage médical exclusif<br/>${escHtml(fullName)} · Généré par Blackpine Cabinet</div>
+    <div>Dossier confidentiel — usage médical exclusif<br/>${escHtml(fullName)}</div>
     <div class="sig-area">
       <div class="sig-lbl">Signature du médecin :</div>
       <div class="sig-line">Pour copie conforme</div>

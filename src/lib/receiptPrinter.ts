@@ -183,17 +183,9 @@ export function printReceipt(opts: ReceiptOptions): void {
         ${doctorProfile.specialtyLabel ? doctorProfile.specialtyLabel + "<br/>" : ""}
         ${doctorProfile.address        ? doctorProfile.address        + "<br/>" : ""}
         ${doctorProfile.phone          ? "Tél : " + doctorProfile.phone + "<br/>" : ""}
+        ${doctorProfile.ordre          ? "N° Ordre : " + doctorProfile.ordre + "<br/>" : ""}
         ${doctorProfile.inpe           ? "INPE : " + doctorProfile.inpe            : ""}
       </div>
-    </div>
-    <div class="logo-block">
-      <div class="logo-mark">
-        <svg width="26" height="26" viewBox="0 0 20 20" fill="none">
-          <path d="M4 4h5.5a3.5 3.5 0 0 1 0 7H4V4Z" fill="white" fill-opacity="0.9"/>
-          <path d="M4 11h6a4 4 0 0 1 0 8H4v-8Z" fill="white" fill-opacity="0.6"/>
-        </svg>
-      </div>
-      <div class="logo-text">Blackpine</div>
     </div>
   </div>
 
@@ -243,7 +235,7 @@ export function printReceipt(opts: ReceiptOptions): void {
 
   <!-- Footer -->
   <div class="footer">
-    Ce reçu tient lieu de quittance de paiement · Généré par Blackpine Cabinet
+    Ce reçu tient lieu de quittance de paiement · N° ${receiptNo}
   </div>
 
   <script>window.onload = function(){ window.print(); };<\/script>

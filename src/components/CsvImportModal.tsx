@@ -1,13 +1,15 @@
 import { useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { Patient } from "../lib/cabinetTypes";
 import {
   parseCSV, autoDetectMapping, rowToPatient,
-  IMPORT_FIELD_LABELS,
   type ColumnMapping, type ImportField,
 } from "../lib/csvParser";
 
-const IMPORT_FIELDS = Object.keys(IMPORT_FIELD_LABELS) as ImportField[];
-const PREVIEW_ROWS  = 5;
+const IMPORT_FIELDS: ImportField[] = [
+  "firstName", "lastName", "phone", "dateOfBirth", "gender", "cin", "notes",
+];
+const PREVIEW_ROWS = 5;
 
 interface Props {
   existingPatients: Patient[];
@@ -16,6 +18,7 @@ interface Props {
 }
 
 export function CsvImportModal({ existingPatients, onImport, onClose }: Props) {
+  const { t } = useTranslation();
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [step,     setStep]    = useState<"upload" | "map">("upload");
@@ -28,25 +31,38 @@ export function CsvImportModal({ existingPatients, onImport, onClose }: Props) {
   const [dragging, setDragging] = useState(false);
   const [error,    setError]    = useState<string | null>(null);
 
+  const fieldLabel = (f: ImportField): string => {
+    const map: Record<ImportField, string> = {
+      firstName:   t("csvModal.fieldFirstName"),
+      lastName:    t("csvModal.fieldLastName"),
+      phone:       t("csvModal.fieldPhone"),
+      dateOfBirth: t("csvModal.fieldDob"),
+      gender:      t("csvModal.fieldGender"),
+      cin:         t("csvModal.fieldCin"),
+      notes:       t("csvModal.fieldNotes"),
+    };
+    return map[f];
+  };
+
   // ── File handling ────────────────────────────────────────────────────────────
 
   const processFile = (file: File) => {
     if (!file.name.match(/\.(csv|txt|tsv)$/i)) {
-      setError("Veuillez sélectionner un fichier CSV (.csv)");
+      setError(t("csvModal.errInvalidFile"));
       return;
     }
     const reader = new FileReader();
     reader.onload = ev => {
       try {
         const { headers, rows } = parseCSV(ev.target?.result as string);
-        if (headers.length === 0) { setError("Fichier vide ou format non reconnu"); return; }
+        if (headers.length === 0) { setError(t("csvModal.errEmpty")); return; }
         setHeaders(headers);
         setRows(rows);
         setMapping(autoDetectMapping(headers));
         setError(null);
         setStep("map");
       } catch {
-        setError("Impossible de lire ce fichier. Vérifiez qu'il s'agit d'un CSV valide.");
+        setError(t("csvModal.errRead"));
       }
     };
     reader.readAsText(file, "UTF-8");
@@ -92,7 +108,7 @@ export function CsvImportModal({ existingPatients, onImport, onClose }: Props) {
     <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modal csv-modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h2 className="modal-title">Importer des patients (CSV)</h2>
+          <h2 className="modal-title">{t("csvModal.title")}</h2>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
 
@@ -112,9 +128,9 @@ export function CsvImportModal({ existingPatients, onImport, onClose }: Props) {
                   <path d="M16 10v12M10 16l6-6 6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               </div>
-              <div className="csv-drop-title">Glissez votre fichier CSV ici</div>
-              <div className="csv-drop-sub">ou cliquez pour parcourir</div>
-              <div className="csv-drop-hint">Formats acceptés : .csv — Délimiteurs : virgule, point-virgule, tabulation</div>
+              <div className="csv-drop-title">{t("csvModal.dropTitle")}</div>
+              <div className="csv-drop-sub">{t("csvModal.dropSub")}</div>
+              <div className="csv-drop-hint">{t("csvModal.dropHint")}</div>
             </div>
             <input ref={fileRef} type="file" accept=".csv,.txt,.tsv" style={{ display: "none" }} onChange={handleFile} />
 
@@ -122,7 +138,7 @@ export function CsvImportModal({ existingPatients, onImport, onClose }: Props) {
 
             {/* Sample format hint */}
             <div className="csv-sample">
-              <div className="csv-sample-title">Exemple de format attendu :</div>
+              <div className="csv-sample-title">{t("csvModal.sampleTitle")}</div>
               <code className="csv-sample-code">
                 prénom,nom,téléphone,date_naissance,sexe,cin<br/>
                 Mohammed,Alami,0661234567,15/03/1985,M,AB123456<br/>
@@ -140,18 +156,18 @@ export function CsvImportModal({ existingPatients, onImport, onClose }: Props) {
                   <path d="M3 1h6l4 4v8a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.4"/>
                   <path d="M8 1v4h4" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
                 </svg>
-                <strong>{rows.length}</strong> lignes de données détectées ·{" "}
-                <strong>{headers.length}</strong> colonnes
+                <strong>{rows.length}</strong> {t("csvModal.detectedRows", { n: rows.length })} ·{" "}
+                <strong>{headers.length}</strong> {t("csvModal.detectedCols", { n: headers.length })}
               </div>
 
               {/* Column mapping */}
               <div className="csv-mapping">
-                <div className="csv-mapping-title">Correspondance des colonnes</div>
+                <div className="csv-mapping-title">{t("csvModal.mappingTitle")}</div>
                 <div className="csv-mapping-grid">
                   {IMPORT_FIELDS.map(field => (
                     <div key={field} className="csv-mapping-row">
                       <label className="csv-mapping-label">
-                        {IMPORT_FIELD_LABELS[field]}
+                        {fieldLabel(field)}
                       </label>
                       <select
                         className={`form-select csv-mapping-select${
@@ -165,9 +181,9 @@ export function CsvImportModal({ existingPatients, onImport, onClose }: Props) {
                           [field]: e.target.value === "" ? null : Number(e.target.value),
                         }))}
                       >
-                        <option value="">— Ignorer —</option>
+                        <option value="">{t("csvModal.ignoreOption")}</option>
                         {headers.map((h, i) => (
-                          <option key={i} value={i}>{h || `Colonne ${i + 1}`}</option>
+                          <option key={i} value={i}>{h || t("csvModal.colNum", { n: i + 1 })}</option>
                         ))}
                       </select>
                     </div>
@@ -177,13 +193,13 @@ export function CsvImportModal({ existingPatients, onImport, onClose }: Props) {
 
               {/* Preview table */}
               <div className="csv-preview">
-                <div className="csv-preview-title">Aperçu des {Math.min(PREVIEW_ROWS, rows.length)} premières lignes</div>
+                <div className="csv-preview-title">{t("csvModal.previewTitle", { n: Math.min(PREVIEW_ROWS, rows.length) })}</div>
                 <div className="csv-preview-wrap">
                   <table className="csv-preview-table">
                     <thead>
                       <tr>
                         {IMPORT_FIELDS.filter(f => mapping[f] !== null).map(f => (
-                          <th key={f}>{IMPORT_FIELD_LABELS[f].replace(" *", "")}</th>
+                          <th key={f}>{fieldLabel(f).replace(" *", "")}</th>
                         ))}
                       </tr>
                     </thead>
@@ -210,18 +226,18 @@ export function CsvImportModal({ existingPatients, onImport, onClose }: Props) {
                 <div className="csv-summary">
                   <div className="csv-summary-item csv-summary-add">
                     <span className="csv-summary-count">{toImport.length}</span>
-                    <span>patient{toImport.length !== 1 ? "s" : ""} à importer</span>
+                    <span>{t("csvModal.summaryToImport", { s: toImport.length !== 1 ? "s" : "" })}</span>
                   </div>
                   {duplicates > 0 && (
                     <div className="csv-summary-item csv-summary-skip">
                       <span className="csv-summary-count">{duplicates}</span>
-                      <span>doublon{duplicates !== 1 ? "s" : ""} ignoré{duplicates !== 1 ? "s" : ""} (même téléphone)</span>
+                      <span>{t("csvModal.summaryDuplicates", { s: duplicates !== 1 ? "s" : "" })}</span>
                     </div>
                   )}
                   {parsed.length - toImport.length - duplicates > 0 && (
                     <div className="csv-summary-item csv-summary-error">
                       <span className="csv-summary-count">{parsed.length - toImport.length - duplicates}</span>
-                      <span>lignes invalides (prénom ou nom manquant)</span>
+                      <span>{t("csvModal.summaryInvalid", { s: parsed.length - toImport.length - duplicates !== 1 ? "s" : "" })}</span>
                     </div>
                   )}
                 </div>
@@ -229,21 +245,21 @@ export function CsvImportModal({ existingPatients, onImport, onClose }: Props) {
 
               {!canMap && (
                 <div className="csv-error" style={{ marginTop: 12 }}>
-                  ⚠️ Veuillez mapper au minimum les colonnes <strong>Prénom</strong> et <strong>Nom</strong>.
+                  {t("csvModal.warningMap")}
                 </div>
               )}
             </div>
 
             <div className="modal-footer">
               <button className="btn btn-ghost" onClick={() => setStep("upload")}>
-                ← Autre fichier
+                {t("csvModal.backBtn")}
               </button>
               <button
                 className="btn btn-primary"
                 disabled={!canMap || toImport.length === 0}
                 onClick={() => { onImport(toImport); onClose(); }}
               >
-                Importer {toImport.length} patient{toImport.length !== 1 ? "s" : ""}
+                {t("csvModal.importBtn", { n: toImport.length, s: toImport.length !== 1 ? "s" : "" })}
               </button>
             </div>
           </>

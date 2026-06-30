@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { Layout } from "../components/Layout";
 import { useCabinet } from "../context/CabinetContext";
 import type { Certificate, CertificateType } from "../lib/cabinetTypes";
@@ -7,9 +8,15 @@ import { todayIso } from "../lib/format";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function fmtDate(iso: string) {
+function fmtDateIso(iso: string) {
   const [y, m, d] = iso.split("-");
   return `${d}/${m}/${y}`;
+}
+
+function fmtDateLocale(iso: string, locale: string) {
+  return new Date(iso + "T12:00:00").toLocaleDateString(locale, {
+    day: "2-digit", month: "2-digit", year: "numeric",
+  });
 }
 
 function daysBetween(from: string, to: string): number {
@@ -18,7 +25,7 @@ function daysBetween(from: string, to: string): number {
   return Math.max(1, Math.round((b.getTime() - a.getTime()) / 86400000) + 1);
 }
 
-// ── Print functions ───────────────────────────────────────────────────────────
+// ── Print functions — intentionally kept in French (official medical documents)
 
 function printCertificate(cert: Certificate, doctor: {
   fullName: string; specialtyLabel?: string; address?: string; phone?: string; inpe?: string;
@@ -30,7 +37,7 @@ function printCertificate(cert: Certificate, doctor: {
       <p style="margin-bottom:18px;">Je soussigné(e), <strong>${doctor.fullName || "Dr. —"}</strong>${doctor.specialtyLabel ? `, ${doctor.specialtyLabel}` : ""}, certifie avoir examiné :</p>
       <div style="border:1px solid #1890C5;border-radius:8px;padding:14px 20px;margin-bottom:20px;background:#f0f8ff;">
         <strong style="font-size:16px;">${cert.patientName}</strong>
-        <div style="font-size:13px;color:#555;margin-top:4px;">Le ${fmtDate(cert.date)}</div>
+        <div style="font-size:13px;color:#555;margin-top:4px;">Le ${fmtDateIso(cert.date)}</div>
       </div>
       ${cert.content ? `
       <p style="font-size:14px;margin-bottom:12px;"><strong>Constatations cliniques :</strong></p>
@@ -44,14 +51,14 @@ function printCertificate(cert: Certificate, doctor: {
       <p style="margin-bottom:18px;">Je soussigné(e), <strong>${doctor.fullName || "Dr. —"}</strong>${doctor.specialtyLabel ? `, ${doctor.specialtyLabel}` : ""}, prescris un arrêt de travail à :</p>
       <div style="border:1px solid #E85B5B;border-radius:8px;padding:14px 20px;margin-bottom:20px;background:#fff5f5;">
         <strong style="font-size:16px;">${cert.patientName}</strong>
-        <div style="font-size:13px;color:#555;margin-top:4px;">Établi le ${fmtDate(cert.date)}</div>
+        <div style="font-size:13px;color:#555;margin-top:4px;">Établi le ${fmtDateIso(cert.date)}</div>
       </div>
       <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
         <tr>
           <td style="padding:10px 14px;border:1px solid #ddd;background:#f9f9f9;font-weight:600;width:40%;">Période</td>
           <td style="padding:10px 14px;border:1px solid #ddd;">
-            Du <strong>${cert.dateFrom ? fmtDate(cert.dateFrom) : "—"}</strong>
-            au <strong>${cert.dateTo ? fmtDate(cert.dateTo) : "—"}</strong>
+            Du <strong>${cert.dateFrom ? fmtDateIso(cert.dateFrom) : "—"}</strong>
+            au <strong>${cert.dateTo ? fmtDateIso(cert.dateTo) : "—"}</strong>
           </td>
         </tr>
         <tr>
@@ -72,7 +79,7 @@ function printCertificate(cert: Certificate, doctor: {
       <p style="margin-bottom:18px;font-size:14px;">Je vous adresse mon/ma patient(e) :</p>
       <div style="border:1px solid #9B72D0;border-radius:8px;padding:14px 20px;margin-bottom:20px;background:#faf5ff;">
         <strong style="font-size:16px;">${cert.patientName}</strong>
-        <div style="font-size:13px;color:#555;margin-top:4px;">Le ${fmtDate(cert.date)}</div>
+        <div style="font-size:13px;color:#555;margin-top:4px;">Le ${fmtDateIso(cert.date)}</div>
       </div>
       ${cert.specialist ? `<p style="font-size:14px;margin-bottom:10px;"><strong>Destinataire :</strong> ${cert.specialist}</p>` : ""}
       ${cert.reason ? `<p style="font-size:14px;margin-bottom:10px;"><strong>Motif d'orientation :</strong> ${cert.reason}</p>` : ""}
@@ -119,7 +126,7 @@ function printCertificate(cert: Certificate, doctor: {
       </div>
     </div>
     <div style="font-size:11px;color:#aaa;text-align:right;">
-      Fait le ${fmtDate(cert.date)}
+      Fait le ${fmtDateIso(cert.date)}
     </div>
   </div>
   <div class="title-bar">${CERT_TYPE_LABELS[cert.type]}</div>
@@ -149,6 +156,7 @@ interface CertModalProps {
 }
 
 function CertModal({ editing, patients, today, onSave, onClose }: CertModalProps) {
+  const { t } = useTranslation();
   const [type, setType]               = useState<CertificateType>(editing?.type ?? "medical");
   const [patientName, setPatient]     = useState(editing?.patientName ?? "");
   const [date, setDate]               = useState(editing?.date ?? today);
@@ -187,36 +195,36 @@ function CertModal({ editing, patients, today, onSave, onClose }: CertModalProps
     <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modal cert-modal">
         <div className="modal-header">
-          <div className="modal-title">{editing ? "Modifier le certificat" : "Nouveau document médical"}</div>
+          <div className="modal-title">
+            {editing ? t("certificats.modalEdit") : t("certificats.modalNew")}
+          </div>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
 
         <div className="modal-body">
-          {/* Type selector */}
           <div className="form-group">
-            <label className="form-label">Type de document</label>
+            <label className="form-label">{t("certificats.typeLabel")}</label>
             <div className="cert-type-tabs">
-              {(["medical", "arret_travail", "orientation"] as CertificateType[]).map(t => (
+              {(["medical", "arret_travail", "orientation"] as CertificateType[]).map(ct => (
                 <button
-                  key={t}
+                  key={ct}
                   type="button"
-                  className={`cert-type-tab${type === t ? " active" : ""}`}
-                  style={type === t ? { borderColor: CERT_TYPE_COLORS[t], color: CERT_TYPE_COLORS[t], background: CERT_TYPE_COLORS[t] + "18" } : {}}
-                  onClick={() => setType(t)}
+                  className={`cert-type-tab${type === ct ? " active" : ""}`}
+                  style={type === ct ? { borderColor: CERT_TYPE_COLORS[ct], color: CERT_TYPE_COLORS[ct], background: CERT_TYPE_COLORS[ct] + "18" } : {}}
+                  onClick={() => setType(ct)}
                 >
-                  {CERT_TYPE_LABELS[t]}
+                  {CERT_TYPE_LABELS[ct]}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Patient + date */}
           <div className="rx-top-row">
             <div className="form-group" style={{ flex: 2 }}>
-              <label className="form-label">Patient(e)</label>
+              <label className="form-label">{t("certificats.patientLabel")}</label>
               <input
                 className="form-input"
-                placeholder="Nom du patient"
+                placeholder={t("certificats.patientPlaceholder")}
                 value={patientName}
                 onChange={e => setPatient(e.target.value)}
                 list="cert-patients-list"
@@ -225,89 +233,81 @@ function CertModal({ editing, patients, today, onSave, onClose }: CertModalProps
                 {patients.map(p => <option key={p.id} value={p.name} />)}
               </datalist>
               {patientName && !patientMatch && (
-                <div className="form-hint" style={{ color: "var(--gold)" }}>Patient non trouvé dans la liste</div>
+                <div className="form-hint" style={{ color: "var(--gold)" }}>
+                  {t("certificats.patientNotFound")}
+                </div>
               )}
             </div>
             <div className="form-group" style={{ flex: 1 }}>
-              <label className="form-label">Date</label>
+              <label className="form-label">{t("certificats.dateLabel")}</label>
               <input type="date" className="form-input" value={date} onChange={e => setDate(e.target.value)} />
             </div>
           </div>
 
-          {/* Certificat médical fields */}
           {type === "medical" && (
             <div className="form-group">
-              <label className="form-label">Constatations cliniques</label>
+              <label className="form-label">{t("certificats.clinicalFindings")}</label>
               <textarea
-                className="form-input"
-                rows={4}
-                placeholder="Décrivez les constatations cliniques justifiant ce certificat…"
-                value={content}
-                onChange={e => setContent(e.target.value)}
+                className="form-input" rows={4}
+                placeholder={t("certificats.clinicalPlaceholder")}
+                value={content} onChange={e => setContent(e.target.value)}
               />
             </div>
           )}
 
-          {/* Arrêt de travail fields */}
           {type === "arret_travail" && (
             <>
               <div className="rx-top-row">
                 <div className="form-group" style={{ flex: 1 }}>
-                  <label className="form-label">Du</label>
+                  <label className="form-label">{t("certificats.arretFrom")}</label>
                   <input type="date" className="form-input" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
                 </div>
                 <div className="form-group" style={{ flex: 1 }}>
-                  <label className="form-label">Au</label>
+                  <label className="form-label">{t("certificats.arretTo")}</label>
                   <input type="date" className="form-input" value={dateTo} onChange={e => setDateTo(e.target.value)} />
                 </div>
                 <div className="form-group" style={{ flex: "0 0 90px" }}>
-                  <label className="form-label">Durée</label>
+                  <label className="form-label">{t("certificats.arretDuration")}</label>
                   <div className="cert-duration-badge" style={{ borderColor: CERT_TYPE_COLORS.arret_travail, color: CERT_TYPE_COLORS.arret_travail }}>
                     {duration} j
                   </div>
                 </div>
               </div>
               <div className="form-group">
-                <label className="form-label">Diagnostic (optionnel)</label>
+                <label className="form-label">{t("certificats.diagnosticLabel")}</label>
                 <input
                   className="form-input"
-                  placeholder="ex : Lombalgie aiguë, Grippe, …"
-                  value={content}
-                  onChange={e => setContent(e.target.value)}
+                  placeholder={t("certificats.diagnosticPlaceholder")}
+                  value={content} onChange={e => setContent(e.target.value)}
                 />
               </div>
             </>
           )}
 
-          {/* Orientation fields */}
           {type === "orientation" && (
             <>
               <div className="form-group">
-                <label className="form-label">Destinataire (spécialiste)</label>
+                <label className="form-label">{t("certificats.specialistLabel")}</label>
                 <input
                   className="form-input"
-                  placeholder="ex : Dr. Martin, Cardiologue"
-                  value={specialist}
-                  onChange={e => setSpecialist(e.target.value)}
+                  placeholder={t("certificats.specialistPlaceholder")}
+                  value={specialist} onChange={e => setSpecialist(e.target.value)}
                 />
               </div>
               <div className="form-group">
-                <label className="form-label">Motif d'orientation</label>
+                <label className="form-label">{t("certificats.reasonLabel")}</label>
                 <input
                   className="form-input"
-                  placeholder="ex : Bilan cardiologique, douleurs thoraciques atypiques"
-                  value={reason}
-                  onChange={e => setReason(e.target.value)}
+                  placeholder={t("certificats.reasonPlaceholder")}
+                  value={reason} onChange={e => setReason(e.target.value)}
                 />
               </div>
               <div className="form-group">
-                <label className="form-label">Résumé clinique</label>
+                <label className="form-label">{t("certificats.summaryLabel")}</label>
                 <textarea
-                  className="form-input"
-                  rows={4}
-                  placeholder="Antécédents, traitement en cours, examens récents pertinents…"
-                  value={summary}
-                  onChange={e => setSummary(e.target.value)}
+                  className="form-input" rows={4}
+                  placeholder={t("certificats.summaryPlaceholder")}
+                  value={summary} onChange={e => setSummary(e.target.value)}
                 />
               </div>
             </>
@@ -315,13 +315,13 @@ function CertModal({ editing, patients, today, onSave, onClose }: CertModalProps
         </div>
 
         <div className="modal-footer">
-          <button className="btn btn-ghost" onClick={onClose}>Annuler</button>
+          <button className="btn btn-ghost" onClick={onClose}>{t("common.cancel")}</button>
           <button
             className="btn btn-primary"
             disabled={!patientName.trim()}
             onClick={handleSave}
           >
-            {editing ? "Enregistrer" : "Créer le document"}
+            {editing ? t("common.save") : t("certificats.createBtn")}
           </button>
         </div>
       </div>
@@ -333,12 +333,14 @@ function CertModal({ editing, patients, today, onSave, onClose }: CertModalProps
 
 interface CertCardProps {
   cert: Certificate;
+  locale: string;
   doctor: { fullName: string; specialtyLabel?: string; address?: string; phone?: string; inpe?: string };
   onEdit: () => void;
   onDelete: () => void;
 }
 
-function CertCard({ cert, doctor, onEdit, onDelete }: CertCardProps) {
+function CertCard({ cert, locale, doctor, onEdit, onDelete }: CertCardProps) {
+  const { t } = useTranslation();
   const color = CERT_TYPE_COLORS[cert.type];
   const label = CERT_TYPE_LABELS[cert.type];
 
@@ -353,12 +355,12 @@ function CertCard({ cert, doctor, onEdit, onDelete }: CertCardProps) {
           </span>
         </div>
         <div className="cert-card-meta">
-          <span className="cert-card-date">{fmtDate(cert.date)}</span>
+          <span className="cert-card-date">{fmtDateLocale(cert.date, locale)}</span>
           {cert.type === "arret_travail" && cert.duration && (
             <span className="cert-card-detail" style={{ color }}>
               {cert.dateFrom && cert.dateTo
-                ? `${fmtDate(cert.dateFrom)} → ${fmtDate(cert.dateTo)}`
-                : `${cert.duration} jour${cert.duration > 1 ? "s" : ""}`}
+                ? `${fmtDateLocale(cert.dateFrom, locale)} → ${fmtDateLocale(cert.dateTo, locale)}`
+                : `${cert.duration} j`}
             </span>
           )}
           {cert.type === "orientation" && cert.specialist && (
@@ -376,26 +378,25 @@ function CertCard({ cert, doctor, onEdit, onDelete }: CertCardProps) {
           </div>
         )}
         {cert.source === "appointment" && (
-          <div className="cert-source-badge">Liée à une consultation</div>
+          <div className="cert-source-badge">{t("certificats.linkedAppt")}</div>
         )}
       </div>
       <div className="cert-card-actions">
         <button
           className="btn btn-ghost btn-sm"
           onClick={() => printCertificate(cert, doctor)}
-          title="Imprimer"
         >
           <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
             <rect x="2" y="5" width="10" height="6" rx="1" stroke="currentColor" strokeWidth="1.3"/>
             <path d="M4 5V2h6v3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
             <path d="M4 9h6M4 11h4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
           </svg>
-          Imprimer
+          {t("certificats.printBtn")}
         </button>
         {cert.source === "standalone" && (
           <>
-            <button className="btn btn-ghost btn-sm" onClick={onEdit}>Modifier</button>
-            <button className="btn btn-ghost btn-sm danger" onClick={onDelete}>Supprimer</button>
+            <button className="btn btn-ghost btn-sm" onClick={onEdit}>{t("certificats.editBtn")}</button>
+            <button className="btn btn-ghost btn-sm danger" onClick={onDelete}>{t("certificats.deleteBtn")}</button>
           </>
         )}
       </div>
@@ -406,13 +407,14 @@ function CertCard({ cert, doctor, onEdit, onDelete }: CertCardProps) {
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export function CertificatsPage({ noLayout = false }: { noLayout?: boolean } = {}) {
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language?.slice(0, 2) === "ar" ? "ar-MA"
+               : i18n.language?.slice(0, 2) === "en" ? "en-US" : "fr-FR";
   const today = todayIso();
 
   const {
     certificates, addCertificate, updateCertificate, deleteCertificate,
-    appointments,
-    patients,
-    doctorProfile,
+    appointments, patients, doctorProfile,
   } = useCabinet();
 
   const [filterType, setFilterType] = useState<CertificateType | "all">("all");
@@ -420,7 +422,6 @@ export function CertificatsPage({ noLayout = false }: { noLayout?: boolean } = {
   const [showModal, setShowModal]   = useState(false);
   const [editing, setEditing]       = useState<Certificate | undefined>();
 
-  // Extract certificates from appointments
   const apptCerts: Certificate[] = useMemo(() => {
     const list: Certificate[] = [];
     for (const a of appointments) {
@@ -440,13 +441,11 @@ export function CertificatsPage({ noLayout = false }: { noLayout?: boolean } = {
     return list.sort((a, b) => b.date.localeCompare(a.date));
   }, [appointments]);
 
-  // Combined sorted list
   const allCerts = useMemo(() => {
     const standalone = [...certificates].sort((a, b) => b.date.localeCompare(a.date));
     return [...standalone, ...apptCerts];
   }, [certificates, apptCerts]);
 
-  // Filtered
   const filtered = useMemo(() => {
     let list = filterType === "all" ? allCerts : allCerts.filter(c => c.type === filterType);
     if (search.trim()) {
@@ -457,14 +456,13 @@ export function CertificatsPage({ noLayout = false }: { noLayout?: boolean } = {
     return list;
   }, [allCerts, filterType, search]);
 
-  // KPIs
   const thisMonth = today.slice(0, 7);
   const kpis = useMemo(() => ({
-    total:        allCerts.length,
-    thisMonth:    allCerts.filter(c => c.date.startsWith(thisMonth)).length,
-    medical:      allCerts.filter(c => c.type === "medical").length,
-    arret:        allCerts.filter(c => c.type === "arret_travail").length,
-    orientation:  allCerts.filter(c => c.type === "orientation").length,
+    total:       allCerts.length,
+    thisMonth:   allCerts.filter(c => c.date.startsWith(thisMonth)).length,
+    medical:     allCerts.filter(c => c.type === "medical").length,
+    arret:       allCerts.filter(c => c.type === "arret_travail").length,
+    orientation: allCerts.filter(c => c.type === "orientation").length,
   }), [allCerts, thisMonth]);
 
   const patientsList = useMemo(() =>
@@ -481,41 +479,40 @@ export function CertificatsPage({ noLayout = false }: { noLayout?: boolean } = {
     setEditing(undefined);
   }, [editing, addCertificate, updateCertificate]);
 
+  const tabs: [CertificateType | "all", string, number][] = [
+    ["all",           t("certificats.filterAll"),        kpis.total],
+    ["medical",       t("certificats.filterMedical"),    kpis.medical],
+    ["arret_travail", t("certificats.filterArret"),      kpis.arret],
+    ["orientation",   t("certificats.filterOrientation"),kpis.orientation],
+  ];
+
   const body = (
     <>
-
-      {/* ── KPI strip ── */}
       <div className="stock-kpi-row">
         <div className="stock-kpi-card">
           <div className="stock-kpi-val">{kpis.total}</div>
-          <div className="stock-kpi-lbl">Total</div>
+          <div className="stock-kpi-lbl">{t("certificats.kpiTotal")}</div>
         </div>
         <div className="stock-kpi-card">
           <div className="stock-kpi-val" style={{ color: "var(--blue)" }}>{kpis.thisMonth}</div>
-          <div className="stock-kpi-lbl">Ce mois</div>
+          <div className="stock-kpi-lbl">{t("certificats.kpiThisMonth")}</div>
         </div>
         <div className="stock-kpi-card">
           <div className="stock-kpi-val" style={{ color: CERT_TYPE_COLORS.medical }}>{kpis.medical}</div>
-          <div className="stock-kpi-lbl">Certificats</div>
+          <div className="stock-kpi-lbl">{t("certificats.kpiMedical")}</div>
         </div>
         <div className="stock-kpi-card">
           <div className="stock-kpi-val" style={{ color: CERT_TYPE_COLORS.arret_travail }}>{kpis.arret}</div>
-          <div className="stock-kpi-lbl">Arrêts travail</div>
+          <div className="stock-kpi-lbl">{t("certificats.kpiArret")}</div>
         </div>
         <div className="stock-kpi-card">
           <div className="stock-kpi-val" style={{ color: CERT_TYPE_COLORS.orientation }}>{kpis.orientation}</div>
-          <div className="stock-kpi-lbl">Orientations</div>
+          <div className="stock-kpi-lbl">{t("certificats.kpiOrientation")}</div>
         </div>
       </div>
 
-      {/* ── Type filter tabs ── */}
       <div className="four-tabs" style={{ marginBottom: 16 }}>
-        {([
-          ["all",          "Tous",               kpis.total],
-          ["medical",      "Certificats",        kpis.medical],
-          ["arret_travail","Arrêts de travail",  kpis.arret],
-          ["orientation",  "Orientations",       kpis.orientation],
-        ] as [CertificateType | "all", string, number][]).map(([val, lbl, count]) => (
+        {tabs.map(([val, lbl, count]) => (
           <button
             key={val}
             className={`four-tab${filterType === val ? " active" : ""}`}
@@ -530,11 +527,10 @@ export function CertificatsPage({ noLayout = false }: { noLayout?: boolean } = {
         ))}
       </div>
 
-      {/* ── Toolbar ── */}
       <div className="four-toolbar">
         <input
           className="search-input"
-          placeholder="Rechercher un patient…"
+          placeholder={t("certificats.search")}
           value={search}
           onChange={e => setSearch(e.target.value)}
           style={{ flex: 1, maxWidth: 320 }}
@@ -543,11 +539,10 @@ export function CertificatsPage({ noLayout = false }: { noLayout?: boolean } = {
           <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
             <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
           </svg>
-          Nouveau document
+          {t("certificats.newDoc")}
         </button>
       </div>
 
-      {/* ── List ── */}
       {filtered.length === 0 ? (
         <div className="empty-state">
           <div className="empty-icon">
@@ -556,11 +551,11 @@ export function CertificatsPage({ noLayout = false }: { noLayout?: boolean } = {
               <path d="M5 7h4M5 9.5h2.5" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
             </svg>
           </div>
-          <div className="empty-title">{search ? "Aucun résultat" : "Aucun document"}</div>
-          <div className="empty-sub">{search ? "Essayez un autre nom" : "Créez votre premier document médical"}</div>
+          <div className="empty-title">{search ? t("certificats.emptySearch") : t("certificats.emptyTitle")}</div>
+          <div className="empty-sub">{search ? t("certificats.emptySearchHint") : t("certificats.emptyHint")}</div>
           {!search && (
             <button className="btn btn-primary" onClick={() => { setEditing(undefined); setShowModal(true); }}>
-              Nouveau document
+              {t("certificats.newDoc")}
             </button>
           )}
         </div>
@@ -570,6 +565,7 @@ export function CertificatsPage({ noLayout = false }: { noLayout?: boolean } = {
             <CertCard
               key={cert.id}
               cert={cert}
+              locale={locale}
               doctor={doctorProfile}
               onEdit={() => { setEditing(cert); setShowModal(true); }}
               onDelete={() => deleteCertificate(cert.id)}
@@ -591,7 +587,7 @@ export function CertificatsPage({ noLayout = false }: { noLayout?: boolean } = {
   );
   if (noLayout) return body;
   return (
-    <Layout title="Certificats" subtitle="Documents médicaux">
+    <Layout title={t("certificats.title")} subtitle={t("certificats.subtitle")}>
       {body}
     </Layout>
   );

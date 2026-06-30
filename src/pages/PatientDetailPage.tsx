@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Layout } from "../components/Layout";
 import { useCabinet } from "../context/CabinetContext";
 import { useApp } from "../context/AppContext";
@@ -9,6 +10,7 @@ import {
   EXAM_TYPE_LABELS, EXAM_TYPE_COLORS,
   CERT_TYPE_LABELS, CERT_TYPE_COLORS,
   TELE_STATUS_LABELS,
+  MUTUELLES, MOROCCAN_CITIES,
 } from "../lib/cabinetTypes";
 import { formatMAD, formatDateShort, todayIso } from "../lib/format";
 import { printPatientReport } from "../lib/patientReportPrinter";
@@ -28,8 +30,8 @@ function calcAge(dob?: string): number | null {
   if (!dob) return null;
   return Math.floor((Date.now() - new Date(dob).getTime()) / (1000 * 60 * 60 * 24 * 365.25));
 }
-function fmtDate(iso: string) {
-  return new Date(iso + "T12:00:00").toLocaleDateString("fr-FR", {
+function fmtDate(iso: string, locale = "fr-FR") {
+  return new Date(iso + "T12:00:00").toLocaleDateString(locale, {
     day: "numeric", month: "short", year: "numeric",
   });
 }
@@ -53,6 +55,9 @@ function TrendChart({
   const iW = W - PAD.l - PAD.r;
   const iH = H - PAD.t - PAD.b;
 
+  // Adaptive precision so decimal lab values (glucose, HbA1c…) aren't rounded to int.
+  const span = yMax - yMin;
+  const fmt = (v: number) => span >= 20 ? Math.round(v).toString() : span >= 2 ? v.toFixed(1) : v.toFixed(2);
   const clamp = (v: number) => Math.max(yMin, Math.min(yMax, v));
   const toX = (i: number) =>
     points.length === 1 ? PAD.l + iW / 2 : PAD.l + (i / (points.length - 1)) * iW;
@@ -81,13 +86,13 @@ function TrendChart({
         {/* Grid lines */}
         {[0, 0.25, 0.5, 0.75, 1].map((f) => {
           const y = PAD.t + iH * (1 - f);
-          const v = Math.round(yMin + (yMax - yMin) * f);
+          const v = yMin + (yMax - yMin) * f;
           return (
             <g key={f}>
               <line x1={PAD.l} y1={y} x2={PAD.l + iW} y2={y}
                 stroke="var(--border)" strokeWidth="0.5" />
               <text x={PAD.l - 4} y={y + 3.5} textAnchor="end"
-                fontSize="8" fill="var(--tertiary)">{v}</text>
+                fontSize="8" fill="var(--tertiary)">{fmt(v)}</text>
             </g>
           );
         })}
@@ -116,7 +121,7 @@ function TrendChart({
           fontSize="9" fontWeight="700" fill={dotColor(points[points.length - 1])}
           dominantBaseline="middle"
         >
-          {points[points.length - 1].val} {unit}
+          {fmt(points[points.length - 1].val)} {unit}
         </text>
       </svg>
     </div>
@@ -126,19 +131,23 @@ function TrendChart({
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export function PatientDetailPage() {
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language?.slice(0, 2) === "ar" ? "ar-MA"
+               : i18n.language?.slice(0, 2) === "en" ? "en-US" : "fr-FR";
   const { patientId } = useParams<{ patientId: string }>();
   const navigate      = useNavigate();
   const {
     patients, appointments,
     examResults, prescriptions, teleSessions, certificates,
-    updatePatient, deletePatient, doctorProfile,
+    updatePatient, deletePatient, doctorProfile, role,
   } = useCabinet();
   const { transactions } = useApp();
+  const readOnly = role === "secretary"; // secretary: contact edits ok, clinical read-only
 
   const patient = useMemo(() => patients.find((p) => p.id === patientId), [patients, patientId]);
 
   // ── Tabs ──────────────────────────────────────────────────────────────────
-  const [tab, setTab] = useState<"timeline" | "dossier" | "rdv" | "vitals" | "ordonnances">("timeline");
+  const [tab, setTab] = useState<"timeline" | "dossier" | "consultations" | "vitals" | "ordonnances">("timeline");
 
   // ── Dossier inline fields ─────────────────────────────────────────────────
   const [bloodType,   setBloodType]   = useState("");
@@ -147,6 +156,25 @@ export function PatientDetailPage() {
   const [medications, setMedications] = useState("");
   const [notes,       setNotes]       = useState("");
   const [cnops,       setCnops]       = useState("");
+  const [mutuelle,    setMutuelle]    = useState("");
+  const [city,        setCity]        = useState("");
+
+  // ── Add timeline event ────────────────────────────────────────────────────
+  const [showAddEvent, setShowAddEvent] = useState(false);
+  const [evtDate,  setEvtDate]  = useState(todayIso());
+  const [evtTitle, setEvtTitle] = useState("");
+  const [evtNotes, setEvtNotes] = useState("");
+
+  const saveTimelineEvent = () => {
+    if (!patient || !evtTitle.trim()) return;
+    const ev = {
+      id: `tl_${Date.now()}_${Math.round(performance.now())}`,
+      date: evtDate, title: evtTitle.trim(), notes: evtNotes.trim() || undefined,
+    };
+    updatePatient({ ...patient, timelineEvents: [...(patient.timelineEvents ?? []), ev] });
+    setShowAddEvent(false);
+    setEvtDate(todayIso()); setEvtTitle(""); setEvtNotes("");
+  };
 
   // ── Edit modal ────────────────────────────────────────────────────────────
   const [showEdit, setShowEdit] = useState(false);
@@ -164,6 +192,8 @@ export function PatientDetailPage() {
     setMedications(patient.currentMedications ?? "");
     setNotes(patient.notes ?? "");
     setCnops(patient.cnopsNumber ?? "");
+    setMutuelle(patient.mutuelle ?? "");
+    setCity(patient.city ?? "");
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patient?.id]);
 
@@ -187,6 +217,8 @@ export function PatientDetailPage() {
       currentMedications: medications.trim() || undefined,
       notes:              notes.trim()       || undefined,
       cnopsNumber:        cnops.trim()       || undefined,
+      mutuelle:           mutuelle.trim()    || undefined,
+      city:               city.trim()        || undefined,
     });
   };
 
@@ -236,7 +268,7 @@ export function PatientDetailPage() {
   const bpPoints  = useMemo(() =>
     vitalsAppts
       .filter((a) => a.vitalSigns?.bpSys != null)
-      .map((a) => ({ date: a.date, val: a.vitalSigns!.bpSys!, bad: a.vitalSigns!.bpSys! > 140 || a.vitalSigns!.bpSys! < 90 })),
+      .map((a) => ({ date: a.date, val: a.vitalSigns!.bpSys! / 10, bad: a.vitalSigns!.bpSys! > 140 || a.vitalSigns!.bpSys! < 90 })),
     [vitalsAppts]);
 
   const hrPoints  = useMemo(() =>
@@ -259,6 +291,44 @@ export function PatientDetailPage() {
 
   const hasVitals = bpPoints.length > 0 || hrPoints.length > 0 || tempPoints.length > 0 || weightPoints.length > 0;
 
+  // ── Lab-value trends: group numeric exam values by label across dates ────────
+  const labSeries = useMemo(() => {
+    const byLabel: Record<string, {
+      label: string; unit: string; refMin?: number; refMax?: number; pts: TrendPoint[];
+    }> = {};
+    const exams = examResults
+      .filter((e) => e.patientId === patientId)
+      .sort((a, b) => a.date.localeCompare(b.date));
+    for (const e of exams) {
+      for (const v of e.values) {
+        const num = parseFloat(String(v.value ?? "").replace(",", ".").replace(/[^\d.\-]/g, ""));
+        if (!isFinite(num) || !v.label?.trim()) continue;
+        const key = v.label.trim().toLowerCase();
+        const bad = v.isAbnormal === true
+          || (v.refMin != null && num < v.refMin)
+          || (v.refMax != null && num > v.refMax);
+        const s = byLabel[key] ??= { label: v.label.trim(), unit: v.unit ?? "", pts: [] };
+        if (v.refMin != null) s.refMin = v.refMin;
+        if (v.refMax != null) s.refMax = v.refMax;
+        if (v.unit) s.unit = v.unit;
+        s.pts.push({ date: e.date, val: num, bad });
+      }
+    }
+    // A trend needs ≥2 points; compute a padded y-range per series.
+    return Object.values(byLabel)
+      .filter((s) => s.pts.length >= 2)
+      .map((s) => {
+        const vals = s.pts.map((p) => p.val);
+        const lo = Math.min(...vals, s.refMin ?? Infinity);
+        const hi = Math.max(...vals, s.refMax ?? -Infinity);
+        const pad = ((hi - lo) || Math.abs(hi) || 1) * 0.15;
+        return { ...s, yMin: lo - pad, yMax: hi + pad };
+      })
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [examResults, patientId]);
+
+  const hasTrends = hasVitals || labSeries.length > 0;
+
   // ── Unified timeline ──────────────────────────────────────────────────────
   const EXAM_ICONS: Record<string, string> = { biologie: "🔬", imagerie: "🩻", ecg: "💗", autre: "📋" };
 
@@ -278,10 +348,10 @@ export function PatientDetailPage() {
       let subtitle = a.consultationNote?.motif || a.consultationNote?.diagnosis || undefined;
       if (subtitle && subtitle.length > 90) subtitle = subtitle.slice(0, 90) + "…";
       const chips: string[] = [];
-      if (a.vitalSigns && Object.values(a.vitalSigns).some((v) => v != null)) chips.push("Vitaux");
-      if (a.savedOrdonnance?.lines.length) chips.push(`℞ ${a.savedOrdonnance.lines.length} méd.`);
-      if (a.savedCertificates?.length) chips.push(`${a.savedCertificates.length} cert.`);
-      if (a.billedAt) chips.push("Facturé");
+      if (a.vitalSigns && Object.values(a.vitalSigns).some((v) => v != null)) chips.push(t("patientDetail.tlVitals"));
+      if (a.savedOrdonnance?.lines.length) chips.push(t("patientDetail.tlMeds", { n: a.savedOrdonnance.lines.length }));
+      if (a.savedCertificates?.length) chips.push(t("patientDetail.tlCerts", { n: a.savedCertificates.length }));
+      if (a.billedAt) chips.push(t("patientDetail.tlBilled"));
       entries.push({
         id: `rdv-${a.id}`, kind: "rdv",
         date: a.date, sortKey: a.date + "T" + a.startTime,
@@ -304,7 +374,8 @@ export function PatientDetailPage() {
         color: EXAM_TYPE_COLORS[e.type],
         title: e.title,
         subtitle: EXAM_TYPE_LABELS[e.type] + (e.labName ? ` · ${e.labName}` : ""),
-        detail: abnormal > 0 ? `⚠️ ${abnormal} valeur${abnormal > 1 ? "s" : ""} anormale${abnormal > 1 ? "s" : ""}` : undefined,
+        detail: abnormal > 0 ? t("patientDetail.tlExamAbnormal", { n: abnormal, s: abnormal > 1 ? "s" : "" }) : undefined,
+        link: `/examens?focus=${e.id}`,
       });
     }
 
@@ -315,10 +386,11 @@ export function PatientDetailPage() {
         id: `rx-${p.id}`, kind: "prescription",
         date: p.date, sortKey: p.date + "T00:01",
         icon: "℞", color: "#15A876",
-        title: "Ordonnance",
+        title: t("patientDetail.tlPrescription"),
         subtitle: first
-          ? `${first.drug}${p.lines.length > 1 ? ` + ${p.lines.length - 1} autre${p.lines.length > 2 ? "s" : ""}` : ""}`
+          ? `${first.drug}${p.lines.length > 1 ? ` ${t("patientDetail.tlPrescMore", { n: p.lines.length - 1 })}` : ""}`
           : undefined,
+        link: `/ordonnances?focus=${p.id}`,
       });
     }
 
@@ -332,6 +404,7 @@ export function PatientDetailPage() {
         icon: "📄", color: CERT_TYPE_COLORS[c.type],
         title: CERT_TYPE_LABELS[c.type],
         subtitle,
+        link: `/certificats?focus=${c.id}`,
       });
     }
 
@@ -341,23 +414,36 @@ export function PatientDetailPage() {
         id: `tele-${s.id}`, kind: "teleconsult",
         date: s.scheduledDate, sortKey: s.scheduledDate + "T" + s.scheduledTime,
         icon: "💻", color: "#1890C5",
-        title: "Téléconsultation",
+        title: t("patientDetail.tlTeleconsult"),
         subtitle: TELE_STATUS_LABELS[s.status] + (s.duration ? ` · ${s.duration} min` : ""),
         detail: s.notes ? s.notes.slice(0, 80) : undefined,
+        link: `/teleconsult?focus=${s.id}`,
+      });
+    }
+
+    // Custom events the doctor added directly to the timeline
+    for (const ev of patient?.timelineEvents ?? []) {
+      entries.push({
+        id: `evt-${ev.id}`, kind: "event",
+        date: ev.date, sortKey: ev.date + "T00:03",
+        icon: "📌", color: "#D4962A",
+        title: ev.title,
+        subtitle: ev.notes || undefined,
       });
     }
 
     return entries.sort((a, b) => b.sortKey.localeCompare(a.sortKey));
-  }, [patientAppts, examResults, prescriptions, certificates, teleSessions, patientId, fullName]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [patientAppts, examResults, prescriptions, certificates, teleSessions, patient?.timelineEvents, patientId, fullName, i18n.language]);
 
   if (!patient) {
     return (
-      <Layout title="Patient" subtitle="introuvable">
+      <Layout title={t("patientDetail.notFound")} subtitle="">
         <div className="tx-empty">
           <div style={{ fontSize: 36, marginBottom: 10 }}>👤</div>
-          <div style={{ fontWeight: 700, marginBottom: 8 }}>Patient introuvable</div>
+          <div style={{ fontWeight: 700, marginBottom: 8 }}>{t("patientDetail.notFound")}</div>
           <button className="btn btn-primary" onClick={() => navigate("/patients")}>
-            Retour aux patients
+            {t("patientDetail.backLink")}
           </button>
         </div>
       </Layout>
@@ -368,7 +454,7 @@ export function PatientDetailPage() {
   const age   = calcAge(patient.dateOfBirth);
 
   const handleDelete = () => {
-    if (!window.confirm(`Supprimer le dossier de ${fullName} ?`)) return;
+    if (!window.confirm(t("patientDetail.deleteConfirm", { name: fullName }))) return;
     deletePatient(patient.id);
     navigate("/patients");
   };
@@ -376,11 +462,14 @@ export function PatientDetailPage() {
   return (
     <Layout
       title={fullName}
-      subtitle={[age ? `${age} ans` : null, patient.gender === "M" ? "Homme" : patient.gender === "F" ? "Femme" : null].filter(Boolean).join(" · ") || "Patient"}
+      subtitle={[
+        age ? t("patientDetail.ageYears", { n: age }) : null,
+        patient.gender === "M" ? t("patients.male") : patient.gender === "F" ? t("patients.female") : null,
+      ].filter(Boolean).join(" · ") || t("nav.patients")}
     >
       {/* Back */}
       <div style={{ marginBottom: 16 }}>
-        <Link to="/patients" className="appt-back-link">← Retour aux patients</Link>
+        <Link to="/patients" className="appt-back-link">{t("patientDetail.backLink")}</Link>
       </div>
 
       {/* ── Header card ── */}
@@ -392,9 +481,9 @@ export function PatientDetailPage() {
           <div className="patient-header-info">
             <div className="patient-header-name">{fullName}</div>
             <div className="patient-header-meta">
-              {age && <span>{age} ans</span>}
-              {patient.gender && <span>{patient.gender === "M" ? "Homme" : "Femme"}</span>}
-              {patient.dateOfBirth && <span>{fmtDate(patient.dateOfBirth)}</span>}
+              {age && <span>{t("patientDetail.ageYears", { n: age })}</span>}
+              {patient.gender && <span>{patient.gender === "M" ? t("patients.male") : t("patients.female")}</span>}
+              {patient.dateOfBirth && <span>{fmtDate(patient.dateOfBirth, locale)}</span>}
             </div>
             <div className="patient-header-tags">
               {patient.phone && (
@@ -418,21 +507,21 @@ export function PatientDetailPage() {
         <div className="patient-header-stats">
           <div className="patient-stat">
             <div className="patient-stat-value">{patientAppts.length}</div>
-            <div className="patient-stat-label">RDV</div>
+            <div className="patient-stat-label">{t("patientDetail.statAppts")}</div>
           </div>
           <div className="patient-stat">
             <div className="patient-stat-value">{completedAppts.length}</div>
-            <div className="patient-stat-label">Terminés</div>
+            <div className="patient-stat-label">{t("patientDetail.statCompleted")}</div>
           </div>
-          {patientRevenue > 0 && (
+          {!readOnly && patientRevenue > 0 && (
             <div className="patient-stat">
               <div className="patient-stat-value" style={{ color: "var(--green)" }}>{formatMAD(patientRevenue)}</div>
-              <div className="patient-stat-label">Recettes</div>
+              <div className="patient-stat-label">{t("patientDetail.statRevenue")}</div>
             </div>
           )}
           <div className="patient-header-actions">
             <button className="btn btn-ghost" style={{ fontSize: 12 }} onClick={openEdit}>
-              ✏️ Modifier
+              {t("patientDetail.editBtn")}
             </button>
             <button
               className="btn btn-ghost"
@@ -445,7 +534,7 @@ export function PatientDetailPage() {
                 examResults:    examResults.filter(e => e.patientId === patientId),
                 certificates:   certificates.filter(c => c.patientId === patientId || c.patientName === fullName),
               })}
-              title="Imprimer le dossier complet A4"
+              title={t("patientDetail.printTitle")}
             >
               <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 5 }}>
                 <rect x="2" y="5" width="10" height="7" rx="1" stroke="currentColor" strokeWidth="1.3"/>
@@ -453,14 +542,14 @@ export function PatientDetailPage() {
                 <path d="M4 9h6M4 11h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
                 <circle cx="11" cy="7.5" r="0.8" fill="currentColor"/>
               </svg>
-              Dossier
+              {t("patientDetail.printDossier")}
             </button>
             <button
               className="btn btn-primary"
               style={{ fontSize: 12, background: "var(--navy)" }}
               onClick={() => navigate(`/agenda?newAppt=${patient.id}`)}
             >
-              + Nouveau RDV
+              + {t("patientDetail.newApptBtn")}
             </button>
           </div>
         </div>
@@ -469,11 +558,11 @@ export function PatientDetailPage() {
       {/* ── Tabs ── */}
       <div className="appt-tabs">
         {([
-          { key: "timeline",    label: `Timeline (${tlEntries.length})`,         dot: tlEntries.length > 0 },
-          { key: "dossier",     label: "Dossier médical",                        dot: false },
-          { key: "rdv",         label: `Rendez-vous (${patientAppts.length})`,   dot: patientAppts.length > 0 },
-          { key: "vitals",      label: "Suivi vitaux",                           dot: hasVitals },
-          { key: "ordonnances", label: `Ordonnances (${ordAppts.length})`,       dot: ordAppts.length > 0 },
+          { key: "timeline",    label: t("patientDetail.tabTimeline", { n: tlEntries.length }),       dot: tlEntries.length > 0 },
+          { key: "dossier",     label: t("patientDetail.tabDossier"),                                 dot: false },
+          { key: "consultations", label: t("patientDetail.tabConsultations", { n: patientAppts.length }), dot: patientAppts.length > 0 },
+          { key: "vitals",      label: t("patientDetail.tabVitals"),                                  dot: hasTrends },
+          { key: "ordonnances", label: t("patientDetail.tabOrdonnances", { n: ordAppts.length }),     dot: ordAppts.length > 0 },
         ] as const).map(({ key, label, dot }) => (
           <button
             key={key}
@@ -490,18 +579,25 @@ export function PatientDetailPage() {
       {tab === "timeline" && (
         <div className="appt-tab-panel">
           <div className="appt-section-header">
-            <div className="appt-section-title">Historique clinique</div>
-            <span style={{ fontSize: 11, color: "var(--tertiary)" }}>
-              {tlEntries.length} événement{tlEntries.length !== 1 ? "s" : ""}
-            </span>
+            <div className="appt-section-title">{t("patientDetail.tlTitle")}</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 11, color: "var(--tertiary)" }}>
+                {t("patientDetail.tlEvents", { n: tlEntries.length, s: tlEntries.length !== 1 ? "s" : "" })}
+              </span>
+              {role !== "secretary" && (
+                <button className="btn btn-ghost btn-sm" onClick={() => setShowAddEvent(true)}>
+                  + {t("patientDetail.tlAddEvent")}
+                </button>
+              )}
+            </div>
           </div>
 
           {tlEntries.length === 0 ? (
             <div className="tx-empty" style={{ padding: "32px 0" }}>
               <div style={{ fontSize: 32, marginBottom: 8 }}>🗒️</div>
-              <div style={{ fontWeight: 700, marginBottom: 4 }}>Aucun historique</div>
+              <div style={{ fontWeight: 700, marginBottom: 4 }}>{t("patientDetail.tlEmpty")}</div>
               <div style={{ fontSize: 13, color: "var(--muted)" }}>
-                Les consultations, examens, ordonnances et certificats apparaîtront ici.
+                {t("patientDetail.tlEmptySub")}
               </div>
             </div>
           ) : (
@@ -515,12 +611,19 @@ export function PatientDetailPage() {
                   <div key={entry.id}>
                     {showMonth && (
                       <div className="tl-month">
-                        {new Date(entry.date + "T12:00:00").toLocaleDateString("fr-FR", {
+                        {new Date(entry.date + "T12:00:00").toLocaleDateString(locale, {
                           month: "long", year: "numeric",
                         })}
                       </div>
                     )}
-                    <div className="tl-entry">
+                    <div
+                      className={`tl-entry${entry.link ? " tl-entry-clickable" : ""}`}
+                      onClick={entry.link ? () => navigate(entry.link!) : undefined}
+                      role={entry.link ? "button" : undefined}
+                      tabIndex={entry.link ? 0 : undefined}
+                      onKeyDown={entry.link ? (e) => { if (e.key === "Enter") navigate(entry.link!); } : undefined}
+                      style={entry.link ? { cursor: "pointer" } : undefined}
+                    >
                       <div className="tl-icon-col">
                         <div className="tl-icon" style={{ background: entry.color + "18", color: entry.color }}>
                           {entry.icon}
@@ -530,12 +633,12 @@ export function PatientDetailPage() {
                       <div className="tl-body">
                         <div className="tl-row-top">
                           <span className="tl-title">{entry.title}</span>
-                          <span className="tl-date">{fmtDate(entry.date)}</span>
+                          <span className="tl-date">{fmtDate(entry.date, locale)}</span>
                         </div>
                         {entry.subtitle && <div className="tl-subtitle">{entry.subtitle}</div>}
                         {entry.detail && <div className="tl-detail">{entry.detail}</div>}
                         {entry.link && (
-                          <Link to={entry.link} className="tl-link">Voir le détail →</Link>
+                          <span className="tl-link">{t("patientDetail.tlViewDetail")} →</span>
                         )}
                       </div>
                     </div>
@@ -551,14 +654,14 @@ export function PatientDetailPage() {
       {tab === "dossier" && (
         <div className="appt-tab-panel">
           <div className="appt-section-header">
-            <div className="appt-section-title">Dossier médical</div>
-            <span style={{ fontSize: 11, color: "var(--tertiary)" }}>Auto-sauvegardé à la sortie du champ</span>
+            <div className="appt-section-title">{t("patientDetail.dossierTitle")}</div>
+            <span style={{ fontSize: 11, color: "var(--tertiary)" }}>{t("patientDetail.dossierAutoSave")}</span>
           </div>
 
           <div className="patient-dossier-grid">
             {/* Blood type */}
             <div className="form-group">
-              <label className="form-label">Groupe sanguin</label>
+              <label className="form-label">{t("patients.bloodType")}</label>
               <div className="blood-type-grid">
                 {BLOOD_TYPES.map((bt) => (
                   <button
@@ -578,93 +681,131 @@ export function PatientDetailPage() {
 
             {/* CNOPS */}
             <div className="form-group">
-              <label className="form-label">N° AMO / CNOPS / RAMED</label>
+              <label className="form-label">{t("patientDetail.cnopsLabel")}</label>
               <input
                 className="form-input"
-                placeholder="Numéro immatriculation…"
+                placeholder={t("patientDetail.cnopsPlaceholder")}
                 value={cnops}
                 onChange={(e) => setCnops(e.target.value)}
                 onBlur={saveDossier}
               />
             </div>
+
+            {/* Mutuelle */}
+            <div className="form-group">
+              <label className="form-label">{t("patientDetail.mutuelleLabel")}</label>
+              <input
+                className="form-input"
+                list="mutuelle-list"
+                placeholder={t("patientDetail.mutuellePlaceholder")}
+                value={mutuelle}
+                onChange={(e) => setMutuelle(e.target.value)}
+                onBlur={saveDossier}
+              />
+              <datalist id="mutuelle-list">
+                {MUTUELLES.map(m => <option key={m} value={m} />)}
+              </datalist>
+            </div>
+
+            {/* Ville */}
+            <div className="form-group">
+              <label className="form-label">{t("patientDetail.cityLabel")}</label>
+              <input
+                className="form-input"
+                list="city-list"
+                placeholder={t("patientDetail.cityPlaceholder")}
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                onBlur={saveDossier}
+              />
+              <datalist id="city-list">
+                {MOROCCAN_CITIES.map(c => <option key={c} value={c} />)}
+              </datalist>
+            </div>
           </div>
 
           <div className="patient-dossier-fields">
             <div className="form-group">
-              <label className="form-label">Allergies</label>
+              <label className="form-label">{t("patients.allergies")}</label>
               <textarea
                 className="form-input appt-textarea" rows={2}
-                placeholder="Pénicilline, aspirine, latex…"
+                placeholder={t("patients.allergiesPlaceholder")}
                 value={allergies}
                 onChange={(e) => setAllergies(e.target.value)}
                 onBlur={saveDossier}
+                readOnly={readOnly}
                 style={{ borderColor: allergies ? "var(--coral)" : undefined }}
               />
             </div>
             <div className="form-group">
-              <label className="form-label">Antécédents médicaux</label>
+              <label className="form-label">{t("patients.antecedentsLabel")}</label>
               <textarea
                 className="form-input appt-textarea" rows={3}
-                placeholder="HTA, diabète, cardiopathie…"
+                placeholder={t("patients.antecedentsPlaceholder")}
                 value={antecedents}
                 onChange={(e) => setAntecedents(e.target.value)}
                 onBlur={saveDossier}
+                readOnly={readOnly}
               />
             </div>
             <div className="form-group">
-              <label className="form-label">Médicaments en cours</label>
+              <label className="form-label">{t("patientDetail.medications")}</label>
               <textarea
                 className="form-input appt-textarea" rows={2}
-                placeholder="Metformine 1g 2×/j, Amlodipine 5mg…"
+                placeholder={t("patientDetail.medicationsPlaceholder")}
                 value={medications}
                 onChange={(e) => setMedications(e.target.value)}
                 onBlur={saveDossier}
+                readOnly={readOnly}
               />
             </div>
             <div className="form-group">
-              <label className="form-label">Notes cliniques libres</label>
+              <label className="form-label">{t("patientDetail.clinicalNotes")}</label>
               <textarea
                 className="form-input appt-textarea" rows={2}
-                placeholder="Observations, contexte social…"
+                placeholder={t("patientDetail.clinicalNotesPlaceholder")}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 onBlur={saveDossier}
+                readOnly={readOnly}
               />
             </div>
           </div>
 
-          <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end" }}>
-            <button
-              className="btn btn-ghost"
-              style={{ color: "var(--coral)", borderColor: "var(--coral)", fontSize: 12 }}
-              onClick={handleDelete}
-            >
-              Supprimer le dossier
-            </button>
-          </div>
+          {!readOnly && (
+            <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end" }}>
+              <button
+                className="btn btn-ghost"
+                style={{ color: "var(--coral)", borderColor: "var(--coral)", fontSize: 12 }}
+                onClick={handleDelete}
+              >
+                {t("patientDetail.deleteRecord")}
+              </button>
+            </div>
+          )}
         </div>
       )}
 
       {/* ── RENDEZ-VOUS ── */}
-      {tab === "rdv" && (
+      {tab === "consultations" && (
         <div className="appt-tab-panel">
           <div className="appt-section-header">
-            <div className="appt-section-title">Historique des rendez-vous</div>
+            <div className="appt-section-title">{t("patientDetail.consultationsTitle")}</div>
             <button
               className="btn btn-primary"
               style={{ fontSize: 12, padding: "6px 14px" }}
               onClick={() => navigate("/agenda")}
             >
-              + Nouveau RDV
+              + {t("patientDetail.newApptBtn")}
             </button>
           </div>
 
           {patientAppts.length === 0 ? (
             <div className="tx-empty" style={{ padding: "32px 0" }}>
               <div style={{ fontSize: 32, marginBottom: 8 }}>📅</div>
-              <div style={{ fontWeight: 700, marginBottom: 4 }}>Aucun rendez-vous</div>
+              <div style={{ fontWeight: 700, marginBottom: 4 }}>{t("patientDetail.consultationsEmpty")}</div>
               <div style={{ fontSize: 13, color: "var(--muted)" }}>
-                Ce patient n'a pas encore de rendez-vous.
+                {t("patientDetail.consultationsEmptySub")}
               </div>
             </div>
           ) : (
@@ -680,7 +821,7 @@ export function PatientDetailPage() {
                   >
                     <div className="patient-rdv-accent" style={{ background: a.status === "completed" ? color : "var(--border)" }} />
                     <div className="patient-rdv-body">
-                      <div className="patient-rdv-date">{fmtDate(a.date)} · {a.startTime}</div>
+                      <div className="patient-rdv-date">{fmtDate(a.date, locale)} · {a.startTime}</div>
                       <div className="patient-rdv-badges">
                         <span className="appt-badge" style={{ background: color + "20", color }}>
                           {APPT_TYPE_LABELS[a.type]}
@@ -690,12 +831,12 @@ export function PatientDetailPage() {
                         </span>
                         {a.billedAt && (
                           <span className="appt-badge" style={{ background: "var(--green-soft)", color: "var(--green)" }}>
-                            ✓ Facturé
+                            {t("patientDetail.rdvBilled")}
                           </span>
                         )}
                         {hasNote && (
                           <span className="appt-badge" style={{ background: "var(--blue-soft)", color: "var(--blue)" }}>
-                            📋 Notes
+                            {t("patientDetail.rdvNotes")}
                           </span>
                         )}
                       </div>
@@ -717,49 +858,80 @@ export function PatientDetailPage() {
       {/* ── SUIVI VITAUX ── */}
       {tab === "vitals" && (
         <div className="appt-tab-panel">
-          <div className="appt-section-header">
-            <div className="appt-section-title">Évolution des signes vitaux</div>
-            <span style={{ fontSize: 11, color: "var(--tertiary)" }}>
-              {vitalsAppts.length} mesure{vitalsAppts.length !== 1 ? "s" : ""} enregistrée{vitalsAppts.length !== 1 ? "s" : ""}
-            </span>
-          </div>
-
-          {!hasVitals ? (
-            <div className="tx-empty" style={{ padding: "32px 0" }}>
-              <div style={{ fontSize: 32, marginBottom: 8 }}>📊</div>
-              <div style={{ fontWeight: 700, marginBottom: 4 }}>Aucune mesure disponible</div>
-              <div style={{ fontSize: 13, color: "var(--muted)" }}>
-                Enregistrez les signes vitaux lors des consultations pour voir l'évolution ici.
+          {!hasTrends ? (
+            <>
+              <div className="appt-section-header">
+                <div className="appt-section-title">{t("patientDetail.vitalsTitle")}</div>
               </div>
-            </div>
+              <div className="tx-empty" style={{ padding: "32px 0" }}>
+                <div style={{ fontSize: 32, marginBottom: 8 }}>📊</div>
+                <div style={{ fontWeight: 700, marginBottom: 4 }}>{t("patientDetail.vitalsEmpty")}</div>
+                <div style={{ fontSize: 13, color: "var(--muted)" }}>
+                  {t("patientDetail.vitalsEmptySub")}
+                </div>
+              </div>
+            </>
           ) : (
-            <div className="vitals-charts-grid">
-              {bpPoints.length > 0 && (
-                <TrendChart
-                  points={bpPoints} unit="mmHg" label="Tension systolique"
-                  yMin={80} yMax={180} dangerHigh={140} dangerLow={90} warnHigh={130}
-                />
+            <>
+              {hasVitals && (
+                <>
+                  <div className="appt-section-header">
+                    <div className="appt-section-title">{t("patientDetail.vitalsTitle")}</div>
+                    <span style={{ fontSize: 11, color: "var(--tertiary)" }}>
+                      {t("patientDetail.vitalsMeasures", { n: vitalsAppts.length, s: vitalsAppts.length !== 1 ? "s" : "" })}
+                    </span>
+                  </div>
+                  <div className="vitals-charts-grid">
+                    {bpPoints.length > 0 && (
+                      <TrendChart
+                        points={bpPoints} unit="cmHg" label={t("patientDetail.vitalsBp")}
+                        yMin={8} yMax={18} dangerHigh={14} dangerLow={9} warnHigh={13}
+                      />
+                    )}
+                    {hrPoints.length > 0 && (
+                      <TrendChart
+                        points={hrPoints} unit="bpm" label={t("patientDetail.vitalsHr")}
+                        yMin={40} yMax={120} dangerHigh={100} dangerLow={50}
+                      />
+                    )}
+                    {tempPoints.length > 0 && (
+                      <TrendChart
+                        points={tempPoints} unit="°C" label={t("patientDetail.vitalsTemp")}
+                        yMin={35} yMax={41} dangerHigh={38.5} warnHigh={37.5}
+                      />
+                    )}
+                    {weightPoints.length > 0 && (
+                      <TrendChart
+                        points={weightPoints} unit="kg" label={t("patientDetail.vitalsWeight")}
+                        yMin={Math.max(0, Math.min(...weightPoints.map(p => p.val)) - 10)}
+                        yMax={Math.max(...weightPoints.map(p => p.val)) + 10}
+                      />
+                    )}
+                  </div>
+                </>
               )}
-              {hrPoints.length > 0 && (
-                <TrendChart
-                  points={hrPoints} unit="bpm" label="Fréquence cardiaque"
-                  yMin={40} yMax={120} dangerHigh={100} dangerLow={50}
-                />
+
+              {labSeries.length > 0 && (
+                <>
+                  <div className="appt-section-header" style={{ marginTop: hasVitals ? 22 : 0 }}>
+                    <div className="appt-section-title">{t("patientDetail.labsTitle")}</div>
+                    <span style={{ fontSize: 11, color: "var(--tertiary)" }}>
+                      {t("patientDetail.labsMeasures", { n: labSeries.length, s: labSeries.length !== 1 ? "s" : "" })}
+                    </span>
+                  </div>
+                  <div className="vitals-charts-grid">
+                    {labSeries.map((s) => (
+                      <TrendChart
+                        key={s.label}
+                        points={s.pts} unit={s.unit} label={s.label}
+                        yMin={s.yMin} yMax={s.yMax}
+                        dangerHigh={s.refMax} dangerLow={s.refMin}
+                      />
+                    ))}
+                  </div>
+                </>
               )}
-              {tempPoints.length > 0 && (
-                <TrendChart
-                  points={tempPoints} unit="°C" label="Température"
-                  yMin={35} yMax={41} dangerHigh={38.5} warnHigh={37.5}
-                />
-              )}
-              {weightPoints.length > 0 && (
-                <TrendChart
-                  points={weightPoints} unit="kg" label="Poids"
-                  yMin={Math.max(0, Math.min(...weightPoints.map(p => p.val)) - 10)}
-                  yMax={Math.max(...weightPoints.map(p => p.val)) + 10}
-                />
-              )}
-            </div>
+            </>
           )}
         </div>
       )}
@@ -768,18 +940,18 @@ export function PatientDetailPage() {
       {tab === "ordonnances" && (
         <div className="appt-tab-panel">
           <div className="appt-section-header">
-            <div className="appt-section-title">Historique des ordonnances</div>
+            <div className="appt-section-title">{t("patientDetail.ordTitle")}</div>
             <span style={{ fontSize: 11, color: "var(--tertiary)" }}>
-              {ordAppts.length} ordonnance{ordAppts.length !== 1 ? "s" : ""} enregistrée{ordAppts.length !== 1 ? "s" : ""}
+              {t("patientDetail.ordCount", { n: ordAppts.length, s: ordAppts.length !== 1 ? "s" : "" })}
             </span>
           </div>
 
           {ordAppts.length === 0 ? (
             <div className="tx-empty" style={{ padding: "32px 0" }}>
               <div style={{ fontSize: 32, marginBottom: 8 }}>℞</div>
-              <div style={{ fontWeight: 700, marginBottom: 4 }}>Aucune ordonnance</div>
+              <div style={{ fontWeight: 700, marginBottom: 4 }}>{t("patientDetail.ordEmpty")}</div>
               <div style={{ fontSize: 13, color: "var(--muted)" }}>
-                Les prescriptions créées lors des consultations apparaissent ici.
+                {t("patientDetail.ordEmptySub")}
               </div>
             </div>
           ) : (
@@ -792,7 +964,7 @@ export function PatientDetailPage() {
                         {fmtDate(appt.date)} · {APPT_TYPE_LABELS[appt.type]}
                       </div>
                       <div style={{ fontSize: 11, color: "var(--muted)" }}>
-                        Éditée le {new Date(appt.savedOrdonnance!.printedAt).toLocaleDateString("fr-FR")}
+                        {t("patientDetail.ordEdited", { date: new Date(appt.savedOrdonnance!.printedAt).toLocaleDateString(locale) })}
                       </div>
                     </div>
                     <div style={{ display: "flex", gap: 8 }}>
@@ -801,7 +973,7 @@ export function PatientDetailPage() {
                         className="payroll-print-btn"
                         style={{ textDecoration: "none" }}
                       >
-                        Voir le RDV →
+                        {t("patientDetail.ordViewAppt")}
                       </Link>
                       <button
                         className="payroll-print-btn"
@@ -817,7 +989,7 @@ export function PatientDetailPage() {
                           <path d="M4 5V2h6v3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
                           <circle cx="11" cy="7.5" r="0.8" fill="currentColor"/>
                         </svg>
-                        Réimprimer
+                        {t("patientDetail.ordReprint")}
                       </button>
                     </div>
                   </div>
@@ -839,46 +1011,80 @@ export function PatientDetailPage() {
       )}
 
       {/* ── Edit modal ── */}
+      {showAddEvent && (
+        <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setShowAddEvent(false); }}>
+          <div className="modal" style={{ maxWidth: 440 }}>
+            <div className="modal-header">
+              <h2 className="modal-title">{t("patientDetail.tlAddEvent")}</h2>
+              <button className="modal-close" onClick={() => setShowAddEvent(false)}>×</button>
+            </div>
+            <div className="modal-body" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div className="form-row">
+                <div className="form-group" style={{ flex: "0 0 160px" }}>
+                  <label className="form-label">{t("patientDetail.tlEventDate")}</label>
+                  <input className="form-input" type="date" value={evtDate} onChange={(e) => setEvtDate(e.target.value)} />
+                </div>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label className="form-label">{t("patientDetail.tlEventTitle")}</label>
+                  <input className="form-input" value={evtTitle} onChange={(e) => setEvtTitle(e.target.value)}
+                    placeholder={t("patientDetail.tlEventTitlePlaceholder")} autoFocus
+                    onKeyDown={(e) => { if (e.key === "Enter") saveTimelineEvent(); }} />
+                </div>
+              </div>
+              <div className="form-group">
+                <label className="form-label">{t("patientDetail.tlEventNotes")}</label>
+                <textarea className="form-input" rows={3} value={evtNotes} onChange={(e) => setEvtNotes(e.target.value)}
+                  placeholder={t("patientDetail.tlEventNotesPlaceholder")} />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-ghost" onClick={() => setShowAddEvent(false)}>{t("common.cancel")}</button>
+              <button className="btn btn-primary" onClick={saveTimelineEvent} disabled={!evtTitle.trim()}>{t("common.save")}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showEdit && (
         <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setShowEdit(false); }}>
           <div className="modal" style={{ maxWidth: 480 }}>
             <div className="modal-header">
-              <h2 className="modal-title">Modifier le patient</h2>
+              <h2 className="modal-title">{t("patients.editPatient")}</h2>
               <button className="modal-close" onClick={() => setShowEdit(false)}>×</button>
             </div>
             <div className="modal-body" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <div className="form-row">
                 <div className="form-group">
-                  <label className="form-label">Prénom</label>
+                  <label className="form-label">{t("patients.firstName")}</label>
                   <input className="form-input" value={editFirst} onChange={(e) => setEFirst(e.target.value)} required autoFocus />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Nom</label>
+                  <label className="form-label">{t("patients.lastName")}</label>
                   <input className="form-input" value={editLast} onChange={(e) => setELast(e.target.value)} required />
                 </div>
               </div>
               <div className="form-row">
                 <div className="form-group">
-                  <label className="form-label">Téléphone</label>
+                  <label className="form-label">{t("patients.phone")}</label>
                   <input className="form-input" type="tel" value={editPhone} onChange={(e) => setEPhone(e.target.value)} />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Date de naissance</label>
+                  <label className="form-label">{t("patients.dob")}</label>
                   <input className="form-input" type="date" value={editDob} onChange={(e) => setEDob(e.target.value)} />
                 </div>
               </div>
               <div className="form-group">
-                <label className="form-label">Genre</label>
+                <label className="form-label">{t("patients.gender")}</label>
                 <select className="form-select" value={editGender} onChange={(e) => setEGender(e.target.value as PatientGender | "")}>
-                  <option value="">— Non précisé —</option>
-                  <option value="M">Homme</option>
-                  <option value="F">Femme</option>
+                  <option value="">{t("patientDetail.editGenderNone")}</option>
+                  <option value="M">{t("patients.male")}</option>
+                  <option value="F">{t("patients.female")}</option>
                 </select>
               </div>
             </div>
             <div className="modal-footer">
-              <button className="btn btn-ghost" onClick={() => setShowEdit(false)}>Annuler</button>
-              <button className="btn btn-primary" onClick={saveEdit}>Enregistrer</button>
+              <button className="btn btn-ghost" onClick={() => setShowEdit(false)}>{t("common.cancel")}</button>
+              <button className="btn btn-primary" onClick={saveEdit}>{t("common.save")}</button>
             </div>
           </div>
         </div>

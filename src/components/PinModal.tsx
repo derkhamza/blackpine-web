@@ -3,6 +3,7 @@
  * Shown when the doctor wants to unlock full access.
  */
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 interface Props {
   onSuccess: () => void;
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export function PinModal({ onSuccess, onCancel, verify }: Props) {
+  const { t } = useTranslation();
   const [digits, setDigits] = useState(["", "", "", ""]);
   const [error,  setError]  = useState(false);
   const refs = [
@@ -76,12 +78,12 @@ export function PinModal({ onSuccess, onCancel, verify }: Props) {
     <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}>
       <div className="modal pin-modal">
         <div className="modal-header">
-          <h2 className="modal-title">🔐 Code médecin</h2>
+          <h2 className="modal-title">{t("pin.title")}</h2>
           <button className="modal-close" onClick={onCancel}>×</button>
         </div>
         <div className="modal-body">
           <p style={{ fontSize: 13, color: "var(--muted)", marginBottom: 20, textAlign: "center" }}>
-            Entrez votre code à 4 chiffres pour revenir en mode médecin.
+            {t("pin.subtitle")}
           </p>
           <div className="pin-digits">
             {digits.map((d, i) => (
@@ -101,12 +103,12 @@ export function PinModal({ onSuccess, onCancel, verify }: Props) {
           </div>
           {error && (
             <div className="pin-error">
-              Code incorrect — réessayez
+              {t("pin.wrong")}
             </div>
           )}
         </div>
         <div className="modal-footer">
-          <button className="btn btn-ghost" onClick={onCancel}>Annuler</button>
+          <button className="btn btn-ghost" onClick={onCancel}>{t("pin.cancel")}</button>
         </div>
       </div>
     </div>

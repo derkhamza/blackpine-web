@@ -1,16 +1,20 @@
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useCabinet } from "../context/CabinetContext";
 import { formatMAD } from "../lib/format";
 
-function fmtDate(iso: string) {
-  return new Date(iso).toLocaleDateString("fr-FR", {
-    day: "2-digit", month: "2-digit", year: "numeric",
-  });
-}
-
 export function InvoiceHistorySection() {
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language?.slice(0, 2) === "ar" ? "ar-MA"
+               : i18n.language?.slice(0, 2) === "en" ? "en-US" : "fr-FR";
   const { invoices, deleteInvoice } = useCabinet();
   const [search, setSearch] = useState("");
+
+  function fmtDate(iso: string) {
+    return new Date(iso).toLocaleDateString(locale, {
+      day: "2-digit", month: "2-digit", year: "numeric",
+    });
+  }
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -35,10 +39,8 @@ export function InvoiceHistorySection() {
     return (
       <div className="empty-state">
         <div className="empty-state-icon">📄</div>
-        <div className="empty-state-title">Aucune facture enregistrée</div>
-        <div className="empty-state-sub">
-          Les factures émises depuis les rendez-vous apparaîtront ici.
-        </div>
+        <div className="empty-state-title">{t("invoiceHistory.emptyTitle")}</div>
+        <div className="empty-state-sub">{t("invoiceHistory.emptySub")}</div>
       </div>
     );
   }
@@ -51,12 +53,12 @@ export function InvoiceHistorySection() {
           className="form-input"
           style={{ maxWidth: 280, flex: 1 }}
           type="text"
-          placeholder="Rechercher par patient, numéro, acte…"
+          placeholder={t("invoiceHistory.searchPlaceholder")}
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
         <div style={{ fontSize: 13, color: "var(--muted)", marginLeft: "auto" }}>
-          <strong style={{ color: "var(--text)" }}>{filtered.length}</strong> facture{filtered.length !== 1 ? "s" : ""}
+          {t("invoiceHistory.count", { n: filtered.length, s: filtered.length !== 1 ? "s" : "" })}
           {filtered.length > 0 && (
             <span> · <strong style={{ color: "var(--green)" }}>{formatMAD(total)}</strong></span>
           )}
@@ -68,12 +70,12 @@ export function InvoiceHistorySection() {
         <table className="data-table">
           <thead>
             <tr>
-              <th>N° Facture</th>
-              <th>Date</th>
-              <th>Patient</th>
-              <th>Acte</th>
-              <th>CNOPS</th>
-              <th>Montant</th>
+              <th>{t("invoiceHistory.colNum")}</th>
+              <th>{t("invoiceHistory.colDate")}</th>
+              <th>{t("invoiceHistory.colPatient")}</th>
+              <th>{t("invoiceHistory.colAct")}</th>
+              <th>{t("invoiceHistory.colCnops")}</th>
+              <th>{t("invoiceHistory.colAmount")}</th>
               <th></th>
             </tr>
           </thead>
@@ -98,9 +100,9 @@ export function InvoiceHistorySection() {
                 <td>
                   <button
                     className="tx-delete"
-                    title="Supprimer l'enregistrement"
+                    title={t("invoiceHistory.deleteTitle")}
                     onClick={() => {
-                      if (confirm(`Supprimer la facture ${inv.invoiceNumber} ?`)) {
+                      if (confirm(t("invoiceHistory.deleteConfirm", { num: inv.invoiceNumber }))) {
                         deleteInvoice(inv.id);
                       }
                     }}

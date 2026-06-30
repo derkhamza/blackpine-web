@@ -1,33 +1,24 @@
 import { FormEvent, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Layout } from "../components/Layout";
+import { useToast } from "../components/Toast";
 import { useCabinet } from "../context/CabinetContext";
 import { useApp } from "../context/AppContext";
 import type { Appointment } from "../lib/cabinetTypes";
 import { APPT_TYPE_LABELS } from "../lib/cabinetTypes";
 import { formatMAD, todayIso } from "../lib/format";
+import { AnimatedNumber } from "../components/AnimatedNumber";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 type StatusFilter = "all" | "pending" | "received" | "rejected" | "to_declare";
-
-const STATUS_LABELS: Record<Appointment["reimbursementStatus"] & string, string> = {
-  pending:  "En attente",
-  received: "Encaissé",
-  rejected: "Refusé",
-};
 
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   pending:  { bg: "var(--gold-soft)",  color: "var(--gold)"  },
   received: { bg: "var(--green-soft)", color: "var(--green)" },
   rejected: { bg: "var(--coral-soft)", color: "var(--coral)" },
 };
-
-function fmtDate(iso: string) {
-  return new Date(iso + "T12:00:00").toLocaleDateString("fr-FR", {
-    day: "2-digit", month: "short", year: "numeric",
-  });
-}
 
 // ── Update modal ──────────────────────────────────────────────────────────────
 
@@ -38,9 +29,18 @@ function UpdateModal({
   onSave:  (patch: Partial<Appointment>) => void;
   onClose: () => void;
 }) {
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language?.slice(0, 2) === "ar" ? "ar-MA"
+               : i18n.language?.slice(0, 2) === "en" ? "en-US" : "fr-FR";
   const [status, setStatus]   = useState<string>(appt.reimbursementStatus ?? "pending");
   const [amount, setAmount]   = useState(appt.reimbursementAmount != null ? String(appt.reimbursementAmount) : "");
   const [date,   setDate]     = useState(appt.reimbursementDate ?? "");
+
+  function fmtDate(iso: string) {
+    return new Date(iso + "T12:00:00").toLocaleDateString(locale, {
+      day: "2-digit", month: "short", year: "numeric",
+    });
+  }
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -57,7 +57,7 @@ function UpdateModal({
     <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modal" style={{ maxWidth: 400 }}>
         <div className="modal-header">
-          <h2 className="modal-title">Mise à jour AMO/CNOPS</h2>
+          <h2 className="modal-title">{t("remboursements.modalTitle")}</h2>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
         <form onSubmit={handleSubmit}>
@@ -67,28 +67,28 @@ function UpdateModal({
               {fmtDate(appt.date)} · {APPT_TYPE_LABELS[appt.type]}
             </div>
             <div className="form-group">
-              <label className="form-label">Statut de remboursement</label>
+              <label className="form-label">{t("remboursements.statusLabel")}</label>
               <select className="form-select" value={status}
                 onChange={e => setStatus(e.target.value)}>
-                <option value="pending">En attente</option>
-                <option value="received">Encaissé</option>
-                <option value="rejected">Refusé</option>
+                <option value="pending">{t("remboursements.pending")}</option>
+                <option value="received">{t("remboursements.received")}</option>
+                <option value="rejected">{t("remboursements.rejected")}</option>
               </select>
             </div>
             <div className="form-group">
-              <label className="form-label">Montant AMO (MAD)</label>
+              <label className="form-label">{t("remboursements.amountLabel")}</label>
               <input className="form-input" type="number" min="0" step="0.01"
                 placeholder="0.00" value={amount} onChange={e => setAmount(e.target.value)} />
             </div>
             <div className="form-group">
-              <label className="form-label">Date encaissement</label>
+              <label className="form-label">{t("remboursements.dateLabel")}</label>
               <input className="form-input" type="date" value={date}
                 onChange={e => setDate(e.target.value)} />
             </div>
           </div>
           <div className="modal-footer">
-            <button type="button" className="btn btn-ghost" onClick={onClose}>Annuler</button>
-            <button type="submit" className="btn btn-primary">Enregistrer</button>
+            <button type="button" className="btn btn-ghost" onClick={onClose}>{t("common.cancel")}</button>
+            <button type="submit" className="btn btn-primary">{t("common.save")}</button>
           </div>
         </form>
       </div>
@@ -105,12 +105,27 @@ function ClaimRow({
   patients:  { id: string; cnopsNumber?: string }[];
   onUpdate:  () => void;
 }) {
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language?.slice(0, 2) === "ar" ? "ar-MA"
+               : i18n.language?.slice(0, 2) === "en" ? "en-US" : "fr-FR";
+
+  function fmtDate(iso: string) {
+    return new Date(iso + "T12:00:00").toLocaleDateString(locale, {
+      day: "2-digit", month: "short", year: "numeric",
+    });
+  }
+
   const patientCnops = appt.patientId
     ? patients.find(p => p.id === appt.patientId)?.cnopsNumber
     : null;
 
   const st = appt.reimbursementStatus ?? "to_declare";
   const style = st !== "to_declare" ? STATUS_COLORS[st] : { bg: "var(--surface-alt)", color: "var(--muted)" };
+
+  const statusLabel = st === "to_declare" ? t("remboursements.toDeclare")
+    : st === "pending"  ? t("remboursements.pending")
+    : st === "received" ? t("remboursements.received")
+    : t("remboursements.rejected");
 
   return (
     <tr className="rmb-row">
@@ -135,7 +150,7 @@ function ClaimRow({
           className="rmb-status-badge"
           style={{ background: style.bg, color: style.color }}
         >
-          {st !== "to_declare" ? STATUS_LABELS[st] : "À déclarer"}
+          {statusLabel}
         </span>
       </td>
       <td style={{ color: "var(--muted)", fontSize: 12 }}>
@@ -143,7 +158,7 @@ function ClaimRow({
       </td>
       <td>
         <button className="rmb-update-btn" onClick={onUpdate}>
-          Mettre à jour
+          {t("remboursements.updateBtn")}
         </button>
       </td>
     </tr>
@@ -153,6 +168,7 @@ function ClaimRow({
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export function RemboursementsPage({ noLayout = false }: { noLayout?: boolean } = {}) {
+  const { t } = useTranslation();
   const { appointments, patients, updateAppointment } = useCabinet();
   const { fiscalYear } = useApp();
 
@@ -160,12 +176,10 @@ export function RemboursementsPage({ noLayout = false }: { noLayout?: boolean } 
   const [yearFilter,   setYearFilter]   = useState(fiscalYear);
   const [search,       setSearch]       = useState("");
   const [updateModal,  setUpdateModal]  = useState<Appointment | null>(null);
-  const [toast,        setToast]        = useState<string | null>(null);
+  // suppress unused var warning — todayIso is needed for type inference
+  void todayIso;
 
-  const showToast = (msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 2600);
-  };
+  const showToast = useToast();
 
   // ── KPI computation ───────────────────────────────────────────────────────
 
@@ -193,7 +207,6 @@ export function RemboursementsPage({ noLayout = false }: { noLayout?: boolean } 
       .filter(a => {
         if (!a.date.startsWith(String(yearFilter))) return false;
         if (statusFilter === "to_declare") {
-          // Billed/completed with no claim yet
           return !a.reimbursementStatus && (!!a.billedAt || a.status === "completed");
         }
         if (statusFilter === "all") {
@@ -209,12 +222,12 @@ export function RemboursementsPage({ noLayout = false }: { noLayout?: boolean } 
   const yearNow = new Date().getFullYear();
   const yearOptions = Array.from({ length: 5 }, (_, i) => yearNow - 2 + i);
 
-  const tabs: { key: StatusFilter; label: string; count: number }[] = [
-    { key: "all",        label: "Tous",          count: kpis.total + kpis.toDeclare },
-    { key: "pending",    label: "En attente",     count: kpis.pending },
-    { key: "received",   label: "Encaissés",      count: kpis.received },
-    { key: "rejected",   label: "Refusés",        count: kpis.rejected },
-    { key: "to_declare", label: "À déclarer",     count: kpis.toDeclare },
+  const tabs: { key: StatusFilter; labelKey: string; count: number }[] = [
+    { key: "all",        labelKey: "tabAll",        count: kpis.total + kpis.toDeclare },
+    { key: "pending",    labelKey: "tabPending",    count: kpis.pending },
+    { key: "received",   labelKey: "tabReceived",   count: kpis.received },
+    { key: "rejected",   labelKey: "tabRejected",   count: kpis.rejected },
+    { key: "to_declare", labelKey: "tabToDeclare",  count: kpis.toDeclare },
   ];
 
   const body = (
@@ -222,37 +235,37 @@ export function RemboursementsPage({ noLayout = false }: { noLayout?: boolean } 
       {/* ── KPI cards ── */}
       <div className="stats-grid" style={{ marginBottom: 20 }}>
         <div className="stat-card">
-          <div className="stat-label">En attente</div>
+          <div className="stat-label">{t("remboursements.kpiPending")}</div>
           <div className="stat-value" style={{ color: "var(--gold)" }}>
-            {kpis.pendingAmt > 0 ? formatMAD(kpis.pendingAmt) : `${kpis.pending}`}
+            {kpis.pendingAmt > 0 ? <AnimatedNumber value={kpis.pendingAmt} format={formatMAD} /> : <AnimatedNumber value={kpis.pending} />}
           </div>
-          <div className="stat-sub">{kpis.pending} dossier{kpis.pending !== 1 ? "s" : ""}</div>
+          <div className="stat-sub">{t("remboursements.dossierCount", { n: kpis.pending, s: kpis.pending !== 1 ? "s" : "" })}</div>
         </div>
         <div className="stat-card">
-          <div className="stat-label">Encaissé {yearFilter}</div>
+          <div className="stat-label">{t("remboursements.kpiReceived", { year: yearFilter })}</div>
           <div className="stat-value" style={{ color: "var(--green)" }}>
-            {kpis.receivedAmt > 0 ? formatMAD(kpis.receivedAmt) : `${kpis.received}`}
+            {kpis.receivedAmt > 0 ? <AnimatedNumber value={kpis.receivedAmt} format={formatMAD} /> : <AnimatedNumber value={kpis.received} />}
           </div>
-          <div className="stat-sub">{kpis.received} dossier{kpis.received !== 1 ? "s" : ""}</div>
+          <div className="stat-sub">{t("remboursements.dossierCount", { n: kpis.received, s: kpis.received !== 1 ? "s" : "" })}</div>
         </div>
         <div className="stat-card">
-          <div className="stat-label">Refusés</div>
+          <div className="stat-label">{t("remboursements.kpiRejected")}</div>
           <div className="stat-value" style={{ color: "var(--coral)" }}>{kpis.rejected}</div>
           <div className="stat-sub">
             {kpis.total > 0
-              ? `${Math.round((kpis.rejected / kpis.total) * 100)}% de taux de refus`
+              ? t("remboursements.rejectionRate", { pct: Math.round((kpis.rejected / kpis.total) * 100) })
               : "—"}
           </div>
         </div>
         <div className="stat-card">
-          <div className="stat-label">Taux d'encaissement</div>
+          <div className="stat-label">{t("remboursements.kpiRate")}</div>
           <div className="stat-value" style={{ color: "var(--blue)" }}>
             {kpis.total > 0 ? `${kpis.rate}%` : "—"}
           </div>
           <div className="stat-sub">
             {kpis.toDeclare > 0 && (
               <span style={{ color: "var(--gold)", fontWeight: 600 }}>
-                {kpis.toDeclare} à déclarer
+                {t("remboursements.toDeclareCount", { n: kpis.toDeclare })}
               </span>
             )}
           </div>
@@ -267,21 +280,21 @@ export function RemboursementsPage({ noLayout = false }: { noLayout?: boolean } 
               <div
                 className="rmb-progress-seg received"
                 style={{ width: `${Math.round((kpis.received / kpis.total) * 100)}%` }}
-                title={`Encaissés: ${kpis.received}`}
+                title={t("remboursements.legendReceived", { n: kpis.received })}
               />
             )}
             {kpis.rejected > 0 && (
               <div
                 className="rmb-progress-seg rejected"
                 style={{ width: `${Math.round((kpis.rejected / kpis.total) * 100)}%` }}
-                title={`Refusés: ${kpis.rejected}`}
+                title={t("remboursements.legendRejected", { n: kpis.rejected })}
               />
             )}
           </div>
           <div className="rmb-progress-legend">
-            <span style={{ color: "var(--green)" }}>■ Encaissé ({kpis.received})</span>
-            <span style={{ color: "var(--gold)" }}>■ En attente ({kpis.pending})</span>
-            <span style={{ color: "var(--coral)" }}>■ Refusé ({kpis.rejected})</span>
+            <span style={{ color: "var(--green)" }}>{t("remboursements.legendReceived", { n: kpis.received })}</span>
+            <span style={{ color: "var(--gold)" }}>{t("remboursements.legendPending", { n: kpis.pending })}</span>
+            <span style={{ color: "var(--coral)" }}>{t("remboursements.legendRejected", { n: kpis.rejected })}</span>
           </div>
         </div>
       )}
@@ -290,15 +303,15 @@ export function RemboursementsPage({ noLayout = false }: { noLayout?: boolean } 
       <div className="rmb-filter-bar">
         {/* Status tabs */}
         <div className="rmb-tabs">
-          {tabs.map(t => (
+          {tabs.map(tab => (
             <button
-              key={t.key}
-              className={`rmb-tab${statusFilter === t.key ? " active" : ""}`}
-              onClick={() => setStatusFilter(t.key)}
+              key={tab.key}
+              className={`rmb-tab${statusFilter === tab.key ? " active" : ""}`}
+              onClick={() => setStatusFilter(tab.key)}
             >
-              {t.label}
-              {t.count > 0 && (
-                <span className="rmb-tab-badge">{t.count}</span>
+              {t(`remboursements.${tab.labelKey}`)}
+              {tab.count > 0 && (
+                <span className="rmb-tab-badge">{tab.count}</span>
               )}
             </button>
           ))}
@@ -323,7 +336,7 @@ export function RemboursementsPage({ noLayout = false }: { noLayout?: boolean } 
             </svg>
             <input
               className="rmb-search"
-              placeholder="Chercher un patient…"
+              placeholder={t("remboursements.searchPlaceholder")}
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
@@ -337,29 +350,29 @@ export function RemboursementsPage({ noLayout = false }: { noLayout?: boolean } 
           <div style={{ fontSize: 36, marginBottom: 10 }}>🏥</div>
           <div style={{ fontWeight: 700, marginBottom: 6 }}>
             {statusFilter === "to_declare"
-              ? "Aucun dossier à déclarer"
-              : "Aucun remboursement trouvé"}
+              ? t("remboursements.emptyToDeclare")
+              : t("remboursements.emptyAll")}
           </div>
           <div style={{ color: "var(--muted)", fontSize: 13 }}>
             {statusFilter === "all"
-              ? "Ajoutez un statut AMO/CNOPS depuis la fiche d'un rendez-vous (onglet Suivi & AMO)."
-              : "Changez le filtre pour voir d'autres dossiers."}
+              ? t("remboursements.emptyHintAll")
+              : t("remboursements.emptyHintFilter")}
           </div>
         </div>
       ) : (
         <div className="rmb-table-wrap">
-          <div className="rmb-table-count">{rows.length} dossier{rows.length !== 1 ? "s" : ""}</div>
+          <div className="rmb-table-count">{t("remboursements.dossierCount", { n: rows.length, s: rows.length !== 1 ? "s" : "" })}</div>
           <div style={{ overflowX: "auto" }}>
             <table className="rmb-table">
               <thead>
                 <tr>
-                  <th>Patient</th>
-                  <th>Date RDV</th>
-                  <th>Type</th>
-                  <th>Montant facturé</th>
-                  <th>Montant AMO</th>
-                  <th>Statut</th>
-                  <th>Date encaissement</th>
+                  <th>{t("remboursements.colPatient")}</th>
+                  <th>{t("remboursements.colDate")}</th>
+                  <th>{t("remboursements.colType")}</th>
+                  <th>{t("remboursements.colBilled")}</th>
+                  <th>{t("remboursements.colAmo")}</th>
+                  <th>{t("remboursements.colStatus")}</th>
+                  <th>{t("remboursements.colEncaisse")}</th>
                   <th></th>
                 </tr>
               </thead>
@@ -377,7 +390,7 @@ export function RemboursementsPage({ noLayout = false }: { noLayout?: boolean } 
               {statusFilter !== "to_declare" && rows.some(a => a.reimbursementAmount) && (
                 <tfoot>
                   <tr>
-                    <td colSpan={4} style={{ fontWeight: 700, paddingLeft: 14 }}>Total affiché</td>
+                    <td colSpan={4} style={{ fontWeight: 700, paddingLeft: 14 }}>{t("remboursements.totalDisplayed")}</td>
                     <td style={{ fontWeight: 800, color: "var(--green)" }}>
                       {formatMAD(rows.reduce((s, a) => s + (a.reimbursementAmount ?? 0), 0))}
                     </td>
@@ -396,20 +409,19 @@ export function RemboursementsPage({ noLayout = false }: { noLayout?: boolean } 
           appt={updateModal}
           onSave={patch => {
             updateAppointment({ ...updateModal, ...patch });
-            showToast("Statut mis à jour");
+            showToast(t("remboursements.toastUpdated"));
           }}
           onClose={() => setUpdateModal(null)}
         />
       )}
 
-      {toast && <div className="toast">{toast}</div>}
     </>
   );
   if (noLayout) return body;
   return (
     <Layout
-      title="Remboursements AMO/CNOPS"
-      subtitle={`${kpis.pending} dossier${kpis.pending !== 1 ? "s" : ""} en attente · ${yearFilter}`}
+      title={t("remboursements.title")}
+      subtitle={t("remboursements.subtitle", { n: kpis.pending, s: kpis.pending !== 1 ? "s" : "", year: yearFilter })}
     >
       {body}
     </Layout>

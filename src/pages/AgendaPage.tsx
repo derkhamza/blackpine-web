@@ -1,6 +1,8 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Layout } from "../components/Layout";
+import { track } from "../lib/analytics";
+import { useToast } from "../components/Toast";
 import { useCabinet } from "../context/CabinetContext";
 import { useApp } from "../context/AppContext";
 import type {
@@ -13,6 +15,8 @@ import {
 import { todayIso } from "../lib/format";
 import { printReceipt } from "../lib/receiptPrinter";
 import { exportAgendaIcal } from "../lib/icalExport";
+import { parseAgendaIcal, icalEventsToAppointments } from "../lib/icalImport";
+import { useTranslation } from "react-i18next";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -57,27 +61,99 @@ type AgendaView = "day" | "week" | "month";
 
 function colour(hex: string, muted = false) { return muted ? "var(--border)" : hex; }
 
-// ── Time-grid constants ────────────────────────────────────────────────────────
-const TG_START  = 7;    // 07:00
-const TG_END    = 20;   // 20:00
-const TG_PX_H   = 64;   // pixels per hour
-const TG_TOTAL  = (TG_END - TG_START) * TG_PX_H;        // 832 px
-const TG_HLIST  = Array.from({ length: TG_END - TG_START }, (_, i) => TG_START + i);
+// ── Smart-prefill helpers ──────────────────────────────────────────────────────
 
-function tTop(hhmm: string): number {
+function calcAge(dob: string): number {
+  const today = new Date();
+  const birth = new Date(dob + "T12:00:00");
+  let age = today.getFullYear() - birth.getFullYear();
+  if (
+    today.getMonth() < birth.getMonth() ||
+    (today.getMonth() === birth.getMonth() && today.getDate() < birth.getDate())
+  ) age--;
+  return age;
+}
+
+interface SmartPrefill {
+  type: AppointmentType;
+  startTime: string;
+  endTime: string;
+  suggestedDate: string | null;
+}
+
+function getSmartPrefill(patientId: string, appointments: Appointment[]): SmartPrefill | null {
+  const today = todayIso();
+  const past = appointments
+    .filter(a => a.patientId === patientId && a.date <= today)
+    .sort((a, b) => b.date.localeCompare(a.date));
+  if (past.length === 0) return null;
+
+  const type = past[0].type;
+
+  // Most frequent start time
+  const timeCounts = new Map<string, number>();
+  for (const a of past) timeCounts.set(a.startTime, (timeCounts.get(a.startTime) ?? 0) + 1);
+  const startTime = [...timeCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "09:00";
+
+  // Average duration rounded to 15-min slots
+  const durations = past.map(a => {
+    const [sh, sm] = a.startTime.split(":").map(Number);
+    const [eh, em] = a.endTime.split(":").map(Number);
+    return (eh * 60 + em) - (sh * 60 + sm);
+  }).filter(d => d >= 10 && d <= 180);
+  const avgDur = durations.length > 0
+    ? Math.round(durations.reduce((acc, d) => acc + d, 0) / durations.length / 15) * 15
+    : 30;
+  const [sh, sm] = startTime.split(":").map(Number);
+  const endMins = sh * 60 + sm + avgDur;
+  const endTime = `${String(Math.floor(endMins / 60)).padStart(2, "0")}:${String(endMins % 60).padStart(2, "0")}`;
+
+  const pendingFollowUp = past[0]?.followUpDate;
+  const suggestedDate = pendingFollowUp && pendingFollowUp > today ? pendingFollowUp : null;
+
+  return { type, startTime, endTime, suggestedDate };
+}
+
+// ── Time-grid constants ────────────────────────────────────────────────────────
+const TG_START  = 7;    // 07:00 — default first hour (grid expands earlier if needed)
+const TG_END    = 20;   // 20:00 — default last hour  (grid expands later if needed)
+const TG_PX_H   = 88;   // pixels per hour (tall enough that a 15-min slot ≈ 22px)
+const TG_MIN_EVENT = 17; // px — floor so a quarter-hour RDV still fits without spilling
+const gridHourList = (startH: number, endH: number) =>
+  Array.from({ length: Math.max(1, endH - startH) }, (_, i) => startH + i);
+
+// Minutes since midnight from "HH:MM"; null when blank/malformed (legacy/imported data).
+function timeToMin(hhmm: string | undefined): number | null {
+  if (!hhmm) return null;
   const [h, m] = hhmm.split(":").map(Number);
-  return Math.max(0, Math.min(TG_TOTAL, ((h - TG_START) * 60 + m) / 60 * TG_PX_H));
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
+  return h * 60 + m;
+}
+function tTop(hhmm: string, startHour = TG_START): number {
+  const min = timeToMin(hhmm);
+  if (min == null) return 0;
+  return Math.max(0, (min - startHour * 60) / 60 * TG_PX_H);
+}
+function tDurationMin(start: string, end: string): number {
+  const s = timeToMin(start), e = timeToMin(end);
+  // Default to a 30-min slot when the end time is missing/invalid so the event
+  // never collapses to NaN (which makes the browser size it to its content and
+  // spill over the appointments below it).
+  if (s == null) return 30;
+  if (e == null || e <= s) return 30;
+  return e - s;
 }
 function tHeight(start: string, end: string): number {
-  const [sh, sm] = start.split(":").map(Number);
-  const [eh, em] = end.split(":").map(Number);
-  return Math.max(26, ((eh * 60 + em) - (sh * 60 + sm)) / 60 * TG_PX_H);
+  // leave a 1px hairline gap between consecutive events
+  const px = tDurationMin(start, end) / 60 * TG_PX_H - 1;
+  return Math.max(TG_MIN_EVENT, Number.isFinite(px) ? px : TG_MIN_EVENT);
 }
-function snapTime(yPx: number): string {
-  const totalMins = (TG_END - TG_START) * 60;
-  const raw = Math.round((yPx / TG_TOTAL) * totalMins / 30) * 30;
+function snapTime(yPx: number, startHour = TG_START, endHour = TG_END): string {
+  const totalMins = (endHour - startHour) * 60;
+  const total = (endHour - startHour) * TG_PX_H;
+  const raw = Math.round((yPx / total) * totalMins / 30) * 30;
   const clipped = Math.max(0, Math.min(totalMins - 30, raw));
-  const h = TG_START + Math.floor(clipped / 60);
+  const h = startHour + Math.floor(clipped / 60);
   const m = clipped % 60;
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
@@ -86,8 +162,61 @@ function addMinutes(hhmm: string, mins: number): string {
   const total = h * 60 + m + mins;
   return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
 }
+// Snap a dragged event's top (px from grid top) to the nearest `step` minutes,
+// keeping the whole event (its `durMin`) inside the visible grid bounds.
+function snapDragTime(yPx: number, startHour: number, endHour: number, durMin: number, step = 15): string {
+  const totalMins = (endHour - startHour) * 60;
+  const total     = (endHour - startHour) * TG_PX_H;
+  let mins = Math.round((yPx / total) * totalMins / step) * step;
+  mins = Math.max(0, Math.min(totalMins - durMin, mins));
+  const h = startHour + Math.floor(mins / 60);
+  const m = mins % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+// Side-by-side layout for overlapping appointments: each event gets a column
+// index and the total column count of its overlap cluster, so concurrent RDV
+// render next to each other instead of stacking on top of one another.
+function layoutDayAppts(appts: Appointment[]): Map<string, { col: number; cols: number }> {
+  const result = new Map<string, { col: number; cols: number }>();
+  const evs = appts
+    .map(a => {
+      const start = timeToMin(a.startTime) ?? 0;
+      const endRaw = timeToMin(a.endTime);
+      const end = endRaw != null && endRaw > start ? endRaw : start + 30;
+      return { id: a.id, start, end };
+    })
+    .sort((a, b) => a.start - b.start || a.end - b.end);
+
+  let cluster: typeof evs = [];
+  let colEnds: number[] = [];   // last end time per column in the active cluster
+  let clusterMaxEnd = -1;
+
+  const flush = () => {
+    const cols = colEnds.length || 1;
+    for (const e of cluster) {
+      const prev = result.get(e.id)!;
+      result.set(e.id, { col: prev.col, cols });
+    }
+    cluster = [];
+    colEnds = [];
+    clusterMaxEnd = -1;
+  };
+
+  for (const e of evs) {
+    if (cluster.length && e.start >= clusterMaxEnd) flush();
+    let col = colEnds.findIndex(end => end <= e.start);
+    if (col === -1) { col = colEnds.length; colEnds.push(e.end); }
+    else colEnds[col] = e.end;
+    result.set(e.id, { col, cols: 1 });
+    cluster.push(e);
+    clusterMaxEnd = Math.max(clusterMaxEnd, e.end);
+  }
+  flush();
+  return result;
+}
 const DAY_HEADERS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
-const TYPE_OPTS: AppointmentType[] = ["consultation", "suivi", "procedure", "urgence", "autre"];
+const TYPE_OPTS: AppointmentType[] = ["consultation", "controle", "suivi", "procedure", "urgence", "autre"];
 const STATUS_OPTS: AppointmentStatus[] = ["scheduled", "arrived", "in_consultation", "completed", "cancelled", "no_show"];
 
 // ── WhatsApp helpers ───────────────────────────────────────────────────────────
@@ -96,8 +225,9 @@ function renderWaBody(
   body: string,
   appt: Appointment,
   doctorFullName?: string,
+  locale = "fr-FR",
 ): string {
-  const d = new Date(appt.date + "T12:00:00").toLocaleDateString("fr-FR", {
+  const d = new Date(appt.date + "T12:00:00").toLocaleDateString(locale, {
     weekday: "long", day: "numeric", month: "long",
   });
   return body
@@ -119,12 +249,15 @@ function WaPickerModal({
   doctorFullName?: string;
   onClose:        () => void;
 }) {
-  const d = new Date(appt.date + "T12:00:00").toLocaleDateString("fr-FR", {
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language?.slice(0, 2) === "ar" ? "ar-MA"
+               : i18n.language?.slice(0, 2) === "en" ? "en-US" : "fr-FR";
+  const d = new Date(appt.date + "T12:00:00").toLocaleDateString(locale, {
     weekday: "long", day: "numeric", month: "long",
   });
   const clean = phone.replace(/\D/g, "");
   const buildUrl = (body: string) =>
-    `https://wa.me/${clean}?text=${encodeURIComponent(renderWaBody(body, appt, doctorFullName))}`;
+    `https://wa.me/${clean}?text=${encodeURIComponent(renderWaBody(body, appt, doctorFullName, locale))}`;
 
   return (
     <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
@@ -134,21 +267,21 @@ function WaPickerModal({
             <svg width="15" height="15" viewBox="0 0 24 24" fill="#25D366" style={{ marginRight: 8, flexShrink: 0 }}>
               <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.890-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/>
             </svg>
-            Envoyer via WhatsApp
+            {t("agenda.waTitle")}
           </h2>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
         <div className="modal-body">
           <div className="wa-picker-appt-info">
             <strong>{appt.patientName}</strong>
-            <span className="wa-picker-appt-meta">· {d} à {appt.startTime}</span>
+            <span className="wa-picker-appt-meta">{t("agenda.waApptMeta", { date: d, time: appt.startTime })}</span>
           </div>
-          <div className="wa-picker-label">Choisissez un modèle de message :</div>
+          <div className="wa-picker-label">{t("agenda.waChooseTemplate")}</div>
           {templates.length === 0 ? (
             <div className="wa-picker-empty">
-              Aucun modèle configuré.{" "}
+              {t("agenda.waNoTemplates")}{" "}
               <a href="/messages" style={{ color: "var(--blue)" }}>
-                Créer des modèles →
+                {t("agenda.waCreateTemplates")}
               </a>
             </div>
           ) : (
@@ -182,7 +315,7 @@ function WaPickerModal({
                     </svg>
                   </div>
                   <div className="wa-picker-card-body">
-                    {renderWaBody(t.body, appt, doctorFullName)}
+                    {renderWaBody(t.body, appt, doctorFullName, locale)}
                   </div>
                 </a>
               ))}
@@ -201,35 +334,74 @@ interface ApptModalProps {
   defaultDate: string;
   isEdit: boolean;
   patients: Patient[];
+  appointments: Appointment[];
   onSave:      (a: Omit<Appointment, "id">) => void;
   onSaveBatch?: (appts: Omit<Appointment, "id">[]) => void;
   onClose: () => void;
 }
 
-function ApptModal({ initial, defaultDate, isEdit, patients, onSave, onSaveBatch, onClose }: ApptModalProps) {
+function ApptModal({ initial, defaultDate, isEdit, patients, appointments, onSave, onSaveBatch, onClose }: ApptModalProps) {
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language?.slice(0, 2) === "ar" ? "ar-MA"
+               : i18n.language?.slice(0, 2) === "en" ? "en-US" : "fr-FR";
   const { doctorProfile } = useCabinet();
   const locations = doctorProfile?.locations ?? [];
+  // Consultation types: hide the ones the doctor disabled in Settings, but always
+  // keep the currently-selected type visible (e.g. when editing an old RDV).
+  const hiddenApptTypes = doctorProfile?.hiddenConsultationTypes ?? [];
 
   const [patientName, setName]      = useState(initial?.patientName ?? "");
   const [linkedPid,   setPid]       = useState(initial?.patientId   ?? "");
-  const [date,        setDate]      = useState(initial?.date ?? defaultDate);
+  // New RDV default to today (or the viewed day if it is already in the future) —
+  // never silently land in the past when the doctor has scrolled back in the agenda.
+  const [date,        setDate]      = useState(
+    initial?.date ?? (defaultDate < todayIso() ? todayIso() : defaultDate),
+  );
   const [start,       setStart]     = useState(initial?.startTime ?? "09:00");
   const [end,         setEnd]       = useState(initial?.endTime ?? "09:30");
   const [type,        setType]      = useState<AppointmentType>(initial?.type ?? "consultation");
   const [status,      setStatus]    = useState<AppointmentStatus>(initial?.status ?? "scheduled");
   const [notes,       setNotes]     = useState(initial?.notes ?? "");
   const [locationId,  setLocationId] = useState(initial?.locationId ?? "");
+  const [autoFilled,  setAutoFilled] = useState(false);
+  const [followUpHint, setFollowUpHint] = useState<string | null>(null);
   // Recurrence (new appointments only)
-  const [recurring,   setRecurring]   = useState(false);
-  const [recurrFreq,  setRecurrFreq]  = useState<RecurrFreq>("weekly");
-  const [recurrCount, setRecurrCount] = useState(4);
+  const [recurring,     setRecurring]   = useState(false);
+  const [recurrFreq,    setRecurrFreq]  = useState<RecurrFreq>("weekly");
+  const [recurrCount,   setRecurrCount] = useState(4);
+  const [conflictWarn,  setConflictWarn] = useState<string | null>(null);
 
   const handleNameChange = (val: string) => {
     setName(val);
     const match = patients.find(
       p => `${p.firstName} ${p.lastName}`.toLowerCase() === val.trim().toLowerCase()
     );
-    setPid(match?.id ?? "");
+    if (match) {
+      setPid(match.id);
+      if (!isEdit) {
+        const prefill = getSmartPrefill(match.id, appointments);
+        if (prefill) {
+          setType(prefill.type);
+          setStart(prefill.startTime);
+          setEnd(prefill.endTime);
+          setAutoFilled(true);
+          setFollowUpHint(
+            prefill.suggestedDate
+              ? new Date(prefill.suggestedDate + "T12:00:00").toLocaleDateString(locale, {
+                  day: "numeric", month: "long", year: "numeric",
+                })
+              : null,
+          );
+        } else {
+          setAutoFilled(false);
+          setFollowUpHint(null);
+        }
+      }
+    } else {
+      setPid("");
+      setAutoFilled(false);
+      setFollowUpHint(null);
+    }
   };
 
   const linkedPatient = patients.find(p => p.id === linkedPid);
@@ -237,6 +409,22 @@ function ApptModal({ initial, defaultDate, isEdit, patients, onSave, onSaveBatch
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (!patientName.trim()) return;
+
+    // Conflict detection
+    if (!conflictWarn) {
+      const editId = initial && "id" in initial ? (initial as { id?: string }).id : undefined;
+      const conflict = appointments.find(a =>
+        a.date === date &&
+        a.id !== editId &&
+        a.status !== "cancelled" &&
+        start < a.endTime && end > a.startTime,
+      );
+      if (conflict) {
+        setConflictWarn(`${conflict.patientName} (${conflict.startTime}–${conflict.endTime})`);
+        return;
+      }
+    }
+
     const base = {
       patientName: patientName.trim(),
       patientId:   linkedPid || undefined,
@@ -258,18 +446,18 @@ function ApptModal({ initial, defaultDate, isEdit, patients, onSave, onSaveBatch
     <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modal" style={{ maxWidth: 520 }}>
         <div className="modal-header">
-          <h2 className="modal-title">{isEdit ? "Modifier" : "Nouveau"} rendez-vous</h2>
+          <h2 className="modal-title">{isEdit ? t("agenda.editApptTitle") : t("agenda.addAppt")}</h2>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
         <form onSubmit={handleSubmit}>
           <div className="modal-body" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <div className="form-group">
-              <label className="form-label">Nom du patient</label>
+              <label className="form-label">{t("agenda.patientName")}</label>
               <input
                 className="form-input"
                 value={patientName}
                 onChange={e => handleNameChange(e.target.value)}
-                placeholder="Nom du patient"
+                placeholder={t("agenda.patientName")}
                 list="appt-patient-list"
                 required autoFocus
               />
@@ -283,53 +471,96 @@ function ApptModal({ initial, defaultDate, isEdit, patients, onSave, onSaveBatch
                   <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
                     <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
-                  Fiche patient liée · {linkedPatient.phone ?? "Pas de téléphone"}
+                  {t("agenda.linkedPatient", { phone: linkedPatient.phone ?? t("agenda.noPhone") })}
+                </div>
+              )}
+              {linkedPatient && (
+                <div className="appt-info-chips">
+                  {linkedPatient.dateOfBirth && (
+                    <span className="appt-info-chip">
+                      {t("agenda.linkedPatientAge", { n: calcAge(linkedPatient.dateOfBirth) })}
+                    </span>
+                  )}
+                  {linkedPatient.cnopsNumber && (
+                    <span className="appt-info-chip appt-info-chip-blue">
+                      {t("agenda.linkedPatientCnops")}
+                    </span>
+                  )}
+                  {linkedPatient.allergies && (
+                    <span className="appt-info-chip appt-info-chip-warn">
+                      {t("agenda.linkedPatientAllergy", { text: linkedPatient.allergies })}
+                    </span>
+                  )}
+                  {autoFilled && (
+                    <span className="appt-info-chip appt-info-chip-smart">
+                      ✦ {t("agenda.smartFilled")}
+                    </span>
+                  )}
+                </div>
+              )}
+              {followUpHint && (
+                <div className="appt-followup-hint">
+                  {t("agenda.followUpSuggested", { date: followUpHint })}
                 </div>
               )}
             </div>
             <div className="form-row">
               <div className="form-group">
-                <label className="form-label">Date</label>
+                <label className="form-label">{t("agenda.date")}</label>
                 <input className="form-input" type="date" value={date} onChange={e => setDate(e.target.value)} required />
               </div>
               <div className="form-group">
-                <label className="form-label">Début</label>
+                <label className="form-label">{t("agenda.start")}</label>
                 <input className="form-input" type="time" value={start} onChange={e => setStart(e.target.value)} required />
               </div>
               <div className="form-group">
-                <label className="form-label">Fin</label>
+                <label className="form-label">{t("agenda.end")}</label>
                 <input className="form-input" type="time" value={end} onChange={e => setEnd(e.target.value)} required />
               </div>
             </div>
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">Type</label>
-                <select className="form-select" value={type} onChange={e => setType(e.target.value as AppointmentType)}>
-                  {TYPE_OPTS.map(t => <option key={t} value={t}>{APPT_TYPE_LABELS[t]}</option>)}
-                </select>
-              </div>
-              <div className="form-group">
-                <label className="form-label">Statut</label>
-                <select className="form-select" value={status} onChange={e => setStatus(e.target.value as AppointmentStatus)}>
-                  {STATUS_OPTS.map(s => <option key={s} value={s}>{APPT_STATUS_LABELS[s]}</option>)}
-                </select>
+            <div className="form-group">
+              <label className="form-label">{t("agenda.type")}</label>
+              <div className="appt-type-pills">
+                {TYPE_OPTS
+                  .filter(tp => !hiddenApptTypes.includes(tp) || tp === type)
+                  .map(tp => {
+                    const c = APPT_TYPE_COLORS[tp];
+                    const active = type === tp;
+                    return (
+                      <button
+                        key={tp}
+                        type="button"
+                        className={`appt-type-pill${active ? " active" : ""}`}
+                        style={active ? { background: c + "20", color: c, borderColor: c } : undefined}
+                        onClick={() => setType(tp)}
+                      >
+                        {t(`apptType.${tp}`)}
+                      </button>
+                    );
+                  })}
               </div>
             </div>
             <div className="form-group">
-              <label className="form-label">Notes (optionnel)</label>
-              <input className="form-input" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Motif, remarques…" />
+              <label className="form-label">{t("agenda.status")}</label>
+              <select className="form-select" value={status} onChange={e => setStatus(e.target.value as AppointmentStatus)}>
+                {STATUS_OPTS.map(s => <option key={s} value={s}>{APPT_STATUS_LABELS[s]}</option>)}
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label">{t("agenda.notes")} <span style={{ color: "var(--muted)", fontWeight: 400 }}>{t("common.optional")}</span></label>
+              <input className="form-input" value={notes} onChange={e => setNotes(e.target.value)} placeholder={t("agenda.notesPlaceholder")} />
             </div>
 
             {/* ── Location — only when locations are configured ── */}
             {locations.length > 0 && (
               <div className="form-group">
-                <label className="form-label">Emplacement</label>
+                <label className="form-label">{t("agenda.location")}</label>
                 <select
                   className="form-select"
                   value={locationId}
                   onChange={e => setLocationId(e.target.value)}
                 >
-                  <option value="">— Non spécifié —</option>
+                  <option value="">{t("agenda.locationDefault")}</option>
                   {locations.map(loc => (
                     <option key={loc.id} value={loc.id}>{loc.name}</option>
                   ))}
@@ -351,26 +582,26 @@ function ApptModal({ initial, defaultDate, isEdit, patients, onSave, onSaveBatch
                     <path d="M7 3V7l2.5 2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
                     <path d="M2 7l-2-2M2 7l2-2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
-                  <span>Répéter ce rendez-vous</span>
+                  <span>{t("agenda.repeatAppt")}</span>
                 </label>
 
                 {recurring && (
                   <div className="recurrence-options">
                     <div className="form-row">
                       <div className="form-group">
-                        <label className="form-label">Fréquence</label>
+                        <label className="form-label">{t("agenda.frequency")}</label>
                         <select
                           className="form-select"
                           value={recurrFreq}
                           onChange={e => setRecurrFreq(e.target.value as RecurrFreq)}
                         >
-                          <option value="weekly">Chaque semaine</option>
-                          <option value="biweekly">Toutes les 2 semaines</option>
-                          <option value="monthly">Chaque mois</option>
+                          <option value="weekly">{t("agenda.weeklyOpt")}</option>
+                          <option value="biweekly">{t("agenda.biweeklyOpt")}</option>
+                          <option value="monthly">{t("agenda.monthlyOpt")}</option>
                         </select>
                       </div>
                       <div className="form-group">
-                        <label className="form-label">Séances</label>
+                        <label className="form-label">{t("agenda.sessions")}</label>
                         <input
                           type="number"
                           className="form-input"
@@ -385,27 +616,27 @@ function ApptModal({ initial, defaultDate, isEdit, patients, onSave, onSaveBatch
                     {date && (
                       <div className="recurrence-preview">
                         <div className="recurrence-preview-summary">
-                          Créera <strong>{recurrCount} rendez-vous</strong>
+                          {t("agenda.recurringPreview", { n: recurrCount })}
                           {" · "}
                           <span style={{ color: "var(--muted)" }}>
-                            {new Date(date + "T12:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
+                            {new Date(date + "T12:00:00").toLocaleDateString(locale, { day: "numeric", month: "short" })}
                             {" → "}
                             {new Date(
                               generateRecurringDates(date, recurrFreq, recurrCount).slice(-1)[0] + "T12:00:00"
-                            ).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
+                            ).toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" })}
                           </span>
                         </div>
                         <div className="recurrence-chips">
                           {generateRecurringDates(date, recurrFreq, recurrCount).slice(0, 5).map((d, i) => (
                             <span key={d} className="recurrence-chip">
-                              {i + 1}. {new Date(d + "T12:00:00").toLocaleDateString("fr-FR", {
+                              {i + 1}. {new Date(d + "T12:00:00").toLocaleDateString(locale, {
                                 weekday: "short", day: "numeric", month: "short",
                               })}
                             </span>
                           ))}
                           {recurrCount > 5 && (
                             <span className="recurrence-chip recurrence-chip-more">
-                              +{recurrCount - 5} autres
+                              {t("agenda.recurringMore", { n: recurrCount - 5 })}
                             </span>
                           )}
                         </div>
@@ -416,10 +647,22 @@ function ApptModal({ initial, defaultDate, isEdit, patients, onSave, onSaveBatch
               </div>
             )}
           </div>
+          {conflictWarn && (
+            <div className="appt-conflict-warn">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0 }}>
+                <path d="M7 2L13 12H1L7 2Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
+                <path d="M7 6v2.5M7 10v.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+              </svg>
+              <span>{t("agenda.conflictWarn", { name: conflictWarn })}</span>
+              <button type="button" className="appt-conflict-ignore" onClick={() => setConflictWarn(null)}>
+                {t("agenda.conflictIgnore")}
+              </button>
+            </div>
+          )}
           <div className="modal-footer">
-            <button type="button" className="btn btn-ghost" onClick={onClose}>Annuler</button>
+            <button type="button" className="btn btn-ghost" onClick={onClose}>{t("common.cancel")}</button>
             <button type="submit" className="btn btn-primary" style={{ background: APPT_TYPE_COLORS[type] }}>
-              {!isEdit && recurring ? `Créer ${recurrCount} RDV` : "Enregistrer"}
+              {!isEdit && recurring ? t("agenda.createNAppts", { n: recurrCount }) : t("agenda.saveBtn")}
             </button>
           </div>
         </form>
@@ -437,6 +680,9 @@ interface FollowUpStripProps {
 }
 
 function FollowUpStrip({ followUps, onNavigate, onProgram }: FollowUpStripProps) {
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language?.slice(0, 2) === "ar" ? "ar-MA"
+               : i18n.language?.slice(0, 2) === "en" ? "en-US" : "fr-FR";
   if (followUps.length === 0) return null;
   return (
     <div className="followup-strip">
@@ -445,12 +691,12 @@ function FollowUpStrip({ followUps, onNavigate, onProgram }: FollowUpStripProps)
           <circle cx="7" cy="7" r="6" stroke="currentColor" strokeWidth="1.4"/>
           <path d="M7 4v3l2 1.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
         </svg>
-        <strong>Suivis à prévoir</strong>
-        <span className="followup-count">{followUps.length} patient{followUps.length > 1 ? "s" : ""} dans les 14 prochains jours</span>
+        <strong>{t("agenda.followUpHeader")}</strong>
+        <span className="followup-count">{t("agenda.followUpCount", { n: followUps.length, s: followUps.length > 1 ? "s" : "" })}</span>
       </div>
       <div className="followup-list">
         {followUps.map(appt => {
-          const fDate = new Date(appt.followUpDate! + "T12:00:00").toLocaleDateString("fr-FR", {
+          const fDate = new Date(appt.followUpDate! + "T12:00:00").toLocaleDateString(locale, {
             weekday: "short", day: "numeric", month: "short",
           });
           const ms       = new Date(appt.followUpDate!).getTime() - new Date(todayIso()).getTime();
@@ -462,9 +708,9 @@ function FollowUpStrip({ followUps, onNavigate, onProgram }: FollowUpStripProps)
               <div className="followup-info">
                 <div className="followup-name">{appt.patientName}</div>
                 <div className="followup-date">
-                  Suivi prévu le {fDate}
+                  {t("agenda.followUpDate", { date: fDate })}
                   <span className="followup-days" style={{ color: urgent ? "var(--danger)" : "var(--gold)" }}>
-                    {daysLeft <= 0 ? "Aujourd'hui" : `J-${daysLeft}`}
+                    {daysLeft <= 0 ? t("agenda.followUpToday") : t("agenda.followUpDays", { n: daysLeft })}
                   </span>
                 </div>
               </div>
@@ -473,17 +719,17 @@ function FollowUpStrip({ followUps, onNavigate, onProgram }: FollowUpStripProps)
                   className="btn btn-ghost"
                   style={{ padding: "4px 10px", fontSize: 12 }}
                   onClick={() => onNavigate(appt)}
-                  title="Voir le RDV original"
+                  title={t("agenda.viewOriginalTitle")}
                 >
-                  Voir →
+                  {t("agenda.viewOriginal")}
                 </button>
                 <button
                   className="btn btn-primary"
                   style={{ padding: "4px 10px", fontSize: 12 }}
                   onClick={() => onProgram(appt)}
-                  title="Programmer un nouveau suivi"
+                  title={t("agenda.scheduleFollowUpTitle")}
                 >
-                  + Programmer
+                  {t("agenda.scheduleFollowUp")}
                 </button>
               </div>
             </div>
@@ -508,6 +754,9 @@ function ApptCard({
   onDelete:       () => void;
   onWaClick?:     () => void;
 }) {
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language?.slice(0, 2) === "ar" ? "ar-MA"
+               : i18n.language?.slice(0, 2) === "en" ? "en-US" : "fr-FR";
   const { doctorProfile } = useCabinet();
   const isDone = appt.status === "completed";
   const color  = APPT_TYPE_COLORS[appt.type];
@@ -517,7 +766,7 @@ function ApptCard({
     : undefined;
 
   return (
-    <div className="appt-card" style={{ opacity: isDone ? 0.75 : 1 }} onClick={onDetail}>
+    <div className="appt-card rv-press" style={{ opacity: isDone ? 0.75 : 1 }} onClick={onDetail}>
       <div className="appt-accent" style={{ background: isDone ? "var(--border)" : color }} />
       <div className="appt-body">
         <div className="appt-time">{appt.startTime} – {appt.endTime}</div>
@@ -531,22 +780,27 @@ function ApptCard({
           </span>
           {appt.billedAt && (
             <span className="appt-badge" style={{ background: "var(--green-soft)", color: "var(--green)" }}>
-              ✓ Facturé
+              {t("agenda.billed")}
+            </span>
+          )}
+          {appt.bookingSource === "online" && (
+            <span className="appt-badge" style={{ background: "var(--blue-soft)", color: "var(--blue)" }} title={appt.bookingPhone || ""}>
+              🌐 {t("agenda.badgeOnline")}
             </span>
           )}
           {hasNotes && (
             <span className="appt-badge" style={{ background: "var(--blue-soft)", color: "var(--blue)" }}>
-              📋 Notes
+              {t("agenda.badgeNotes")}
             </span>
           )}
           {appt.followUpDate && (
             <span className="appt-badge" style={{ background: "#FFF8E1", color: "var(--gold)" }}>
-              🔁 {new Date(appt.followUpDate + "T12:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
+              🔁 {new Date(appt.followUpDate + "T12:00:00").toLocaleDateString(locale, { day: "numeric", month: "short" })}
             </span>
           )}
           {appt.recurringRuleId && (
             <span className="appt-badge" style={{ background: "var(--surface-alt)", color: "var(--muted)" }}>
-              🔄 Récurrent
+              {t("agenda.badgeRecurring")}
             </span>
           )}
           {locName && (
@@ -562,7 +816,7 @@ function ApptCard({
         {onWaClick && (
           <button
             className="appt-wa-btn"
-            title="Envoyer un message WhatsApp"
+            title={t("agenda.whatsapp")}
             onClick={(e) => { e.stopPropagation(); onWaClick(); }}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
@@ -573,7 +827,7 @@ function ApptCard({
         {/* Edit shortcut */}
         <button
           className="appt-edit-btn"
-          title="Modifier le RDV"
+          title={t("agenda.editAppt")}
           onClick={(e) => { e.stopPropagation(); onEdit(); }}
         >
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
@@ -583,7 +837,7 @@ function ApptCard({
         {/* Toggle done */}
         <button
           className={`appt-done-btn${isDone ? " active" : ""}`}
-          title={isDone ? "Marquer non terminé" : "Marquer terminé"}
+          title={isDone ? t("agenda.markUndone") : t("agenda.markDone")}
           onClick={onToggle}
         >
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
@@ -594,7 +848,7 @@ function ApptCard({
         {appt.billedAt && (
           <button
             className="appt-receipt-btn"
-            title="Imprimer le reçu"
+            title={t("agenda.printReceipt")}
             onClick={onPrintReceipt}
           >
             <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
@@ -606,7 +860,7 @@ function ApptCard({
         )}
         {/* Bill */}
         {isDone && !appt.billedAt && (
-          <button className="appt-bill-btn" title="Ajouter recette" onClick={onBill}>
+          <button className="appt-bill-btn" title={t("agenda.addRevenueTip")} onClick={onBill}>
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
               <circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.4"/>
               <path d="M6 3v6M4 5h3.5a1.5 1.5 0 0 1 0 3H4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
@@ -614,7 +868,7 @@ function ApptCard({
           </button>
         )}
         {/* Delete */}
-        <button className="tx-delete" title="Supprimer" onClick={onDelete}>
+        <button className="tx-delete" title={t("agenda.deleteApptTip")} onClick={onDelete}>
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
             <path d="M2 3h8M4 3V2h4v1M3.5 3v8h5V3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
@@ -639,17 +893,20 @@ interface BulkBillModalProps {
 }
 
 function BulkBillModal({ items, onChange, onConfirm, onClose }: BulkBillModalProps) {
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language?.slice(0, 2) === "ar" ? "ar-MA"
+               : i18n.language?.slice(0, 2) === "en" ? "en-US" : "fr-FR";
   const total = items.reduce((s, i) => s + (parseFloat(i.amount) || 0), 0);
   return (
     <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modal" style={{ maxWidth: 520 }} onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h2 className="modal-title">Facturation groupée</h2>
+          <h2 className="modal-title">{t("agenda.bulkBillModal")}</h2>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
         <div className="modal-body">
           <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 14 }}>
-            {items.length} rendez-vous terminés · non facturés — ajustez les montants si nécessaire
+            {t("agenda.bulkBillSub", { n: items.length })}
           </div>
           <div className="bulk-bill-list">
             {items.map(({ appt, amount }) => (
@@ -677,11 +934,11 @@ function BulkBillModal({ items, onChange, onConfirm, onClose }: BulkBillModalPro
             ))}
           </div>
           <div className="bulk-bill-total">
-            Total : <strong>{total.toLocaleString("fr-MA")} MAD</strong>
+            {t("common.total")} : <strong>{total.toLocaleString(locale)} MAD</strong>
           </div>
         </div>
         <div className="modal-footer">
-          <button className="btn btn-ghost" onClick={onClose}>Annuler</button>
+          <button className="btn btn-ghost" onClick={onClose}>{t("common.cancel")}</button>
           <button
             className="btn btn-primary"
             style={{ background: "var(--green)" }}
@@ -691,7 +948,7 @@ function BulkBillModal({ items, onChange, onConfirm, onClose }: BulkBillModalPro
               <circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.4"/>
               <path d="M6 3v6M4 5h3.5a1.5 1.5 0 0 1 0 3H4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
             </svg>
-            Facturer tout ({items.length})
+            {t("agenda.bulkBillAll", { n: items.length })}
           </button>
         </div>
       </div>
@@ -702,37 +959,44 @@ function BulkBillModal({ items, onChange, onConfirm, onClose }: BulkBillModalPro
 // ── Time-slot grid body ────────────────────────────────────────────────────────
 
 function TGSlotGrid({
-  appts, isToday, nowTop, onSlotClick, onApptClick,
+  appts, isToday, nowTop, gridStart, gridEnd, onSlotClick, onApptClick, onApptPointerDown, draggingId,
 }: {
   appts:       Appointment[];
   isToday:     boolean;
   nowTop:      number;
+  gridStart:   number;
+  gridEnd:     number;
   onSlotClick: (startTime: string, endTime: string) => void;
   onApptClick: (appt: Appointment) => void;
+  onApptPointerDown?: (e: React.PointerEvent, appt: Appointment) => void;
+  draggingId?: string | null;
 }) {
+  const layout = layoutDayAppts(appts);
+  const total  = (gridEnd - gridStart) * TG_PX_H;
+  const hours  = gridHourList(gridStart, gridEnd);
   return (
     <div
       className="tgrid-body"
-      style={{ height: TG_TOTAL }}
+      style={{ height: total }}
       onClick={(e) => {
         if ((e.target as HTMLElement).closest(".tgrid-event")) return;
         const rect = e.currentTarget.getBoundingClientRect();
         const y    = e.clientY - rect.top;
-        const t    = snapTime(y);
+        const t    = snapTime(y, gridStart, gridEnd);
         onSlotClick(t, addMinutes(t, 30));
       }}
     >
       {/* Grid lines */}
-      {TG_HLIST.map((h, idx) => (
+      {hours.map((h, idx) => (
         <span key={h}>
           <div className="tgrid-hour-line" style={{ top: idx * TG_PX_H }} />
           <div className="tgrid-half-line" style={{ top: idx * TG_PX_H + TG_PX_H / 2 }} />
         </span>
       ))}
-      <div className="tgrid-hour-line" style={{ top: TG_TOTAL }} />
+      <div className="tgrid-hour-line" style={{ top: total }} />
 
       {/* Now indicator */}
-      {isToday && nowTop >= 0 && nowTop <= TG_TOTAL && (
+      {isToday && nowTop >= 0 && nowTop <= total && (
         <div className="tgrid-now-line" style={{ top: nowTop }} />
       )}
 
@@ -741,25 +1005,35 @@ function TGSlotGrid({
         const color  = APPT_TYPE_COLORS[appt.type];
         const done   = appt.status === "completed";
         const canc   = appt.status === "cancelled" || appt.status === "no_show";
-        const top    = tTop(appt.startTime);
+        const top    = tTop(appt.startTime, gridStart);
         const height = tHeight(appt.startTime, appt.endTime);
+        const lay    = layout.get(appt.id) ?? { col: 0, cols: 1 };
+        const widthPct = 100 / lay.cols;
+        // Short slots (≤20 min) can't fit two stacked lines — render one compact row.
+        const compact = tDurationMin(appt.startTime, appt.endTime) <= 20 || height < 34;
         return (
           <div
             key={appt.id}
-            className={`tgrid-event${done ? " done" : ""}${canc ? " cancelled" : ""}`}
+            className={`tgrid-event${done ? " done" : ""}${canc ? " cancelled" : ""}${lay.cols > 1 ? " tgrid-event-multi" : ""}${compact ? " tgrid-event-compact" : ""}${draggingId === appt.id ? " tgrid-event-dragging" : ""}`}
             style={{
               top, height,
+              left:  `calc(${lay.col * widthPct}% + 2px)`,
+              width: `calc(${widthPct}% - 4px)`,
+              right: "auto",
               background:      canc ? "var(--surface-alt)" : color + "1a",
               borderLeftColor: canc ? "var(--border)"      : color,
               color:           canc ? "var(--muted)"       : color,
+              cursor:          onApptPointerDown ? "grab" : undefined,
+              touchAction:     onApptPointerDown ? "none" : undefined,
             }}
+            onPointerDown={onApptPointerDown ? (e) => onApptPointerDown(e, appt) : undefined}
             onClick={(e) => { e.stopPropagation(); onApptClick(appt); }}
             title={`${appt.patientName} · ${appt.startTime}–${appt.endTime}`}
           >
-            <div className="tgrid-event-time">{appt.startTime}</div>
-            <div className="tgrid-event-name">{appt.patientName}</div>
-            {appt.billedAt        && <span className="tgrid-badge green">✓</span>}
-            {appt.savedOrdonnance && <span className="tgrid-badge blue">℞</span>}
+            <span className="tgrid-event-time">{appt.startTime}</span>
+            <span className="tgrid-event-name">{appt.patientName}</span>
+            {!compact && appt.billedAt        && <span className="tgrid-badge green">✓</span>}
+            {!compact && appt.savedOrdonnance && <span className="tgrid-badge blue">℞</span>}
           </div>
         );
       })}
@@ -770,6 +1044,9 @@ function TGSlotGrid({
 // ── Main page ──────────────────────────────────────────────────────────────────
 
 export function AgendaPage() {
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language?.slice(0, 2) === "ar" ? "ar-MA"
+               : i18n.language?.slice(0, 2) === "en" ? "en-US" : "fr-FR";
   const today    = todayIso();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -785,18 +1062,56 @@ export function AgendaPage() {
   const [calYear,   setCalYear]   = useState(new Date().getFullYear());
   const [calMonth,  setCalMonth]  = useState(new Date().getMonth());
   const [modal,          setModal]          = useState<{ appt?: Appointment; prefill?: Partial<Appointment> } | null>(null);
-  const [toast,          setToast]          = useState<string | null>(null);
   const [billModal,      setBillModal]      = useState<{ appt: Appointment } | null>(null);
   const [waPickerTarget, setWaPickerTarget] = useState<{ appt: Appointment; phone: string } | null>(null);
+  const [showBulkWa, setShowBulkWa] = useState(false);
   const [billAmt,   setBillAmt]   = useState("200");
   const [bulkItems, setBulkItems] = useState<BulkBillItem[]>([]);
   const [showBulk,  setShowBulk]  = useState(false);
   const [seriesDeleteTarget, setSeriesDeleteTarget] = useState<Appointment | null>(null);
+  const [dragAppt, setDragAppt] = useState<Appointment | null>(null);
+  const [dragOverDay, setDragOverDay] = useState<string | null>(null);
+  // Week-view time-grid drag: move an RDV vertically to change its time (and
+  // sideways across day columns). Preview holds the live floating-ghost coords.
+  const [tgDrag, setTgDrag] = useState<{
+    appt: Appointment; durMin: number;
+    preview: { iso: string; startTime: string; left: number; top: number; width: number; height: number } | null;
+  } | null>(null);
+  const tgDragMovedRef = useRef(false);
+  const icalInputRef = useRef<HTMLInputElement>(null);
+  const [moreOpen, setMoreOpen] = useState(false);
 
-  const showToast = (msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 2600);
+  // Drag a RDV onto another day column → reschedule to that day (time unchanged).
+  const moveApptToDate = (iso: string) => {
+    const a = dragAppt;
+    setDragAppt(null);
+    setDragOverDay(null);
+    if (!a || a.date === iso) return;
+    updateAppointment({ ...a, date: iso });
+    showToast(t("agenda.movedTo", { date: new Date(iso + "T12:00:00").toLocaleDateString(locale, { day: "numeric", month: "short" }) }));
   };
+
+  const handleIcalImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const events = parseAgendaIcal(String(reader.result ?? ""));
+        if (events.length === 0) { showToast(t("agenda.icalImportEmpty")); return; }
+        const drafts = icalEventsToAppointments(events);
+        drafts.forEach(d => addAppointment(d));
+        showToast(t("agenda.icalImportedN", { n: drafts.length }));
+      } catch {
+        showToast(t("agenda.icalImportError"), "error");
+      }
+    };
+    reader.onerror = () => showToast(t("agenda.icalImportError"), "error");
+    reader.readAsText(file);
+  };
+
+  const showToast = useToast();
 
   // Current-time indicator (updates every minute)
   const [nowMinutes, setNowMinutes] = useState(() => {
@@ -808,7 +1123,6 @@ export function AgendaPage() {
     }, 60_000);
     return () => clearInterval(id);
   }, []);
-  const nowTop = ((nowMinutes - TG_START * 60) / 60) * TG_PX_H;
 
   // Auto-open new-appointment modal when navigated from a patient page
   useEffect(() => {
@@ -816,14 +1130,15 @@ export function AgendaPage() {
     if (!pid) return;
     const p = patients.find(x => x.id === pid);
     if (p) {
+      const smart = getSmartPrefill(p.id, appointments);
       setModal({
         prefill: {
           patientName: `${p.firstName} ${p.lastName}`,
           patientId:   p.id,
           date:        today,
-          startTime:   "09:00",
-          endTime:     "09:30",
-          type:        "consultation",
+          startTime:   smart?.startTime ?? "09:00",
+          endTime:     smart?.endTime   ?? "09:30",
+          type:        smart?.type      ?? "consultation",
           status:      "scheduled",
         },
       });
@@ -895,6 +1210,15 @@ export function AgendaPage() {
     dayAppts.filter(a => a.status === "completed" && !a.billedAt),
     [dayAppts]);
 
+  const apptsPendingWa = useMemo(() => {
+    return dayAppts.filter(a => {
+      if (a.status === "cancelled") return false;
+      const pt = a.patientId ? patients.find(p => p.id === a.patientId) : null;
+      const phone = pt?.phone ?? "";
+      return phone.length >= 8;
+    });
+  }, [dayAppts, patients]);
+
   const prevMonth = () => {
     let m = calMonth - 1, y = calYear;
     if (m < 0) { m = 11; y--; }
@@ -906,7 +1230,7 @@ export function AgendaPage() {
     setCalYear(y); setCalMonth(m);
   };
 
-  const monthLabel = new Date(calYear, calMonth, 1).toLocaleDateString("fr-FR", {
+  const monthLabel = new Date(calYear, calMonth, 1).toLocaleDateString(locale, {
     month: "long", year: "numeric",
   });
 
@@ -917,7 +1241,7 @@ export function AgendaPage() {
     const s = new Date(weekDays[0] + "T12:00:00");
     const e = new Date(weekDays[6] + "T12:00:00");
     const fmt = (d: Date, opts: Intl.DateTimeFormatOptions) =>
-      d.toLocaleDateString("fr-FR", opts);
+      d.toLocaleDateString(locale, opts);
     return `${fmt(s, { day: "numeric", month: "short" })} – ${fmt(e, { day: "numeric", month: "short", year: "numeric" })}`;
   })();
   const prevWeek = () => setSelDate(addDays(selDate, -7));
@@ -940,6 +1264,79 @@ export function AgendaPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appointments, weekStart]);
 
+  // Grid hours expand beyond the default 07:00–20:00 window to include any
+  // early-morning or late-evening appointments, so nothing is pinned to an edge.
+  const { gridStart, gridEnd } = useMemo(() => {
+    let lo = TG_START, hi = TG_END;
+    for (const list of weekApptsByDay.values()) {
+      for (const a of list) {
+        const s = timeToMin(a.startTime), e = timeToMin(a.endTime);
+        if (s != null) lo = Math.min(lo, Math.floor(s / 60));
+        if (e != null) hi = Math.max(hi, Math.ceil(e / 60));
+      }
+    }
+    return { gridStart: Math.max(0, lo), gridEnd: Math.min(24, Math.max(hi, lo + 1)) };
+  }, [weekApptsByDay]);
+  const gridHours = gridHourList(gridStart, gridEnd);
+  const nowTop = ((nowMinutes - gridStart * 60) / 60) * TG_PX_H;
+
+  // Pointer-drag an RDV inside the week time-grid: vertical = new time, sideways
+  // = new day. A floating ghost tracks the snapped slot; a tap (no movement)
+  // falls through to opening the appointment.
+  const onApptPointerDown = (e: React.PointerEvent, appt: Appointment) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    const grabDy  = e.clientY - (e.currentTarget as HTMLElement).getBoundingClientRect().top;
+    const durMin  = tDurationMin(appt.startTime, appt.endTime);
+    const downX = e.clientX, downY = e.clientY;
+    tgDragMovedRef.current = false;
+    setTgDrag({ appt, durMin, preview: null });
+
+    const move = (ev: PointerEvent) => {
+      if (!tgDragMovedRef.current) {
+        if (Math.abs(ev.clientY - downY) < 5 && Math.abs(ev.clientX - downX) < 5) return;
+        tgDragMovedRef.current = true;
+      }
+      const under = document.elementFromPoint(ev.clientX, ev.clientY) as HTMLElement | null;
+      const col   = under?.closest(".tgrid-col[data-iso]") as HTMLElement | null;
+      const body  = col?.querySelector(".tgrid-body") as HTMLElement | null;
+      if (!col || !body) return; // pointer over the gutter/header — keep last preview
+      const iso       = col.getAttribute("data-iso")!;
+      const bodyRect  = body.getBoundingClientRect();
+      const yTop      = ev.clientY - bodyRect.top - grabDy;
+      const startTime = snapDragTime(yTop, gridStart, gridEnd, durMin);
+      const top       = tTop(startTime, gridStart);
+      const height    = tHeight(startTime, addMinutes(startTime, durMin));
+      setTgDrag({
+        appt, durMin,
+        preview: { iso, startTime, left: bodyRect.left + 2, top: bodyRect.top + top, width: bodyRect.width - 4, height },
+      });
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      setTgDrag(prev => {
+        if (tgDragMovedRef.current && prev?.preview) {
+          const { iso, startTime } = prev.preview;
+          if (appt.date !== iso || appt.startTime !== startTime) {
+            updateAppointment({ ...appt, date: iso, startTime, endTime: addMinutes(startTime, durMin) });
+            showToast(appt.date !== iso
+              ? t("agenda.movedToDateTime", {
+                  date: new Date(iso + "T12:00:00").toLocaleDateString(locale, { day: "numeric", month: "short" }),
+                  time: startTime,
+                })
+              : t("agenda.movedToTime", { time: startTime }));
+          }
+        }
+        return null;
+      });
+      // Let the click that follows pointerup be swallowed, then re-enable taps.
+      setTimeout(() => { tgDragMovedRef.current = false; }, 0);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
+
   // Single bill handler
   const handleBill = () => {
     if (!billModal) return;
@@ -955,7 +1352,7 @@ export function AgendaPage() {
     });
     updateAppointment({ ...billModal.appt, billedAt: new Date().toISOString(), billedAmount: amt });
     setBillModal(null);
-    showToast(`Recette de ${amt.toLocaleString("fr-MA")} MAD ajoutée`);
+    showToast(t("agenda.addRevenueToast", { amt: amt.toLocaleString(locale) }));
   };
 
   // Bulk bill handlers
@@ -981,7 +1378,7 @@ export function AgendaPage() {
       grandTotal += amt;
     }
     setShowBulk(false);
-    showToast(`${bulkItems.length} recettes ajoutées · ${grandTotal.toLocaleString("fr-MA")} MAD`);
+    showToast(t("agenda.bulkTotal", { total: grandTotal.toLocaleString(locale) }));
   };
 
   // Follow-up "Programmer" handler: jump to that date + open pre-filled new modal
@@ -991,13 +1388,14 @@ export function AgendaPage() {
     setCalYear(parts[0]);
     setCalMonth(parts[1] - 1);
     setSelDate(appt.followUpDate);
+    const smart = appt.patientId ? getSmartPrefill(appt.patientId, appointments) : null;
     setModal({
       prefill: {
         patientName: appt.patientName,
         patientId:   appt.patientId,
         date:        appt.followUpDate,
-        startTime:   "09:00",
-        endTime:     "09:30",
+        startTime:   smart?.startTime ?? "09:00",
+        endTime:     smart?.endTime   ?? "09:30",
         type:        "suivi",
         status:      "scheduled",
       },
@@ -1006,26 +1404,26 @@ export function AgendaPage() {
 
   return (
     <Layout
-      title="Agenda"
-      subtitle={`${appointments.length} rendez-vous au total`}
+      title={t("agenda.title")}
+      subtitle={t("agenda.subtitleTotal", { n: appointments.length })}
       actions={
         <>
           <div className="agenda-view-toggle">
             <button
               className={`agenda-view-btn${view === "day" ? " active" : ""}`}
               onClick={() => setView("day")}
-              title="Vue journée"
+              title={t("agenda.dayView")}
             >
               <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
                 <rect x="2" y="2" width="10" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.4"/>
                 <path d="M4 5h6M4 7.5h6M4 10h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
               </svg>
-              Jour
+              {t("agenda.day")}
             </button>
             <button
               className={`agenda-view-btn${view === "week" ? " active" : ""}`}
               onClick={() => setView("week")}
-              title="Vue semaine"
+              title={t("agenda.weekView")}
             >
               <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
                 <rect x="1" y="3" width="2" height="8" rx="0.5" fill="currentColor" opacity="0.5"/>
@@ -1033,12 +1431,12 @@ export function AgendaPage() {
                 <rect x="7" y="3" width="2" height="8" rx="0.5" fill="currentColor"/>
                 <rect x="10" y="3" width="2" height="8" rx="0.5" fill="currentColor" opacity="0.7"/>
               </svg>
-              Semaine
+              {t("agenda.week")}
             </button>
             <button
               className={`agenda-view-btn${view === "month" ? " active" : ""}`}
               onClick={() => setView("month")}
-              title="Vue mois"
+              title={t("agenda.monthView")}
             >
               <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
                 <rect x="1" y="2" width="12" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.3"/>
@@ -1048,35 +1446,74 @@ export function AgendaPage() {
                 <rect x="6" y="7" width="2" height="2" rx="0.4" fill="currentColor"/>
                 <rect x="9" y="7" width="2" height="2" rx="0.4" fill="currentColor" opacity="0.5"/>
               </svg>
-              Mois
+              {t("agenda.month")}
             </button>
           </div>
-          <button
-            className="btn btn-ghost"
-            onClick={() => {
-              const monthAppts = appointments.filter(a => a.date.startsWith(monthPrefix));
-              const calName = doctorProfile?.fullName
-                ? `Cabinet Dr. ${doctorProfile.fullName}`
-                : "Blackpine Cabinet";
-              exportAgendaIcal(monthAppts, calName, `agenda-${monthPrefix}.ics`);
-              showToast(`${monthAppts.length} RDV exportés en iCal`);
-            }}
-            disabled={!appointments.some(a => a.date.startsWith(monthPrefix))}
-            title={`Exporter les RDV de ${monthLabel} vers Google Calendar / Outlook`}
-          >
-            <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 5 }}>
-              <rect x="1" y="2" width="12" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.3"/>
-              <path d="M1 5h12" stroke="currentColor" strokeWidth="1.2"/>
-              <path d="M4 2V1M10 2V1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
-              <path d="M7 9V7M5.5 9h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-            </svg>
-            iCal
-          </button>
+          <div className="agenda-more-wrap">
+            <button
+              className="btn btn-ghost agenda-more-btn"
+              onClick={() => setMoreOpen(o => !o)}
+              aria-haspopup="menu"
+              aria-expanded={moreOpen}
+              title={t("agenda.moreActions")}
+            >
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor">
+                <circle cx="3" cy="8" r="1.4"/><circle cx="8" cy="8" r="1.4"/><circle cx="13" cy="8" r="1.4"/>
+              </svg>
+            </button>
+            {moreOpen && (
+              <>
+                <div className="agenda-more-backdrop" onClick={() => setMoreOpen(false)} />
+                <div className="agenda-more-menu" role="menu">
+                  <button
+                    role="menuitem"
+                    className="agenda-more-item"
+                    disabled={!appointments.some(a => a.date.startsWith(monthPrefix))}
+                    onClick={() => {
+                      const monthAppts = appointments.filter(a => a.date.startsWith(monthPrefix));
+                      const calName = doctorProfile?.fullName
+                        ? `Cabinet Dr. ${doctorProfile.fullName}`
+                        : "Blackpine Cabinet";
+                      exportAgendaIcal(monthAppts, calName, `agenda-${monthPrefix}.ics`);
+                      showToast(t("agenda.exportedN", { n: monthAppts.length }));
+                      setMoreOpen(false);
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                      <rect x="1" y="2" width="12" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.3"/>
+                      <path d="M1 5h12" stroke="currentColor" strokeWidth="1.2"/>
+                      <path d="M4 2V1M10 2V1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                      <path d="M7 9V7M5.5 9h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                    </svg>
+                    {t("agenda.exportMonth", { month: monthLabel })}
+                  </button>
+                  <button
+                    role="menuitem"
+                    className="agenda-more-item"
+                    onClick={() => { icalInputRef.current?.click(); setMoreOpen(false); }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                      <path d="M7 1v8M4 6l3 3 3-3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M2 11h10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                    </svg>
+                    {t("agenda.icalImport")}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+          <input
+            ref={icalInputRef}
+            type="file"
+            accept=".ics,text/calendar"
+            style={{ display: "none" }}
+            onChange={handleIcalImport}
+          />
           <button className="btn btn-primary" onClick={() => setModal({})}>
             <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 6 }}>
               <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
             </svg>
-            Nouveau RDV
+            {t("agenda.newAppt")}
           </button>
         </>
       }
@@ -1088,25 +1525,39 @@ export function AgendaPage() {
         onProgram={handleProgramFollowUp}
       />
 
+      {/* ── Colour legend ── */}
+      <div className="agenda-legend">
+        {TYPE_OPTS
+          .filter(tp => !(doctorProfile?.hiddenConsultationTypes ?? []).includes(tp))
+          .map(tp => (
+            <span key={tp} className="agenda-legend-item">
+              <span className="agenda-legend-dot" style={{ background: APPT_TYPE_COLORS[tp] }} />
+              {t(`apptType.${tp}`)}
+            </span>
+          ))}
+      </div>
+
       {/* ── Month view ── */}
       {view === "month" && (
         <div className="agenda-month-view">
           {/* Nav */}
           <div className="agenda-month-nav">
-            <button className="agenda-week-arrow" onClick={prevMonth} title="Mois précédent">‹</button>
+            <button className="agenda-week-arrow" onClick={prevMonth} title={t("agenda.prevMonth")}>‹</button>
             <span className="agenda-month-label">{monthLabel}</span>
-            <button className="agenda-week-arrow" onClick={nextMonth} title="Mois suivant">›</button>
+            <button className="agenda-week-arrow" onClick={nextMonth} title={t("agenda.nextMonth")}>›</button>
             {!(calYear === new Date(today + "T12:00:00").getFullYear() &&
                calMonth === new Date(today + "T12:00:00").getMonth()) && (
-              <button className="agenda-week-today-btn" onClick={jumpToToday}>Aujourd'hui</button>
+              <button className="agenda-week-today-btn" onClick={jumpToToday}>{t("agenda.today")}</button>
             )}
           </div>
 
           {/* Grid */}
           <div className="agenda-month-grid">
-            {/* Weekday headers */}
+            {/* Weekday headers — locale-aware, Mon=0 (Jan 6 2025 is a Monday) */}
             <div className="agenda-month-weekdays">
-              {DAY_HEADERS.map(d => (
+              {Array.from({ length: 7 }, (_, i) =>
+                new Date(2025, 0, 6 + i).toLocaleDateString(locale, { weekday: "short" })
+              ).map(d => (
                 <div key={d} className="agenda-month-wday">{d}</div>
               ))}
             </div>
@@ -1121,12 +1572,16 @@ export function AgendaPage() {
                   .sort((a, b) => a.startTime.localeCompare(b.startTime));
                 const shown = cellAppts.slice(0, 3);
                 const more  = cellAppts.length - shown.length;
+                const isDropTarget = dragOverDay === iso && dragAppt?.date !== iso;
                 return (
                   <div
                     key={i}
-                    className={`agenda-month-cell${isToday ? " am-today" : ""}${isSel ? " am-sel" : ""}`}
+                    className={`agenda-month-cell${isToday ? " am-today" : ""}${isSel ? " am-sel" : ""}${isDropTarget ? " am-drop" : ""}`}
                     onClick={() => { setSelDate(iso); setView("day"); }}
-                    title={`Voir le ${day} — ${cellAppts.length} RDV`}
+                    onDragOver={dragAppt ? (e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; if (dragOverDay !== iso) setDragOverDay(iso); } : undefined}
+                    onDragLeave={dragAppt ? () => setDragOverDay(d => d === iso ? null : d) : undefined}
+                    onDrop={dragAppt ? (e) => { e.preventDefault(); moveApptToDate(iso); } : undefined}
+                    title={t("agenda.monthCellTitle", { day, n: cellAppts.length })}
                   >
                     <div className={`agenda-month-day-num${isToday ? " am-today-ring" : ""}`}>
                       {day}
@@ -1138,7 +1593,9 @@ export function AgendaPage() {
                           <div
                             key={a.id}
                             className={`agenda-month-chip${a.status === "completed" ? " am-done" : ""}${cancelled ? " am-cancel" : ""}`}
-                            style={{ borderLeftColor: APPT_TYPE_COLORS[a.type] }}
+                            style={{ borderLeftColor: APPT_TYPE_COLORS[a.type], cursor: "grab" }}
+                            draggable
+                            onDragStart={e => { e.stopPropagation(); e.dataTransfer.effectAllowed = "move"; setDragAppt(a); }}
                             onClick={e => { e.stopPropagation(); navigate(`/agenda/${a.id}`); }}
                             title={`${a.startTime} · ${a.patientName}`}
                           >
@@ -1148,7 +1605,7 @@ export function AgendaPage() {
                         );
                       })}
                       {more > 0 && (
-                        <div className="agenda-month-more">+{more} autre{more > 1 ? "s" : ""}</div>
+                        <div className="agenda-month-more">{t("agenda.moreAppts", { n: more, s: more > 1 ? "s" : "" })}</div>
                       )}
                     </div>
                   </div>
@@ -1164,11 +1621,11 @@ export function AgendaPage() {
         <div className="agenda-week-view">
           {/* Nav bar */}
           <div className="agenda-week-nav">
-            <button className="agenda-week-arrow" onClick={prevWeek} title="Semaine précédente">‹</button>
+            <button className="agenda-week-arrow" onClick={prevWeek} title={t("agenda.prevWeek")}>‹</button>
             <span className="agenda-week-label">{weekLabel}</span>
-            <button className="agenda-week-arrow" onClick={nextWeek} title="Semaine suivante">›</button>
+            <button className="agenda-week-arrow" onClick={nextWeek} title={t("agenda.nextWeek")}>›</button>
             {!weekDays.includes(today) && (
-              <button className="agenda-week-today-btn" onClick={jumpToToday}>Aujourd'hui</button>
+              <button className="agenda-week-today-btn" onClick={jumpToToday}>{t("agenda.today")}</button>
             )}
           </div>
 
@@ -1181,7 +1638,7 @@ export function AgendaPage() {
                 {weekDays.map(iso => {
                   const isToday = iso === today;
                   const d       = new Date(iso + "T12:00:00");
-                  const dayName = d.toLocaleDateString("fr-FR", { weekday: "short" });
+                  const dayName = d.toLocaleDateString(locale, { weekday: "short" });
                   const dayNum  = d.getDate();
                   const appts   = weekApptsByDay.get(iso) ?? [];
                   return (
@@ -1205,7 +1662,7 @@ export function AgendaPage() {
               <div className="tgrid-body-row">
                 {/* Time labels */}
                 <div className="tgrid-time-gutter">
-                  {TG_HLIST.map(h => (
+                  {gridHours.map(h => (
                     <div key={h} className="tgrid-time-cell">
                       <span className="tgrid-time-lbl">{String(h).padStart(2, "0")}:00</span>
                     </div>
@@ -1216,17 +1673,26 @@ export function AgendaPage() {
                 {weekDays.map(iso => {
                   const isToday = iso === today;
                   const appts   = weekApptsByDay.get(iso) ?? [];
+                  const isDropTarget = tgDrag?.preview?.iso === iso;
                   return (
-                    <div key={iso} className={`tgrid-col${isToday ? " tgrid-col-today" : ""}`}>
+                    <div
+                      key={iso}
+                      data-iso={iso}
+                      className={`tgrid-col${isToday ? " tgrid-col-today" : ""}${isDropTarget ? " tgrid-col-drop" : ""}`}
+                    >
                       <TGSlotGrid
                         appts={appts}
                         isToday={isToday}
                         nowTop={nowTop}
+                        gridStart={gridStart}
+                        gridEnd={gridEnd}
                         onSlotClick={(start, end) => {
                           setSelDate(iso);
                           setModal({ prefill: { date: iso, startTime: start, endTime: end } });
                         }}
-                        onApptClick={appt => navigate(`/agenda/${appt.id}`)}
+                        onApptClick={appt => { if (tgDragMovedRef.current) return; navigate(`/agenda/${appt.id}`); }}
+                        onApptPointerDown={onApptPointerDown}
+                        draggingId={tgDrag?.appt.id ?? null}
                       />
                     </div>
                   );
@@ -1248,7 +1714,9 @@ export function AgendaPage() {
           </div>
 
           <div className="cal-day-headers">
-            {DAY_HEADERS.map(d => <div key={d} className="cal-day-hdr">{d}</div>)}
+            {Array.from({ length: 7 }, (_, i) =>
+              new Date(2025, 0, 6 + i).toLocaleDateString(locale, { weekday: "short" })
+            ).map(d => <div key={d} className="cal-day-hdr">{d}</div>)}
           </div>
 
           <div className="cal-grid">
@@ -1281,15 +1749,15 @@ export function AgendaPage() {
             <div className="agenda-stats">
               <div className="agenda-stat" style={{ color: "var(--blue)" }}>
                 <span className="agenda-stat-val">{stats.total}</span>
-                <span className="agenda-stat-lbl">Total</span>
+                <span className="agenda-stat-lbl">{t("agenda.statsTotal")}</span>
               </div>
               <div className="agenda-stat" style={{ color: "var(--green)" }}>
                 <span className="agenda-stat-val">{stats.done}</span>
-                <span className="agenda-stat-lbl">Terminés</span>
+                <span className="agenda-stat-lbl">{t("agenda.statsDone")}</span>
               </div>
               <div className="agenda-stat" style={{ color: "var(--gold)" }}>
                 <span className="agenda-stat-val">{stats.waiting}</span>
-                <span className="agenda-stat-lbl">En attente</span>
+                <span className="agenda-stat-lbl">{t("agenda.statsWaiting")}</span>
               </div>
             </div>
           )}
@@ -1300,35 +1768,50 @@ export function AgendaPage() {
           <div className="agenda-day-header">
             <div>
               <div className="agenda-day-date">
-                {new Date(selDate + "T12:00:00").toLocaleDateString("fr-FR", {
+                {new Date(selDate + "T12:00:00").toLocaleDateString(locale, {
                   weekday: "long", day: "numeric", month: "long",
                 })}
               </div>
-              <span className="agenda-day-count">{dayAppts.length} RDV</span>
+              <span className="agenda-day-count">{t("agenda.dayCount", { n: dayAppts.length })}</span>
             </div>
-            {unbilledCompleted.length > 1 && (
-              <button
-                className="btn btn-ghost agenda-bulk-btn"
-                onClick={openBulkBill}
-                title="Facturer tous les RDV terminés non facturés"
-              >
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                  <circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.4"/>
-                  <path d="M6 3v6M4 5h3.5a1.5 1.5 0 0 1 0 3H4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
-                </svg>
-                Facturer tout ({unbilledCompleted.length})
-              </button>
-            )}
+            <div style={{ display: "flex", gap: 8 }}>
+              {apptsPendingWa.length > 0 && (
+                <button
+                  className="btn btn-ghost agenda-bulk-btn"
+                  style={{ color: "#25D366", borderColor: "#25D366" }}
+                  onClick={() => setShowBulkWa(true)}
+                  title={t("agenda.bulkWaTitle")}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+                  </svg>
+                  {t("agenda.bulkWaAll", { n: apptsPendingWa.length })}
+                </button>
+              )}
+              {unbilledCompleted.length > 1 && (
+                <button
+                  className="btn btn-ghost agenda-bulk-btn"
+                  onClick={openBulkBill}
+                  title={t("agenda.bulkBillTitle")}
+                >
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                    <circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.4"/>
+                    <path d="M6 3v6M4 5h3.5a1.5 1.5 0 0 1 0 3H4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                  </svg>
+                  {t("agenda.bulkBillAll", { n: unbilledCompleted.length })}
+                </button>
+              )}
+            </div>
           </div>
 
           {dayAppts.length === 0 ? (
             <div className="agenda-empty">
               <div style={{ fontSize: 32, marginBottom: 8 }}>📅</div>
-              <div style={{ fontWeight: 700, marginBottom: 4 }}>Aucun rendez-vous</div>
+              <div style={{ fontWeight: 700, marginBottom: 4 }}>{t("agenda.noAppts")}</div>
               <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 16 }}>
-                Cliquez sur le bouton pour en ajouter un.
+                {t("agenda.noApptsSub")}
               </div>
-              <button className="btn btn-primary" onClick={() => setModal({})}>Ajouter un RDV</button>
+              <button className="btn btn-primary" onClick={() => setModal({})}>{t("agenda.addApptBtn")}</button>
             </div>
           ) : (
             <div className="agenda-list">
@@ -1347,7 +1830,11 @@ export function AgendaPage() {
                     ...appt,
                     status: appt.status === "completed" ? "scheduled" : "completed",
                   })}
-                  onBill={() => { setBillModal({ appt }); setBillAmt("200"); }}
+                  onBill={() => {
+                    setBillModal({ appt });
+                    const tp = doctorProfile?.appointmentPrices?.[appt.type];
+                    setBillAmt(appt.billedAmount != null ? String(appt.billedAmount) : tp != null ? String(tp) : "200");
+                  }}
                   onPrintReceipt={() => printReceipt({
                     patientName:      appt.patientName,
                     consultationType: APPT_TYPE_LABELS[appt.type],
@@ -1359,9 +1846,9 @@ export function AgendaPage() {
                   onDelete={() => {
                     if (appt.recurringRuleId) {
                       setSeriesDeleteTarget(appt);
-                    } else if (confirm("Supprimer ce rendez-vous ?")) {
+                    } else if (confirm(t("agenda.deleteAppt"))) {
                       deleteAppointment(appt.id);
-                      showToast("Rendez-vous supprimé");
+                      showToast(t("agenda.apptDeleted"));
                     }
                   }}
                 />
@@ -1378,14 +1865,15 @@ export function AgendaPage() {
           isEdit={!!modal.appt}
           defaultDate={selDate}
           patients={patients}
+          appointments={appointments}
           onSave={a => {
             if (modal.appt) updateAppointment({ ...a, id: modal.appt.id });
-            else addAppointment(a);
-            showToast(modal.appt ? "Rendez-vous modifié" : "Rendez-vous ajouté");
+            else { addAppointment(a); track("action:create_rdv"); }
+            showToast(modal.appt ? t("agenda.apptModified") : t("agenda.apptAdded"));
           }}
           onSaveBatch={appts => {
             appts.forEach(a => addAppointment(a));
-            showToast(`${appts.length} rendez-vous créés`);
+            showToast(t("agenda.apptsBatch", { n: appts.length }));
           }}
           onClose={() => setModal(null)}
         />
@@ -1396,7 +1884,7 @@ export function AgendaPage() {
         <div className="modal-overlay" onClick={() => setBillModal(null)}>
           <div className="modal" style={{ maxWidth: 380 }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h2 className="modal-title">Enregistrer le paiement</h2>
+              <h2 className="modal-title">{t("agenda.billPayment")}</h2>
               <button className="modal-close" onClick={() => setBillModal(null)}>×</button>
             </div>
             <div className="modal-body">
@@ -1405,7 +1893,7 @@ export function AgendaPage() {
                 {APPT_TYPE_LABELS[billModal.appt.type]} · {billModal.appt.startTime}
               </div>
               <div className="form-group">
-                <label className="form-label">Montant (MAD)</label>
+                <label className="form-label">{t("agenda.amountMAD")}</label>
                 <input
                   className="form-input" type="number" min="1" step="0.01"
                   value={billAmt} onChange={e => setBillAmt(e.target.value)}
@@ -1415,13 +1903,13 @@ export function AgendaPage() {
               </div>
             </div>
             <div className="modal-footer">
-              <button className="btn btn-ghost" onClick={() => setBillModal(null)}>Annuler</button>
+              <button className="btn btn-ghost" onClick={() => setBillModal(null)}>{t("common.cancel")}</button>
               <button
                 className="btn btn-primary"
                 style={{ background: "var(--green)" }}
                 onClick={handleBill}
               >
-                Ajouter la recette
+                {t("agenda.addRevenue")}
               </button>
             </div>
           </div>
@@ -1456,16 +1944,15 @@ export function AgendaPage() {
         <div className="modal-overlay" onClick={() => setSeriesDeleteTarget(null)}>
           <div className="modal" style={{ maxWidth: 420 }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h2 className="modal-title">🔁 Rendez-vous récurrent</h2>
+              <h2 className="modal-title">{t("agenda.recurringModal")}</h2>
               <button className="modal-close" onClick={() => setSeriesDeleteTarget(null)}>×</button>
             </div>
             <div className="modal-body">
               <p style={{ fontSize: 14, lineHeight: 1.6, marginBottom: 8 }}>
-                Ce rendez-vous fait partie d'une série récurrente.
-                Que souhaitez-vous supprimer ?
+                {t("agenda.recurringDeleteQ")}
               </p>
               <p style={{ fontSize: 13, color: "var(--muted)" }}>
-                <strong>{seriesDeleteTarget.patientName}</strong> · {seriesDeleteTarget.date}
+                {t("agenda.recurringDeleteInfo", { patient: seriesDeleteTarget.patientName, date: seriesDeleteTarget.date })}
               </p>
             </div>
             <div className="modal-footer" style={{ flexDirection: "column", gap: 8, alignItems: "stretch" }}>
@@ -1474,10 +1961,10 @@ export function AgendaPage() {
                 onClick={() => {
                   deleteAppointment(seriesDeleteTarget.id);
                   setSeriesDeleteTarget(null);
-                  showToast("Rendez-vous supprimé");
+                  showToast(t("agenda.apptDeleted"));
                 }}
               >
-                Supprimer uniquement ce rendez-vous
+                {t("agenda.deleteThis")}
               </button>
               <button
                 className="btn"
@@ -1487,20 +1974,86 @@ export function AgendaPage() {
                     deleteAppointmentSeries(seriesDeleteTarget.recurringRuleId, seriesDeleteTarget.date);
                   }
                   setSeriesDeleteTarget(null);
-                  showToast("Série supprimée à partir de cette date");
+                  showToast(t("agenda.seriesDeleted"));
                 }}
               >
-                Supprimer la série à partir de cette date
+                {t("agenda.deleteSeries")}
               </button>
               <button className="btn btn-ghost" onClick={() => setSeriesDeleteTarget(null)}>
-                Annuler
+                {t("common.cancel")}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {toast && <div className="toast">{toast}</div>}
+      {/* ── Bulk WA reminder modal ── */}
+      {showBulkWa && (
+        <div className="modal-overlay" onClick={() => setShowBulkWa(false)}>
+          <div className="modal" style={{ maxWidth: 480 }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2 className="modal-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="#25D366">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+                </svg>
+                {t("agenda.bulkWaTitle")}
+              </h2>
+              <button className="modal-close" onClick={() => setShowBulkWa(false)}>×</button>
+            </div>
+            <div className="modal-body" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>
+                {t("agenda.bulkWaHint")}
+              </div>
+              {apptsPendingWa.map(appt => {
+                const pt = appt.patientId ? patients.find(p => p.id === appt.patientId) : null;
+                const phone = pt?.phone ?? "";
+                const waTemplates2 = waTemplates.filter(t => t.category === "rappel");
+                const tpl = waTemplates2[0];
+                const link = tpl
+                  ? `https://wa.me/${phone.replace(/\D/g, "")}?text=${encodeURIComponent(renderWaBody(tpl.body, appt, doctorProfile?.fullName, locale))}`
+                  : `https://wa.me/${phone.replace(/\D/g, "")}`;
+                return (
+                  <a
+                    key={appt.id}
+                    href={link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="bulk-wa-row"
+                  >
+                    <span className="bulk-wa-name">{appt.patientName}</span>
+                    <span className="bulk-wa-meta">{appt.startTime} · {phone}</span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="#25D366" style={{ flexShrink: 0 }}>
+                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+                    </svg>
+                  </a>
+                );
+              })}
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-ghost" onClick={() => setShowBulkWa(false)}>{t("common.close")}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floating ghost while dragging a RDV to a new time/day */}
+      {tgDrag?.preview && (
+        <div
+          className="tgrid-drag-ghost"
+          style={{
+            left: tgDrag.preview.left,
+            top: tgDrag.preview.top,
+            width: tgDrag.preview.width,
+            height: tgDrag.preview.height,
+            borderLeftColor: APPT_TYPE_COLORS[tgDrag.appt.type],
+            color: APPT_TYPE_COLORS[tgDrag.appt.type],
+          }}
+        >
+          <span className="tgrid-event-time">{tgDrag.preview.startTime}</span>
+          <span className="tgrid-event-name">{tgDrag.appt.patientName}</span>
+        </div>
+      )}
+
     </Layout>
   );
 }

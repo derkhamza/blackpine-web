@@ -1,19 +1,16 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Layout } from "../components/Layout";
 import { useApp } from "../context/AppContext";
 import { ReportPage } from "./ReportPage";
 import { ExplainPage } from "./ExplainPage";
 import { OptimisationPage } from "./OptimisationPage";
+import { AnalytiquesPage } from "./AnalytiquesPage";
 
-type RTab = "rapport" | "calcul" | "optimisation";
-
-const TABS: { id: RTab; label: string }[] = [
-  { id: "rapport",       label: "Rapport financier" },
-  { id: "calcul",        label: "Calcul fiscal" },
-  { id: "optimisation",  label: "Optimisation" },
-];
+type RTab = "rapport" | "calcul" | "optimisation" | "analytiques";
 
 export function RapportsPage() {
+  const { t } = useTranslation();
   const [tab, setTab] = useState<RTab>("rapport");
   const { fiscalYear, setFiscalYear, FISCAL_MIN, FISCAL_MAX } = useApp();
 
@@ -24,8 +21,8 @@ export function RapportsPage() {
 
   return (
     <Layout
-      title="Rapports & Fiscalité"
-      subtitle={`Exercice ${fiscalYear}`}
+      title={t("rapports.title")}
+      subtitle={t("rapports.subtitle", { year: fiscalYear })}
       actions={
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <select
@@ -41,20 +38,36 @@ export function RapportsPage() {
     >
       {/* ── Tab bar ── */}
       <div className="tab-bar" style={{ marginBottom: 20 }}>
-        {TABS.map(t => (
-          <button
-            key={t.id}
-            className={`tab-btn${tab === t.id ? " active" : ""}`}
-            onClick={() => setTab(t.id)}
-          >
-            {t.label}
-          </button>
-        ))}
+        <button
+          className={`tab-btn${tab === "rapport" ? " active" : ""}`}
+          onClick={() => setTab("rapport")}
+        >
+          {t("rapports.tabRapport")}
+        </button>
+        <button
+          className={`tab-btn${tab === "calcul" ? " active" : ""}`}
+          onClick={() => setTab("calcul")}
+        >
+          {t("rapports.tabCalc")}
+        </button>
+        <button
+          className={`tab-btn${tab === "optimisation" ? " active" : ""}`}
+          onClick={() => setTab("optimisation")}
+        >
+          {t("rapports.tabOptimisation")}
+        </button>
+        <button
+          className={`tab-btn${tab === "analytiques" ? " active" : ""}`}
+          onClick={() => setTab("analytiques")}
+        >
+          {t("rapports.tabAnalytiques")}
+        </button>
       </div>
 
       {tab === "rapport"      && <ReportPage      noLayout />}
       {tab === "calcul"       && <ExplainPage      noLayout />}
       {tab === "optimisation" && <OptimisationPage noLayout />}
+      {tab === "analytiques"  && <AnalytiquesPage  noLayout />}
     </Layout>
   );
 }

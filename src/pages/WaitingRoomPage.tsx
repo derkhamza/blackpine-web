@@ -3,8 +3,10 @@ import { Link } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import { useCabinet } from "../context/CabinetContext";
 import { todayIso } from "../lib/format";
+import { AnimatedNumber } from "../components/AnimatedNumber";
 import type { Appointment } from "../lib/cabinetTypes";
 import { APPT_TYPE_LABELS, APPT_TYPE_COLORS } from "../lib/cabinetTypes";
+import { useTranslation } from "react-i18next";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -32,20 +34,23 @@ interface CardProps {
 }
 
 function WaitCard({ appt, now, onArrive, onCall, onDone, onNoShow }: CardProps) {
+  const { t } = useTranslation();
   const color = (APPT_TYPE_COLORS as Record<string, string>)[appt.type] ?? "#888";
   const typeLabel = (APPT_TYPE_LABELS as Record<string, string>)[appt.type] ?? appt.type;
 
   const waitLabel =
     appt.status === "arrived" && appt.checkedInAt
-      ? `⏱ Attend depuis ${fmtMins(waitMins(appt.checkedInAt, now))}`
+      ? t("waiting.waitSince", { time: fmtMins(waitMins(appt.checkedInAt, now)) })
       : appt.status === "in_consultation" && appt.inConsultationAt
-      ? `🩺 En consul. depuis ${fmtMins(waitMins(appt.inConsultationAt, now))}`
+      ? t("waiting.inConsulSince", { time: fmtMins(waitMins(appt.inConsultationAt, now)) })
       : null;
 
   return (
     <div className={`wr-card wr-s-${appt.status}`}>
       <div className="wr-card-top">
-        <span className="wr-card-time">{appt.startTime} – {appt.endTime}</span>
+        <Link to={`/agenda/${appt.id}`} className="wr-card-time wr-card-open" title={t("waiting.openAppt")}>
+          {appt.startTime} – {appt.endTime}
+        </Link>
         <span className="wr-type-chip" style={{ background: color + "22", color }}>
           {typeLabel}
         </span>
@@ -62,24 +67,24 @@ function WaitCard({ appt, now, onArrive, onCall, onDone, onNoShow }: CardProps) 
 
       <div className="wr-card-actions">
         {appt.status === "scheduled" && <>
-          <button className="wr-btn wr-arrive" onClick={onArrive}>✓ Arrivé</button>
-          <button className="wr-btn wr-absent" onClick={onNoShow}>Absent</button>
+          <button className="wr-btn wr-arrive" onClick={onArrive}>{t("waiting.btnArrive")}</button>
+          <button className="wr-btn wr-absent" onClick={onNoShow}>{t("waiting.btnNoShow")}</button>
         </>}
         {appt.status === "arrived" && <>
-          <button className="wr-btn wr-call" onClick={onCall}>▶ Appeler</button>
-          <button className="wr-btn wr-absent" onClick={onNoShow}>Absent</button>
+          <button className="wr-btn wr-call" onClick={onCall}>{t("waiting.btnCall")}</button>
+          <button className="wr-btn wr-absent" onClick={onNoShow}>{t("waiting.btnNoShow")}</button>
         </>}
         {appt.status === "in_consultation" && (
-          <button className="wr-btn wr-done" onClick={onDone}>✓ Terminer</button>
+          <button className="wr-btn wr-done" onClick={onDone}>{t("waiting.btnDone")}</button>
         )}
         {appt.status === "completed" && (
-          <span className="wr-done-chip wr-ok">✓ Terminé</span>
+          <span className="wr-done-chip wr-ok">{t("waiting.chipDone")}</span>
         )}
         {appt.status === "no_show" && (
-          <span className="wr-done-chip wr-absent-chip">✕ Absent</span>
+          <span className="wr-done-chip wr-absent-chip">{t("waiting.chipNoShow")}</span>
         )}
         {appt.status === "cancelled" && (
-          <span className="wr-done-chip wr-absent-chip">✕ Annulé</span>
+          <span className="wr-done-chip wr-absent-chip">{t("waiting.chipCancelled")}</span>
         )}
       </div>
     </div>
@@ -113,6 +118,9 @@ function Col({ title, accent, count, children }: {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export function WaitingRoomPage() {
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language?.slice(0, 2) === "ar" ? "ar-MA"
+               : i18n.language?.slice(0, 2) === "en" ? "en-US" : "fr-FR";
   const { appointments, updateAppointment } = useCabinet();
   const today = todayIso();
 
@@ -148,26 +156,26 @@ export function WaitingRoomPage() {
   const noShow = useCallback((appt: Appointment) =>
     updateAppointment({ ...appt, status: "no_show" }), [updateAppointment]);
 
-  const timeStr = now.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
-  const dateStr = now.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+  const timeStr = now.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
+  const dateStr = now.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" });
 
   const kpis = [
-    { label: "À venir",        count: cols.scheduled.length,       accent: "#6b7280" },
-    { label: "En attente",      count: cols.arrived.length,         accent: "#d97706" },
-    { label: "En consultation", count: cols.in_consultation.length, accent: "#1890C5" },
-    { label: "Terminés",        count: cols.done.length,            accent: "#15a876" },
+    { label: t("waiting.colScheduled"),      count: cols.scheduled.length,       accent: "#6b7280" },
+    { label: t("waiting.colArrived"),         count: cols.arrived.length,         accent: "#d97706" },
+    { label: t("waiting.colInConsultation"),  count: cols.in_consultation.length, accent: "#1890C5" },
+    { label: t("waiting.colDone"),            count: cols.done.length,            accent: "#15a876" },
   ];
 
   return (
     <Layout
-      title="Salle d'attente"
+      title={t("waiting.title")}
       subtitle={`${dateStr.charAt(0).toUpperCase() + dateStr.slice(1)} · ${timeStr}`}
     >
       {/* KPI strip */}
       <div className="wr-kpi-strip">
         {kpis.map(({ label, count, accent }) => (
           <div key={label} className="wr-kpi" style={{ borderTopColor: accent }}>
-            <div className="wr-kpi-val" style={{ color: accent }}>{count}</div>
+            <div className="wr-kpi-val" style={{ color: accent }}><AnimatedNumber value={count} /></div>
             <div className="wr-kpi-lbl">{label}</div>
           </div>
         ))}
@@ -176,14 +184,14 @@ export function WaitingRoomPage() {
       {todayAppts.length === 0 ? (
         <div className="wr-empty">
           <div className="wr-empty-icon">🗓</div>
-          <div className="wr-empty-title">Aucun rendez-vous aujourd'hui</div>
+          <div className="wr-empty-title">{t("waiting.noAppts")}</div>
           <div className="wr-empty-sub">
-            <Link to="/agenda" className="wr-empty-link">Voir l'agenda →</Link>
+            <Link to="/agenda" className="wr-empty-link">{t("waiting.viewAgenda")}</Link>
           </div>
         </div>
       ) : (
         <div className="wr-board">
-          <Col title="À venir" accent="#6b7280" count={cols.scheduled.length}>
+          <Col title={t("waiting.colScheduled")} accent="#6b7280" count={cols.scheduled.length}>
             {cols.scheduled.map(a => (
               <WaitCard key={a.id} appt={a} now={now}
                 onArrive={() => arrive(a)} onCall={() => call(a)}
@@ -191,7 +199,7 @@ export function WaitingRoomPage() {
             ))}
           </Col>
 
-          <Col title="En attente" accent="#d97706" count={cols.arrived.length}>
+          <Col title={t("waiting.colArrived")} accent="#d97706" count={cols.arrived.length}>
             {cols.arrived.map(a => (
               <WaitCard key={a.id} appt={a} now={now}
                 onArrive={() => arrive(a)} onCall={() => call(a)}
@@ -199,7 +207,7 @@ export function WaitingRoomPage() {
             ))}
           </Col>
 
-          <Col title="En consultation" accent="#1890C5" count={cols.in_consultation.length}>
+          <Col title={t("waiting.colInConsultation")} accent="#1890C5" count={cols.in_consultation.length}>
             {cols.in_consultation.map(a => (
               <WaitCard key={a.id} appt={a} now={now}
                 onArrive={() => arrive(a)} onCall={() => call(a)}
@@ -207,7 +215,7 @@ export function WaitingRoomPage() {
             ))}
           </Col>
 
-          <Col title="Terminé / Absent" accent="#15a876" count={cols.done.length}>
+          <Col title={t("waiting.colDoneAbsent")} accent="#15a876" count={cols.done.length}>
             {cols.done.map(a => (
               <WaitCard key={a.id} appt={a} now={now}
                 onArrive={() => arrive(a)} onCall={() => call(a)}

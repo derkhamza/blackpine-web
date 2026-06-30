@@ -1,10 +1,13 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { getCategoryById } from "../engine";
 import type { Transaction } from "../engine";
 import { Layout } from "../components/Layout";
+import { useToast } from "../components/Toast";
 import { useApp } from "../context/AppContext";
 import { formatMAD, formatDateShort, todayIso } from "../lib/format";
+import { AnimatedNumber } from "../components/AnimatedNumber";
 
 // ── Categories ────────────────────────────────────────────────────────────────
 
@@ -101,6 +104,7 @@ function FilterBar({
   totalCount: number;
   filteredCount: number;
 }) {
+  const { t } = useTranslation();
   const up = (patch: Partial<FilterState>) => onChange({ ...filters, ...patch });
   const active = isFiltersActive(filters);
 
@@ -121,7 +125,7 @@ function FilterBar({
           <input
             className="tx-search-input"
             type="text"
-            placeholder="Rechercher (catégorie, montant…)"
+            placeholder={t("transactions.searchPlaceholder")}
             value={filters.query}
             onChange={(e) => up({ query: e.target.value })}
           />
@@ -132,15 +136,15 @@ function FilterBar({
 
         {/* Type chips */}
         <div className="tx-type-chips">
-          {(["ALL", "RECETTE", "CHARGE"] as TypeFilter[]).map((t) => (
+          {(["ALL", "RECETTE", "CHARGE"] as TypeFilter[]).map((typ) => (
             <button
-              key={t}
-              className={`tx-chip${filters.typeFilter === t ? " active" : ""}${
-                t === "RECETTE" ? " recette" : t === "CHARGE" ? " charge" : ""
+              key={typ}
+              className={`tx-chip${filters.typeFilter === typ ? " active" : ""}${
+                typ === "RECETTE" ? " recette" : typ === "CHARGE" ? " charge" : ""
               }`}
-              onClick={() => up({ typeFilter: t, category: null })}
+              onClick={() => up({ typeFilter: typ, category: null })}
             >
-              {t === "ALL" ? "Tout" : t === "RECETTE" ? "Recettes" : "Charges"}
+              {typ === "ALL" ? t("transactions.filterAll") : typ === "RECETTE" ? t("transactions.filterRecettes") : t("transactions.filterCharges")}
             </button>
           ))}
         </div>
@@ -149,14 +153,14 @@ function FilterBar({
         <div className="tx-sort-wrap">
           <button
             className="tx-sort-btn"
-            title="Basculer tri par date / montant"
+            title={t("transactions.sortToggleTitle")}
             onClick={() => up({ sortField: filters.sortField === "date" ? "amount" : "date" })}
           >
-            {filters.sortField === "date" ? "Trier : Date" : "Trier : Montant"}
+            {filters.sortField === "date" ? t("transactions.sortByDate") : t("transactions.sortByAmount")}
           </button>
           <button
             className="tx-sort-btn tx-sort-dir"
-            title="Inverser l'ordre"
+            title={t("transactions.sortDirTitle")}
             onClick={() => up({ sortOrder: filters.sortOrder === "desc" ? "asc" : "desc" })}
           >
             {filters.sortOrder === "desc" ? "↓" : "↑"}
@@ -167,14 +171,14 @@ function FilterBar({
       {/* ── Row 2: date range ── */}
       <div className="tx-filter-row tx-filter-row-dates">
         <div className="tx-date-range">
-          <label className="tx-date-label">De</label>
+          <label className="tx-date-label">{t("transactions.dateFrom")}</label>
           <input
             className="tx-date-input"
             type="date"
             value={filters.dateFrom ?? ""}
             onChange={(e) => up({ dateFrom: e.target.value || null })}
           />
-          <label className="tx-date-label">À</label>
+          <label className="tx-date-label">{t("transactions.dateTo")}</label>
           <input
             className="tx-date-input"
             type="date"
@@ -196,15 +200,15 @@ function FilterBar({
           {active ? (
             <>
               <span className="tx-filter-count">
-                {filteredCount} résultat{filteredCount !== 1 ? "s" : ""} sur {totalCount}
+                {t("transactions.filteredResults", { n: filteredCount, s: filteredCount !== 1 ? "s" : "", total: totalCount })}
               </span>
               <button className="tx-filter-reset" onClick={() => onChange(DEFAULT_FILTERS)}>
-                Réinitialiser
+                {t("transactions.reset")}
               </button>
             </>
           ) : (
             <span className="tx-filter-count-neutral">
-              {totalCount} opération{totalCount !== 1 ? "s" : ""}
+              {t("transactions.totalOps", { n: totalCount, s: totalCount !== 1 ? "s" : "" })}
             </span>
           )}
         </div>
@@ -217,7 +221,7 @@ function FilterBar({
             className={`tx-cat-chip${filters.category === null ? " active" : ""}`}
             onClick={() => up({ category: null })}
           >
-            Toutes catégories
+            {t("transactions.allCategories")}
           </button>
           {catList.map((c) => (
             <button
@@ -244,6 +248,7 @@ interface ModalProps {
 }
 
 function TxModal({ initial, initialType, onSave, onClose }: ModalProps) {
+  const { t } = useTranslation();
   const [type,     setType]     = useState<"RECETTE" | "CHARGE">(initial?.type ?? initialType ?? "RECETTE");
   const [amount,   setAmount]   = useState(initial?.amount ? String(initial.amount) : "");
   const [date,     setDate]     = useState(initial?.date ?? todayIso());
@@ -254,9 +259,9 @@ function TxModal({ initial, initialType, onSave, onClose }: ModalProps) {
   const [proRatio, setProRatio] = useState(initial?.professionalUseRatio ?? 1);
   const [notes,    setNotes]    = useState(initial?.description ?? "");
 
-  const handleTypeChange = (t: "RECETTE" | "CHARGE") => {
-    setType(t);
-    setCategory(t === "RECETTE" ? "consultation" : "loyer_cabinet");
+  const handleTypeChange = (tp: "RECETTE" | "CHARGE") => {
+    setType(tp);
+    setCategory(tp === "RECETTE" ? "consultation" : "loyer_cabinet");
   };
 
   const cats = type === "RECETTE" ? RECETTE_CATS : CHARGE_CATS;
@@ -280,7 +285,7 @@ function TxModal({ initial, initialType, onSave, onClose }: ModalProps) {
     <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modal" style={{ maxWidth: 520 }}>
         <div className="modal-header">
-          <h2 className="modal-title">{initial?.id ? "Modifier" : "Nouvelle"} transaction</h2>
+          <h2 className="modal-title">{initial?.id ? t("transactions.modalTitleEdit") : t("transactions.modalTitleNew")}</h2>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
         <form onSubmit={handleSubmit}>
@@ -288,24 +293,24 @@ function TxModal({ initial, initialType, onSave, onClose }: ModalProps) {
 
             {/* Type toggle */}
             <div style={{ display: "flex", gap: 8 }}>
-              {(["RECETTE", "CHARGE"] as const).map((t) => (
+              {(["RECETTE", "CHARGE"] as const).map((tp) => (
                 <button
-                  key={t} type="button"
-                  className={`tx-chip${type === t ? " active" : ""}${t === "RECETTE" ? " recette" : " charge"}`}
+                  key={tp} type="button"
+                  className={`tx-chip${type === tp ? " active" : ""}${tp === "RECETTE" ? " recette" : " charge"}`}
                   style={{ flex: 1, padding: "10px 0", fontSize: 13, fontWeight: 700,
-                    background: type === t ? (t === "RECETTE" ? "var(--green)" : "var(--coral)") : undefined,
-                    borderColor: type === t ? "transparent" : undefined,
-                    color: type === t ? "#fff" : undefined }}
-                  onClick={() => handleTypeChange(t)}
+                    background: type === tp ? (tp === "RECETTE" ? "var(--green)" : "var(--coral)") : undefined,
+                    borderColor: type === tp ? "transparent" : undefined,
+                    color: type === tp ? "#fff" : undefined }}
+                  onClick={() => handleTypeChange(tp)}
                 >
-                  {t === "RECETTE" ? "+ Recette" : "− Charge"}
+                  {tp === "RECETTE" ? t("transactions.btnRecette") : t("transactions.btnCharge")}
                 </button>
               ))}
             </div>
 
             <div className="form-row">
               <div className="form-group">
-                <label className="form-label">Montant (MAD)</label>
+                <label className="form-label">{t("transactions.amountLabel")}</label>
                 <input
                   className="form-input" type="number" min="0.01" step="0.01"
                   placeholder="0.00" value={amount}
@@ -313,7 +318,7 @@ function TxModal({ initial, initialType, onSave, onClose }: ModalProps) {
                 />
               </div>
               <div className="form-group">
-                <label className="form-label">Date</label>
+                <label className="form-label">{t("transactions.dateLabel")}</label>
                 <input
                   className="form-input" type="date"
                   value={date} onChange={(e) => setDate(e.target.value)} required
@@ -322,7 +327,7 @@ function TxModal({ initial, initialType, onSave, onClose }: ModalProps) {
             </div>
 
             <div className="form-group">
-              <label className="form-label">Catégorie</label>
+              <label className="form-label">{t("transactions.categoryLabel")}</label>
               <select className="form-select" value={category} onChange={(e) => setCategory(e.target.value)}>
                 {cats.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
               </select>
@@ -332,20 +337,20 @@ function TxModal({ initial, initialType, onSave, onClose }: ModalProps) {
             {isCharge && (
               <div className="form-row">
                 <div className="form-group" style={{ flex: 2 }}>
-                  <label className="form-label">Déductibilité</label>
+                  <label className="form-label">{t("transactions.deductLabel")}</label>
                   <select
                     className="form-select"
                     value={deduct}
                     onChange={(e) => setDeduct(e.target.value as Transaction["deductibilityStatus"])}
                   >
-                    <option value="FULLY_DEDUCTIBLE">Totalement déductible</option>
-                    <option value="PARTIALLY_DEDUCTIBLE">Partiellement déductible</option>
-                    <option value="NON_DEDUCTIBLE">Non déductible</option>
+                    <option value="FULLY_DEDUCTIBLE">{t("transactions.deductFull")}</option>
+                    <option value="PARTIALLY_DEDUCTIBLE">{t("transactions.deductPartial")}</option>
+                    <option value="NON_DEDUCTIBLE">{t("transactions.deductNone")}</option>
                   </select>
                 </div>
                 {deduct === "PARTIALLY_DEDUCTIBLE" && (
                   <div className="form-group">
-                    <label className="form-label">Usage pro (%)</label>
+                    <label className="form-label">{t("transactions.proRatioLabel")}</label>
                     <input
                       className="form-input" type="number" min="1" max="100"
                       value={Math.round(proRatio * 100)}
@@ -357,10 +362,10 @@ function TxModal({ initial, initialType, onSave, onClose }: ModalProps) {
             )}
 
             <div className="form-group">
-              <label className="form-label">Notes <span className="form-label-hint">(optionnel)</span></label>
+              <label className="form-label">{t("transactions.notesLabel")} <span className="form-label-hint">{t("transactions.notesOptional")}</span></label>
               <input
                 className="form-input"
-                placeholder="Description libre…"
+                placeholder={t("transactions.notesPlaceholder")}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
               />
@@ -368,12 +373,12 @@ function TxModal({ initial, initialType, onSave, onClose }: ModalProps) {
           </div>
 
           <div className="modal-footer">
-            <button type="button" className="btn btn-ghost" onClick={onClose}>Annuler</button>
+            <button type="button" className="btn btn-ghost" onClick={onClose}>{t("common.cancel")}</button>
             <button
               type="submit" className="btn btn-primary"
               style={{ background: type === "RECETTE" ? "var(--green)" : "var(--coral)" }}
             >
-              Enregistrer
+              {t("common.save")}
             </button>
           </div>
         </form>
@@ -385,6 +390,7 @@ function TxModal({ initial, initialType, onSave, onClose }: ModalProps) {
 // ── Transaction row ───────────────────────────────────────────────────────────
 
 function DeductBadge({ status }: { status: Transaction["deductibilityStatus"] }) {
+  const { t } = useTranslation();
   if (!status || status === "FULLY_DEDUCTIBLE") return null;
   const partial = status === "PARTIALLY_DEDUCTIBLE";
   return (
@@ -392,14 +398,15 @@ function DeductBadge({ status }: { status: Transaction["deductibilityStatus"] })
       background: partial ? "var(--gold-soft)" : "var(--coral-soft)",
       color:      partial ? "var(--gold)"      : "var(--coral)",
     }}>
-      {partial ? "Partiel" : "Non déd."}
+      {partial ? t("transactions.deductBadgePartial") : t("transactions.deductBadgeNone")}
     </span>
   );
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
-export function TransactionsPage() {
+export function TransactionsPage({ noLayout = false }: { noLayout?: boolean } = {}) {
+  const { t } = useTranslation();
   const { transactions, fiscalYear, setFiscalYear, FISCAL_MIN, FISCAL_MAX,
           addTransaction, updateTransaction, deleteTransaction } = useApp();
   const [searchParams] = useSearchParams();
@@ -408,7 +415,6 @@ export function TransactionsPage() {
     typeFilter: (searchParams.get("filter") as TypeFilter | null) ?? "ALL",
   });
   const [modal,    setModal]    = useState<{ tx?: Transaction; type?: "RECETTE" | "CHARGE" } | null>(null);
-  const [toast,    setToast]    = useState<string | null>(null);
 
   // Consume ?filter= and ?openAdd= params on navigation
   useEffect(() => {
@@ -418,47 +424,48 @@ export function TransactionsPage() {
     if (oa) setModal({ type: oa });
   }, [searchParams]);
 
-  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 2800); };
+  const showToast = useToast();
 
   const yearTx   = useMemo(
-    () => transactions.filter((t) => t.date.startsWith(String(fiscalYear))),
+    () => transactions.filter((tx) => tx.date.startsWith(String(fiscalYear))),
     [transactions, fiscalYear]
   );
   const filtered = useMemo(() => applyFilters(yearTx, filters), [yearTx, filters]);
 
-  const recettes  = filtered.filter((t) => t.type === "RECETTE");
-  const charges   = filtered.filter((t) => t.type === "CHARGE");
-  const totalRec  = recettes.reduce((s, t) => s + t.amount, 0);
-  const totalChg  = charges.reduce((s, t) => s + t.amount, 0);
+  const recettes  = filtered.filter((tx) => tx.type === "RECETTE");
+  const charges   = filtered.filter((tx) => tx.type === "CHARGE");
+  const totalRec  = recettes.reduce((s, tx) => s + tx.amount, 0);
+  const totalChg  = charges.reduce((s, tx) => s + tx.amount, 0);
 
   const handleAdd = (tx: Omit<Transaction, "id">) => {
-    if (modal?.tx) { updateTransaction(modal.tx.id, tx); showToast("Transaction modifiée"); }
-    else           { addTransaction(tx);                  showToast("Transaction enregistrée"); }
+    if (modal?.tx) { updateTransaction(modal.tx.id, tx); showToast(t("transactions.modified")); }
+    else           { addTransaction(tx);                  showToast(t("transactions.saved")); }
   };
 
   const handleDelete = (id: string) => {
-    if (!window.confirm("Supprimer cette transaction ?")) return;
+    if (!window.confirm(t("transactions.deleteConfirm"))) return;
     deleteTransaction(id);
-    showToast("Transaction supprimée");
+    showToast(t("transactions.deleted"));
   };
 
-  return (
-    <Layout
-      title="Transactions"
-      subtitle={`${fiscalYear} · ${yearTx.length} opération${yearTx.length !== 1 ? "s" : ""}`}
-      actions={
-        <div className="fabs">
-          <button className="fab fab-recette" onClick={() => setModal({ type: "RECETTE" })}>
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
-            Recette
-          </button>
-          <button className="fab fab-charge" onClick={() => setModal({ type: "CHARGE" })}>
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
-            Charge
-          </button>
-        </div>
-      }
-    >
+  const fabs = (
+    <div className="fabs">
+      <button className="fab fab-recette" onClick={() => setModal({ type: "RECETTE" })}>
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
+        {t("transactions.addRecette")}
+      </button>
+      <button className="fab fab-charge" onClick={() => setModal({ type: "CHARGE" })}>
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
+        {t("transactions.addCharge")}
+      </button>
+    </div>
+  );
+
+  const content = (
+    <>
+      {noLayout && (
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>{fabs}</div>
+      )}
       {/* ── Year picker ── */}
       <div className="year-picker" style={{ marginBottom: 16 }}>
         <button className="year-btn" disabled={fiscalYear <= FISCAL_MIN}
@@ -469,7 +476,7 @@ export function TransactionsPage() {
         </button>
         <div>
           <div className="year-label">{fiscalYear}</div>
-          <div className="year-sub">Exercice fiscal</div>
+          <div className="year-sub">{t("transactions.fiscalYear")}</div>
         </div>
         <button className="year-btn" disabled={fiscalYear >= FISCAL_MAX}
           onClick={() => setFiscalYear(fiscalYear + 1)}>
@@ -490,14 +497,14 @@ export function TransactionsPage() {
       {/* ── Summary cards ── */}
       <div className="tx-summary">
         <div className="tx-summary-card" style={{ borderLeftColor: "var(--green)" }}>
-          <div className="tx-summary-label" style={{ color: "var(--green)" }}>Recettes</div>
-          <div className="tx-summary-value" style={{ color: "var(--green)" }}>{formatMAD(totalRec)}</div>
-          <div className="tx-summary-count">{recettes.length} opération{recettes.length !== 1 ? "s" : ""}</div>
+          <div className="tx-summary-label" style={{ color: "var(--green)" }}>{t("transactions.recettes")}</div>
+          <div className="tx-summary-value" style={{ color: "var(--green)" }}><AnimatedNumber value={totalRec} format={formatMAD} /></div>
+          <div className="tx-summary-count">{t("transactions.ops", { n: recettes.length, s: recettes.length !== 1 ? "s" : "" })}</div>
         </div>
         <div className="tx-summary-card" style={{ borderLeftColor: "var(--coral)" }}>
-          <div className="tx-summary-label" style={{ color: "var(--coral)" }}>Charges</div>
-          <div className="tx-summary-value" style={{ color: "var(--coral)" }}>{formatMAD(totalChg)}</div>
-          <div className="tx-summary-count">{charges.length} opération{charges.length !== 1 ? "s" : ""}</div>
+          <div className="tx-summary-label" style={{ color: "var(--coral)" }}>{t("transactions.charges")}</div>
+          <div className="tx-summary-value" style={{ color: "var(--coral)" }}><AnimatedNumber value={totalChg} format={formatMAD} /></div>
+          <div className="tx-summary-count">{t("transactions.ops", { n: charges.length, s: charges.length !== 1 ? "s" : "" })}</div>
         </div>
       </div>
 
@@ -508,16 +515,14 @@ export function TransactionsPage() {
             {isFiltersActive(filters) ? "🔍" : filters.typeFilter === "RECETTE" ? "💰" : filters.typeFilter === "CHARGE" ? "📋" : "📊"}
           </div>
           <div style={{ fontWeight: 700, marginBottom: 6 }}>
-            {isFiltersActive(filters) ? "Aucun résultat" : "Aucune transaction"}
+            {isFiltersActive(filters) ? t("transactions.emptyFiltered") : t("transactions.emptyTitle")}
           </div>
           <div style={{ marginBottom: 16 }}>
-            {isFiltersActive(filters)
-              ? "Essayez de modifier ou réinitialiser les filtres."
-              : "Utilisez les boutons ci-dessus pour en ajouter."}
+            {isFiltersActive(filters) ? t("transactions.emptyFilterHint") : t("transactions.emptyHint")}
           </div>
           {isFiltersActive(filters) && (
             <button className="btn btn-ghost" onClick={() => setFilters(DEFAULT_FILTERS)}>
-              Réinitialiser les filtres
+              {t("transactions.resetFilters")}
             </button>
           )}
         </div>
@@ -552,7 +557,7 @@ export function TransactionsPage() {
                   {isRec ? "+" : "−"}{formatMAD(tx.amount, { showCurrency: false })}
                 </div>
                 <button
-                  className="tx-delete" title="Supprimer"
+                  className="tx-delete" title={t("transactions.deleteBtnTitle")}
                   onClick={(e) => { e.stopPropagation(); handleDelete(tx.id); }}
                 >
                   <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
@@ -575,7 +580,16 @@ export function TransactionsPage() {
         />
       )}
 
-      {toast && <div className="toast">{toast}</div>}
+    </>
+  );
+
+  return noLayout ? content : (
+    <Layout
+      title={t("transactions.title")}
+      subtitle={t("transactions.subtitle", { year: fiscalYear, n: yearTx.length, s: yearTx.length !== 1 ? "s" : "" })}
+      actions={fabs}
+    >
+      {content}
     </Layout>
   );
 }

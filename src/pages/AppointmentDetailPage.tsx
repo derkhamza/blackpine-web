@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Layout } from "../components/Layout";
+import { DictationButton } from "../components/DictationButton";
 import { useCabinet } from "../context/CabinetContext";
 import { useApp } from "../context/AppContext";
 import type {
@@ -8,16 +10,18 @@ import type {
   ConsultationNote, VitalSigns, OrdonnanceLine, SavedCertificate,
 } from "../lib/cabinetTypes";
 import {
-  APPT_TYPE_LABELS, APPT_TYPE_COLORS, APPT_STATUS_LABELS,
+  APPT_TYPE_LABELS, APPT_TYPE_COLORS, APPT_STATUS_LABELS, DEFAULT_SECRETARY_PERMISSIONS,
 } from "../lib/cabinetTypes";
 import { NOTE_TEMPLATES, TEMPLATE_CATEGORIES } from "../lib/noteTemplates";
-import { todayIso, formatMAD } from "../lib/format";
+import { todayIso, formatMAD, formatDateShort, mmHgToCmHg, cmHgToMmHg, bmiClassify } from "../lib/format";
 import { printReceipt } from "../lib/receiptPrinter";
 import { nextInvoiceNumber, printFacture } from "../lib/facturePrinter";
 import { OrdonnanceModal }  from "../components/OrdonnanceModal";
 import { CertificateModal } from "../components/CertificateModal";
 import { Icd10Picker }      from "../components/Icd10Picker";
 import type { Icd10Entry }  from "../lib/icd10";
+import { getSpecialtyGroups } from "../lib/specialtyFields";
+import type { SpecialtyField } from "../lib/specialtyFields";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -25,11 +29,11 @@ const STATUS_OPTS: AppointmentStatus[] = [
   "scheduled", "arrived", "in_consultation", "completed", "cancelled", "no_show",
 ];
 const TYPE_OPTS: AppointmentType[] = [
-  "consultation", "suivi", "procedure", "urgence", "autre",
+  "consultation", "controle", "suivi", "procedure", "urgence", "autre",
 ];
 
-function fmtDate(iso: string) {
-  return new Date(iso + "T12:00:00").toLocaleDateString("fr-FR", {
+function fmtDate(iso: string, locale = "fr-FR") {
+  return new Date(iso + "T12:00:00").toLocaleDateString(locale, {
     weekday: "long", day: "numeric", month: "long", year: "numeric",
   });
 }
@@ -49,14 +53,15 @@ function vsColor(key: keyof VitalSigns, val: number): string {
 // ── VitalSign input ───────────────────────────────────────────────────────────
 
 function VsInput({
-  label, unit, value, onChange, onBlur, vsKey, hint,
+  label, unit, value, onChange, onBlur, vsKey, hint, readOnly, colorScale = 1,
 }: {
   label: string; unit: string; value: string;
   onChange: (v: string) => void; onBlur: () => void;
-  vsKey?: keyof VitalSigns; hint?: string;
+  vsKey?: keyof VitalSigns; hint?: string; readOnly?: boolean;
+  colorScale?: number; // multiply entered value before applying clinical thresholds (cmHg→mmHg = 10)
 }) {
   const num  = parseFloat(value.replace(",", "."));
-  const color = vsKey && !isNaN(num) ? vsColor(vsKey, num) : "var(--text)";
+  const color = vsKey && !isNaN(num) ? vsColor(vsKey, num * colorScale) : "var(--text)";
   return (
     <div className="vs-field">
       <div className="vs-label">{label}</div>
@@ -68,6 +73,7 @@ function VsInput({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onBlur={onBlur}
+          readOnly={readOnly}
           style={{ color: !isNaN(num) && vsKey ? color : undefined }}
         />
         <span className="vs-unit">{unit}</span>
@@ -77,17 +83,186 @@ function VsInput({
   );
 }
 
+// ── Specialty field input ─────────────────────────────────────────────────────
+
+function SpecialtyFieldInput({
+  field, value, onChange, onBlur, readOnly,
+}: {
+  field: SpecialtyField;
+  value: string;
+  onChange: (v: string) => void;
+  onBlur: (v: string) => void;
+  readOnly?: boolean;
+}) {
+  const labelEl = (
+    <label className="sf-label">
+      {field.label}
+      {field.unit && <span className="sf-unit">{field.unit}</span>}
+    </label>
+  );
+
+  if (field.type === "select") {
+    return (
+      <div className="sf-field">
+        {labelEl}
+        <select
+          className="form-select sf-input"
+          value={value}
+          disabled={readOnly}
+          onChange={(e) => { onChange(e.target.value); onBlur(e.target.value); }}
+        >
+          <option value="">—</option>
+          {field.options?.map((opt) => (
+            <option key={opt} value={opt}>{opt}</option>
+          ))}
+        </select>
+      </div>
+    );
+  }
+
+  if (field.type === "textarea") {
+    return (
+      <div className="sf-field sf-field-full">
+        {labelEl}
+        <textarea
+          className="form-input sf-input"
+          rows={field.rows ?? 2}
+          placeholder={field.placeholder}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onBlur={(e) => onBlur(e.target.value)}
+          readOnly={readOnly}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="sf-field">
+      {labelEl}
+      <input
+        className="form-input sf-input"
+        type={field.type === "number" ? "text" : "text"}
+        inputMode={field.type === "number" ? "decimal" : "text"}
+        placeholder={field.placeholder}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={(e) => onBlur(e.target.value)}
+        readOnly={readOnly}
+      />
+    </div>
+  );
+}
+
+// ── Link-to-patient picker ──────────────────────────────────────────────────────
+
+function LinkPatientModal({
+  patients, apptName, onPick, onClose,
+}: {
+  patients: { id: string; firstName: string; lastName: string; phone?: string; dateOfBirth?: string }[];
+  apptName: string;
+  onPick: (p: { id: string; firstName: string; lastName: string }) => void;
+  onClose: () => void;
+}) {
+  const { t } = useTranslation();
+  // Seed the search with the appointment's name so the likely match is on top.
+  const [q, setQ] = useState(apptName.trim());
+  const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  const filtered = useMemo(() => {
+    const needle = norm(q.trim());
+    const list = needle
+      ? patients.filter(p => norm(`${p.firstName} ${p.lastName} ${p.phone ?? ""}`).includes(needle))
+      : patients;
+    return list.slice(0, 50);
+  }, [patients, q]);
+
+  return (
+    <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="modal" style={{ maxWidth: 460 }}>
+        <div className="modal-header">
+          <h2 className="modal-title">{t("apptDetail.linkTitle")}</h2>
+          <button className="modal-close" onClick={onClose}>×</button>
+        </div>
+        <div className="modal-body">
+          <input
+            className="form-input"
+            autoFocus
+            placeholder={t("apptDetail.linkSearchPlaceholder")}
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            style={{ marginBottom: 12 }}
+          />
+          {patients.length === 0 ? (
+            <div style={{ fontSize: 13, color: "var(--muted)", padding: "8px 0" }}>{t("apptDetail.linkNoPatients")}</div>
+          ) : filtered.length === 0 ? (
+            <div style={{ fontSize: 13, color: "var(--muted)", padding: "8px 0" }}>{t("apptDetail.linkNoMatch")}</div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 320, overflowY: "auto" }}>
+              {filtered.map(p => (
+                <button
+                  key={p.id}
+                  type="button"
+                  className="rv-press"
+                  onClick={() => onPick(p)}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 10, width: "100%",
+                    padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 9,
+                    background: "var(--surface)", cursor: "pointer", textAlign: "left",
+                  }}
+                >
+                  <span style={{
+                    width: 30, height: 30, borderRadius: "50%", flexShrink: 0,
+                    background: "var(--blue-soft)", color: "var(--blue)", fontWeight: 700,
+                    display: "grid", placeItems: "center", fontSize: 13,
+                  }}>
+                    {(p.firstName[0] ?? "?").toUpperCase()}
+                  </span>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ fontWeight: 600, display: "block" }}>{p.firstName} {p.lastName}</span>
+                    {p.phone && <span style={{ fontSize: 12, color: "var(--muted)" }}>{p.phone}</span>}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="invite-code-hint" style={{ marginTop: 10 }}>{t("apptDetail.linkHint")}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export function AppointmentDetailPage() {
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language?.slice(0, 2) === "ar" ? "ar-MA"
+               : i18n.language?.slice(0, 2) === "en" ? "en-US" : "fr-FR";
   const { apptId } = useParams<{ apptId: string }>();
   const navigate    = useNavigate();
   const {
     appointments, patients, updateAppointment, deleteAppointment, addInvoice,
-    doctorProfile,
+    doctorProfile, role,
     apptDocuments, addApptDocument, deleteApptDocument,
   } = useCabinet();
   const { addTransaction } = useApp();
+  const readOnly = role === "secretary"; // secretary: view clinical notes, no clinical edits
+  // A Moroccan secretary commonly takes the measurements, so vitals stay
+  // editable for them when the doctor grants recordVitals (default on).
+  const secretaryPerms = doctorProfile.secretaryPermissions ?? DEFAULT_SECRETARY_PERMISSIONS;
+  const vitalsReadOnly = readOnly && !secretaryPerms.recordVitals;
+
+  // Most recent prescription this patient received at any *other* appointment —
+  // lets the doctor one-click "repeat last" for chronic patients.
+  const lastOrdonnanceLines = useMemo(() => {
+    const pid = appointments.find((a) => a.id === apptId)?.patientId;
+    if (!pid) return undefined;
+    const prior = appointments
+      .filter((a) => a.id !== apptId && a.patientId === pid
+        && a.savedOrdonnance && a.savedOrdonnance.lines.length > 0)
+      .sort((a, b) => b.savedOrdonnance!.printedAt.localeCompare(a.savedOrdonnance!.printedAt));
+    return prior[0]?.savedOrdonnance?.lines;
+  }, [appointments, apptId]);
 
   const appt = useMemo(
     () => appointments.find((a) => a.id === apptId),
@@ -103,10 +278,11 @@ export function AppointmentDetailPage() {
   const [tab, setTab] = useState<"notes" | "vitals" | "suivi">("notes");
 
   // ── Clinical notes (local → auto-save on blur) ────────────────────────────
-  const [motif,     setMotif]     = useState("");
-  const [exam,      setExam]      = useState("");
-  const [diag,      setDiag]      = useState("");
-  const [treatment, setTreatment] = useState("");
+  const [motif,       setMotif]       = useState("");
+  const [exam,        setExam]        = useState("");
+  const [diag,        setDiag]        = useState("");
+  const [treatment,   setTreatment]   = useState("");
+  const [extraFields, setExtraFields] = useState<Record<string, string>>({});
 
   // ── Vital signs ───────────────────────────────────────────────────────────
   const [bpSys,  setBpSys]  = useState("");
@@ -130,6 +306,11 @@ export function AppointmentDetailPage() {
   const [showBill,  setShowBill]  = useState(false);
   const [billAmt,   setBillAmt]   = useState("200");
 
+  // ── Link-to-patient modal ─────────────────────────────────────────────────
+  const [showLink, setShowLink] = useState(false);
+  // Linking is a patient-data action: doctors always, secretaries only if granted.
+  const canLink = !readOnly || secretaryPerms.editPatients;
+
   // ── Template selector ─────────────────────────────────────────────────────
   const [templateCat, setTemplateCat] = useState<string>("Général");
   const [showTemplates, setShowTemplates] = useState(false);
@@ -150,18 +331,65 @@ export function AppointmentDetailPage() {
     const files = Array.from(e.target.files ?? []);
     e.target.value = "";
     files.forEach(file => {
-      const MB2 = 2 * 1024 * 1024;
-      if (file.size > MB2) { setDocSizeWarn(true); return; }
-      const reader = new FileReader();
-      reader.onload = ev => {
+      const MB5 = 5 * 1024 * 1024;
+      if (file.size > MB5) { setDocSizeWarn(true); return; }
+
+      const storeDoc = (data: string, sizeBytes: number, mimeType: string) => {
         addApptDocument({
           appointmentId: apptId!,
           filename:      file.name,
-          mimeType:      file.type || "application/octet-stream",
-          sizeBytes:     file.size,
-          data:          ev.target?.result as string,
+          mimeType,
+          sizeBytes,
+          data,
           uploadedAt:    new Date().toISOString(),
         });
+      };
+
+      const reader = new FileReader();
+      reader.onerror = () => setDocSizeWarn(true);
+      reader.onload = ev => {
+        const original = ev.target?.result as string;
+        if (!original) { setDocSizeWarn(true); return; }
+
+        if (file.type.startsWith("image/")) {
+          // Try to compress images via canvas; fall back to the original bytes if
+          // anything in the decode/encode pipeline fails (HEIC, tainted canvas,
+          // oversized dimensions) so the attachment always lands on the first try.
+          const storeOriginal = () => {
+            const MB3 = 3 * 1024 * 1024;
+            if (file.size > MB3) { setDocSizeWarn(true); return; }
+            storeDoc(original, file.size, file.type || "image/jpeg");
+          };
+          const img = new Image();
+          img.onload = () => {
+            try {
+              const MAX = 1200;
+              let w = img.width, h = img.height;
+              if (!w || !h) { storeOriginal(); return; }
+              if (w > MAX || h > MAX) {
+                const ratio = MAX / Math.max(w, h);
+                w = Math.round(w * ratio);
+                h = Math.round(h * ratio);
+              }
+              const canvas = document.createElement("canvas");
+              canvas.width = w; canvas.height = h;
+              const ctx = canvas.getContext("2d");
+              if (!ctx) { storeOriginal(); return; }
+              ctx.drawImage(img, 0, 0, w, h);
+              const compressed = canvas.toDataURL("image/jpeg", 0.78);
+              if (!compressed || compressed.length < 100) { storeOriginal(); return; }
+              storeDoc(compressed, Math.round(compressed.length * 0.75), "image/jpeg");
+            } catch {
+              storeOriginal();
+            }
+          };
+          img.onerror = storeOriginal;
+          img.src = original;
+        } else {
+          const MB2 = 2 * 1024 * 1024;
+          if (file.size > MB2) { setDocSizeWarn(true); return; }
+          storeDoc(original, file.size, file.type || "application/octet-stream");
+        }
       };
       reader.readAsDataURL(file);
     });
@@ -212,26 +440,31 @@ export function AppointmentDetailPage() {
     setExam(n.examination ?? "");
     setDiag(n.diagnosis ?? "");
     setTreatment(n.treatment ?? "");
+    setExtraFields(n.extraFields ?? {});
     const vs = appt.vitalSigns ?? {};
-    setBpSys(vs.bpSys != null ? String(vs.bpSys) : "");
-    setBpDia(vs.bpDia != null ? String(vs.bpDia) : "");
+    setBpSys(vs.bpSys != null ? mmHgToCmHg(vs.bpSys) : "");
+    setBpDia(vs.bpDia != null ? mmHgToCmHg(vs.bpDia) : "");
     setHr(vs.hr != null ? String(vs.hr) : "");
     setTemp(vs.temp != null ? String(vs.temp) : "");
     setSpo2(vs.spo2 != null ? String(vs.spo2) : "");
     setWeight(vs.weight != null ? String(vs.weight) : "");
     setHeight(vs.height != null ? String(vs.height) : "");
     setRmbAmount(appt.reimbursementAmount != null ? String(appt.reimbursementAmount) : "");
+    // Pre-fill the billing amount from the doctor's per-type price (fallback 200).
+    const typePrice = doctorProfile.appointmentPrices?.[appt.type];
+    setBillAmt(appt.billedAmount != null ? String(appt.billedAmount)
+             : typePrice != null ? String(typePrice) : "200");
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appt?.id]);
 
   if (!appt) {
     return (
-      <Layout title="Rendez-vous" subtitle="introuvable">
+      <Layout title={t("apptDetail.notFound")} subtitle="">
         <div className="tx-empty">
           <div style={{ fontSize: 36, marginBottom: 10 }}>🗓️</div>
-          <div style={{ fontWeight: 700, marginBottom: 8 }}>Rendez-vous introuvable</div>
+          <div style={{ fontWeight: 700, marginBottom: 8 }}>{t("apptDetail.notFound")}</div>
           <button className="btn btn-primary" onClick={() => navigate("/agenda")}>
-            Retour à l'agenda
+            {t("apptDetail.backLink")}
           </button>
         </div>
       </Layout>
@@ -240,20 +473,58 @@ export function AppointmentDetailPage() {
 
   // ── Save helpers ──────────────────────────────────────────────────────────
 
-  const saveNotes = () => {
+  const saveNotes = (overrideExtra?: Record<string, string>) => {
+    const ef = overrideExtra ?? extraFields;
+    const nonEmptyExtra = Object.fromEntries(
+      Object.entries(ef).filter(([, v]) => v.trim() !== ""),
+    );
     const note: ConsultationNote = {
-      motif:       motif.trim() || undefined,
-      examination:  exam.trim()  || undefined,
-      diagnosis:    diag.trim()  || undefined,
+      motif:        motif.trim()     || undefined,
+      examination:  exam.trim()      || undefined,
+      diagnosis:    diag.trim()      || undefined,
       treatment:    treatment.trim() || undefined,
+      extraFields:  Object.keys(nonEmptyExtra).length ? nonEmptyExtra : undefined,
     };
     updateAppointment({ ...appt, consultationNote: note });
+  };
+
+  // Append a dictated phrase to a clinical-note field and persist immediately
+  // (the mic button never fires the textarea's onBlur autosave).
+  const dictateInto = (
+    key: "motif" | "examination" | "diagnosis" | "treatment",
+    setter: (s: string) => void,
+    current: string,
+  ) => (text: string) => {
+    const merged = (current.trim() ? current.replace(/\s+$/, "") + " " : "") + text;
+    setter(merged);
+    const nonEmptyExtra = Object.fromEntries(
+      Object.entries(extraFields).filter(([, v]) => v.trim() !== ""),
+    );
+    const note: ConsultationNote = {
+      motif:       motif.trim()     || undefined,
+      examination: exam.trim()      || undefined,
+      diagnosis:   diag.trim()      || undefined,
+      treatment:   treatment.trim() || undefined,
+      extraFields: Object.keys(nonEmptyExtra).length ? nonEmptyExtra : undefined,
+    };
+    note[key] = merged.trim() || undefined;
+    updateAppointment({ ...appt, consultationNote: note });
+  };
+
+  const setExtraField = (key: string, value: string) => {
+    setExtraFields((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const saveExtraField = (key: string, value: string) => {
+    const updated = { ...extraFields, [key]: value };
+    setExtraFields(updated);
+    saveNotes(updated);
   };
 
   const saveVitals = () => {
     const p = (s: string) => { const n = parseFloat(s.replace(",", ".")); return isNaN(n) ? undefined : n; };
     const vs: VitalSigns = {
-      bpSys: p(bpSys), bpDia: p(bpDia), hr: p(hr),
+      bpSys: cmHgToMmHg(bpSys), bpDia: cmHgToMmHg(bpDia), hr: p(hr),
       temp: p(temp), spo2: p(spo2), weight: p(weight), height: p(height),
     };
     const hasAny = Object.values(vs).some((v) => v !== undefined);
@@ -284,12 +555,17 @@ export function AppointmentDetailPage() {
   const handleBill = () => {
     const n = parseFloat(billAmt);
     if (isNaN(n) || n <= 0) return;
-    addTransaction({
-      type: "RECETTE", amount: n, date: appt.date,
-      category: appt.type === "procedure" ? "acte_chirurgical" : "consultation",
-      deductibilityStatus: "FULLY_DEDUCTIBLE", professionalUseRatio: 1,
-      description: `${APPT_TYPE_LABELS[appt.type]} – ${appt.patientName}`,
-    });
+    // A secretary records the billing on the appointment (which syncs to the
+    // cabinet and feeds the facture history) but does not write to the doctor's
+    // personal accounting ledger — that stays the doctor's to reconcile.
+    if (role !== "secretary") {
+      addTransaction({
+        type: "RECETTE", amount: n, date: appt.date,
+        category: appt.type === "procedure" ? "acte_chirurgical" : "consultation",
+        deductibilityStatus: "FULLY_DEDUCTIBLE", professionalUseRatio: 1,
+        description: `${APPT_TYPE_LABELS[appt.type]} – ${appt.patientName}`,
+      });
+    }
     updateAppointment({ ...appt, billedAt: new Date().toISOString(), billedAmount: n });
     setShowBill(false);
   };
@@ -303,7 +579,7 @@ export function AppointmentDetailPage() {
   };
 
   const handleDelete = () => {
-    if (!window.confirm(`Supprimer le rendez-vous de ${appt.patientName} ?`)) return;
+    if (!window.confirm(t("apptDetail.deleteConfirm", { name: appt.patientName }))) return;
     deleteAppointment(appt.id);
     navigate("/agenda");
   };
@@ -314,49 +590,97 @@ export function AppointmentDetailPage() {
     if (!w || !h || h <= 0) return null;
     return w / ((h / 100) ** 2);
   })();
-  const bmiLabel = bmi === null ? null
-    : bmi < 18.5 ? "Insuffisance pondérale"
-    : bmi < 25   ? "Corpulence normale"
-    : bmi < 30   ? "Surpoids"
-    : "Obésité";
+  const bmiClass = bmi === null ? null : bmiClassify(bmi);
+  const bmiLabel = bmiClass?.label ?? null;
 
   const typeColor   = APPT_TYPE_COLORS[appt.type];
-  const hasNotes    = motif || exam || diag || treatment;
+  const hasNotes    = motif || exam || diag || treatment || Object.keys(extraFields).some((k) => extraFields[k]?.trim());
   const templatesByCat = NOTE_TEMPLATES.filter((t) => t.category === templateCat);
+
+  const handleTypeChange = (newType: AppointmentType) => {
+    updateAppointment({ ...appt, type: newType });
+  };
+
+  const hiddenTypes = doctorProfile.hiddenConsultationTypes ?? [];
+  const visibleTypes = (["consultation", "controle", "suivi", "procedure", "urgence", "autre"] as AppointmentType[])
+    .filter(t => !hiddenTypes.includes(t) || t === appt.type);
+
+  const specialtyGroups = getSpecialtyGroups(doctorProfile.specialtyLabel);
 
   return (
     <Layout
       title={appt.patientName}
-      subtitle={`${fmtDate(appt.date)} · ${appt.startTime} → ${appt.endTime}`}
+      subtitle={`${fmtDate(appt.date, locale)} · ${appt.startTime} → ${appt.endTime}`}
     >
       {/* ── Back link ── */}
       <div style={{ marginBottom: 16 }}>
         <Link to="/agenda" className="appt-back-link">
-          ← Retour à l'Agenda
+          {t("apptDetail.backLink")}
         </Link>
       </div>
 
       {/* ── Header card ── */}
       <div className="appt-detail-header">
         <div className="appt-detail-meta">
-          <span
-            className="appt-detail-type-badge"
-            style={{ background: typeColor + "20", color: typeColor }}
-          >
-            {APPT_TYPE_LABELS[appt.type]}
-          </span>
+          {/* Inline consultation type selector */}
+          <div className="appt-type-pills" title={t("apptDetail.typeLabel")}>
+            {visibleTypes.map((type) => {
+              const c = APPT_TYPE_COLORS[type];
+              const active = appt.type === type;
+              return (
+                <button
+                  key={type}
+                  className={`appt-type-pill${active ? " active" : ""}`}
+                  style={active ? { background: c + "20", color: c, borderColor: c } : undefined}
+                  onClick={() => handleTypeChange(type)}
+                  type="button"
+                >
+                  {t(`apptType.${type}`)}
+                </button>
+              );
+            })}
+          </div>
           {appt.billedAt && (
-            <span className="appt-detail-billed-badge">✓ Facturé</span>
+            <span className="appt-detail-billed-badge">{t("apptDetail.billedBadge")}</span>
           )}
-          {patient && (
-            <Link to={`/patients/${patient.id}`} className="appt-detail-patient-link">
-              Voir le dossier patient →
-            </Link>
+          {appt.bookingSource === "online" && (
+            <span className="appt-online-badge" title={appt.bookingPhone || ""}>🌐 {t("apptDetail.onlineBadge")}</span>
+          )}
+          {patient ? (
+            <>
+              <Link to={`/patients/${patient.id}`} className="appt-detail-patient-link">
+                {t("apptDetail.patientFile")}
+              </Link>
+              {canLink && (
+                <button
+                  type="button"
+                  className="appt-detail-unlink-btn"
+                  onClick={() => updateAppointment({ ...appt, patientId: undefined })}
+                  title={t("apptDetail.unlinkTitle")}
+                >
+                  {t("apptDetail.unlink")}
+                </button>
+              )}
+            </>
+          ) : (
+            canLink && (
+              <button
+                type="button"
+                className="appt-detail-link-btn"
+                onClick={() => setShowLink(true)}
+              >
+                <svg width="12" height="12" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0 }}>
+                  <path d="M5.5 8.5l3-3M6 4l.7-.7a2.3 2.3 0 0 1 3.3 3.3l-.7.7M8 10l-.7.7a2.3 2.3 0 0 1-3.3-3.3l.7-.7"
+                    stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                {t("apptDetail.linkPatient")}
+              </button>
+            )
           )}
         </div>
 
         <div className="appt-detail-status-row">
-          <span className="appt-detail-status-label">Statut</span>
+          <span className="appt-detail-status-label">{t("apptDetail.statusLabel")}</span>
           <select
             className="appt-detail-status-select"
             value={appt.status}
@@ -368,8 +692,9 @@ export function AppointmentDetailPage() {
           </select>
 
           <div style={{ marginLeft: "auto", display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            {!readOnly && <>
             {/* Consultation timer */}
-            <div className="consult-timer" title={appt.consultationDuration ? `Dernière durée : ${fmtTimer(appt.consultationDuration)}` : "Chronomètre de consultation"}>
+            <div className="consult-timer" title={appt.consultationDuration ? t("apptDetail.lastDuration", { d: fmtTimer(appt.consultationDuration) }) : t("apptDetail.timerTitle")}>
               <span className="consult-timer-display" style={{ color: timerRunning ? "var(--green)" : undefined }}>
                 ⏱ {timerSeconds > 0 ? fmtTimer(timerSeconds) : appt.consultationDuration ? fmtTimer(appt.consultationDuration) : "00:00"}
               </span>
@@ -386,13 +711,13 @@ export function AppointmentDetailPage() {
             <button
               className="btn btn-ghost ord-open-btn"
               onClick={() => setShowOrd(true)}
-              title={appt.savedOrdonnance ? "Réimprimer l'ordonnance" : "Créer une ordonnance"}
+              title={appt.savedOrdonnance ? t("apptDetail.reprOrd") : t("apptDetail.newOrd")}
             >
               <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style={{ marginRight: 5 }}>
                 <rect x="2" y="1" width="9" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
                 <path d="M5 5h4M5 7.5h4M5 10h2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
               </svg>
-              {appt.savedOrdonnance ? "℞ Ordonnance" : "℞ Ordonnance"}
+              {t("apptDetail.prescription")}
               {appt.savedOrdonnance && (
                 <span className="ord-saved-dot" />
               )}
@@ -400,14 +725,14 @@ export function AppointmentDetailPage() {
             <button
               className="btn btn-ghost ord-open-btn"
               onClick={() => setShowCert(true)}
-              title="Certificats & attestations"
+              title={t("apptDetail.certTitle")}
             >
               <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style={{ marginRight: 5 }}>
                 <path d="M3 2h7l3 3v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1Z"
                   stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
                 <path d="M10 2v3h3M5 7h6M5 9.5h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
               </svg>
-              📄 Certificat
+              {t("apptDetail.certificate")}
               {(appt.savedCertificates?.length ?? 0) > 0 && (
                 <span className="ord-saved-dot" />
               )}
@@ -415,13 +740,21 @@ export function AppointmentDetailPage() {
             {!appt.billedAt && (
               <button className="btn btn-primary" style={{ background: "var(--green)" }}
                 onClick={() => setShowBill(true)}>
-                💰 Facturer
+                {t("apptDetail.bill")}
               </button>
             )}
             <button className="btn btn-ghost" style={{ color: "var(--coral)", borderColor: "var(--coral)" }}
               onClick={handleDelete}>
-              Supprimer
+              {t("apptDetail.deleteBtn")}
             </button>
+            </>}
+            {/* Secretary (read-only clinically) may still bill at the front desk. */}
+            {readOnly && secretaryPerms.handleBilling && !appt.billedAt && (
+              <button className="btn btn-primary" style={{ background: "var(--green)" }}
+                onClick={() => setShowBill(true)}>
+                {t("apptDetail.bill")}
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -429,9 +762,10 @@ export function AppointmentDetailPage() {
       {/* ── Tab bar ── */}
       <div className="appt-tabs">
         {([
-          { key: "notes",  label: "Notes cliniques", dot: hasNotes },
-          { key: "vitals", label: "Signes vitaux",   dot: !!appt.vitalSigns },
-          { key: "suivi",  label: "Suivi & AMO",     dot: !!appt.reimbursementStatus || !!appt.followUpDate },
+          { key: "notes",  label: t("apptDetail.clinicalNotes"), dot: hasNotes },
+          { key: "vitals", label: t("apptDetail.vitalSigns"),    dot: !!appt.vitalSigns },
+          // The follow-up / AMO tab is financial — hidden from secretaries.
+          ...(readOnly ? [] : [{ key: "suivi" as const, label: t("apptDetail.followup"), dot: !!appt.reimbursementStatus || !!appt.followUpDate }]),
         ] as const).map(({ key, label, dot }) => (
           <button
             key={key}
@@ -449,14 +783,16 @@ export function AppointmentDetailPage() {
         <div className="appt-tab-panel">
           {/* Template selector */}
           <div className="appt-section-header">
-            <div className="appt-section-title">Notes cliniques</div>
-            <button
-              className="btn btn-ghost"
-              style={{ fontSize: 12 }}
-              onClick={() => setShowTemplates((v) => !v)}
-            >
-              📋 Modèles {showTemplates ? "▲" : "▼"}
-            </button>
+            <div className="appt-section-title">{t("apptDetail.clinicalNotes")}</div>
+            {!readOnly && (
+              <button
+                className="btn btn-ghost"
+                style={{ fontSize: 12 }}
+                onClick={() => setShowTemplates((v) => !v)}
+              >
+                {t("apptDetail.templates")} {showTemplates ? "▲" : "▼"}
+              </button>
+            )}
           </div>
 
           {showTemplates && (
@@ -491,86 +827,138 @@ export function AppointmentDetailPage() {
 
           <div className="appt-notes-grid">
             <div className="form-group">
-              <label className="form-label">Motif de consultation</label>
-              <textarea
-                className="form-input appt-textarea"
-                rows={2}
-                placeholder="Raison de la visite…"
-                value={motif}
-                onChange={(e) => setMotif(e.target.value)}
-                onBlur={saveNotes}
-              />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Examen clinique</label>
-              <textarea
-                className="form-input appt-textarea"
-                rows={4}
-                placeholder="Résultats de l'examen clinique…"
-                value={exam}
-                onChange={(e) => setExam(e.target.value)}
-                onBlur={saveNotes}
-              />
-            </div>
-            <div className="form-group">
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-                <label className="form-label" style={{ margin: 0 }}>Diagnostic</label>
-                <button
-                  className="btn btn-ghost"
-                  style={{ fontSize: 11, padding: "2px 8px", gap: 4 }}
-                  onClick={() => setShowIcd10(true)}
-                  title="Sélectionner un code CIM-10"
-                  type="button"
-                >
-                  🔬 CIM-10
-                </button>
+              <div className="appt-note-label-row">
+                <label className="form-label" style={{ margin: 0 }}>{t("apptDetail.motif")}</label>
+                {!readOnly && <DictationButton lang={locale} onText={dictateInto("motif", setMotif, motif)} />}
               </div>
               <textarea
                 className="form-input appt-textarea"
                 rows={2}
-                placeholder="Diagnostic retenu… (ou choisir un code CIM-10)"
-                value={diag}
-                onChange={(e) => setDiag(e.target.value)}
-                onBlur={saveNotes}
+                placeholder={t("apptDetail.motifPlaceholder")}
+                value={motif}
+                onChange={(e) => setMotif(e.target.value)}
+                onBlur={() => saveNotes()}
+                readOnly={readOnly}
               />
             </div>
             <div className="form-group">
-              <label className="form-label">Traitement / Conduite à tenir</label>
+              <div className="appt-note-label-row">
+                <label className="form-label" style={{ margin: 0 }}>{t("apptDetail.examination")}</label>
+                {!readOnly && <DictationButton lang={locale} onText={dictateInto("examination", setExam, exam)} />}
+              </div>
               <textarea
                 className="form-input appt-textarea"
                 rows={4}
-                placeholder="Prescriptions, conseils, suivi…"
+                placeholder={t("apptDetail.examPlaceholder")}
+                value={exam}
+                onChange={(e) => setExam(e.target.value)}
+                onBlur={() => saveNotes()}
+                readOnly={readOnly}
+              />
+            </div>
+            <div className="form-group">
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                <label className="form-label" style={{ margin: 0 }}>{t("apptDetail.diagnosis")}</label>
+                {!readOnly && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <DictationButton lang={locale} onText={dictateInto("diagnosis", setDiag, diag)} />
+                    <button
+                      className="btn btn-ghost"
+                      style={{ fontSize: 11, padding: "2px 8px", gap: 4 }}
+                      onClick={() => setShowIcd10(true)}
+                      title={t("apptDetail.icd10Title")}
+                      type="button"
+                    >
+                      🔬 {t("apptDetail.icd10")}
+                    </button>
+                  </div>
+                )}
+              </div>
+              <textarea
+                className="form-input appt-textarea"
+                rows={2}
+                placeholder={t("apptDetail.diagPlaceholder")}
+                value={diag}
+                onChange={(e) => setDiag(e.target.value)}
+                onBlur={() => saveNotes()}
+                readOnly={readOnly}
+              />
+            </div>
+            <div className="form-group">
+              <div className="appt-note-label-row">
+                <label className="form-label" style={{ margin: 0 }}>{t("apptDetail.treatment")}</label>
+                {!readOnly && <DictationButton lang={locale} onText={dictateInto("treatment", setTreatment, treatment)} />}
+              </div>
+              <textarea
+                className="form-input appt-textarea"
+                rows={4}
+                placeholder={t("apptDetail.treatPlaceholder")}
                 value={treatment}
                 onChange={(e) => setTreatment(e.target.value)}
-                onBlur={saveNotes}
+                onBlur={() => saveNotes()}
+                readOnly={readOnly}
               />
             </div>
           </div>
 
+          {/* ── Specialty-specific fields ─────────────────────────── */}
+          {specialtyGroups.length > 0 && (
+            <div className="specialty-fields-section">
+              <div className="specialty-fields-title">
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
+                  <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.5"/>
+                  <path d="M8 5v3.5l2 1.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                </svg>
+                {t("apptDetail.specialtyFields")}
+                {doctorProfile.specialtyLabel && (
+                  <span className="specialty-fields-badge">{doctorProfile.specialtyLabel}</span>
+                )}
+              </div>
+              {specialtyGroups.map((group) => (
+                <div key={group.title} className="specialty-group">
+                  <div className="specialty-group-title">{group.title}</div>
+                  <div className="specialty-fields-grid">
+                    {group.fields.map((field: SpecialtyField) => (
+                      <SpecialtyFieldInput
+                        key={field.key}
+                        field={field}
+                        value={extraFields[field.key] ?? ""}
+                        onChange={(v) => setExtraField(field.key, v)}
+                        onBlur={(v) => saveExtraField(field.key, v)}
+                        readOnly={readOnly}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* Ordonnance shortcut */}
-          <div style={{ marginTop: 16, display: "flex", gap: 10, alignItems: "center" }}>
-            <button
-              className="btn btn-ghost ord-open-btn"
-              onClick={() => setShowOrd(true)}
-            >
-              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style={{ marginRight: 6 }}>
-                <rect x="2" y="1" width="9" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
-                <path d="M5 5h4M5 7.5h4M5 10h2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
-              </svg>
-              {appt.savedOrdonnance ? "Voir / réimprimer l'ordonnance" : "Créer une ordonnance"}
-            </button>
-            {appt.savedOrdonnance && (
-              <span className="ord-saved-badge">
-                ✓ Ordonnance sauvegardée ·{" "}
-                {new Date(appt.savedOrdonnance.printedAt).toLocaleDateString("fr-FR")}
-              </span>
-            )}
-            {!appt.savedOrdonnance && (
-              <span style={{ fontSize: 11, color: "var(--tertiary)" }}>
-                auto-sauvegardé à la sortie du champ
-              </span>
-            )}
-          </div>
+          {!readOnly && (
+            <div style={{ marginTop: 16, display: "flex", gap: 10, alignItems: "center" }}>
+              <button
+                className="btn btn-ghost ord-open-btn"
+                onClick={() => setShowOrd(true)}
+              >
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style={{ marginRight: 6 }}>
+                  <rect x="2" y="1" width="9" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
+                  <path d="M5 5h4M5 7.5h4M5 10h2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                </svg>
+                {appt.savedOrdonnance ? t("apptDetail.viewReprOrd") : t("apptDetail.newOrd")}
+              </button>
+              {appt.savedOrdonnance && (
+                <span className="ord-saved-badge">
+                  {t("apptDetail.ordSaved", { date: new Date(appt.savedOrdonnance.printedAt).toLocaleDateString(locale) })}
+                </span>
+              )}
+              {!appt.savedOrdonnance && (
+                <span style={{ fontSize: 11, color: "var(--tertiary)" }}>
+                  {t("apptDetail.autoSaved")}
+                </span>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -578,43 +966,41 @@ export function AppointmentDetailPage() {
       {tab === "vitals" && (
         <div className="appt-tab-panel">
           <div className="appt-section-header">
-            <div className="appt-section-title">Signes vitaux</div>
+            <div className="appt-section-title">{t("apptDetail.vitalSigns")}</div>
           </div>
 
           <div className="vs-grid">
             {/* Blood pressure */}
             <div className="vs-bp-group">
-              <div className="vs-group-label">Tension artérielle</div>
+              <div className="vs-group-label">{t("apptDetail.bpGroup")}</div>
               <div className="vs-bp-row">
-                <VsInput label="Sys." unit="mmHg" value={bpSys} onChange={setBpSys} onBlur={saveVitals} vsKey="bpSys" />
+                <VsInput label={t("apptDetail.bpSysLabel")} unit="cmHg" value={bpSys} onChange={setBpSys} onBlur={saveVitals} vsKey="bpSys" colorScale={10} readOnly={vitalsReadOnly} />
                 <span className="vs-bp-slash">/</span>
-                <VsInput label="Dia." unit="mmHg" value={bpDia} onChange={setBpDia} onBlur={saveVitals} vsKey="bpDia" />
+                <VsInput label={t("apptDetail.bpDiaLabel")} unit="cmHg" value={bpDia} onChange={setBpDia} onBlur={saveVitals} vsKey="bpDia" colorScale={10} readOnly={vitalsReadOnly} />
               </div>
             </div>
 
-            <VsInput label="Fréquence cardiaque" unit="bpm"  value={hr}     onChange={setHr}     onBlur={saveVitals} vsKey="hr" />
-            <VsInput label="Température"         unit="°C"   value={temp}   onChange={setTemp}   onBlur={saveVitals} vsKey="temp" />
-            <VsInput label="SpO₂"                unit="%"    value={spo2}   onChange={setSpo2}   onBlur={saveVitals} vsKey="spo2" />
-            <VsInput label="Poids"               unit="kg"   value={weight} onChange={setWeight} onBlur={saveVitals} />
-            <VsInput label="Taille"              unit="cm"   value={height} onChange={setHeight} onBlur={saveVitals} />
+            <VsInput label={t("apptDetail.hrLabel")}     unit="bpm"  value={hr}     onChange={setHr}     onBlur={saveVitals} vsKey="hr"   readOnly={vitalsReadOnly} />
+            <VsInput label={t("apptDetail.tempLabel")}   unit="°C"   value={temp}   onChange={setTemp}   onBlur={saveVitals} vsKey="temp" readOnly={vitalsReadOnly} />
+            <VsInput label={t("apptDetail.spo2Label")}   unit="%"    value={spo2}   onChange={setSpo2}   onBlur={saveVitals} vsKey="spo2" readOnly={vitalsReadOnly} />
+            <VsInput label={t("apptDetail.weightLabel")} unit="kg"   value={weight} onChange={setWeight} onBlur={saveVitals} readOnly={vitalsReadOnly} />
+            <VsInput label={t("apptDetail.heightLabel")} unit="cm"   value={height} onChange={setHeight} onBlur={saveVitals} readOnly={vitalsReadOnly} />
           </div>
 
           {bmi !== null && (
             <div className="vs-bmi-card">
-              <div className="vs-bmi-value">IMC : {bmi.toFixed(1)}</div>
-              <div className="vs-bmi-label" style={{
-                color: bmi < 18.5 || bmi >= 30 ? "var(--coral)" : bmi >= 25 ? "var(--gold)" : "var(--green)",
-              }}>
+              <div className="vs-bmi-value">{t("apptDetail.bmiLabel", { val: bmi.toFixed(1) })}</div>
+              <div className="vs-bmi-label" style={{ color: bmiClass?.color ?? "var(--text)" }}>
                 {bmiLabel}
               </div>
             </div>
           )}
 
           <div className="vs-legend">
-            <span className="vs-legend-item" style={{ color: "var(--green)" }}>● Normal</span>
-            <span className="vs-legend-item" style={{ color: "var(--gold)" }}>● Limite</span>
-            <span className="vs-legend-item" style={{ color: "var(--coral)" }}>● Anormal</span>
-            <span className="vs-legend-hint">Les couleurs changent selon les valeurs saisies. Auto-sauvegardé.</span>
+            <span className="vs-legend-item" style={{ color: "var(--green)" }}>● {t("apptDetail.vsNormal")}</span>
+            <span className="vs-legend-item" style={{ color: "var(--gold)" }}>● {t("apptDetail.vsLimit")}</span>
+            <span className="vs-legend-item" style={{ color: "var(--coral)" }}>● {t("apptDetail.vsAbnormal")}</span>
+            <span className="vs-legend-hint">{t("apptDetail.vsHint")}</span>
           </div>
         </div>
       )}
@@ -623,84 +1009,61 @@ export function AppointmentDetailPage() {
       {tab === "suivi" && (
         <div className="appt-tab-panel">
 
-          {/* AMO / CNOPS */}
+          {/* Mutuelle paperwork — doctors don't see the actual reimbursement, so we
+              only track whether the mutuelle forms were filled, and when. */}
           <div className="appt-section-header">
-            <div className="appt-section-title">AMO / CNOPS</div>
+            <div className="appt-section-title">{t("apptDetail.mutuelleTitle")}</div>
           </div>
           <div className="appt-suivi-grid">
             <div className="form-group">
-              <label className="form-label">Statut remboursement</label>
-              <select
-                className="form-select"
-                value={appt.reimbursementStatus ?? ""}
-                onChange={(e) => updateAppointment({
-                  ...appt,
-                  reimbursementStatus: (e.target.value || undefined) as Appointment["reimbursementStatus"],
-                })}
-              >
-                <option value="">— Non concerné —</option>
-                <option value="pending">En attente</option>
-                <option value="received">Encaissé</option>
-                <option value="rejected">Refusé</option>
-              </select>
+              <label className="form-label">{t("apptDetail.mutuellePapersLabel")}</label>
+              <label className="appt-mutuelle-check">
+                <input
+                  type="checkbox"
+                  checked={!!appt.mutuellePapersFilled}
+                  onChange={(e) => updateAppointment({
+                    ...appt,
+                    mutuellePapersFilled: e.target.checked || undefined,
+                    mutuellePapersDate: e.target.checked
+                      ? (appt.mutuellePapersDate ?? todayIso())
+                      : undefined,
+                  })}
+                />
+                <span>{t("apptDetail.mutuellePapersDone")}</span>
+              </label>
             </div>
 
-            {appt.reimbursementStatus && (
-              <>
-                <div className="form-group">
-                  <label className="form-label">Montant AMO (MAD)</label>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <input
-                      className="form-input"
-                      type="number" min="0" step="0.01"
-                      placeholder="0.00"
-                      value={rmbAmount}
-                      onChange={(e) => setRmbAmount(e.target.value)}
-                      onBlur={handleRmbSave}
-                    />
-                  </div>
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Date encaissement</label>
-                  <input
-                    className="form-input"
-                    type="date"
-                    value={appt.reimbursementDate ?? ""}
-                    onChange={(e) => updateAppointment({
-                      ...appt, reimbursementDate: e.target.value || undefined,
-                    })}
-                  />
-                </div>
-              </>
+            {appt.mutuellePapersFilled && (
+              <div className="form-group">
+                <label className="form-label">{t("apptDetail.mutuellePapersDate")}</label>
+                <input
+                  className="form-input"
+                  type="date"
+                  value={appt.mutuellePapersDate ?? ""}
+                  onChange={(e) => updateAppointment({
+                    ...appt, mutuellePapersDate: e.target.value || undefined,
+                  })}
+                />
+              </div>
             )}
           </div>
 
-          {/* Reimbursement status badge */}
-          {appt.reimbursementStatus && (
+          {appt.mutuellePapersFilled && (
             <div className="appt-rmb-badge-row">
-              <span className="appt-rmb-badge" style={{
-                background: appt.reimbursementStatus === "received" ? "var(--green-soft)"
-                          : appt.reimbursementStatus === "rejected"  ? "var(--coral-soft)"
-                          : "var(--gold-soft)",
-                color:      appt.reimbursementStatus === "received" ? "var(--green)"
-                          : appt.reimbursementStatus === "rejected"  ? "var(--coral)"
-                          : "var(--gold)",
-              }}>
-                {appt.reimbursementStatus === "received" ? "✓ Encaissé"
-                : appt.reimbursementStatus === "rejected" ? "✗ Refusé"
-                : "⏳ En attente"}
-                {appt.reimbursementAmount ? ` · ${formatMAD(appt.reimbursementAmount)}` : ""}
+              <span className="appt-rmb-badge" style={{ background: "var(--green-soft)", color: "var(--green)" }}>
+                {t("apptDetail.mutuelleBadgeDone")}
+                {appt.mutuellePapersDate ? ` · ${formatDateShort(appt.mutuellePapersDate)}` : ""}
               </span>
             </div>
           )}
 
           {/* Follow-up */}
           <div className="appt-section-header" style={{ marginTop: 20 }}>
-            <div className="appt-section-title">Rendez-vous de suivi</div>
+            <div className="appt-section-title">{t("apptDetail.followUpSection")}</div>
           </div>
           <div className="appt-suivi-grid">
             <div className="form-group">
-              <label className="form-label">Date de suivi prévue</label>
+              <label className="form-label">{t("apptDetail.followUpDate")}</label>
               <input
                 className="form-input"
                 type="date"
@@ -714,13 +1077,13 @@ export function AppointmentDetailPage() {
 
           {/* Billing */}
           <div className="appt-section-header" style={{ marginTop: 20 }}>
-            <div className="appt-section-title">Facturation</div>
+            <div className="appt-section-title">{t("apptDetail.billingTitle")}</div>
           </div>
           {appt.billedAt ? (
             <div className="appt-billed-info" style={{ flexWrap: "wrap", gap: 8 }}>
-              <span style={{ color: "var(--green)", fontWeight: 700 }}>✓ Consultation facturée</span>
+              <span style={{ color: "var(--green)", fontWeight: 700 }}>{t("apptDetail.billed")}</span>
               <span style={{ fontSize: 12, color: "var(--muted)" }}>
-                le {new Date(appt.billedAt).toLocaleDateString("fr-FR")}
+                {t("apptDetail.billedOn", { date: new Date(appt.billedAt).toLocaleDateString(locale) })}
                 {appt.billedAmount ? ` · ${formatMAD(appt.billedAmount)}` : ""}
               </span>
               {/* Reçu */}
@@ -734,14 +1097,14 @@ export function AppointmentDetailPage() {
                   amount:           appt.billedAmount ?? 0,
                   doctorProfile,
                 })}
-                title="Imprimer le reçu de paiement"
+                title={t("apptDetail.printReceiptTitle")}
               >
                 <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 5 }}>
                   <rect x="2" y="5" width="10" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.4"/>
                   <path d="M4 5V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" stroke="currentColor" strokeWidth="1.4"/>
                   <path d="M4 9h6M4 11h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
                 </svg>
-                Reçu
+                {t("apptDetail.receipt")}
               </button>
               {/* Facture */}
               {appt.invoiceNumber ? (
@@ -762,9 +1125,9 @@ export function AppointmentDetailPage() {
                       doctorProfile,
                     });
                   }}
-                  title={`Réimprimer la facture ${appt.invoiceNumber}`}
+                  title={t("apptDetail.reprInvoiceTitle", { num: appt.invoiceNumber })}
                 >
-                  📄 {appt.invoiceNumber}
+                  {t("apptDetail.invoicePrefix")} {appt.invoiceNumber}
                 </button>
               ) : (
                 <button
@@ -796,9 +1159,9 @@ export function AppointmentDetailPage() {
                       doctorProfile,
                     });
                   }}
-                  title="Émettre une facture officielle"
+                  title={t("apptDetail.emitInvoiceTitle")}
                 >
-                  📄 Émettre la facture
+                  {t("apptDetail.emitInvoice")}
                 </button>
               )}
             </div>
@@ -809,10 +1172,10 @@ export function AppointmentDetailPage() {
                 style={{ background: "var(--green)" }}
                 onClick={() => setShowBill(true)}
               >
-                💰 Facturer cette consultation
+                {t("apptDetail.billThisConsult")}
               </button>
               <span style={{ fontSize: 12, color: "var(--muted)" }}>
-                Crée une recette dans Transactions
+                {t("apptDetail.billHint")}
               </span>
             </div>
           )}
@@ -823,37 +1186,39 @@ export function AppointmentDetailPage() {
       <div className="appt-docs-section">
         <div className="appt-section-header">
           <div className="appt-section-title">
-            📎 Pièces jointes
+            {t("apptDetail.attachments")}
             {apptDocs.length > 0 && (
               <span className="appt-docs-count">{apptDocs.length}</span>
             )}
           </div>
-          <button
-            className="btn btn-ghost btn-sm"
-            onClick={() => { setDocSizeWarn(false); docFileRef.current?.click(); }}
-          >
-            + Ajouter
-          </button>
-          <input
-            ref={docFileRef}
-            type="file"
-            accept="image/*,.pdf,.doc,.docx"
-            multiple
-            style={{ display: "none" }}
-            onChange={handleDocUpload}
-          />
+          {!readOnly && <>
+            <button
+              className="btn btn-ghost btn-sm"
+              onClick={() => { setDocSizeWarn(false); docFileRef.current?.click(); }}
+            >
+              {t("apptDetail.addFile")}
+            </button>
+            <input
+              ref={docFileRef}
+              type="file"
+              accept="image/*,.pdf,.doc,.docx"
+              multiple
+              style={{ display: "none" }}
+              onChange={handleDocUpload}
+            />
+          </>}
         </div>
 
         {docSizeWarn && (
           <div className="appt-docs-warn">
-            ⚠️ Un ou plusieurs fichiers dépassent 2 Mo et n'ont pas été ajoutés.
+            {t("apptDetail.fileTooLarge")}
             <button className="appt-docs-warn-close" onClick={() => setDocSizeWarn(false)}>×</button>
           </div>
         )}
 
         {apptDocs.length === 0 ? (
           <div className="appt-docs-empty">
-            Aucun document joint à ce rendez-vous.
+            {t("apptDetail.noFiles")}
           </div>
         ) : (
           <div className="appt-docs-list">
@@ -882,14 +1247,14 @@ export function AppointmentDetailPage() {
                     )}
                   </div>
                   <div className="appt-doc-meta">
-                    {fmtBytes(doc.sizeBytes)} · {new Date(doc.uploadedAt).toLocaleDateString("fr-FR")}
+                    {fmtBytes(doc.sizeBytes)} · {new Date(doc.uploadedAt).toLocaleDateString(locale)}
                     {doc.label && <span className="appt-doc-label"> · {doc.label}</span>}
                   </div>
                 </div>
                 <button
                   className="appt-doc-delete"
-                  title="Supprimer"
-                  onClick={() => { if (confirm(`Supprimer « ${doc.filename} » ?`)) deleteApptDocument(doc.id); }}
+                  title={t("common.delete")}
+                  onClick={() => { if (confirm(t("apptDetail.deleteFileConfirm", { name: doc.filename }))) deleteApptDocument(doc.id); }}
                 >
                   ×
                 </button>
@@ -904,12 +1269,32 @@ export function AppointmentDetailPage() {
         <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setShowBill(false); }}>
           <div className="modal" style={{ maxWidth: 380 }}>
             <div className="modal-header">
-              <h2 className="modal-title">Facturer la consultation</h2>
+              <h2 className="modal-title">{t("apptDetail.billConsult")}</h2>
               <button className="modal-close" onClick={() => setShowBill(false)}>×</button>
             </div>
             <div className="modal-body">
+              {(doctorProfile.acteCodes?.length ?? 0) > 0 && (
+                <div className="form-group">
+                  <label className="form-label">{t("apptDetail.acteLabel")}</label>
+                  <select
+                    className="form-select"
+                    defaultValue=""
+                    onChange={(e) => {
+                      const a = doctorProfile.acteCodes?.find(c => c.id === e.target.value);
+                      if (a?.price != null) setBillAmt(String(a.price));
+                    }}
+                  >
+                    <option value="">{t("apptDetail.acteNone")}</option>
+                    {doctorProfile.acteCodes!.map(a => (
+                      <option key={a.id} value={a.id}>
+                        {a.code} · {a.label}{a.price != null ? ` · ${a.price} MAD` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div className="form-group">
-                <label className="form-label">Montant (MAD)</label>
+                <label className="form-label">{t("apptDetail.amountMAD")}</label>
                 <input
                   className="form-input"
                   type="number" min="0" step="0.01" autoFocus
@@ -919,17 +1304,17 @@ export function AppointmentDetailPage() {
                 />
               </div>
               <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}>
-                Patient : {appt.patientName} · {APPT_TYPE_LABELS[appt.type]}
+                {t("apptDetail.billPatient", { name: appt.patientName, type: APPT_TYPE_LABELS[appt.type] })}
               </div>
             </div>
             <div className="modal-footer">
-              <button className="btn btn-ghost" onClick={() => setShowBill(false)}>Annuler</button>
+              <button className="btn btn-ghost" onClick={() => setShowBill(false)}>{t("common.cancel")}</button>
               <button
                 className="btn btn-primary"
                 style={{ background: "var(--green)" }}
                 onClick={handleBill}
               >
-                Ajouter la recette
+                {t("apptDetail.addRevenue")}
               </button>
             </div>
           </div>
@@ -942,6 +1327,8 @@ export function AppointmentDetailPage() {
           patientName={appt.patientName}
           date={appt.date}
           doctorProfile={doctorProfile}
+          allergies={patient?.allergies}
+          lastOrdonnance={lastOrdonnanceLines}
           initialLines={appt.savedOrdonnance?.lines}
           onSave={(lines: OrdonnanceLine[]) => {
             updateAppointment({
@@ -966,6 +1353,19 @@ export function AppointmentDetailPage() {
             });
           }}
           onClose={() => setShowCert(false)}
+        />
+      )}
+
+      {/* ── Link-to-patient modal ── */}
+      {showLink && (
+        <LinkPatientModal
+          patients={patients}
+          apptName={appt.patientName}
+          onPick={(p) => {
+            updateAppointment({ ...appt, patientId: p.id, patientName: `${p.firstName} ${p.lastName}`.trim() });
+            setShowLink(false);
+          }}
+          onClose={() => setShowLink(false)}
         />
       )}
 

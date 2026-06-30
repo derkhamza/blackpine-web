@@ -1,6 +1,6 @@
 // Moroccan payroll calculation — exact copy of blackpine-app/lib/payrollCalc.ts
 
-import type { CabinetDoctorProfile, Employee } from "./cabinetTypes";
+import type { CabinetDoctorProfile, ContractType, Employee } from "./cabinetTypes";
 
 export interface PayrollResult {
   grossSalary: number;
@@ -13,6 +13,7 @@ export interface PayrollResult {
   irNet: number;
   netSalary: number;
   cnssEmployer: number;
+  exempt: boolean;        // true for ANAPEC (Idmaj) — no charges, full salary
 }
 
 const CNSS_EMPLOYEE_RATE = 0.0674;
@@ -31,8 +32,24 @@ function calcIrMensuel(netImposable: number): number {
   return netImposable * 0.38 - 3_150;
 }
 
-export function computePayroll(grossSalary: number, dependents = 0): PayrollResult {
+export function computePayroll(
+  grossSalary: number,
+  dependents = 0,
+  contractType: ContractType = "cdi",
+): PayrollResult {
   const gross = Math.max(0, grossSalary);
+
+  // ANAPEC "Contrat d'insertion" (Idmaj): the indemnité is exempt from CNSS,
+  // AMO and IR — the employee receives the entire gross and the cabinet pays no
+  // employer charges.
+  if (contractType === "anapec") {
+    return {
+      grossSalary: gross, cnssEmployee: 0, amoEmployee: 0, deductionPro: 0,
+      netImposable: gross, irBrut: 0, irFamille: 0, irNet: 0,
+      netSalary: gross, cnssEmployer: 0, exempt: true,
+    };
+  }
+
   const cotisableCnss = Math.min(gross, CNSS_SALARY_CAP);
   const cnssEmployee  = Math.round(cotisableCnss * CNSS_EMPLOYEE_RATE * 100) / 100;
   const amoEmployee   = Math.round(cotisableCnss * 0.0226 * 100) / 100;
@@ -43,7 +60,7 @@ export function computePayroll(grossSalary: number, dependents = 0): PayrollResu
   const irNet         = Math.max(0, Math.round((irBrut - irFamille) * 100) / 100);
   const netSalary     = Math.round((gross - cnssEmployee - irNet) * 100) / 100;
   const cnssEmployer  = Math.round(cotisableCnss * CNSS_EMPLOYER_RATE * 100) / 100;
-  return { grossSalary: gross, cnssEmployee, amoEmployee, deductionPro, netImposable, irBrut, irFamille, irNet, netSalary, cnssEmployer };
+  return { grossSalary: gross, cnssEmployee, amoEmployee, deductionPro, netImposable, irBrut, irFamille, irNet, netSalary, cnssEmployer, exempt: false };
 }
 
 export function fmtMAD(n: number): string {
@@ -78,7 +95,7 @@ export function printBulletin(
   year: number,
   doctorProfile: CabinetDoctorProfile,
 ): void {
-  const p = computePayroll(employee.baseSalary, employee.dependents ?? 0);
+  const p = computePayroll(employee.baseSalary, employee.dependents ?? 0, employee.contractType ?? "cdi");
   const monthLabel = `${MONTH_NAMES_FR[month - 1]} ${year}`;
   const coutTotal  = p.grossSalary + p.cnssEmployer;
 
@@ -111,6 +128,8 @@ export function printBulletin(
                  letter-spacing: 0.4px; margin-bottom: 2px; }
     .info-val  { font-size: 10pt; }
     table  { width: 100%; border-collapse: collapse; margin-bottom: 14px; font-size: 9.5pt; }
+    thead { display: table-header-group; }
+    tbody tr { break-inside: avoid; page-break-inside: avoid; }
     thead th {
       background: #0A4E7E; color: #fff; padding: 7px 10px; text-align: left;
       font-size: 8.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px;
@@ -198,7 +217,11 @@ export function printBulletin(
     <tbody>
       <tr class="section-row"><td colspan="4">Rémunération brute</td></tr>
       ${bRow("Salaire de base", fmtN(p.grossSalary), "—", fmtN(p.grossSalary))}
-      <tr class="section-row"><td colspan="4">Cotisations salariales</td></tr>
+      ${p.exempt
+        ? `<tr class="section-row"><td colspan="4">Contrat ANAPEC (Idmaj) — exonération</td></tr>
+           ${bRow("CNSS / AMO / IR", "—", "Exonéré", "− 0,00")}
+           <tr class="muted"><td colspan="4">Indemnité d'insertion exonérée de charges sociales et d'IR. L'employé(e) perçoit l'intégralité du salaire brut.</td></tr>`
+        : `<tr class="section-row"><td colspan="4">Cotisations salariales</td></tr>
       ${bRow("CNSS (court terme + AMO salariale)", fmtN(Math.min(p.grossSalary, CNSS_SALARY_CAP)), "6,74 %", `− ${fmtN(p.cnssEmployee)}`)}
       ${bRow("Déduction forfaitaire frais pro", fmtN(p.grossSalary), "20 %", `− ${fmtN(p.deductionPro)}`, true)}
       <tr class="section-row"><td colspan="4">Impôt sur le revenu</td></tr>
@@ -206,7 +229,7 @@ export function printBulletin(
       ${bRow("IR mensuel (barème)", "—", "—", `− ${fmtN(p.irBrut)}`)}
       ${(employee.dependents ?? 0) > 0
           ? bRow(`Déduction famille (${employee.dependents} pers.)`, "—", "30 MAD/pers.", `+ ${fmtN(p.irFamille)}`)
-          : ""}
+          : ""}`}
     </tbody>
     <tfoot>
       <tr>

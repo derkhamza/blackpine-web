@@ -1,5 +1,7 @@
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { useCabinet } from "../context/CabinetContext";
+import { AnimatedNumber } from "../components/AnimatedNumber";
 import {
   CERT_TYPE_LABELS, CERT_TYPE_COLORS,
   EXAM_TYPE_LABELS, EXAM_TYPE_COLORS,
@@ -8,16 +10,15 @@ import {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-/** Group free-text values by lowercased key, return sorted top-N with display label */
 function topFreq(items: (string | undefined | null)[], n = 10) {
   const map = new Map<string, { display: string; count: number }>();
   for (const raw of items) {
-    const t = raw?.trim();
-    if (!t) continue;
-    const key = t.toLowerCase();
+    const trimmed = raw?.trim();
+    if (!trimmed) continue;
+    const key = trimmed.toLowerCase();
     const existing = map.get(key);
     if (existing) { existing.count++; }
-    else { map.set(key, { display: t, count: 1 }); }
+    else { map.set(key, { display: trimmed, count: 1 }); }
   }
   return [...map.values()].sort((a, b) => b.count - a.count).slice(0, n);
 }
@@ -27,7 +28,11 @@ function topFreq(items: (string | undefined | null)[], n = 10) {
 function KpiCard({ value, label, color }: { value: string | number; label: string; color?: string }) {
   return (
     <div className="ana-kpi" style={{ borderTopColor: color ?? "var(--blue)" }}>
-      <div className="ana-kpi-val" style={{ color: color ?? "var(--blue)" }}>{value}</div>
+      <div className="ana-kpi-val" style={{ color: color ?? "var(--blue)" }}>
+        {typeof value === "number"
+          ? <AnimatedNumber value={value} format={(n) => Math.round(n).toLocaleString("fr-FR")} />
+          : value}
+      </div>
       <div className="ana-kpi-lbl">{label}</div>
     </div>
   );
@@ -69,9 +74,12 @@ function EmptyHint({ text }: { text: string }) {
 // ── Main exported component ───────────────────────────────────────────────────
 
 export function ClinicalStatsContent() {
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language?.slice(0, 2) === "ar" ? "ar-MA"
+               : i18n.language?.slice(0, 2) === "en" ? "en-US" : "fr-FR";
+
   const { appointments, prescriptions, examResults, certificates, teleSessions } = useCabinet();
 
-  // Completed appointments with notes
   const doneAppts = useMemo(
     () => appointments.filter(a => a.status === "completed"),
     [appointments],
@@ -106,7 +114,6 @@ export function ClinicalStatsContent() {
     for (const p of prescriptions) {
       for (const line of p.lines) { if (line.drug?.trim()) lines.push(line.drug.trim()); }
     }
-    // also appointment-embedded ordonnances
     for (const a of doneAppts) {
       const saved = (a as any).savedOrdonnance;
       if (saved?.lines) {
@@ -138,7 +145,7 @@ export function ClinicalStatsContent() {
   // ── Téléconsultations ─────────────────────────────────────────────────────
   const teleBreakdown = useMemo(() => {
     const map: Record<string, number> = {};
-    for (const t of teleSessions) map[t.status] = (map[t.status] ?? 0) + 1;
+    for (const session of teleSessions) map[session.status] = (map[session.status] ?? 0) + 1;
     return Object.entries(map).sort((a, b) => b[1] - a[1]);
   }, [teleSessions]);
   const maxTele = teleBreakdown[0]?.[1] ?? 1;
@@ -150,7 +157,7 @@ export function ClinicalStatsContent() {
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
     return {
       key,
-      label: d.toLocaleDateString("fr-FR", { month: "short" }),
+      label: d.toLocaleDateString(locale, { month: "short" }),
     };
   });
 
@@ -162,17 +169,14 @@ export function ClinicalStatsContent() {
   }, [prescriptions]);
   const maxRx = Math.max(...rxTrend.map(m => m.value), 1);
 
-  // ── Note completeness bar ─────────────────────────────────────────────────
-  const noteBar = noteRate;
-
   return (
     <>
       {/* KPI strip */}
       <div className="ana-kpi-strip">
-        <KpiCard value={prescriptions.length}  label="Ordonnances"       color="var(--green)"  />
-        <KpiCard value={examResults.length}    label="Examens"           color="#9B72D0"       />
-        <KpiCard value={teleSessions.length}   label="Téléconsults"      color="var(--blue)"   />
-        <KpiCard value={certificates.length}   label="Certificats"       color="var(--gold)"   />
+        <KpiCard value={prescriptions.length}  label={t("clinicalStats.kpiOrdonnances")} color="var(--green)"  />
+        <KpiCard value={examResults.length}    label={t("clinicalStats.kpiExamens")}     color="#9B72D0"       />
+        <KpiCard value={teleSessions.length}   label={t("clinicalStats.kpiTeleconsults")} color="var(--blue)"  />
+        <KpiCard value={certificates.length}   label={t("clinicalStats.kpiCertificats")} color="var(--gold)"   />
       </div>
 
       {/* Note completeness */}
@@ -180,25 +184,25 @@ export function ClinicalStatsContent() {
         <div className="card" style={{ marginBottom: 16, padding: "14px 18px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
             <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
-              Taux de remplissage des notes
+              {t("clinicalStats.noteRate")}
             </span>
             <span style={{
               fontSize: 14, fontWeight: 700,
-              color: noteBar >= 70 ? "var(--green)" : noteBar >= 40 ? "var(--gold)" : "var(--coral)",
+              color: noteRate >= 70 ? "var(--green)" : noteRate >= 40 ? "var(--gold)" : "var(--coral)",
             }}>
-              {noteBar}%
+              {noteRate}%
             </span>
           </div>
           <div style={{ height: 8, borderRadius: 4, background: "var(--border)", overflow: "hidden" }}>
             <div style={{
               height: "100%", borderRadius: 4,
-              width: `${noteBar}%`,
-              background: noteBar >= 70 ? "var(--green)" : noteBar >= 40 ? "var(--gold)" : "var(--coral)",
+              width: `${noteRate}%`,
+              background: noteRate >= 70 ? "var(--green)" : noteRate >= 40 ? "var(--gold)" : "var(--coral)",
               transition: "width 0.4s",
             }} />
           </div>
           <div style={{ fontSize: 11.5, color: "var(--muted)", marginTop: 5 }}>
-            Consultations terminées avec motif ou diagnostic renseigné
+            {t("clinicalStats.noteSub")}
           </div>
         </div>
       )}
@@ -207,47 +211,32 @@ export function ClinicalStatsContent() {
         {/* Left column */}
         <div className="ana-col">
 
-          {/* Motifs de consultation */}
           <SectionCard
-            title="Motifs de consultation"
-            sub={`${topMotifs.length} motifs distincts`}
+            title={t("clinicalStats.motifsTitle")}
+            sub={t("clinicalStats.motifsSub", { n: topMotifs.length, s: topMotifs.length !== 1 ? "s" : "" })}
           >
             {topMotifs.length === 0
-              ? <EmptyHint text="Aucun motif renseigné dans les notes de consultation." />
+              ? <EmptyHint text={t("clinicalStats.motifsEmpty")} />
               : topMotifs.map(({ display, count }) => (
-                <HBar
-                  key={display}
-                  label={display}
-                  value={count}
-                  max={maxMotif}
-                  color="var(--blue)"
-                />
+                <HBar key={display} label={display} value={count} max={maxMotif} color="var(--blue)" />
               ))
             }
           </SectionCard>
 
-          {/* Diagnostics */}
           <SectionCard
-            title="Diagnostics fréquents"
-            sub={`${topDiagnoses.length} diagnostics distincts`}
+            title={t("clinicalStats.diagTitle")}
+            sub={t("clinicalStats.diagSub", { n: topDiagnoses.length, s: topDiagnoses.length !== 1 ? "s" : "" })}
           >
             {topDiagnoses.length === 0
-              ? <EmptyHint text="Aucun diagnostic renseigné dans les notes de consultation." />
+              ? <EmptyHint text={t("clinicalStats.diagEmpty")} />
               : topDiagnoses.map(({ display, count }) => (
-                <HBar
-                  key={display}
-                  label={display}
-                  value={count}
-                  max={maxDiag}
-                  color="#15A876"
-                />
+                <HBar key={display} label={display} value={count} max={maxDiag} color="#15A876" />
               ))
             }
           </SectionCard>
 
-          {/* Ordonnances trend */}
           {prescriptions.length > 0 && (
-            <SectionCard title="Ordonnances par mois" sub="6 derniers mois">
+            <SectionCard title={t("clinicalStats.rxTitle")} sub={t("clinicalStats.rxSub")}>
               <div className="clin-rx-trend">
                 {rxTrend.map(({ label, value }) => {
                   const h = maxRx > 0 ? Math.max(4, (value / maxRx) * 80) : 0;
@@ -275,28 +264,20 @@ export function ClinicalStatsContent() {
         {/* Right column */}
         <div className="ana-col">
 
-          {/* Top drugs */}
           <SectionCard
-            title="Médicaments les plus prescrits"
-            sub={`${topDrugs.length} médicaments distincts`}
+            title={t("clinicalStats.drugsTitle")}
+            sub={t("clinicalStats.drugsSub", { n: topDrugs.length, s: topDrugs.length !== 1 ? "s" : "" })}
           >
             {topDrugs.length === 0
-              ? <EmptyHint text="Aucune ordonnance enregistrée." />
+              ? <EmptyHint text={t("clinicalStats.drugsEmpty")} />
               : topDrugs.map(({ display, count }) => (
-                <HBar
-                  key={display}
-                  label={display}
-                  value={count}
-                  max={maxDrug}
-                  color="#9B72D0"
-                />
+                <HBar key={display} label={display} value={count} max={maxDrug} color="#9B72D0" />
               ))
             }
           </SectionCard>
 
-          {/* Exams breakdown */}
           {examBreakdown.length > 0 && (
-            <SectionCard title="Types d'examens demandés">
+            <SectionCard title={t("clinicalStats.examsTitle")}>
               {examBreakdown.map(([type, count]) => (
                 <HBar
                   key={type}
@@ -309,9 +290,8 @@ export function ClinicalStatsContent() {
             </SectionCard>
           )}
 
-          {/* Certificates breakdown */}
           {certBreakdown.length > 0 && (
-            <SectionCard title="Certificats par type">
+            <SectionCard title={t("clinicalStats.certsTitle")}>
               {certBreakdown.map(([type, count]) => (
                 <HBar
                   key={type}
@@ -324,9 +304,8 @@ export function ClinicalStatsContent() {
             </SectionCard>
           )}
 
-          {/* Teleconsult breakdown */}
           {teleSessions.length > 0 && (
-            <SectionCard title="Téléconsultations" sub={`${teleSessions.length} au total`}>
+            <SectionCard title={t("clinicalStats.teleTitle")} sub={t("clinicalStats.teleSub", { n: teleSessions.length })}>
               {teleBreakdown.map(([status, count]) => (
                 <HBar
                   key={status}
@@ -339,14 +318,11 @@ export function ClinicalStatsContent() {
             </SectionCard>
           )}
 
-          {/* Empty state */}
           {examBreakdown.length === 0 && certBreakdown.length === 0 && teleSessions.length === 0 && topDrugs.length === 0 && (
             <div className="tx-empty">
               <div style={{ fontSize: 40, marginBottom: 12 }}>🩺</div>
-              <div style={{ fontWeight: 700, marginBottom: 6 }}>Données cliniques insuffisantes</div>
-              <div style={{ fontSize: 13 }}>
-                Remplissez les notes de consultation, ordonnances et examens pour voir les statistiques cliniques.
-              </div>
+              <div style={{ fontWeight: 700, marginBottom: 6 }}>{t("clinicalStats.emptyTitle")}</div>
+              <div style={{ fontSize: 13 }}>{t("clinicalStats.emptyHint")}</div>
             </div>
           )}
         </div>

@@ -53,7 +53,7 @@ const BASE_CSS = `
 
   /* Body */
   .cert-body { font-size: 10.5pt; line-height: 1.7; }
-  .cert-body p { margin-bottom: 6px; }
+  .cert-body p { margin-bottom: 6px; break-inside: avoid; page-break-inside: avoid; }
   .cert-patient { font-weight: bold; text-decoration: underline; }
 
   /* Arrêt de travail box */
@@ -101,12 +101,12 @@ function hdr(doc: CabinetDoctorProfile): string {
       <div class="cert-doc-name">${esc(doc.fullName || "Cabinet médical")}</div>
       <div class="cert-doc-meta">
         ${doc.specialtyLabel ? esc(doc.specialtyLabel) + "<br/>" : ""}
+        ${doc.ordre          ? "N° Ordre : " + esc(doc.ordre) + "<br/>" : ""}
         ${doc.inpe           ? "INPE : " + esc(doc.inpe) + "<br/>" : ""}
         ${doc.address        ? esc(doc.address) + "<br/>"           : ""}
         ${doc.phone          ? "Tél : " + esc(doc.phone)            : ""}
       </div>
     </div>
-    <div class="cert-logo">B</div>
   </div>
   <hr class="cert-rule"/>`;
 }

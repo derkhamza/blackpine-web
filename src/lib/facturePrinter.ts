@@ -1,4 +1,5 @@
 import type { CabinetDoctorProfile } from "./cabinetTypes";
+import { DEFAULT_DOCUMENT_SETTINGS } from "./cabinetTypes";
 import { amountInWords } from "./receiptPrinter";
 
 // ── Sequential invoice counter ────────────────────────────────────────────────
@@ -44,6 +45,7 @@ function fmtMAD(n: number): string {
 
 export function printFacture(opts: FactureOptions): void {
   const { invoiceNumber, invoiceDate, patientName, patientCnops, serviceLabel, serviceDate, amount, doctorProfile: doc } = opts;
+  const ds = { ...DEFAULT_DOCUMENT_SETTINGS, ...(doc.documentSettings ?? {}) };
 
   const html = `<!DOCTYPE html>
 <html lang="fr">
@@ -85,6 +87,8 @@ export function printFacture(opts: FactureOptions): void {
     table.items {
       width: 100%; border-collapse: collapse; margin-bottom: 0; font-size: 10pt;
     }
+    .items thead { display: table-header-group; }
+    .items tbody tr { break-inside: avoid; page-break-inside: avoid; }
     .items thead tr { background: #0A4E7E; color: #fff; }
     .items thead th { padding: 8px 10px; text-align: left; font-size: 9pt; font-weight: 700; letter-spacing: 0.3px; }
     .items thead th.r { text-align: right; }
@@ -137,9 +141,12 @@ export function printFacture(opts: FactureOptions): void {
       <div class="doc-name">${esc(doc.fullName || "Cabinet médical")}</div>
       <div class="doc-meta">
         ${doc.specialtyLabel ? esc(doc.specialtyLabel) + "<br/>"          : ""}
-        ${doc.inpe           ? "INPE : " + esc(doc.inpe) + "<br/>"        : ""}
+        ${doc.ordre          ? "N° Ordre : " + esc(doc.ordre) + "<br/>"   : ""}
+        ${ds.showInpe && doc.inpe ? "INPE : " + esc(doc.inpe) + "<br/>"   : ""}
+        ${ds.showIce  && doc.ice  ? "ICE : " + esc(doc.ice) + "<br/>"     : ""}
         ${doc.address        ? esc(doc.address) + "<br/>"                  : ""}
-        ${doc.phone          ? "Tél : " + esc(doc.phone)                   : ""}
+        ${doc.phone          ? "Tél : " + esc(doc.phone) + "<br/>"         : ""}
+        ${ds.headerNote      ? `<span style="font-style:italic;">${esc(ds.headerNote)}</span>` : ""}
       </div>
     </div>
     <div class="inv-block">
@@ -160,7 +167,10 @@ export function printFacture(opts: FactureOptions): void {
         ${doc.specialtyLabel ? esc(doc.specialtyLabel) + "<br/>" : ""}
         ${doc.address        ? esc(doc.address) + "<br/>"         : ""}
         ${doc.phone          ? "Tél : " + esc(doc.phone) + "<br/>": ""}
-        ${doc.inpe           ? "INPE : " + esc(doc.inpe)           : ""}
+        ${doc.ordre          ? "N° Ordre : " + esc(doc.ordre) + "<br/>" : ""}
+        ${ds.showInpe && doc.inpe ? "INPE : " + esc(doc.inpe) + "<br/>" : ""}
+        ${ds.showIce  && doc.ice  ? "ICE : " + esc(doc.ice) + "<br/>"   : ""}
+        ${ds.showRib  && doc.rib  ? "RIB : " + esc(doc.rib)             : ""}
       </div>
     </div>
     <div class="party">
@@ -236,7 +246,7 @@ export function printFacture(opts: FactureOptions): void {
 
   <!-- Footer -->
   <div class="footer">
-    Facture émise par Blackpine Cabinet · Document comptable officiel · ${esc(invoiceNumber)}
+    ${ds.footerNote ? esc(ds.footerNote) : `Note d'honoraires ${esc(invoiceNumber)} · Document à conserver`}
   </div>
 
   <script>window.onload = function(){ window.print(); };<\/script>

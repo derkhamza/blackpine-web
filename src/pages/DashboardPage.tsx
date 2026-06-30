@@ -2,9 +2,11 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import { useApp } from "../context/AppContext";
-import { useCabinet } from "../context/CabinetContext";
+import { useCabinet, estimateStorageBytes } from "../context/CabinetContext";
 import { formatMAD, todayIso } from "../lib/format";
+import { AnimatedNumber } from "../components/AnimatedNumber";
 import { NOTE_COLOR_VALUES } from "../lib/cabinetTypes";
+import { useTranslation } from "react-i18next";
 
 // ── Alert item ────────────────────────────────────────────────────────────────
 
@@ -52,18 +54,12 @@ const APPT_STATUS_COLORS: Record<string, string> = {
   no_show:         "var(--coral)",
 };
 
-const APPT_STATUS_LABELS: Record<string, string> = {
-  scheduled:       "Planifié",
-  arrived:         "Arrivé",
-  in_consultation: "En consultation",
-  completed:       "Terminé",
-  cancelled:       "Annulé",
-  no_show:         "Non présenté",
-};
+// Dashboard uses translated labels via t("apptStatus.*") — see below
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export function DashboardPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const today = todayIso();
 
@@ -77,6 +73,8 @@ export function DashboardPage() {
     notes,
     teleSessions,
     patients,
+    lastBackupAt,
+    doctorProfile,
   } = useCabinet();
 
   const [alertsCollapsed, setAlertsCollapsed] = useState(false);
@@ -119,6 +117,24 @@ export function DashboardPage() {
     };
   }, [appointments, todayAppts, todayTele, today, patients]);
 
+  // ── Today's caisse (end-of-day money) ──────────────────────────────────────
+  const caisse = useMemo(() => {
+    const billedToday = appointments.filter(a => a.billedAt && a.billedAt.slice(0, 10) === today);
+    const collected   = billedToday.reduce((s, a) => s + (a.billedAmount ?? 0), 0);
+    const seen        = appointments.filter(a => a.date === today && a.status === "completed");
+    const unpaid      = seen.filter(a => !a.billedAt);
+    const prices      = doctorProfile?.appointmentPrices ?? {};
+    const unpaidEstimate = unpaid.reduce((s, a) => s + (prices[a.type] ?? 0), 0);
+    return {
+      collected,
+      billedCount:    billedToday.length,
+      seenCount:      seen.length,
+      unpaidCount:    unpaid.length,
+      unpaidEstimate,
+      avgTicket:      billedToday.length ? collected / billedToday.length : 0,
+    };
+  }, [appointments, doctorProfile, today]);
+
   // ── Clinical alerts ────────────────────────────────────────────────────────
   const alerts = useMemo((): Alert[] => {
     const list: Alert[] = [];
@@ -130,7 +146,7 @@ export function DashboardPage() {
       list.push({
         id: "out-stock", level: "critical",
         icon: <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M2 5l5-3 5 3v4l-5 3-5-3V5Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/></svg>,
-        text: `${outOfStock.length} article${outOfStock.length > 1 ? "s" : ""} en rupture de stock`,
+        text: t("dashboard.outOfStock", { n: outOfStock.length, s: outOfStock.length > 1 ? "s" : "" }),
         subtext: outOfStock.slice(0, 3).map(s => s.name).join(", "),
         route: "/stocks",
       });
@@ -138,7 +154,7 @@ export function DashboardPage() {
       list.push({
         id: "low-stock", level: "warning",
         icon: <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M2 5l5-3 5 3v4l-5 3-5-3V5Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/></svg>,
-        text: `${lowStock.length} article${lowStock.length > 1 ? "s" : ""} en stock faible`,
+        text: t("dashboard.lowStock", { n: lowStock.length, s: lowStock.length > 1 ? "s" : "" }),
         subtext: lowStock.slice(0, 3).map(s => s.name).join(", "),
         route: "/stocks",
       });
@@ -153,7 +169,7 @@ export function DashboardPage() {
       list.push({
         id: "overdue-po", level: "warning",
         icon: <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><rect x="1" y="2" width="12" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.3"/><path d="M4 6h6M4 8.5h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>,
-        text: `${overduePO.length} commande${overduePO.length > 1 ? "s" : ""} en retard de livraison`,
+        text: t("dashboard.overdueOrders", { n: overduePO.length, s: overduePO.length > 1 ? "s" : "" }),
         subtext: overduePO.slice(0, 2).map(o => o.supplierName ?? "Fournisseur").join(", "),
         route: "/fournisseurs",
       });
@@ -178,7 +194,7 @@ export function DashboardPage() {
       list.push({
         id: "abn-exam", level: "warning",
         icon: <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><circle cx="6.5" cy="7" r="4.5" stroke="currentColor" strokeWidth="1.3"/><path d="M10 3.5l3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>,
-        text: `${abnExams.length} examen${abnExams.length > 1 ? "s" : ""} avec résultats anormaux (30 j)`,
+        text: t("dashboard.abnExams", { n: abnExams.length, s: abnExams.length > 1 ? "s" : "" }),
         subtext: abnExams.slice(0, 2).map(e => e.patientName + " – " + e.title).join(" | "),
         route: "/examens",
       });
@@ -192,7 +208,7 @@ export function DashboardPage() {
       list.push({
         id: "overdue-tasks", level: "critical",
         icon: <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><rect x="1" y="2" width="12" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.3"/><path d="M4 6h6M4 8.5h4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>,
-        text: `${overdueTasks.length} tâche${overdueTasks.length > 1 ? "s" : ""} en retard`,
+        text: t("dashboard.overdueTasks", { n: overdueTasks.length, s: overdueTasks.length > 1 ? "s" : "" }),
         subtext: overdueTasks.slice(0, 2).map(n => n.title).join(", "),
         route: "/notes",
       });
@@ -206,13 +222,80 @@ export function DashboardPage() {
       list.push({
         id: "unbilled", level: "info",
         icon: <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M3 2h6l3 3v7a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/><path d="M9 2v3h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/><path d="M5 8h4M5 10h2.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>,
-        text: `${unbilledToday.length} consultation${unbilledToday.length > 1 ? "s" : ""} non facturée${unbilledToday.length > 1 ? "s" : ""} aujourd'hui`,
+        text: t("dashboard.unbilledToday", { n: unbilledToday.length, s: unbilledToday.length > 1 ? "s" : "" }),
         route: "/factures",
       });
     }
 
+    // Overdue follow-ups
+    const overdueFollowUps = appointments.filter(a => a.followUpDate && a.followUpDate <= today);
+    if (overdueFollowUps.length > 0) {
+      list.push({
+        id: "overdue-followups", level: "warning",
+        icon: <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><rect x="1" y="2" width="12" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.3"/><path d="M4 1v2M10 1v2M1 6h12" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/><path d="M7 8.5v2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="7" cy="7.5" r=".5" fill="currentColor"/></svg>,
+        text: t("dashboard.overdueFollowUps", { n: overdueFollowUps.length, s: overdueFollowUps.length > 1 ? "s" : "" }),
+        subtext: overdueFollowUps.slice(0, 2).map(a => a.patientName).join(", "),
+        route: "/rappels",
+      });
+    }
+
+    // Upcoming online bookings (patient self-booked → review them)
+    const onlineBookings = appointments.filter(
+      a => a.bookingSource === "online" && a.date >= today && a.status !== "cancelled",
+    );
+    if (onlineBookings.length > 0) {
+      list.push({
+        id: "online-bookings", level: "info",
+        icon: <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.3"/><path d="M1.5 7h11M7 1.5c1.6 1.5 1.6 9.5 0 11M7 1.5c-1.6 1.5-1.6 9.5 0 11" stroke="currentColor" strokeWidth="1.1"/></svg>,
+        text: t("dashboard.onlineBookings", { n: onlineBookings.length, s: onlineBookings.length > 1 ? "s" : "" }),
+        subtext: onlineBookings.slice(0, 2).map(a => `${a.patientName} · ${a.date.slice(5).replace("-", "/")}`).join(" | "),
+        route: "/agenda",
+      });
+    }
+
+    // Storage health
+    const storageBytes = estimateStorageBytes();
+    const storageMB = storageBytes / (1024 * 1024);
+    if (storageMB > 7) {
+      list.push({
+        id: "storage-critical", level: "critical",
+        icon: <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><rect x="1" y="3" width="12" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.3"/><path d="M4 7h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>,
+        text: t("dashboard.storageCritical", { mb: storageMB.toFixed(1) }),
+        subtext: t("dashboard.storageExportNow"),
+        route: "/parametres",
+      });
+    } else if (storageMB > 4) {
+      list.push({
+        id: "storage-warn", level: "warning",
+        icon: <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><rect x="1" y="3" width="12" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.3"/><path d="M4 7h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>,
+        text: t("dashboard.storageWarn", { mb: storageMB.toFixed(1) }),
+        subtext: t("dashboard.storageExportHint"),
+        route: "/parametres",
+      });
+    }
+
+    // Backup reminder (> 7 days without backup)
+    if (lastBackupAt) {
+      const daysSince = Math.floor((Date.now() - new Date(lastBackupAt).getTime()) / 86400000);
+      if (daysSince >= 7) {
+        list.push({
+          id: "backup-remind", level: "info",
+          icon: <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M2 7a5 5 0 1 0 5-5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/><path d="M7 2V5l2 1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+          text: t("dashboard.backupRemind", { n: daysSince }),
+          route: "/parametres",
+        });
+      }
+    } else if (patients.length > 5) {
+      list.push({
+        id: "backup-never", level: "info",
+        icon: <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M2 7a5 5 0 1 0 5-5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/><path d="M7 2V5l2 1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+        text: t("dashboard.backupNever"),
+        route: "/parametres",
+      });
+    }
+
     return list;
-  }, [stockItems, purchaseOrders, examResults, notes, appointments, today]);
+  }, [stockItems, purchaseOrders, examResults, notes, appointments, patients, lastBackupAt, today]);
 
   const criticalAlerts = alerts.filter(a => a.level === "critical");
 
@@ -225,43 +308,84 @@ export function DashboardPage() {
   const isNeg     = netResult < 0;
 
   // ── Formatted today label ─────────────────────────────────────────────────
-  const todayLabel = new Date(today + "T12:00:00").toLocaleDateString("fr-FR", {
+  const { i18n: i } = useTranslation();
+  const locale = i.language?.slice(0, 2) === "ar" ? "ar-MA" : i.language?.slice(0, 2) === "en" ? "en-US" : "fr-FR";
+  const todayLabel = new Date(today + "T12:00:00").toLocaleDateString(locale, {
     weekday: "long", day: "numeric", month: "long",
   });
 
   return (
-    <Layout title="Tableau de bord" subtitle={todayLabel}>
+    <Layout title={t("dashboard.title")} subtitle={todayLabel}>
 
       {/* ══════════════════════════════════════════════════
           CLINICAL HERO — today at a glance
       ══════════════════════════════════════════════════ */}
-      <div className="dash-hero-grid">
-        <div className="dash-hero-tile" onClick={() => navigate("/agenda")} style={{ cursor: "pointer" }}>
-          <div className="dash-hero-val" style={{ color: "var(--blue)" }}>{heroStats.todayTotal}</div>
-          <div className="dash-hero-lbl">RDV aujourd'hui</div>
+      <div className="dash-hero-grid rv-stagger">
+        <div className="dash-hero-tile rv-press rv-lift" onClick={() => navigate("/agenda")} style={{ cursor: "pointer" }}>
+          <div className="dash-hero-val" style={{ color: "var(--blue)" }}><AnimatedNumber value={heroStats.todayTotal} /></div>
+          <div className="dash-hero-lbl">{t("dashboard.apptToday")}</div>
         </div>
-        <div className="dash-hero-tile" onClick={() => navigate("/salle-attente")} style={{ cursor: "pointer" }}>
+        <div className="dash-hero-tile rv-press rv-lift" onClick={() => navigate("/salle-attente")} style={{ cursor: "pointer" }}>
           <div className="dash-hero-val" style={{ color: heroStats.inWaiting > 0 ? "#d97706" : "var(--text)" }}>
-            {heroStats.inWaiting}
+            <AnimatedNumber value={heroStats.inWaiting} />
           </div>
-          <div className="dash-hero-lbl">En salle d'attente</div>
+          <div className="dash-hero-lbl">{t("dashboard.inWaiting")}</div>
         </div>
-        <div className="dash-hero-tile" onClick={() => navigate("/agenda")} style={{ cursor: "pointer" }}>
-          <div className="dash-hero-val" style={{ color: "var(--green)" }}>{heroStats.completed}</div>
-          <div className="dash-hero-lbl">Terminées</div>
+        <div className="dash-hero-tile rv-press rv-lift" onClick={() => navigate("/agenda")} style={{ cursor: "pointer" }}>
+          <div className="dash-hero-val" style={{ color: "var(--green)" }}><AnimatedNumber value={heroStats.completed} /></div>
+          <div className="dash-hero-lbl">{t("dashboard.completed")}</div>
         </div>
-        <div className="dash-hero-tile" onClick={() => navigate("/teleconsult")} style={{ cursor: "pointer" }}>
-          <div className="dash-hero-val" style={{ color: "#2D8CFF" }}>{heroStats.todayTele}</div>
-          <div className="dash-hero-lbl">Téléconsults</div>
+        <div className="dash-hero-tile rv-press rv-lift" onClick={() => navigate("/teleconsult")} style={{ cursor: "pointer" }}>
+          <div className="dash-hero-val" style={{ color: "#2D8CFF" }}><AnimatedNumber value={heroStats.todayTele} /></div>
+          <div className="dash-hero-lbl">{t("dashboard.teleconsults")}</div>
         </div>
-        <div className="dash-hero-tile" onClick={() => navigate("/agenda")} style={{ cursor: "pointer" }}>
-          <div className="dash-hero-val" style={{ color: "var(--blue)" }}>{heroStats.monthTotal}</div>
-          <div className="dash-hero-lbl">RDV ce mois</div>
+        <div className="dash-hero-tile rv-press rv-lift" onClick={() => navigate("/agenda")} style={{ cursor: "pointer" }}>
+          <div className="dash-hero-val" style={{ color: "var(--blue)" }}><AnimatedNumber value={heroStats.monthTotal} /></div>
+          <div className="dash-hero-lbl">{t("dashboard.apptMonth")}</div>
         </div>
-        <div className="dash-hero-tile" onClick={() => navigate("/patients")} style={{ cursor: "pointer" }}>
-          <div className="dash-hero-val">{heroStats.totalPatients}</div>
-          <div className="dash-hero-lbl">Patients total</div>
+        <div className="dash-hero-tile rv-press rv-lift" onClick={() => navigate("/patients")} style={{ cursor: "pointer" }}>
+          <div className="dash-hero-val"><AnimatedNumber value={heroStats.totalPatients} /></div>
+          <div className="dash-hero-lbl">{t("dashboard.totalPatients")}</div>
         </div>
+      </div>
+
+      {/* ══════════════════════════════════════════════════
+          CAISSE DU JOUR — end-of-day money (the daily hook)
+      ══════════════════════════════════════════════════ */}
+      <div className="dash-caisse rv-sheen rv-rise">
+        <div className="dash-caisse-main">
+          <div className="dash-caisse-label">
+            <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+              <rect x="1" y="3" width="12" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.3"/>
+              <path d="M1 6h12" stroke="currentColor" strokeWidth="1.3"/>
+              <circle cx="10" cy="9" r="1" fill="currentColor"/>
+            </svg>
+            {t("dashboard.caisseTitle")}
+          </div>
+          <div className="dash-caisse-amount"><AnimatedNumber value={caisse.collected} format={formatMAD} /></div>
+          <div className="dash-caisse-sub">
+            {caisse.seenCount > 0 || caisse.collected > 0
+              ? <>
+                  {t("dashboard.caisseSeen", { n: caisse.seenCount, s: caisse.seenCount > 1 ? "s" : "" })}
+                  {caisse.billedCount > 0 && <> · {t("dashboard.caisseAvg", { amount: formatMAD(caisse.avgTicket) })}</>}
+                </>
+              : t("dashboard.caisseNothing")}
+          </div>
+        </div>
+        {caisse.unpaidCount > 0 && (
+          <button className="dash-caisse-unpaid" onClick={() => navigate("/factures")}>
+            <span className="dash-caisse-unpaid-count">{caisse.unpaidCount}</span>
+            <span className="dash-caisse-unpaid-lbl">
+              {t("dashboard.caisseUnpaid")}
+              {caisse.unpaidEstimate > 0 && (
+                <span className="dash-caisse-unpaid-est">≈ {formatMAD(caisse.unpaidEstimate)}</span>
+              )}
+            </span>
+            <svg width="11" height="11" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0, opacity: .7 }}>
+              <path d="M4.5 3l3 3-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+        )}
       </div>
 
       {/* ══════════════════════════════════════════════════
@@ -274,7 +398,7 @@ export function DashboardPage() {
             <path d="M4 1v2M10 1v2M1 6h12" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
             <path d="M7 8.5v-2M6 7.5h2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
           </svg>
-          Nouveau RDV
+          {t("dashboard.newAppt")}
         </button>
         <button className="dash-quick-btn dash-quick-primary" onClick={() => navigate("/patients")}>
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
@@ -282,7 +406,7 @@ export function DashboardPage() {
             <path d="M1 12c0-2.5 2-4.5 4.5-4.5S10 9.5 10 12" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
             <path d="M11 6v4M13 8h-4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
           </svg>
-          Nouveau patient
+          {t("dashboard.newPatient")}
         </button>
         <button className="dash-quick-btn" onClick={() => navigate("/salle-attente")}>
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
@@ -291,7 +415,7 @@ export function DashboardPage() {
             <circle cx="3.5" cy="4.5" r="2" stroke="currentColor" strokeWidth="1.2"/>
             <path d="M1 11c0-1.7 1.1-3 2.5-3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
           </svg>
-          Salle d'attente
+          {t("dashboard.waitingRoom")}
         </button>
         <button className="dash-quick-btn" onClick={() => navigate("/ordonnances")}>
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
@@ -299,14 +423,14 @@ export function DashboardPage() {
             <path d="M9 1v3h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
             <path d="M4 7h5M4 9.5h3.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
           </svg>
-          Ordonnances
+          {t("dashboard.prescriptions")}
         </button>
         <button className="dash-quick-btn" onClick={() => navigate("/notes")}>
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
             <rect x="1" y="2" width="12" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.3"/>
             <path d="M4 6h6M4 8.5h4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
           </svg>
-          Notes & Tâches
+          {t("dashboard.notesTasks")}
         </button>
         <button className="dash-quick-btn" onClick={() => navigate("/examens")}>
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
@@ -314,7 +438,7 @@ export function DashboardPage() {
             <path d="M10 3.5l3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
             <path d="M5.5 7h2M6.5 6v2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
           </svg>
-          Examens & Bio
+          {t("dashboard.examsLab")}
         </button>
       </div>
 
@@ -331,7 +455,7 @@ export function DashboardPage() {
               {criticalAlerts.length > 0 && (
                 <span className="dash-alerts-critical-dot" />
               )}
-              Alertes du cabinet
+              {t("dashboard.alerts")}
               <span className="dash-alerts-count">{alerts.length}</span>
             </div>
             <button className="dash-alerts-toggle">
@@ -360,8 +484,8 @@ export function DashboardPage() {
           {todayAppts.length > 0 && (
             <div className="card dash-today-card" style={{ flex: 1, minWidth: 0 }}>
               <div className="dash-section-header">
-                <div className="card-title" style={{ margin: 0 }}>Agenda du jour</div>
-                <button className="dash-see-all" onClick={() => navigate("/agenda")}>Voir tout →</button>
+                <div className="card-title" style={{ margin: 0 }}>{t("dashboard.todayAgenda")}</div>
+                <button className="dash-see-all" onClick={() => navigate("/agenda")}>{t("common.seeAll")}</button>
               </div>
               <div className="dash-today-list">
                 {todayAppts.slice(0, 6).map(a => (
@@ -377,7 +501,7 @@ export function DashboardPage() {
                       <div className="dash-today-name">{a.patientName}</div>
                       <div className="dash-today-meta">
                         <span style={{ color: APPT_STATUS_COLORS[a.status] ?? "var(--muted)", fontSize: 11, fontWeight: 600 }}>
-                          {APPT_STATUS_LABELS[a.status] ?? a.status}
+                          {t("apptStatus." + a.status, { defaultValue: a.status })}
                         </span>
                         {a.consultationNote?.motif && (
                           <span style={{ color: "var(--muted)", fontSize: 11, marginLeft: 6 }}>
@@ -390,7 +514,7 @@ export function DashboardPage() {
                 ))}
                 {todayAppts.length > 6 && (
                   <div className="dash-today-more" onClick={() => navigate("/agenda")}>
-                    +{todayAppts.length - 6} autre{todayAppts.length - 6 > 1 ? "s" : ""} →
+                    {t("dashboard.moreItems", { n: todayAppts.length - 6, s: todayAppts.length - 6 > 1 ? "s" : "" })}
                   </div>
                 )}
               </div>
@@ -400,8 +524,8 @@ export function DashboardPage() {
           {todayTele.length > 0 && (
             <div className="card dash-today-card" style={{ flex: "0 0 240px" }}>
               <div className="dash-section-header">
-                <div className="card-title" style={{ margin: 0 }}>Téléconsultations</div>
-                <button className="dash-see-all" onClick={() => navigate("/teleconsult")}>Voir →</button>
+                <div className="card-title" style={{ margin: 0 }}>{t("dashboard.teleconsultations")}</div>
+                <button className="dash-see-all" onClick={() => navigate("/teleconsult")}>{t("common.see")}</button>
               </div>
               <div className="dash-today-list">
                 {todayTele.slice(0, 4).map(s => (
@@ -421,7 +545,7 @@ export function DashboardPage() {
                     {s.link && (
                       <a href={s.link} target="_blank" rel="noreferrer"
                         className="dash-tele-join"
-                        title="Rejoindre"
+                        title={t("dashboard.join")}
                         onClick={e => e.stopPropagation()}
                       >
                         <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
@@ -448,9 +572,9 @@ export function DashboardPage() {
               <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
                 <path d="M7 1l1.5 3 3.5.5-2.5 2.5.5 3.5L7 9l-3 1.5.5-3.5L2 4.5 5.5 4 7 1Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/>
               </svg>
-              Notes & tâches urgentes
+              {t("dashboard.urgentNotes")}
             </div>
-            <button className="dash-see-all" onClick={() => navigate("/notes")}>Voir tout →</button>
+            <button className="dash-see-all" onClick={() => navigate("/notes")}>{t("common.seeAll")}</button>
           </div>
           <div className="dash-pinned-grid">
             {pinnedItems.map(n => {
@@ -466,7 +590,7 @@ export function DashboardPage() {
                   <div className="dash-pinned-card-header">
                     {n.type === "task" && (
                       <span className="dash-pinned-task-badge" style={{ background: isOverdue ? "var(--coral)" : cv.border + "88", color: isOverdue ? "#fff" : cv.text }}>
-                        {isOverdue ? "En retard" : "Tâche"}
+                        {isOverdue ? t("common.overdue") : t("dashboard.task")}
                       </span>
                     )}
                     {n.isPinned && !isOverdue && (
@@ -479,7 +603,7 @@ export function DashboardPage() {
                   {n.body && <div className="dash-pinned-card-body">{n.body.slice(0, 80)}{n.body.length > 80 ? "…" : ""}</div>}
                   {n.dueDate && (
                     <div className="dash-pinned-due" style={{ color: isOverdue ? "var(--coral)" : cv.text }}>
-                      {isOverdue ? "⚠ " : ""}Échéance : {new Date(n.dueDate + "T12:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
+                      {isOverdue ? "⚠ " : ""}{t("common.deadline")} {new Date(n.dueDate + "T12:00:00").toLocaleDateString(locale, { day: "numeric", month: "short" })}
                     </div>
                   )}
                 </div>
@@ -503,7 +627,7 @@ export function DashboardPage() {
               <path d="M4 3V2a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1" stroke="currentColor" strokeWidth="1.3"/>
               <path d="M7 7v2M5.5 8h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
             </svg>
-            <span className="dash-finance-title">Aperçu financier · {fiscalYear}</span>
+            <span className="dash-finance-title">{t("dashboard.financeTitle", { year: fiscalYear })}</span>
             <span
               className="dash-finance-net"
               style={{ color: isNeg ? "var(--coral)" : "var(--green)" }}
@@ -526,39 +650,39 @@ export function DashboardPage() {
                 <div className="dash-finance-kpi-val" style={{ color: "var(--green)" }}>
                   {formatMAD(result.breakdown.totalRecettes)}
                 </div>
-                <div className="dash-finance-kpi-lbl">Recettes</div>
+                <div className="dash-finance-kpi-lbl">{t("dashboard.revenue")}</div>
               </div>
               <div className="dash-finance-kpi-sep" />
               <div className="dash-finance-kpi">
                 <div className="dash-finance-kpi-val" style={{ color: "var(--coral)" }}>
                   {formatMAD(result.breakdown.totalCharges)}
                 </div>
-                <div className="dash-finance-kpi-lbl">Charges</div>
+                <div className="dash-finance-kpi-lbl">{t("dashboard.expenses")}</div>
               </div>
               <div className="dash-finance-kpi-sep" />
               <div className="dash-finance-kpi">
                 <div className="dash-finance-kpi-val" style={{ color: "var(--gold)" }}>
                   {formatMAD(result.tax.taxDue)}
                 </div>
-                <div className="dash-finance-kpi-lbl">IR estimé</div>
+                <div className="dash-finance-kpi-lbl">{t("dashboard.taxEst")}</div>
               </div>
               <div className="dash-finance-kpi-sep" />
               <div className="dash-finance-kpi">
                 <div className="dash-finance-kpi-val" style={{ color: isNeg ? "var(--coral)" : "var(--text)" }}>
                   {formatMAD(netResult)}
                 </div>
-                <div className="dash-finance-kpi-lbl">Résultat net</div>
+                <div className="dash-finance-kpi-lbl">{t("dashboard.netResult")}</div>
               </div>
             </div>
             <div className="dash-finance-actions">
               <button className="btn btn-ghost" onClick={() => navigate("/transactions")}>
-                Transactions
+                {t("nav.transactions")}
               </button>
               <button className="btn btn-ghost" onClick={() => navigate("/rapport")}>
-                Rapport fiscal
+                {t("dashboard.taxReport")}
               </button>
               <button className="btn btn-ghost" onClick={() => navigate("/expliquer")}>
-                Calcul IR
+                {t("dashboard.taxCalc")}
               </button>
             </div>
           </div>

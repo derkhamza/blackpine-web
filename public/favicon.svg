@@ -1,14 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#1890C5"/>
-      <stop offset="100%" stop-color="#0A4E7E"/>
-    </linearGradient>
-  </defs>
-  <!-- Rounded square background — blue gradient (matches app store icon) -->
-  <rect width="32" height="32" rx="7" fill="url(#bg)"/>
-  <!-- Circle outline -->
-  <circle cx="16" cy="16" r="13" fill="none" stroke="white" stroke-width="1.5"/>
-  <!-- Pine tree: apex → first tier left → notch → second tier left → trunk → second tier right → notch → first tier right → close -->
-  <path d="M16,4 L11,12 L13,12 L8,19 L12,19 L12,26 L20,26 L20,19 L24,19 L19,12 L21,12 Z" fill="white"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 72">
+  <rect width="72" height="72" rx="16" fill="#0A4E7E"/>
+  <g fill="none" stroke="#fff" stroke-width="3.8" stroke-linecap="round" stroke-linejoin="round" transform="translate(0 4.5)">
+    <path d="M24 16 v10 a10 10 0 0 0 20 0 V16"/>
+    <path d="M34 44 a9 9 0 0 0 14 0"/>
+    <path d="M34 44 V36 M48 44 V36"/>
+  </g>
 </svg>

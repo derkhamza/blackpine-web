@@ -1,14 +1,16 @@
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { Layout } from "../components/Layout";
 import { useCabinet } from "../context/CabinetContext";
 import { useApp } from "../context/AppContext";
 import { formatMAD } from "../lib/format";
+import { AnimatedNumber } from "../components/AnimatedNumber";
 import { APPT_TYPE_LABELS } from "../lib/cabinetTypes";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function fmtDateLong(iso: string) {
-  return new Date(iso + "T12:00:00").toLocaleDateString("fr-FR", {
+function fmtDateLong(iso: string, locale: string) {
+  return new Date(iso + "T12:00:00").toLocaleDateString(locale, {
     day: "numeric", month: "long", year: "numeric",
   });
 }
@@ -17,7 +19,12 @@ function fmtDateShort(iso: string) {
   return `${d}/${m}`;
 }
 
-const WEEKDAY_LABELS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
+function getWeekdayShort(locale: string): string[] {
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(2000, 0, 3 + i); // 2000-01-03 is Monday
+    return d.toLocaleDateString(locale, { weekday: "short" });
+  });
+}
 
 const TYPE_COLORS: Record<string, string> = {
   consultation: "#1890C5",
@@ -36,6 +43,12 @@ function SectionCard({ title, children }: { title: string; children: React.React
       {children}
     </div>
   );
+}
+
+// Count-up when there's data, "—" when empty.
+function StatNum({ value, format }: { value: number; format?: (n: number) => string }) {
+  if (value <= 0) return <>—</>;
+  return <AnimatedNumber value={value} format={format ?? ((n) => Math.round(n).toLocaleString("fr-FR"))} />;
 }
 
 function KpiRow({ label, value, color, sub }: {
@@ -70,12 +83,18 @@ function RecordRow({ icon, label, value, sub }: {
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export function StatsPage({ noLayout = false }: { noLayout?: boolean } = {}) {
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language?.slice(0, 2) === "ar" ? "ar-MA"
+               : i18n.language?.slice(0, 2) === "en" ? "en-US" : "fr-FR";
+
   const { appointments, patients } = useCabinet();
   const { transactions }           = useApp();
 
   const now       = new Date();
   const thisYear  = now.getFullYear();
   const thisMonth = now.toISOString().slice(0, 7);
+
+  const weekdayLabels = getWeekdayShort(locale);
 
   // ── Core datasets ─────────────────────────────────────────────────────────
   const completedAppts = useMemo(
@@ -187,14 +206,14 @@ export function StatsPage({ noLayout = false }: { noLayout?: boolean } = {}) {
       {/* ── Hero ── */}
       <div className="stats-hero">
         <div className="stats-hero-highlight" />
-        <div className="stats-hero-label">Consultations réalisées</div>
+        <div className="stats-hero-label">{t("stats.heroLabel")}</div>
         <div className="stats-hero-number">
-          {isEmpty ? "—" : totalConsultations.toLocaleString("fr-FR")}
+          {isEmpty ? "—" : <AnimatedNumber value={totalConsultations} format={(n) => Math.round(n).toLocaleString(locale)} />}
         </div>
         <div className="stats-hero-sub">
           {firstDate
-            ? `depuis le ${fmtDateLong(firstDate)}`
-            : "Aucune consultation terminée enregistrée"}
+            ? t("stats.heroSince", { date: fmtDateLong(firstDate, locale) })
+            : t("stats.heroEmpty")}
         </div>
       </div>
 
@@ -205,39 +224,39 @@ export function StatsPage({ noLayout = false }: { noLayout?: boolean } = {}) {
         <div className="stats-col">
 
           {/* Cette année */}
-          <SectionCard title={`Cette année · ${thisYear}`}>
+          <SectionCard title={t("stats.thisYear", { year: thisYear })}>
             <div className="stats-kpi-3col">
               <div className="stats-kpi-cell">
                 <div className="stats-kpi-big" style={{ color: "var(--green)" }}>
-                  {thisYearRevenue > 0 ? formatMAD(thisYearRevenue) : "—"}
+                  <StatNum value={thisYearRevenue} format={formatMAD} />
                 </div>
-                <div className="stats-kpi-cell-label">Recettes</div>
+                <div className="stats-kpi-cell-label">{t("stats.kpiRevenue")}</div>
               </div>
               <div className="stats-kpi-divider" />
               <div className="stats-kpi-cell">
                 <div className="stats-kpi-big" style={{ color: "var(--blue)" }}>
-                  {thisYearAppts.length > 0 ? String(thisYearAppts.length) : "—"}
+                  <StatNum value={thisYearAppts.length} />
                 </div>
-                <div className="stats-kpi-cell-label">Consultations</div>
+                <div className="stats-kpi-cell-label">{t("stats.kpiConsultations")}</div>
               </div>
               <div className="stats-kpi-divider" />
               <div className="stats-kpi-cell">
                 <div className="stats-kpi-big">
-                  {thisYearUniqPatients > 0 ? String(thisYearUniqPatients) : "—"}
+                  <StatNum value={thisYearUniqPatients} />
                 </div>
-                <div className="stats-kpi-cell-label">Patients vus</div>
+                <div className="stats-kpi-cell-label">{t("stats.kpiPatients")}</div>
               </div>
             </div>
           </SectionCard>
 
           {/* Records */}
           {!isEmpty && (
-            <SectionCard title="Vos records">
+            <SectionCard title={t("stats.records")}>
               {bestDay && (
                 <RecordRow
                   icon="📅"
-                  label="Meilleure journée"
-                  value={`${bestDay.count} consultation${bestDay.count > 1 ? "s" : ""}`}
+                  label={t("stats.bestDay")}
+                  value={t("stats.bestDayCount", { n: bestDay.count, s: bestDay.count > 1 ? "s" : "" })}
                   sub={fmtDateShort(bestDay.date)}
                 />
               )}
@@ -246,9 +265,9 @@ export function StatsPage({ noLayout = false }: { noLayout?: boolean } = {}) {
                   <div className="stats-record-divider" />
                   <RecordRow
                     icon="⭐"
-                    label="Patient le plus fidèle"
+                    label={t("stats.mostLoyal")}
                     value={mostLoyal.name.split(" ")[0]}
-                    sub={`${mostLoyal.count} visites`}
+                    sub={t("stats.mostLoyalSub", { n: mostLoyal.count })}
                   />
                 </>
               )}
@@ -257,21 +276,21 @@ export function StatsPage({ noLayout = false }: { noLayout?: boolean } = {}) {
                   <div className="stats-record-divider" />
                   <RecordRow
                     icon="🩺"
-                    label="Acte le plus fréquent"
+                    label={t("stats.topAct")}
                     value={APPT_TYPE_LABELS[topType[0] as keyof typeof APPT_TYPE_LABELS] ?? topType[0]}
-                    sub={`${topType[1]} fois`}
+                    sub={t("stats.topActSub", { n: topType[1] })}
                   />
                 </>
               )}
               {!bestDay && !mostLoyal && !topType && (
-                <div className="stats-empty-hint">Pas encore de données</div>
+                <div className="stats-empty-hint">{t("stats.noData")}</div>
               )}
             </SectionCard>
           )}
 
           {/* Weekday chart */}
           {!isEmpty && (
-            <SectionCard title="Jours les plus actifs">
+            <SectionCard title={t("stats.weekdays")}>
               <div className="weekday-chart">
                 {weekdayCounts.map((count, idx) => {
                   const isPeak = count === maxWeekday && count > 0;
@@ -300,7 +319,7 @@ export function StatsPage({ noLayout = false }: { noLayout?: boolean } = {}) {
                         className="weekday-bar-label"
                         style={{ fontWeight: isPeak ? 700 : 500, color: isPeak ? "var(--navy)" : "var(--tertiary)" }}
                       >
-                        {WEEKDAY_LABELS[idx]}
+                        {weekdayLabels[idx]}
                       </div>
                     </div>
                   );
@@ -314,34 +333,34 @@ export function StatsPage({ noLayout = false }: { noLayout?: boolean } = {}) {
         <div className="stats-col">
 
           {/* Patient portfolio */}
-          <SectionCard title="Portefeuille patients">
+          <SectionCard title={t("stats.portfolio")}>
             <div className="stats-kpi-3col">
               <div className="stats-kpi-cell">
                 <div className="stats-kpi-big" style={{ color: "var(--blue)" }}>
-                  {totalPatients > 0 ? String(totalPatients) : "—"}
+                  <StatNum value={totalPatients} />
                 </div>
-                <div className="stats-kpi-cell-label">Enregistrés</div>
+                <div className="stats-kpi-cell-label">{t("stats.portfolioReg")}</div>
               </div>
               <div className="stats-kpi-divider" />
               <div className="stats-kpi-cell">
                 <div className="stats-kpi-big" style={{ color: newThisMonth > 0 ? "var(--green)" : undefined }}>
-                  {newThisMonth > 0 ? `+${newThisMonth}` : "—"}
+                  <StatNum value={newThisMonth} format={(n) => "+" + Math.round(n).toLocaleString("fr-FR")} />
                 </div>
-                <div className="stats-kpi-cell-label">Ce mois</div>
+                <div className="stats-kpi-cell-label">{t("stats.portfolioMonth")}</div>
               </div>
               <div className="stats-kpi-divider" />
               <div className="stats-kpi-cell">
                 <div className="stats-kpi-big" style={{ color: cnopsPatients > 0 ? "#6b46c1" : undefined }}>
-                  {cnopsPatients > 0 ? String(cnopsPatients) : "—"}
+                  <StatNum value={cnopsPatients} />
                 </div>
-                <div className="stats-kpi-cell-label">AMO/CNOPS</div>
+                <div className="stats-kpi-cell-label">{t("stats.portfolioCnops")}</div>
               </div>
             </div>
 
             {returnRate > 0 && (
               <div className="stats-return-rate">
                 <div className="stats-return-header">
-                  <span className="stats-return-label">Taux de fidélisation</span>
+                  <span className="stats-return-label">{t("stats.returnRate")}</span>
                   <span
                     className="stats-return-pct"
                     style={{
@@ -360,14 +379,14 @@ export function StatsPage({ noLayout = false }: { noLayout?: boolean } = {}) {
                     }}
                   />
                 </div>
-                <div className="stats-return-sub">patients avec plusieurs consultations</div>
+                <div className="stats-return-sub">{t("stats.returnSub")}</div>
               </div>
             )}
           </SectionCard>
 
           {/* Type breakdown */}
           {typeBreakdown.length > 0 && (
-            <SectionCard title="Par type d'acte">
+            <SectionCard title={t("stats.byType")}>
               <div className="stats-type-list">
                 {typeBreakdown.map(([type, count], idx) => {
                   const color = TYPE_COLORS[type] ?? "var(--blue)";
@@ -399,11 +418,8 @@ export function StatsPage({ noLayout = false }: { noLayout?: boolean } = {}) {
           {isEmpty && (
             <div className="tx-empty">
               <div style={{ fontSize: 40, marginBottom: 12 }}>📊</div>
-              <div style={{ fontWeight: 700, marginBottom: 6 }}>Aucune donnée disponible</div>
-              <div style={{ fontSize: 13 }}>
-                Marquez des rendez-vous comme «&nbsp;Terminés&nbsp;» dans l'agenda pour voir
-                les statistiques de votre cabinet ici.
-              </div>
+              <div style={{ fontWeight: 700, marginBottom: 6 }}>{t("stats.emptyTitle")}</div>
+              <div style={{ fontSize: 13 }}>{t("stats.emptyHint")}</div>
             </div>
           )}
         </div>
@@ -413,8 +429,8 @@ export function StatsPage({ noLayout = false }: { noLayout?: boolean } = {}) {
   if (noLayout) return body;
   return (
     <Layout
-      title="Activité du cabinet"
-      subtitle={`${thisYear} · ${totalConsultations} consultation${totalConsultations !== 1 ? "s" : ""} au total`}
+      title={t("stats.title")}
+      subtitle={t("stats.subtitle", { year: thisYear, n: totalConsultations, s: totalConsultations !== 1 ? "s" : "" })}
     >
       {body}
     </Layout>
