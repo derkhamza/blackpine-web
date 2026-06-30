@@ -2083,6 +2083,15 @@
     "deleteSupConfirm": "Delete \"{{name}}\"?",
     "deleteOrderConfirm": "Delete this order?"
   },
+  "acteCatalog": {
+    "importBtn": "Import from catalog",
+    "title": "Acts catalog (NGAP)",
+    "hint": "Common acts performed in Morocco, grouped by specialty. Codes are the NGAP key-letters (C, CS, K, KC, Z, B). Add the ones you perform, then set your fee.",
+    "search": "Search an act…",
+    "noMatch": "No act found",
+    "added": "Added",
+    "done": "Done"
+  },
   "examReq": {
     "title": "Exam request — {{name}}",
     "titleShort": "Exam request",

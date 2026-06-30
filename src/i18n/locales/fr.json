@@ -2083,6 +2083,15 @@
     "deleteSupConfirm": "Supprimer \"{{name}}\" ?",
     "deleteOrderConfirm": "Supprimer cette commande ?"
   },
+  "acteCatalog": {
+    "importBtn": "Importer depuis le catalogue",
+    "title": "Catalogue des actes (NGAP)",
+    "hint": "Actes courants au Maroc, classés par spécialité. Les codes sont les lettres-clés NGAP (C, CS, K, KC, Z, B). Ajoutez ceux que vous pratiquez, puis fixez votre tarif.",
+    "search": "Rechercher un acte…",
+    "noMatch": "Aucun acte trouvé",
+    "added": "Ajouté",
+    "done": "Terminé"
+  },
   "examReq": {
     "title": "Demande d'examens — {{name}}",
     "titleShort": "Demande d'examens",

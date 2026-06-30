@@ -2161,6 +2161,28 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 }
 .appt-detail-link-btn:hover { border-color: var(--blue); }
 .appt-detail-link-btn:active { transform: scale(.95); }
+/* ── Acts catalog (NGAP) ───────────────────────────────────────────────────── */
+.acte-catalog-btn { align-self: flex-start; font-size: 13px; }
+.acte-cat-hint { font-size: 12.5px; color: var(--muted); margin-bottom: 10px; line-height: 1.5; }
+.acte-cat-group { margin-bottom: 14px; }
+.acte-cat-group-title {
+  font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .4px;
+  color: var(--blue, #1890C5); padding: 4px 2px; border-bottom: 1px solid var(--border, rgba(0,0,0,.08));
+  margin-bottom: 6px; position: sticky; top: 0; background: var(--surface, #fff);
+}
+.acte-cat-row { display: flex; align-items: center; gap: 10px; padding: 5px 2px; }
+.acte-cat-code {
+  flex: 0 0 auto; min-width: 42px; font-weight: 800; font-size: 12px; color: var(--blue, #1890C5);
+  background: var(--blue-soft, rgba(24,144,197,.10)); border-radius: 6px; padding: 3px 7px; text-align: center;
+}
+.acte-cat-label { flex: 1 1 auto; font-size: 13.5px; }
+.acte-cat-add {
+  flex: 0 0 auto; border: 1px solid var(--blue, #1890C5); background: none; color: var(--blue, #1890C5);
+  border-radius: 7px; padding: 4px 12px; font-size: 12px; font-weight: 700; cursor: pointer;
+}
+.acte-cat-add:hover:not(:disabled) { background: var(--blue, #1890C5); color: #fff; }
+.acte-cat-add:disabled { opacity: .5; cursor: default; border-color: var(--border, rgba(0,0,0,.12)); color: var(--muted); }
+
 /* ── Exam request (demande d'examens) ──────────────────────────────────────── */
 .exr-rows { display: flex; flex-direction: column; gap: 6px; }
 .exr-row { display: flex; gap: 6px; align-items: center; }

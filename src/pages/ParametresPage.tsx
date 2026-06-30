@@ -13,6 +13,7 @@ import { useTranslation } from "react-i18next";
 import type { CabinetLocation, AppointmentType, SecretaryPermissions, ActeCode, DocumentSettings, DocumentLayout, CabinetDoctorProfile } from "../lib/cabinetTypes";
 import { APPT_TYPE_COLORS, DEFAULT_SECRETARY_PERMISSIONS, DEFAULT_DOCUMENT_SETTINGS, DOCUMENT_LAYOUT_LABELS } from "../lib/cabinetTypes";
 import { COMMON_DRUGS } from "../lib/ordonnancePrinter";
+import { ActeCatalogModal } from "../components/ActeCatalogModal";
 import {
   inviteCreate, inviteRevoke, type CabinetBackup,
   secretaryAccountList, secretaryAccountCreate, secretaryAccountRevoke, type SecretaryAccount,
@@ -589,6 +590,7 @@ function ActeCodesSection({
   const [code, setCode]   = useState("");
   const [label, setLabel] = useState("");
   const [price, setPrice] = useState("");
+  const [showCatalog, setShowCatalog] = useState(false);
 
   const add = () => {
     if (!code.trim() || !label.trim()) return;
@@ -602,15 +604,37 @@ function ActeCodesSection({
   };
   const remove = (id: string) => onChange(codes.filter(c => c.id !== id));
 
+  const normLabel = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  const existingLabels = new Set(codes.map(c => normLabel(c.label)));
+  const addFromCatalog = (item: { code: string; label: string }) => {
+    if (existingLabels.has(normLabel(item.label))) return;
+    onChange([...codes, {
+      id: `acte_${Date.now()}_${Math.round(performance.now())}`,
+      code: item.code, label: item.label,
+    }]);
+  };
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <button type="button" className="btn btn-ghost acte-catalog-btn" onClick={() => setShowCatalog(true)}>
+        + {t("acteCatalog.importBtn")}
+      </button>
       {codes.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {codes.map(c => (
             <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", border: "1px solid var(--border)", borderRadius: 8 }}>
               <span style={{ fontWeight: 700, color: "var(--blue)", minWidth: 48 }}>{c.code}</span>
               <span style={{ flex: 1 }}>{c.label}</span>
-              {c.price != null && <span style={{ color: "var(--muted)" }}>{c.price} MAD</span>}
+              <input
+                className="form-input"
+                type="number" min="0" step="10" placeholder="MAD"
+                style={{ width: 90 }}
+                value={c.price ?? ""}
+                onChange={e => {
+                  const p = parseFloat(e.target.value);
+                  onChange(codes.map(x => x.id === c.id ? { ...x, price: Number.isFinite(p) && p > 0 ? p : undefined } : x));
+                }}
+              />
               <button type="button" className="btn btn-danger-ghost" style={{ padding: "2px 8px" }} onClick={() => remove(c.id)}>×</button>
             </div>
           ))}
@@ -625,6 +649,14 @@ function ActeCodesSection({
           value={price} onChange={e => setPrice(e.target.value)} />
         <button type="button" className="btn btn-primary" onClick={add}>{t("common.add")}</button>
       </div>
+
+      {showCatalog && (
+        <ActeCatalogModal
+          existingLabels={existingLabels}
+          onAdd={addFromCatalog}
+          onClose={() => setShowCatalog(false)}
+        />
+      )}
     </div>
   );
 }
