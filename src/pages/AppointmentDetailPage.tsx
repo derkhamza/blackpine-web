@@ -9,8 +9,9 @@ import { useToast } from "../components/Toast";
 import { findOrphanAppts } from "../lib/orphanAppts";
 import type {
   Appointment, AppointmentStatus, AppointmentType,
-  ConsultationNote, VitalSigns, OrdonnanceLine, SavedCertificate, BillingLine,
+  ConsultationNote, VitalSigns, OrdonnanceLine, SavedCertificate, BillingLine, PaymentMethod,
 } from "../lib/cabinetTypes";
+import { paymentSummary } from "../lib/billing";
 import {
   APPT_TYPE_LABELS, APPT_TYPE_COLORS, APPT_STATUS_LABELS, DEFAULT_SECRETARY_PERMISSIONS,
 } from "../lib/cabinetTypes";
@@ -309,6 +310,11 @@ export function AppointmentDetailPage() {
   const [showBill,  setShowBill]  = useState(false);
   const [billItems,     setBillItems]     = useState<BillingLine[]>([]);
   const [billReduction, setBillReduction] = useState("");
+  const [billCollected, setBillCollected] = useState("");   // cash taken at billing time
+  // Recording a later instalment on an already-billed appointment
+  const [showPay,    setShowPay]    = useState(false);
+  const [payAmount,  setPayAmount]  = useState("");
+  const [payMethod,  setPayMethod]  = useState<PaymentMethod>("cash");
 
   // ── Link-to-patient modal ─────────────────────────────────────────────────
   const [showLink, setShowLink] = useState(false);
@@ -572,16 +578,25 @@ export function AppointmentDetailPage() {
   const billSubtotal  = billItems.reduce((s, l) => s + (l.qty || 0) * (l.unitPrice || 0), 0);
   const billReductionN = Math.max(0, parseFloat(billReduction.replace(",", ".")) || 0);
   const billTotal     = Math.max(0, billSubtotal - billReductionN);
+  const billCollectedN = Math.min(billTotal, Math.max(0, parseFloat(billCollected.replace(",", ".")) || 0));
+  const billRemaining  = Math.max(0, billTotal - billCollectedN);
+  const pay = paymentSummary(appt);
 
   const openBillModal = () => {
+    let total: number;
     if (appt.billedItems && appt.billedItems.length) {
       setBillItems(appt.billedItems.map(l => ({ ...l })));
       setBillReduction(appt.billedReduction ? String(appt.billedReduction) : "");
+      total = appt.billedItems.reduce((s, l) => s + l.qty * l.unitPrice, 0) - (appt.billedReduction ?? 0);
     } else {
       const base = doctorProfile.appointmentPrices?.[appt.type] ?? appt.billedAmount ?? 200;
       setBillItems([{ label: APPT_TYPE_LABELS[appt.type], qty: 1, unitPrice: Number(base) || 0 }]);
       setBillReduction("");
+      total = Number(base) || 0;
     }
+    // Default to collecting the full amount; the secretary lowers it if the
+    // patient pays part now and defers the rest.
+    setBillCollected(String(Math.max(0, total)));
     setShowBill(true);
   };
 
@@ -598,12 +613,14 @@ export function AppointmentDetailPage() {
     const subtotal = items.reduce((s, l) => s + l.qty * l.unitPrice, 0);
     const total    = Math.max(0, subtotal - billReductionN);
     if (total <= 0) return;
-    // A secretary records the billing on the appointment (which syncs to the
-    // cabinet and feeds the facture history) but does not write to the doctor's
-    // personal accounting ledger — that stays the doctor's to reconcile.
-    if (role !== "secretary") {
+    // The patient may pay all, part, or none of it now — the rest is deferred.
+    const collected = Math.min(total, Math.max(0, parseFloat(billCollected.replace(",", ".")) || 0));
+    const now = new Date().toISOString();
+    // The ledger is credited with cash actually received (deferred amounts are
+    // recognised later when paid). Secretaries never touch the doctor's ledger.
+    if (role !== "secretary" && collected > 0) {
       addTransaction({
-        type: "RECETTE", amount: total, date: appt.date,
+        type: "RECETTE", amount: collected, date: appt.date,
         category: appt.type === "procedure" ? "acte_chirurgical" : "consultation",
         deductibilityStatus: "FULLY_DEDUCTIBLE", professionalUseRatio: 1,
         description: `${APPT_TYPE_LABELS[appt.type]} – ${appt.patientName}`,
@@ -611,12 +628,43 @@ export function AppointmentDetailPage() {
     }
     updateAppointment({
       ...appt,
-      billedAt: new Date().toISOString(),
+      billedAt: now,
       billedAmount: total,
       billedItems: items,
       billedReduction: billReductionN > 0 ? billReductionN : undefined,
+      paidAmount: collected,
+      payments: collected > 0 ? [{ amount: collected, date: now, method: "cash" }] : [],
     });
     setShowBill(false);
+  };
+
+  // Record a later instalment on an already-billed appointment.
+  const openPayModal = () => {
+    const { balance } = paymentSummary(appt);
+    setPayAmount(String(balance));
+    setPayMethod("cash");
+    setShowPay(true);
+  };
+
+  const handlePay = () => {
+    const { paid, balance } = paymentSummary(appt);
+    const amount = Math.min(balance, Math.max(0, parseFloat(payAmount.replace(",", ".")) || 0));
+    if (amount <= 0) return;
+    const now = new Date().toISOString();
+    if (role !== "secretary") {
+      addTransaction({
+        type: "RECETTE", amount, date: appt.date.slice(0, 10),
+        category: appt.type === "procedure" ? "acte_chirurgical" : "consultation",
+        deductibilityStatus: "FULLY_DEDUCTIBLE", professionalUseRatio: 1,
+        description: `${t("apptDetail.payLedgerNote")} – ${appt.patientName}`,
+      });
+    }
+    updateAppointment({
+      ...appt,
+      paidAmount: paid + amount,
+      payments: [...(appt.payments ?? []), { amount, date: now, method: payMethod }],
+    });
+    setShowPay(false);
   };
 
   const handleRmbSave = () => {
@@ -1148,6 +1196,22 @@ export function AppointmentDetailPage() {
                 {t("apptDetail.billedOn", { date: new Date(appt.billedAt).toLocaleDateString(locale) })}
                 {appt.billedAmount ? ` · ${formatMAD(appt.billedAmount)}` : ""}
               </span>
+              {/* Payment status */}
+              <span className={`pay-badge pay-badge-${pay.status}`}>
+                {pay.status === "paid"     && t("apptDetail.payStatusPaid")}
+                {pay.status === "partial"  && t("apptDetail.payStatusPartial", { amount: formatMAD(pay.balance) })}
+                {pay.status === "deferred" && t("apptDetail.payStatusDeferred", { amount: formatMAD(pay.balance) })}
+              </span>
+              {pay.balance > 0 && (
+                <button
+                  className="btn btn-primary receipt-print-btn"
+                  style={{ background: "var(--blue)" }}
+                  onClick={openPayModal}
+                  title={t("apptDetail.payTitle")}
+                >
+                  {t("apptDetail.payCollect")}
+                </button>
+              )}
               {/* Reçu */}
               <button
                 className="btn btn-ghost receipt-print-btn"
@@ -1156,7 +1220,9 @@ export function AppointmentDetailPage() {
                   consultationType: APPT_TYPE_LABELS[appt.type],
                   appointmentDate:  appt.date,
                   appointmentTime:  appt.startTime,
-                  amount:           appt.billedAmount ?? 0,
+                  amount:           pay.paid,
+                  total:            pay.due,
+                  balance:          pay.balance,
                   items:            appt.billedItems,
                   reduction:        appt.billedReduction,
                   doctorProfile,
@@ -1438,6 +1504,30 @@ export function AppointmentDetailPage() {
                   <span>{formatMAD(billTotal)}</span>
                 </div>
               </div>
+
+              {/* Payment now — patient may pay all, part, or nothing (deferred) */}
+              <div className="form-group" style={{ marginTop: 14 }}>
+                <label className="form-label">{t("apptDetail.billCollected")}</label>
+                <div className="bill-collect-row">
+                  <input
+                    className="form-input"
+                    type="number" min="0" step="0.01"
+                    value={billCollected}
+                    onChange={(e) => setBillCollected(e.target.value)}
+                  />
+                  <button type="button" className="bill-collect-chip" onClick={() => setBillCollected(String(billTotal))}>
+                    {t("apptDetail.billPayFull")}
+                  </button>
+                  <button type="button" className="bill-collect-chip" onClick={() => setBillCollected("0")}>
+                    {t("apptDetail.billDefer")}
+                  </button>
+                </div>
+              </div>
+              {billRemaining > 0 && (
+                <div className="bill-remaining">
+                  {t("apptDetail.billRemaining")} <strong>{formatMAD(billRemaining)}</strong>
+                </div>
+              )}
             </div>
             <div className="modal-footer">
               <button className="btn btn-ghost" onClick={() => setShowBill(false)}>{t("common.cancel")}</button>
@@ -1448,6 +1538,57 @@ export function AppointmentDetailPage() {
                 disabled={billTotal <= 0}
               >
                 {t("apptDetail.addRevenue")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Record a later payment (deferred / partial) ── */}
+      {showPay && (
+        <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setShowPay(false); }}>
+          <div className="modal" style={{ maxWidth: 380 }}>
+            <div className="modal-header">
+              <h2 className="modal-title">{t("apptDetail.payTitle")}</h2>
+              <button className="modal-close" onClick={() => setShowPay(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              <div className="bill-totals" style={{ marginTop: 0, borderTop: "none" }}>
+                <div className="bill-total-row"><span>{t("apptDetail.billTotal")}</span><span>{formatMAD(pay.due)}</span></div>
+                <div className="bill-total-row"><span>{t("apptDetail.payAlready")}</span><span>{formatMAD(pay.paid)}</span></div>
+                <div className="bill-total-row bill-total-net" style={{ color: "var(--coral)" }}>
+                  <span>{t("apptDetail.billRemaining")}</span><span>{formatMAD(pay.balance)}</span>
+                </div>
+              </div>
+              <div className="form-group" style={{ marginTop: 14 }}>
+                <label className="form-label">{t("apptDetail.payAmount")}</label>
+                <input
+                  className="form-input"
+                  type="number" min="0" step="0.01" max={pay.balance} autoFocus
+                  value={payAmount}
+                  onChange={(e) => setPayAmount(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handlePay()}
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">{t("apptDetail.payMethod")}</label>
+                <select className="form-select" value={payMethod} onChange={(e) => setPayMethod(e.target.value as PaymentMethod)}>
+                  <option value="cash">{t("apptDetail.payCash")}</option>
+                  <option value="card">{t("apptDetail.payCard")}</option>
+                  <option value="cheque">{t("apptDetail.payCheque")}</option>
+                  <option value="transfer">{t("apptDetail.payTransfer")}</option>
+                </select>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-ghost" onClick={() => setShowPay(false)}>{t("common.cancel")}</button>
+              <button
+                className="btn btn-primary"
+                style={{ background: "var(--green)" }}
+                onClick={handlePay}
+                disabled={pay.balance <= 0}
+              >
+                {t("apptDetail.payRecord")}
               </button>
             </div>
           </div>

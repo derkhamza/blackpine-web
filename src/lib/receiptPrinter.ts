@@ -78,7 +78,9 @@ export interface ReceiptOptions {
   consultationType: string;   // e.g. "Consultation"
   appointmentDate:  string;   // ISO "YYYY-MM-DD"
   appointmentTime?: string;   // "HH:MM"
-  amount:           number;   // net total
+  amount:           number;   // amount actually paid (montant réglé)
+  total?:           number;   // full bill — shown only when a balance remains
+  balance?:         number;   // outstanding after this payment
   items?:           BillingLine[]; // itemized breakdown (base + acts)
   reduction?:       number;        // MAD discount
   doctorProfile:    CabinetDoctorProfile;
@@ -237,6 +239,11 @@ export function printReceipt(opts: ReceiptOptions): void {
     </div>
     <div class="amount-words">En lettres : ${amtWords}</div>
   </div>
+
+  ${opts.balance && opts.balance > 0 ? `<table class="info-table" style="margin-bottom:12px;">
+    <tr><td class="info-label">Total facturé :</td><td style="text-align:right;">${fmtMAD(opts.total ?? amount)}</td></tr>
+    <tr><td class="info-label" style="color:#C0392B;">Reste à payer :</td><td style="text-align:right;color:#C0392B;font-weight:700;">${fmtMAD(opts.balance)}</td></tr>
+  </table>` : ""}
 
   <!-- Signature -->
   <div class="signature-block">

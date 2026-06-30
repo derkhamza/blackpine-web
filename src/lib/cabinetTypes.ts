@@ -49,6 +49,17 @@ export interface BillingLine {
   unitPrice: number;   // MAD per unit
 }
 
+export type PaymentMethod = "cash" | "card" | "cheque" | "transfer";
+
+// A single payment a patient made toward an appointment's bill. A bill can be
+// settled in several instalments (deferred / partial payment), so each one is
+// recorded with its own date and (optional) method.
+export interface PaymentRecord {
+  amount: number;          // MAD collected
+  date:   string;          // ISO timestamp
+  method?: PaymentMethod;
+}
+
 export type DocumentLayout = "classic" | "compact" | "letterhead";
 
 export const DOCUMENT_LAYOUT_LABELS: Record<DocumentLayout, string> = {
@@ -316,6 +327,11 @@ export interface Appointment {
   // act has its own doctor-set price. billedAmount is the net after reduction.
   billedItems?:     BillingLine[];
   billedReduction?: number;   // MAD discount applied to the subtotal
+  // Payment tracking. A patient may pay in full, in part, or defer entirely.
+  // paidAmount is the cumulative cash collected so far (0 = fully deferred).
+  // Undefined on a billed appointment means a legacy record paid in full.
+  paidAmount?: number;
+  payments?:   PaymentRecord[];   // individual instalments (audit trail)
   // Mutuelle paperwork — doctors have no visibility on the actual reimbursement,
   // so we only track whether the mutuelle forms were filled, and when.
   mutuellePapersFilled?: boolean;

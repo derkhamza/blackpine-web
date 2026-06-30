@@ -5,6 +5,7 @@ import { Layout } from "../components/Layout";
 import { useCabinet } from "../context/CabinetContext";
 import { APPT_TYPE_LABELS } from "../lib/cabinetTypes";
 import { nextInvoiceNumber, printFacture } from "../lib/facturePrinter";
+import { paymentSummary } from "../lib/billing";
 import { todayIso, formatMAD } from "../lib/format";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -33,6 +34,7 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
 
   const [selYear, setSelYear] = useState(currentYear);
   const [search,  setSearch]  = useState("");
+  const [unpaidOnly, setUnpaidOnly] = useState(false);
 
   const billed = useMemo(
     () => [...appointments]
@@ -53,19 +55,22 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
       if (yearOf(a.billedAt!) !== selYear) return false;
       if (q && !a.patientName.toLowerCase().includes(q) &&
                !(a.invoiceNumber ?? "").toLowerCase().includes(q)) return false;
+      if (unpaidOnly && paymentSummary(a).balance <= 0) return false;
       return true;
     });
-  }, [billed, selYear, search]);
+  }, [billed, selYear, search, unpaidOnly]);
 
   const kpis = useMemo(() => {
     const withInv    = filtered.filter(a => !!a.invoiceNumber);
     const withoutInv = filtered.filter(a => !a.invoiceNumber);
     const total      = filtered.reduce((s, a) => s + (a.billedAmount ?? 0), 0);
+    const outstanding = filtered.reduce((s, a) => s + paymentSummary(a).balance, 0);
     return {
       total:     filtered.length,
       withInv:   withInv.length,
       withoutInv: withoutInv.length,
       totalMAD:  total,
+      outstanding,
     };
   }, [filtered]);
 
@@ -130,6 +135,12 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
           </div>
           <div className="fac-kpi-lbl">{t("factures.kpiTotal")}</div>
         </div>
+        <div className="fac-kpi" style={{ borderTopColor: "var(--coral)" }}>
+          <div className="fac-kpi-val" style={{ color: "var(--coral)", fontSize: 18 }}>
+            {formatMAD(kpis.outstanding)}
+          </div>
+          <div className="fac-kpi-lbl">{t("factures.kpiOutstanding")}</div>
+        </div>
       </div>
 
       {/* Filter bar */}
@@ -145,7 +156,14 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
             </button>
           ))}
         </div>
-        <div className="rmb-search-wrap" style={{ marginLeft: "auto" }}>
+        <button
+          className={`fac-year-tab fac-unpaid-toggle${unpaidOnly ? " active" : ""}`}
+          style={{ marginLeft: "auto" }}
+          onClick={() => setUnpaidOnly(v => !v)}
+        >
+          {t("factures.unpaidOnly")}
+        </button>
+        <div className="rmb-search-wrap">
           <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
             <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.4"/>
             <path d="M9.5 9.5l3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
@@ -200,6 +218,17 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
                   </td>
                   <td className="fac-r fac-amount">
                     {a.billedAmount != null ? formatMAD(a.billedAmount) : "—"}
+                    {(() => {
+                      const s = paymentSummary(a);
+                      if (s.balance <= 0) return null;
+                      return (
+                        <div className={`pay-badge pay-badge-${s.status}`} style={{ marginTop: 3 }}>
+                          {s.status === "deferred"
+                            ? t("factures.unpaidBadge", { amount: formatMAD(s.balance) })
+                            : t("factures.partialBadge", { amount: formatMAD(s.balance) })}
+                        </div>
+                      );
+                    })()}
                   </td>
                   <td className="fac-r">
                     <div className="fac-actions">

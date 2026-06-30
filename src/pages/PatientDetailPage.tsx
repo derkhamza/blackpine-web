@@ -13,6 +13,7 @@ import {
   MUTUELLES, MOROCCAN_CITIES,
 } from "../lib/cabinetTypes";
 import { formatMAD, formatDateShort, todayIso } from "../lib/format";
+import { outstandingTotal } from "../lib/billing";
 import { printPatientReport } from "../lib/patientReportPrinter";
 import { printOrdonnance } from "../lib/ordonnancePrinter";
 
@@ -243,6 +244,7 @@ export function PatientDetailPage() {
 
   const completedAppts = patientAppts.filter((a) => a.status === "completed");
   const billedAppts    = patientAppts.filter((a) => !!a.billedAt);
+  const patientOutstanding = useMemo(() => outstandingTotal(patientAppts), [patientAppts]);
   const ordAppts       = patientAppts.filter((a) => !!a.savedOrdonnance && a.savedOrdonnance.lines.length > 0);
 
   const fullName = patient ? `${patient.firstName} ${patient.lastName}` : "";
@@ -524,6 +526,12 @@ export function PatientDetailPage() {
             <div className="patient-stat">
               <div className="patient-stat-value" style={{ color: "var(--green)" }}>{formatMAD(patientRevenue)}</div>
               <div className="patient-stat-label">{t("patientDetail.statRevenue")}</div>
+            </div>
+          )}
+          {patientOutstanding > 0 && (
+            <div className="patient-stat">
+              <div className="patient-stat-value" style={{ color: "var(--coral)" }}>{formatMAD(patientOutstanding)}</div>
+              <div className="patient-stat-label">{t("patientDetail.statOutstanding")}</div>
             </div>
           )}
           <div className="patient-header-actions">
