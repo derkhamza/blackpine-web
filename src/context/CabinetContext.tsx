@@ -77,7 +77,7 @@ interface CabinetCtx {
   deleteAppointmentSeries: (ruleId: string, fromDate: string) => void;
 
   patients: Patient[];
-  addPatient:    (p: Omit<Patient, "id" | "createdAt">) => void;
+  addPatient:    (p: Omit<Patient, "id" | "createdAt">) => Patient;
   updatePatient: (p: Patient) => void;
   deletePatient: (id: string) => void;
 
@@ -365,8 +365,11 @@ export function CabinetProvider({
 
   // ── Patients ──────────────────────────────────────────────────────────────
   const addPatient = useCallback(
-    (p: Omit<Patient, "id" | "createdAt">) =>
-      setPatients(prev => [...prev, { ...p, id: uid(), createdAt: new Date().toISOString() }]), []);
+    (p: Omit<Patient, "id" | "createdAt">) => {
+      const created: Patient = { ...p, id: uid(), createdAt: new Date().toISOString() };
+      setPatients(prev => [...prev, created]);
+      return created;
+    }, []);
   const updatePatient = useCallback(
     (p: Patient) => setPatients(prev => prev.map(x => x.id === p.id ? p : x)), []);
   const deletePatient = useCallback(

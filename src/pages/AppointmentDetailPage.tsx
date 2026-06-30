@@ -5,6 +5,8 @@ import { Layout } from "../components/Layout";
 import { DictationButton } from "../components/DictationButton";
 import { useCabinet } from "../context/CabinetContext";
 import { useApp } from "../context/AppContext";
+import { useToast } from "../components/Toast";
+import { findOrphanAppts } from "../lib/orphanAppts";
 import type {
   Appointment, AppointmentStatus, AppointmentType,
   ConsultationNote, VitalSigns, OrdonnanceLine, SavedCertificate,
@@ -242,10 +244,11 @@ export function AppointmentDetailPage() {
   const navigate    = useNavigate();
   const {
     appointments, patients, updateAppointment, deleteAppointment, addInvoice,
-    doctorProfile, role,
+    addPatient, doctorProfile, role,
     apptDocuments, addApptDocument, deleteApptDocument,
   } = useCabinet();
   const { addTransaction } = useApp();
+  const toast = useToast();
   const readOnly = role === "secretary"; // secretary: view clinical notes, no clinical edits
   // A Moroccan secretary commonly takes the measurements, so vitals stay
   // editable for them when the doctor grants recordVitals (default on).
@@ -310,6 +313,22 @@ export function AppointmentDetailPage() {
   const [showLink, setShowLink] = useState(false);
   // Linking is a patient-data action: doctors always, secretaries only if granted.
   const canLink = !readOnly || secretaryPerms.editPatients;
+
+  // New patients are often booked before their record exists. This creates the
+  // record from the appointment's name (and online-booking phone, if any), then
+  // attaches every still-unlinked appointment booked under that same name.
+  const handleCreatePatientFromAppt = () => {
+    if (!appt) return;
+    const parts = appt.patientName.trim().split(/\s+/);
+    const created = addPatient({
+      firstName: parts[0] ?? appt.patientName.trim(),
+      lastName:  parts.slice(1).join(" "),
+      phone:     appt.bookingPhone || undefined,
+    });
+    const orphans = findOrphanAppts(appointments, appt.patientName);
+    orphans.forEach(a => updateAppointment({ ...a, patientId: created.id }));
+    toast(t("apptDetail.patientCreated", { count: orphans.length }), "success");
+  };
 
   // ── Template selector ─────────────────────────────────────────────────────
   const [templateCat, setTemplateCat] = useState<string>("Général");
@@ -664,17 +683,30 @@ export function AppointmentDetailPage() {
             </>
           ) : (
             canLink && (
-              <button
-                type="button"
-                className="appt-detail-link-btn"
-                onClick={() => setShowLink(true)}
-              >
-                <svg width="12" height="12" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0 }}>
-                  <path d="M5.5 8.5l3-3M6 4l.7-.7a2.3 2.3 0 0 1 3.3 3.3l-.7.7M8 10l-.7.7a2.3 2.3 0 0 1-3.3-3.3l.7-.7"
-                    stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-                {t("apptDetail.linkPatient")}
-              </button>
+              <div className="appt-detail-patient-actions">
+                <button
+                  type="button"
+                  className="appt-detail-create-btn"
+                  onClick={handleCreatePatientFromAppt}
+                  title={t("apptDetail.createPatientTitle")}
+                >
+                  <svg width="12" height="12" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0 }}>
+                    <path d="M7 3.5v7M3.5 7h7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+                  </svg>
+                  {t("apptDetail.createPatient")}
+                </button>
+                <button
+                  type="button"
+                  className="appt-detail-link-btn"
+                  onClick={() => setShowLink(true)}
+                >
+                  <svg width="12" height="12" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0 }}>
+                    <path d="M5.5 8.5l3-3M6 4l.7-.7a2.3 2.3 0 0 1 3.3 3.3l-.7.7M8 10l-.7.7a2.3 2.3 0 0 1-3.3-3.3l.7-.7"
+                      stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  {t("apptDetail.linkPatient")}
+                </button>
+              </div>
             )
           )}
         </div>

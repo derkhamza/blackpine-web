@@ -2161,6 +2161,20 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 }
 .appt-detail-link-btn:hover { border-color: var(--blue); }
 .appt-detail-link-btn:active { transform: scale(.95); }
+.appt-detail-patient-actions {
+  display: inline-flex; align-items: center; gap: 6px; margin-left: auto; flex-wrap: wrap;
+}
+.appt-detail-patient-actions .appt-detail-link-btn { margin-left: 0; }
+.appt-detail-create-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12px; font-weight: 700; color: var(--green, #15A876);
+  background: var(--green-soft, rgba(21,168,118,.10)); border: 1px solid transparent;
+  border-radius: 7px; padding: 4px 10px; cursor: pointer;
+  transition: background var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out), transform var(--dur-fast) var(--ease-spring);
+}
+.appt-detail-create-btn:hover { border-color: var(--green, #15A876); }
+.appt-detail-create-btn:active { transform: scale(.95); }
+[dir="rtl"] .appt-detail-patient-actions { margin-left: 0; margin-right: auto; }
 .appt-detail-unlink-btn {
   font-size: 11px; font-weight: 600; color: var(--muted);
   background: none; border: none; cursor: pointer; padding: 4px 6px;

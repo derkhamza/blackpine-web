@@ -5,6 +5,7 @@ import { useToast } from "../components/Toast";
 import { useCabinet } from "../context/CabinetContext";
 import { CsvImportModal } from "../components/CsvImportModal";
 import { exportPatientsCsv } from "../lib/csvExport";
+import { findOrphanAppts } from "../lib/orphanAppts";
 import type { Patient, PatientGender } from "../lib/cabinetTypes";
 import { MOROCCAN_CITIES } from "../lib/cabinetTypes";
 import { useTranslation } from "react-i18next";
@@ -268,7 +269,7 @@ function PatientCard({
 export function PatientsPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { patients, appointments, addPatient, updatePatient, deletePatient } = useCabinet();
+  const { patients, appointments, addPatient, updatePatient, deletePatient, updateAppointment } = useCabinet();
   const [search,    setSearch]    = useState("");
   const [modal,     setModal]     = useState<{ patient?: Patient } | null>(null);
   const [csvOpen,   setCsvOpen]   = useState(false);
@@ -404,9 +405,20 @@ export function PatientsPage() {
           initial={modal.patient}
           existingPatients={patients}
           onSave={p => {
-            if (modal.patient) updatePatient({ ...p, id: modal.patient.id, createdAt: modal.patient.createdAt });
-            else { addPatient(p); track("action:create_patient"); }
-            showToast(modal.patient ? t("patients.modified") : t("patients.added"));
+            if (modal.patient) {
+              updatePatient({ ...p, id: modal.patient.id, createdAt: modal.patient.createdAt });
+              showToast(t("patients.modified"));
+            } else {
+              const created = addPatient(p);
+              track("action:create_patient");
+              // Attach appointments booked under this name before the record existed.
+              const fullName = `${created.firstName} ${created.lastName}`.trim();
+              const orphans = findOrphanAppts(appointments, fullName);
+              orphans.forEach(a => updateAppointment({ ...a, patientId: created.id }));
+              showToast(orphans.length
+                ? t("patients.addedLinked", { count: orphans.length })
+                : t("patients.added"));
+            }
           }}
           onClose={() => setModal(null)}
         />
