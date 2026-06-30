@@ -683,6 +683,7 @@
     "tlBilled": "مفوتر",
     "tlPrescription": "وصفة طبية",
     "tlTeleconsult": "استشارة عن بعد",
+    "tlExamRequest": "طلب فحوصات",
     "tlExamAbnormal": "⚠️ {{n}} قيمة غير طبيعية",
     "tlPrescMore": "+ {{n}} آخر",
     "dossierTitle": "الملف الطبي",
@@ -1612,7 +1613,8 @@
     "title": "الوثائق الطبية",
     "subtitle": "الوصفات الطبية والشهادات",
     "tabOrd": "الوصفات الطبية",
-    "tabCert": "الشهادات"
+    "tabCert": "الشهادات",
+    "tabExam": "طلبات الفحوصات"
   },
   "stocksSupply": {
     "title": "المخزون والموردون",
@@ -2080,6 +2082,37 @@
     "toastReceived": "تم استلام الطلب · تم تحديث المخزون",
     "deleteSupConfirm": "حذف \"{{name}}\"؟",
     "deleteOrderConfirm": "حذف هذا الطلب؟"
+  },
+  "examReq": {
+    "title": "طلب فحوصات — {{name}}",
+    "titleShort": "طلب فحوصات",
+    "btn": "فحوصات",
+    "patientLabel": "المريض",
+    "patientPlaceholder": "اسم المريض",
+    "dateLabel": "التاريخ",
+    "examPlaceholder": "الفحص المطلوب (مثل: تعداد الدم، رنين دماغي)…",
+    "detailPlaceholder": "المعطيات (على الريق، أمامي + جانبي…)",
+    "addExam": "إضافة فحص",
+    "indicationLabel": "معلومات سريرية",
+    "indicationPlaceholder": "دواعي / سياق سريري (اختياري)",
+    "saveOnly": "حفظ دون طباعة",
+    "printBtn": "طباعة الطلب",
+    "newRequest": "طلب جديد",
+    "searchPlaceholder": "ابحث عن مريض…",
+    "emptyTitle": "لا توجد طلبات فحوصات",
+    "emptyHint": "أنشئ طلبًا من موعد أو من هنا.",
+    "print": "طباعة",
+    "deleteConfirm": "حذف طلب الفحوصات هذا؟",
+    "pageTitle": "طلبات الفحوصات",
+    "pageSubtitle": "تحاليل، أشعة، إيكو، سكانير، رنين مغناطيسي",
+    "cat": {
+      "biologie": "تحاليل",
+      "radiologie": "أشعة",
+      "echographie": "إيكوغرافيا",
+      "scanner": "سكانير",
+      "irm": "رنين مغناطيسي",
+      "autre": "أخرى"
+    }
   },
   "patientPicker": {
     "ambiguous": "عدة مرضى يحملون هذا الاسم — اختر الصحيح:",

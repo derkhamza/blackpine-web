@@ -21,6 +21,7 @@ import { printReceipt } from "../lib/receiptPrinter";
 import { nextInvoiceNumber, printFacture } from "../lib/facturePrinter";
 import { OrdonnanceModal }  from "../components/OrdonnanceModal";
 import { CertificateModal } from "../components/CertificateModal";
+import { ExamRequestModal } from "../components/ExamRequestModal";
 import { Icd10Picker }      from "../components/Icd10Picker";
 import type { Icd10Entry }  from "../lib/icd10";
 import { getSpecialtyGroups } from "../lib/specialtyFields";
@@ -246,6 +247,7 @@ export function AppointmentDetailPage() {
   const {
     appointments, patients, updateAppointment, deleteAppointment, addInvoice,
     addPatient, doctorProfile, role,
+    examRequests, addExamRequest, updateExamRequest,
     apptDocuments, addApptDocument, deleteApptDocument,
   } = useCabinet();
   const { addTransaction } = useApp();
@@ -305,6 +307,13 @@ export function AppointmentDetailPage() {
 
   // ── Certificate modal ─────────────────────────────────────────────────────
   const [showCert, setShowCert] = useState(false);
+
+  // ── Exam-request modal ────────────────────────────────────────────────────
+  const [showExam, setShowExam] = useState(false);
+  const apptExamRequests = useMemo(
+    () => examRequests.filter(e => e.appointmentId === apptId),
+    [examRequests, apptId],
+  );
 
   // ── Billing modal ─────────────────────────────────────────────────────────
   const [showBill,  setShowBill]  = useState(false);
@@ -844,6 +853,21 @@ export function AppointmentDetailPage() {
               </svg>
               {t("apptDetail.certificate")}
               {(appt.savedCertificates?.length ?? 0) > 0 && (
+                <span className="ord-saved-dot" />
+              )}
+            </button>
+            <button
+              className="btn btn-ghost ord-open-btn"
+              onClick={() => setShowExam(true)}
+              title={t("examReq.titleShort")}
+            >
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style={{ marginRight: 5 }}>
+                <path d="M6 1.5v4.2L2.6 12a1.4 1.4 0 0 0 1.2 2.1h8.4A1.4 1.4 0 0 0 13.4 12L10 5.7V1.5"
+                  stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
+                <path d="M6 1.5h4M5.2 9h5.6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+              </svg>
+              {t("examReq.btn")}
+              {apptExamRequests.length > 0 && (
                 <span className="ord-saved-dot" />
               )}
             </button>
@@ -1627,6 +1651,33 @@ export function AppointmentDetailPage() {
             });
           }}
           onClose={() => setShowCert(false)}
+        />
+      )}
+
+      {/* ── Exam-request modal ── */}
+      {showExam && (
+        <ExamRequestModal
+          patientName={appt.patientName}
+          date={appt.date}
+          doctorProfile={doctorProfile}
+          initialLines={apptExamRequests[0]?.lines}
+          initialIndication={apptExamRequests[0]?.indication}
+          onSave={({ lines, indication }) => {
+            const existing = apptExamRequests[0];
+            if (existing) {
+              updateExamRequest({ ...existing, lines, indication, date: appt.date });
+            } else {
+              addExamRequest({
+                patientId:     appt.patientId,
+                patientName:   appt.patientName,
+                date:          appt.date,
+                lines, indication,
+                source:        "appointment",
+                appointmentId: appt.id,
+              });
+            }
+          }}
+          onClose={() => setShowExam(false)}
         />
       )}
 

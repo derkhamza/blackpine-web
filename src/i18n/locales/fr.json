@@ -683,6 +683,7 @@
     "tlBilled": "Facturé",
     "tlPrescription": "Ordonnance",
     "tlTeleconsult": "Téléconsultation",
+    "tlExamRequest": "Demande d'examens",
     "tlExamAbnormal": "⚠️ {{n}} valeur{{s}} anormale{{s}}",
     "tlPrescMore": "+ {{n}} autre{{s}}",
     "dossierTitle": "Dossier médical",
@@ -1612,7 +1613,8 @@
     "title": "Documents médicaux",
     "subtitle": "Ordonnances & Certificats",
     "tabOrd": "Ordonnances",
-    "tabCert": "Certificats"
+    "tabCert": "Certificats",
+    "tabExam": "Demandes d'examens"
   },
   "stocksSupply": {
     "title": "Stocks & Fournisseurs",
@@ -2080,6 +2082,37 @@
     "toastReceived": "Commande réceptionnée · stock mis à jour",
     "deleteSupConfirm": "Supprimer \"{{name}}\" ?",
     "deleteOrderConfirm": "Supprimer cette commande ?"
+  },
+  "examReq": {
+    "title": "Demande d'examens — {{name}}",
+    "titleShort": "Demande d'examens",
+    "btn": "Examens",
+    "patientLabel": "Patient",
+    "patientPlaceholder": "Nom du patient",
+    "dateLabel": "Date",
+    "examPlaceholder": "Examen demandé (ex. NFS, IRM cérébrale)…",
+    "detailPlaceholder": "Paramètres (à jeun, face + profil…)",
+    "addExam": "Ajouter un examen",
+    "indicationLabel": "Renseignements cliniques",
+    "indicationPlaceholder": "Indication / contexte clinique (optionnel)",
+    "saveOnly": "Enregistrer sans imprimer",
+    "printBtn": "Imprimer la demande",
+    "newRequest": "Nouvelle demande",
+    "searchPlaceholder": "Rechercher un patient…",
+    "emptyTitle": "Aucune demande d'examens",
+    "emptyHint": "Créez une demande depuis un rendez-vous ou ici.",
+    "print": "Imprimer",
+    "deleteConfirm": "Supprimer cette demande d'examens ?",
+    "pageTitle": "Demandes d'examens",
+    "pageSubtitle": "Biologie, radiologie, échographie, scanner, IRM",
+    "cat": {
+      "biologie": "Biologie",
+      "radiologie": "Radiologie",
+      "echographie": "Échographie",
+      "scanner": "Scanner (TDM)",
+      "irm": "IRM",
+      "autre": "Autre"
+    }
   },
   "patientPicker": {
     "ambiguous": "Plusieurs patients portent ce nom — sélectionnez le bon :",

@@ -306,6 +306,33 @@ export interface Prescription {
   createdAt:     string;          // ISO
 }
 
+// ── Exam request (demande d'examens) ──────────────────────────────────────────
+// A document the doctor issues asking a lab / imaging centre to perform specific
+// exams (blood analysis, radiology, ultrasound, CT, MRI…) with given parameters.
+
+export type ExamRequestCategory =
+  | "biologie" | "radiologie" | "echographie" | "scanner" | "irm" | "autre";
+
+export interface ExamRequestLine {
+  category: ExamRequestCategory;
+  label:    string;    // "NFS", "IRM cérébrale", "Échographie abdominale"
+  detail?:  string;    // parameters: "à jeun", "face + profil", "avec injection"
+}
+
+// Standalone exam-request record (also used for appointment-sourced ones, which
+// carry source:"appointment" + appointmentId — single source of truth).
+export interface ExamRequest {
+  id:            string;
+  patientId?:    string;
+  patientName:   string;
+  date:          string;          // YYYY-MM-DD
+  lines:         ExamRequestLine[];
+  indication?:   string;          // renseignements cliniques
+  source:        "standalone" | "appointment";
+  appointmentId?: string;
+  createdAt:     string;          // ISO
+}
+
 // ── Appointment ───────────────────────────────────────────────────────────────
 
 export interface Appointment {

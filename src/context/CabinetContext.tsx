@@ -1,7 +1,7 @@
 import {
   createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode,
 } from "react";
-import type { Appointment, ApptDocument, CabinetDoctorProfile, Certificate, Employee, InvoiceRecord, Patient, Prescription, PrescriptionTemplate, StockItem, WaTemplate, TeleSession, InternalNote, Supplier, PurchaseOrder, PurchaseOrderLine, ExamResult } from "../lib/cabinetTypes";
+import type { Appointment, ApptDocument, CabinetDoctorProfile, Certificate, Employee, InvoiceRecord, Patient, Prescription, PrescriptionTemplate, StockItem, WaTemplate, TeleSession, InternalNote, Supplier, PurchaseOrder, PurchaseOrderLine, ExamResult, ExamRequest } from "../lib/cabinetTypes";
 import { BLANK_DOCTOR_PROFILE } from "../lib/cabinetTypes";
 import {
   getToken, pullCabinet, pushCabinet, CabinetConflictError, type CabinetSnapshot,
@@ -45,7 +45,7 @@ const BACKUP_KEY = "bp.lastBackupAt";
 const CABINET_SUBKEYS = [
   "appts", "patients", "employees", "doctor", "prescriptionTemplates",
   "stock", "waTemplates", "teleSessions", "notes", "suppliers",
-  "purchaseOrders", "examResults", "prescriptions", "certificates",
+  "purchaseOrders", "examResults", "examRequests", "prescriptions", "certificates",
   "invoices", "apptDocs",
 ] as const;
 
@@ -100,6 +100,11 @@ interface CabinetCtx {
   addPrescription:     (p: Omit<Prescription, "id" | "createdAt">) => void;
   updatePrescription:  (p: Prescription) => void;
   deletePrescription:  (id: string) => void;
+  // Exam requests (demandes d'examens)
+  examRequests:        ExamRequest[];
+  addExamRequest:      (e: Omit<ExamRequest, "id" | "createdAt">) => ExamRequest;
+  updateExamRequest:   (e: ExamRequest) => void;
+  deleteExamRequest:   (id: string) => void;
 
   // Stock management
   stockItems:        StockItem[];
@@ -317,6 +322,9 @@ export function CabinetProvider({
   const [prescriptions, setPrescriptions] = useState<Prescription[]>(
     () => load(`${pfx}.prescriptions`, [])
   );
+  const [examRequests, setExamRequests] = useState<ExamRequest[]>(
+    () => load(`${pfx}.examRequests`, [])
+  );
   const [certificates, setCertificates] = useState<Certificate[]>(
     () => load(`${pfx}.certificates`, [])
   );
@@ -343,6 +351,7 @@ export function CabinetProvider({
   useEffect(() => { save(`${pfx}.purchaseOrders`, purchaseOrders); }, [purchaseOrders, pfx]);
   useEffect(() => { save(`${pfx}.examResults`,    examResults);    }, [examResults, pfx]);
   useEffect(() => { save(`${pfx}.prescriptions`,  prescriptions);  }, [prescriptions, pfx]);
+  useEffect(() => { save(`${pfx}.examRequests`,   examRequests);   }, [examRequests, pfx]);
   useEffect(() => { save(`${pfx}.certificates`,   certificates);   }, [certificates, pfx]);
   useEffect(() => { save(`${pfx}.invoices`,       invoices);       }, [invoices, pfx]);
   useEffect(() => { save(`${pfx}.apptDocs`,      apptDocuments);  }, [apptDocuments, pfx]);
@@ -418,6 +427,7 @@ export function CabinetProvider({
     if (Array.isArray(snapshot.employees))             setEmployees(snapshot.employees as Employee[]);
     if (Array.isArray(snapshot.prescriptionTemplates)) setTpls(snapshot.prescriptionTemplates as PrescriptionTemplate[]);
     if (Array.isArray(snapshot.prescriptions))         setPrescriptions(snapshot.prescriptions as Prescription[]);
+    if (Array.isArray(snapshot.examRequests))          setExamRequests(snapshot.examRequests as ExamRequest[]);
     if (Array.isArray(snapshot.certificates))          setCertificates(snapshot.certificates as Certificate[]);
     if (Array.isArray(snapshot.stockItems))            setStock(snapshot.stockItems as StockItem[]);
     if (Array.isArray(snapshot.waTemplates))           setWaTpls(snapshot.waTemplates as WaTemplate[]);
@@ -541,7 +551,7 @@ export function CabinetProvider({
       // ── Doctor: full snapshot with optimistic concurrency ──
       pushCabinet({
         appointments, patients, doctorProfile,
-        employees, prescriptionTemplates, prescriptions, certificates,
+        employees, prescriptionTemplates, prescriptions, examRequests, certificates,
         stockItems, waTemplates, teleSessions, notes, suppliers,
         purchaseOrders, examResults, invoices, apptDocuments,
       }, baseUpdatedAt.current)
@@ -568,7 +578,7 @@ export function CabinetProvider({
   }, [ // eslint-disable-line react-hooks/exhaustive-deps
     userId, secretarySession,
     appointments, patients, doctorProfile,
-    employees, prescriptionTemplates, prescriptions, certificates,
+    employees, prescriptionTemplates, prescriptions, examRequests, certificates,
     stockItems, waTemplates, teleSessions, notes, suppliers,
     purchaseOrders, examResults, invoices, apptDocuments,
   ]);
@@ -584,7 +594,7 @@ export function CabinetProvider({
       // Clinical
       appointments, patients, employees, doctorProfile,
       // Documents
-      prescriptions, certificates,
+      prescriptions, examRequests, certificates,
       // Exams & tele
       examResults, teleSessions,
       // Messaging
@@ -597,7 +607,7 @@ export function CabinetProvider({
       invoices,
     }, null, 2);
   }, [appointments, patients, employees, doctorProfile,
-     prescriptions, certificates, examResults, teleSessions,
+     prescriptions, examRequests, certificates, examResults, teleSessions,
      waTemplates, notes, stockItems, suppliers, purchaseOrders, invoices]);
 
   const importCabinetJSON = useCallback((json: string) => {
@@ -610,6 +620,7 @@ export function CabinetProvider({
       if (d.doctorProfile && typeof d.doctorProfile === "object") setDoctorProfileState(d.doctorProfile as CabinetDoctorProfile);
       // Documents
       if (Array.isArray(d.prescriptions))  setPrescriptions(d.prescriptions as Prescription[]);
+      if (Array.isArray(d.examRequests))   setExamRequests(d.examRequests as ExamRequest[]);
       if (Array.isArray(d.certificates))   setCertificates(d.certificates as Certificate[]);
       // Exams & tele
       if (Array.isArray(d.examResults))    setExamResults(d.examResults as ExamResult[]);
@@ -734,6 +745,18 @@ export function CabinetProvider({
   const deletePrescription = useCallback(
     (id: string) => setPrescriptions(prev => prev.filter(x => x.id !== id)), []);
 
+  // ── Exam requests (demandes d'examens) ────────────────────────────────────
+  const addExamRequest = useCallback(
+    (e: Omit<ExamRequest, "id" | "createdAt">) => {
+      const created: ExamRequest = { ...e, id: uid(), createdAt: new Date().toISOString() };
+      setExamRequests(prev => [...prev, created]);
+      return created;
+    }, []);
+  const updateExamRequest = useCallback(
+    (e: ExamRequest) => setExamRequests(prev => prev.map(x => x.id === e.id ? e : x)), []);
+  const deleteExamRequest = useCallback(
+    (id: string) => setExamRequests(prev => prev.filter(x => x.id !== id)), []);
+
   // ── Stock management ──────────────────────────────────────────────────────
   const addStockItem = useCallback(
     (s: Omit<StockItem, "id" | "updatedAt">) =>
@@ -780,6 +803,7 @@ export function CabinetProvider({
     doctorProfile, setDoctorProfile,
     prescriptionTemplates, addPrescriptionTemplate, updatePrescriptionTemplate, deletePrescriptionTemplate,
     prescriptions, addPrescription, updatePrescription, deletePrescription,
+    examRequests, addExamRequest, updateExamRequest, deleteExamRequest,
     certificates, addCertificate, updateCertificate, deleteCertificate,
     stockItems, addStockItem, updateStockItem, deleteStockItem, adjustStock,
     waTemplates, addWaTemplate, updateWaTemplate, deleteWaTemplate,

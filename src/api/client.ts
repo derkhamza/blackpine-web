@@ -260,6 +260,7 @@ export interface CabinetSnapshot {
   employees?:             unknown[];
   prescriptionTemplates?: unknown[];
   prescriptions?:         unknown[];
+  examRequests?:          unknown[];
   certificates?:          unknown[];
   stockItems?:            unknown[];
   waTemplates?:           unknown[];

@@ -683,6 +683,7 @@
     "tlBilled": "Billed",
     "tlPrescription": "Prescription",
     "tlTeleconsult": "Teleconsultation",
+    "tlExamRequest": "Exam request",
     "tlExamAbnormal": "⚠️ {{n}} abnormal value{{s}}",
     "tlPrescMore": "+ {{n}} more",
     "dossierTitle": "Medical file",
@@ -1612,7 +1613,8 @@
     "title": "Medical documents",
     "subtitle": "Prescriptions & Certificates",
     "tabOrd": "Prescriptions",
-    "tabCert": "Certificates"
+    "tabCert": "Certificates",
+    "tabExam": "Exam requests"
   },
   "stocksSupply": {
     "title": "Stock & Suppliers",
@@ -2080,6 +2082,37 @@
     "toastReceived": "Order received · stock updated",
     "deleteSupConfirm": "Delete \"{{name}}\"?",
     "deleteOrderConfirm": "Delete this order?"
+  },
+  "examReq": {
+    "title": "Exam request — {{name}}",
+    "titleShort": "Exam request",
+    "btn": "Exams",
+    "patientLabel": "Patient",
+    "patientPlaceholder": "Patient name",
+    "dateLabel": "Date",
+    "examPlaceholder": "Requested exam (e.g. CBC, brain MRI)…",
+    "detailPlaceholder": "Parameters (fasting, AP + lateral…)",
+    "addExam": "Add an exam",
+    "indicationLabel": "Clinical information",
+    "indicationPlaceholder": "Indication / clinical context (optional)",
+    "saveOnly": "Save without printing",
+    "printBtn": "Print request",
+    "newRequest": "New request",
+    "searchPlaceholder": "Search a patient…",
+    "emptyTitle": "No exam requests",
+    "emptyHint": "Create one from an appointment or here.",
+    "print": "Print",
+    "deleteConfirm": "Delete this exam request?",
+    "pageTitle": "Exam requests",
+    "pageSubtitle": "Lab, radiology, ultrasound, CT, MRI",
+    "cat": {
+      "biologie": "Lab / Biology",
+      "radiologie": "Radiology",
+      "echographie": "Ultrasound",
+      "scanner": "CT scan",
+      "irm": "MRI",
+      "autre": "Other"
+    }
   },
   "patientPicker": {
     "ambiguous": "Several patients share this name — pick the right one:",

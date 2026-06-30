@@ -2161,6 +2161,38 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 }
 .appt-detail-link-btn:hover { border-color: var(--blue); }
 .appt-detail-link-btn:active { transform: scale(.95); }
+/* ── Exam request (demande d'examens) ──────────────────────────────────────── */
+.exr-rows { display: flex; flex-direction: column; gap: 6px; }
+.exr-row { display: flex; gap: 6px; align-items: center; }
+.exr-row-cat    { width: 130px; flex: 0 0 auto; }
+.exr-row-label  { flex: 2 1 0; min-width: 0; }
+.exr-row-detail { flex: 1 1 0; min-width: 0; }
+.exr-row-remove {
+  flex: 0 0 auto; width: 28px; height: 28px; border-radius: 7px;
+  border: 1px solid var(--border, rgba(0,0,0,.08)); background: var(--card, #fff);
+  color: var(--muted); font-size: 18px; line-height: 1; cursor: pointer;
+}
+.exr-row-remove:hover { color: var(--coral); border-color: var(--coral); }
+.exr-cards { display: flex; flex-direction: column; gap: 10px; }
+.exr-card {
+  border: 1px solid var(--border, rgba(0,0,0,.08)); border-radius: 12px;
+  background: var(--card, #fff); padding: 12px 14px;
+}
+.exr-card-focus { border-color: var(--blue, #1890C5); box-shadow: 0 0 0 2px var(--blue-soft, rgba(24,144,197,.18)); }
+.exr-card-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+.exr-card-patient { font-weight: 800; font-size: 14px; }
+.exr-card-date { font-size: 12px; color: var(--muted); }
+.exr-card-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.exr-chip {
+  font-size: 12px; padding: 3px 9px; border-radius: 999px;
+  border: 1px solid var(--border, rgba(0,0,0,.12)); border-left-width: 3px;
+  background: var(--bg, #f7f8fa);
+}
+.exr-card-indication { margin-top: 8px; font-size: 12.5px; color: var(--muted); font-style: italic; }
+.exr-card-actions { display: flex; gap: 10px; align-items: center; margin-top: 10px; }
+.exr-del-link { border: none; background: none; color: var(--coral); font-size: 12px; font-weight: 600; cursor: pointer; }
+.exr-del-link:hover { text-decoration: underline; }
+
 /* ── Payment status badges + deferred/partial payment ──────────────────────── */
 .pay-badge {
   display: inline-block; font-size: 11px; font-weight: 800; line-height: 1;

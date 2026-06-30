@@ -1,14 +1,20 @@
 import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Layout } from "../components/Layout";
 import { OrdonancesPage } from "./OrdonancesPage";
 import { CertificatsPage } from "./CertificatsPage";
+import { ExamRequestsPage } from "./ExamRequestsPage";
 
-type DTab = "ordonnances" | "certificats";
+type DTab = "ordonnances" | "certificats" | "examens";
 
 export function DocumentsPage() {
   const { t } = useTranslation();
-  const [tab, setTab] = useState<DTab>("ordonnances");
+  const [params] = useSearchParams();
+  const initial = (params.get("tab") as DTab) || "ordonnances";
+  const [tab, setTab] = useState<DTab>(
+    ["ordonnances", "certificats", "examens"].includes(initial) ? initial : "ordonnances",
+  );
 
   return (
     <Layout title={t("documents.title")} subtitle={t("documents.subtitle")}>
@@ -26,10 +32,17 @@ export function DocumentsPage() {
         >
           {t("documents.tabCert")}
         </button>
+        <button
+          className={`tab-btn${tab === "examens" ? " active" : ""}`}
+          onClick={() => setTab("examens")}
+        >
+          {t("documents.tabExam")}
+        </button>
       </div>
 
       {tab === "ordonnances" && <OrdonancesPage noLayout />}
       {tab === "certificats" && <CertificatsPage noLayout />}
+      {tab === "examens"     && <ExamRequestsPage noLayout />}
     </Layout>
   );
 }

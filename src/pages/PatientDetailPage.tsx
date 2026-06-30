@@ -139,7 +139,7 @@ export function PatientDetailPage() {
   const navigate      = useNavigate();
   const {
     patients, appointments,
-    examResults, prescriptions, teleSessions, certificates,
+    examResults, prescriptions, teleSessions, certificates, examRequests,
     updatePatient, deletePatient, doctorProfile, role,
   } = useCabinet();
   const { transactions } = useApp();
@@ -417,6 +417,21 @@ export function PatientDetailPage() {
       });
     }
 
+    // Exam requests (demandes d'examens)
+    for (const r of examRequests.filter((r) => belongsHere(r))) {
+      const names = r.lines.map((l) => l.label).filter(Boolean);
+      let subtitle = names.slice(0, 3).join(" · ");
+      if (names.length > 3) subtitle += ` · +${names.length - 3}`;
+      entries.push({
+        id: `examreq-${r.id}`, kind: "examRequest",
+        date: r.date, sortKey: r.date + "T00:02",
+        icon: "🧪", color: "#1890C5",
+        title: t("patientDetail.tlExamRequest"),
+        subtitle: subtitle || undefined,
+        link: `/documents?tab=examens&focus=${r.id}`,
+      });
+    }
+
     // Teleconsultations
     for (const s of teleSessions.filter((s) => belongsHere(s))) {
       entries.push({
@@ -443,7 +458,7 @@ export function PatientDetailPage() {
 
     return entries.sort((a, b) => b.sortKey.localeCompare(a.sortKey));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [patientAppts, examResults, prescriptions, certificates, teleSessions, patient?.timelineEvents, patientId, fullName, i18n.language]);
+  }, [patientAppts, examResults, prescriptions, certificates, examRequests, teleSessions, patient?.timelineEvents, patientId, fullName, i18n.language]);
 
   if (!patient) {
     return (
