@@ -511,12 +511,12 @@ export const APPT_TYPE_LABELS: Record<AppointmentType, string> = {
 };
 
 export const APPT_TYPE_COLORS: Record<AppointmentType, string> = {
-  consultation: "#1890C5",
-  controle:     "#0FB5C4",
-  suivi:        "#15A876",
-  procedure:    "#9B72D0",
-  urgence:      "#E85B5B",
-  autre:        "#D4962A",
+  consultation: "#2563EB",
+  controle:     "#10B981",
+  suivi:        "#06B6D4",
+  procedure:    "#8B5CF6",
+  urgence:      "#EF4444",
+  autre:        "#F59E0B",
 };
 
 export const APPT_STATUS_LABELS: Record<AppointmentStatus, string> = {

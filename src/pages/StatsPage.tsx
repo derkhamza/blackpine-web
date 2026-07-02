@@ -5,7 +5,7 @@ import { useCabinet } from "../context/CabinetContext";
 import { useApp } from "../context/AppContext";
 import { formatMAD } from "../lib/format";
 import { AnimatedNumber } from "../components/AnimatedNumber";
-import { APPT_TYPE_LABELS } from "../lib/cabinetTypes";
+import { APPT_TYPE_LABELS, APPT_TYPE_COLORS } from "../lib/cabinetTypes";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -25,14 +25,6 @@ function getWeekdayShort(locale: string): string[] {
     return d.toLocaleDateString(locale, { weekday: "short" });
   });
 }
-
-const TYPE_COLORS: Record<string, string> = {
-  consultation: "#1890C5",
-  suivi:        "#15A876",
-  procedure:    "#9B72D0",
-  urgence:      "#E85B5B",
-  autre:        "#D4962A",
-};
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
@@ -389,7 +381,7 @@ export function StatsPage({ noLayout = false }: { noLayout?: boolean } = {}) {
             <SectionCard title={t("stats.byType")}>
               <div className="stats-type-list">
                 {typeBreakdown.map(([type, count], idx) => {
-                  const color = TYPE_COLORS[type] ?? "var(--blue)";
+                  const color = (APPT_TYPE_COLORS as Record<string, string>)[type] ?? "var(--blue)";
                   const pct   = Math.round((count / maxTypeCount) * 100);
                   return (
                     <div key={type}>
