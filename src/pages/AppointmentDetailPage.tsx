@@ -681,8 +681,8 @@ export function AppointmentDetailPage() {
       .filter(l => l.label.length > 0);
     if (items.length === 0) return;
     const subtotal = items.reduce((s, l) => s + l.qty * l.unitPrice, 0);
+    // 0 MAD is a valid bill (free consultation): stamped billed, no ledger entry.
     const total    = Math.max(0, subtotal - billReductionN);
-    if (total <= 0) return;
     // The patient may pay all, part, or none of it now — the rest is deferred.
     const collected = Math.min(total, Math.max(0, parseFloat(billCollected.replace(",", ".")) || 0));
     const now = new Date().toISOString();
@@ -1627,15 +1627,15 @@ export function AppointmentDetailPage() {
                     <input
                       className="form-input bill-line-qty"
                       type="number" min="1" step="1"
-                      value={l.qty}
-                      onChange={(e) => updateBillLine(i, { qty: parseInt(e.target.value, 10) || 1 })}
+                      value={l.qty || ""}
+                      onChange={(e) => updateBillLine(i, { qty: Math.max(0, parseInt(e.target.value, 10) || 0) })}
                       title={t("apptDetail.billQty")}
                     />
                     <input
                       className="form-input bill-line-price"
                       type="number" min="0" step="0.01"
-                      value={l.unitPrice}
-                      onChange={(e) => updateBillLine(i, { unitPrice: parseFloat(e.target.value) || 0 })}
+                      value={l.unitPrice || ""}
+                      onChange={(e) => updateBillLine(i, { unitPrice: parseFloat(e.target.value.replace(",", ".")) || 0 })}
                       title={t("apptDetail.billUnitPrice")}
                     />
                     <button
@@ -1742,7 +1742,7 @@ export function AppointmentDetailPage() {
                 <button
                   className="btn btn-ghost"
                   onClick={handlePrepareBill}
-                  disabled={billTotal <= 0}
+                  disabled={billItems.every(l => !l.label.trim())}
                   title={t("apptDetail.billPrepareTitle")}
                 >
                   {t("apptDetail.billPrepare")}
@@ -1752,7 +1752,7 @@ export function AppointmentDetailPage() {
                 className="btn btn-primary"
                 style={{ background: "var(--green)" }}
                 onClick={handleBill}
-                disabled={billTotal <= 0}
+                disabled={billItems.every(l => !l.label.trim())}
               >
                 {t("apptDetail.addRevenue")}
               </button>

@@ -527,7 +527,9 @@ function ConsultationTypesSection({
   const setPrice = (type: AppointmentType, raw: string) => {
     const n = parseFloat(raw);
     const next = { ...prices };
-    if (!raw || Number.isNaN(n) || n <= 0) delete next[type];
+    // 0 is a valid fee (free check-up / contrôle gratuit) — only clear the
+    // price when the field is emptied or invalid.
+    if (!raw.trim() || Number.isNaN(n) || n < 0) delete next[type];
     else next[type] = n;
     onPriceChange(next);
   };

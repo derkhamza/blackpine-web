@@ -45,6 +45,10 @@ function EmployeeModal({
 }) {
   const { t } = useTranslation();
   const [draft, setDraft] = useState<Omit<Employee, "id">>(initial ? { ...initial } : { ...BLANK });
+  // The salary is typed as free text and parsed on the fly: binding the input
+  // directly to the parsed number snaps a cleared field back to 0 and fights
+  // the user's keystrokes (e.g. impossible to type "2000" comfortably).
+  const [salaryStr, setSalaryStr] = useState(String(initial?.baseSalary ?? BLANK.baseSalary));
   const p = computePayroll(draft.baseSalary, draft.dependents ?? 0, draft.contractType ?? "cdi");
 
   const field = (patch: Partial<Omit<Employee, "id">>) => setDraft(d => ({ ...d, ...patch }));
@@ -87,9 +91,12 @@ function EmployeeModal({
               </div>
               <div className="form-group">
                 <label className="form-label">{t("payroll.salaryLabel")}</label>
-                <input className="form-input" type="number" min="1" step="100"
-                  value={draft.baseSalary}
-                  onChange={e => field({ baseSalary: parseFloat(e.target.value) || 0 })} required />
+                <input className="form-input" type="number" min="0" step="any"
+                  value={salaryStr}
+                  onChange={e => {
+                    setSalaryStr(e.target.value);
+                    field({ baseSalary: parseFloat(e.target.value.replace(",", ".")) || 0 });
+                  }} required />
               </div>
             </div>
             <div className="form-row">

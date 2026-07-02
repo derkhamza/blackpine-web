@@ -1437,27 +1437,33 @@ export function AgendaPage() {
     window.addEventListener("pointerup", up);
   };
 
-  // Single bill handler
+  // Single bill handler — 0 MAD is allowed (free consultation): the visit is
+  // marked billed but nothing enters the ledger.
   const handleBill = () => {
     if (!billModal) return;
     const amt = parseFloat(billAmt);
-    if (isNaN(amt) || amt <= 0) return;
-    addTransaction({
-      type: "RECETTE", amount: amt,
-      date: billModal.appt.date,
-      category: "consultation",
-      description: `${APPT_TYPE_LABELS[billModal.appt.type]} – ${billModal.appt.patientName}`,
-      deductibilityStatus: "FULLY_DEDUCTIBLE",
-      professionalUseRatio: 1,
-    });
+    if (isNaN(amt) || amt < 0) return;
+    if (amt > 0) {
+      addTransaction({
+        type: "RECETTE", amount: amt,
+        date: billModal.appt.date,
+        category: "consultation",
+        description: `${APPT_TYPE_LABELS[billModal.appt.type]} – ${billModal.appt.patientName}`,
+        deductibilityStatus: "FULLY_DEDUCTIBLE",
+        professionalUseRatio: 1,
+      });
+    }
     updateAppointment({ ...billModal.appt, billedAt: new Date().toISOString(), billedAmount: amt });
     setBillModal(null);
     showToast(t("agenda.addRevenueToast", { amt: amt.toLocaleString(locale) }));
   };
 
-  // Bulk bill handlers
+  // Bulk bill handlers — prefill each row with the doctor's per-type fee.
   const openBulkBill = () => {
-    setBulkItems(unbilledCompleted.map(a => ({ appt: a, amount: "200" })));
+    setBulkItems(unbilledCompleted.map(a => ({
+      appt: a,
+      amount: String(doctorProfile?.appointmentPrices?.[a.type] ?? 200),
+    })));
     setShowBulk(true);
   };
 
@@ -2010,7 +2016,7 @@ export function AgendaPage() {
               <div className="form-group">
                 <label className="form-label">{t("agenda.amountMAD")}</label>
                 <input
-                  className="form-input" type="number" min="1" step="0.01"
+                  className="form-input" type="number" min="0" step="0.01"
                   value={billAmt} onChange={e => setBillAmt(e.target.value)}
                   style={{ fontSize: 22, fontWeight: 700, textAlign: "center" }}
                   autoFocus

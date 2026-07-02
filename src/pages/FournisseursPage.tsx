@@ -213,8 +213,8 @@ function POModal({ initial, suppliers, stockItems, onSave, onClose }: POModalPro
                       onChange={e => updateLine(i, { itemName: e.target.value })}
                       placeholder={t("fournisseurs.itemNamePlaceholder")} required />
                     <input className="form-input po-line-qty" type="number" min="1" step="1"
-                      value={line.quantity}
-                      onChange={e => updateLine(i, { quantity: parseInt(e.target.value, 10) || 1 })}
+                      value={line.quantity || ""}
+                      onChange={e => updateLine(i, { quantity: Math.max(0, parseInt(e.target.value, 10) || 0) })}
                       placeholder="Qté" />
                     <input className="form-input po-line-price" type="number" min="0" step="0.01"
                       value={line.unitPrice ?? ""}
