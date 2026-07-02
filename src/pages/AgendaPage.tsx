@@ -1153,7 +1153,7 @@ export function AgendaPage() {
   const {
     appointments, patients, doctorProfile,
     addAppointment, updateAppointment, deleteAppointment, deleteAppointmentSeries,
-    waTemplates,
+    waTemplates, role,
   } = useCabinet();
   const { addTransaction } = useApp();
 
@@ -1437,25 +1437,56 @@ export function AgendaPage() {
     window.addEventListener("pointerup", up);
   };
 
+  // Net total of the bill the doctor prepared on the appointment page
+  // (acts + prices − remise), or null when nothing was prepared.
+  const preparedNet = (appt: Appointment): number | null => {
+    if (!appt.preparedItems || appt.preparedItems.length === 0) return null;
+    const subtotal = appt.preparedItems.reduce((s, l) => s + l.qty * l.unitPrice, 0);
+    return Math.max(0, subtotal - (appt.preparedReduction ?? 0));
+  };
+
   // Single bill handler — 0 MAD is allowed (free consultation): the visit is
   // marked billed but nothing enters the ledger.
   const handleBill = () => {
     if (!billModal) return;
-    const amt = parseFloat(billAmt);
-    if (isNaN(amt) || amt < 0) return;
-    if (amt > 0) {
+    const raw = parseFloat(billAmt);
+    if (isNaN(raw) || raw < 0) return;
+    const appt = billModal.appt;
+    const net = preparedNet(appt);
+    // With a doctor-prepared bill the entered amount is what was COLLECTED,
+    // clamped to the net total (rest stays as balance due).
+    const collected = net != null ? Math.min(net, raw) : raw;
+    // Cash entering the ledger is only what was actually collected — and never
+    // from a secretary session (she doesn't write the doctor's finances).
+    if (collected > 0 && role !== "secretary") {
       addTransaction({
-        type: "RECETTE", amount: amt,
-        date: billModal.appt.date,
+        type: "RECETTE", amount: collected,
+        date: appt.date,
         category: "consultation",
-        description: `${APPT_TYPE_LABELS[billModal.appt.type]} – ${billModal.appt.patientName}`,
+        description: `${APPT_TYPE_LABELS[appt.type]} – ${appt.patientName}`,
         deductibilityStatus: "FULLY_DEDUCTIBLE",
         professionalUseRatio: 1,
       });
     }
-    updateAppointment({ ...billModal.appt, billedAt: new Date().toISOString(), billedAmount: amt });
+    const now = new Date().toISOString();
+    if (net != null) {
+      // Keep the doctor's items + remise on the facture.
+      updateAppointment({
+        ...appt,
+        billedAt: now,
+        billedAmount: net,
+        billedItems: appt.preparedItems!,
+        billedReduction: appt.preparedReduction && appt.preparedReduction > 0 ? appt.preparedReduction : undefined,
+        paidAmount: collected,
+        payments: collected > 0 ? [{ amount: collected, date: now, method: "cash" }] : [],
+        preparedItems: null,
+        preparedReduction: null,
+      });
+    } else {
+      updateAppointment({ ...appt, billedAt: now, billedAmount: collected });
+    }
     setBillModal(null);
-    showToast(t("agenda.addRevenueToast", { amt: amt.toLocaleString(locale) }));
+    showToast(t("agenda.addRevenueToast", { amt: collected.toLocaleString(locale) }));
   };
 
   // Bulk bill handlers — prefill each row with the doctor's per-type fee.
@@ -1953,8 +1984,12 @@ export function AgendaPage() {
                   })}
                   onBill={() => {
                     setBillModal({ appt });
+                    const net = preparedNet(appt);
                     const tp = doctorProfile?.appointmentPrices?.[appt.type];
-                    setBillAmt(appt.billedAmount != null ? String(appt.billedAmount) : tp != null ? String(tp) : "200");
+                    setBillAmt(
+                      appt.billedAmount != null ? String(appt.billedAmount)
+                      : net != null ? String(net)
+                      : tp != null ? String(tp) : "200");
                   }}
                   onPrintReceipt={() => printReceipt({
                     patientName:      appt.patientName,
@@ -2013,8 +2048,44 @@ export function AgendaPage() {
               <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 16 }}>
                 {APPT_TYPE_LABELS[billModal.appt.type]} · {billModal.appt.startTime}
               </div>
+
+              {/* Bill prepared by the doctor — show his acts and remise so the
+                  secretary collects exactly what was decided. */}
+              {(billModal.appt.preparedItems?.length ?? 0) > 0 && (
+                <div className="bill-prepared-box">
+                  <div className="bill-prepared-title">{t("agenda.billPreparedTitle")}</div>
+                  {billModal.appt.preparedItems!.map((l, i) => (
+                    <div className="bill-prepared-row" key={i}>
+                      <span className="bill-prepared-label">{l.label}</span>
+                      <span className="bill-prepared-qty">{l.qty > 1 ? `${l.qty} × ` : ""}</span>
+                      <span className="bill-prepared-price">
+                        {(l.qty * l.unitPrice).toLocaleString("fr-MA")} MAD
+                      </span>
+                    </div>
+                  ))}
+                  {(billModal.appt.preparedReduction ?? 0) > 0 && (
+                    <div className="bill-prepared-row bill-prepared-reduction">
+                      <span className="bill-prepared-label">{t("apptDetail.billReduction")}</span>
+                      <span className="bill-prepared-price">
+                        − {billModal.appt.preparedReduction!.toLocaleString("fr-MA")} MAD
+                      </span>
+                    </div>
+                  )}
+                  <div className="bill-prepared-row bill-prepared-total">
+                    <span className="bill-prepared-label">{t("apptDetail.billTotal")}</span>
+                    <span className="bill-prepared-price">
+                      {(preparedNet(billModal.appt) ?? 0).toLocaleString("fr-MA")} MAD
+                    </span>
+                  </div>
+                </div>
+              )}
+
               <div className="form-group">
-                <label className="form-label">{t("agenda.amountMAD")}</label>
+                <label className="form-label">
+                  {(billModal.appt.preparedItems?.length ?? 0) > 0
+                    ? t("agenda.collectedMAD")
+                    : t("agenda.amountMAD")}
+                </label>
                 <input
                   className="form-input" type="number" min="0" step="0.01"
                   value={billAmt} onChange={e => setBillAmt(e.target.value)}

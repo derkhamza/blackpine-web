@@ -447,7 +447,9 @@
     "bulkWaTitle": "تذكيرات واتساب ({{n}})",
     "bulkWaAll": "تذكيرات واتساب ({{n}})",
     "bulkWaHint": "انقر على مريض لفتح واتساب برسالة جاهزة.",
-    "waMsgLang": "لغة الرسالة"
+    "waMsgLang": "لغة الرسالة",
+    "billPreparedTitle": "فاتورة أعدّها الطبيب",
+    "collectedMAD": "المبلغ المحصَّل (درهم)"
   },
   "apptDetail": {
     "clinicalNotes": "الملاحظات السريرية",

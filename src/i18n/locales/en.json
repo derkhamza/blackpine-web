@@ -447,7 +447,9 @@
     "bulkWaTitle": "WhatsApp Reminders ({{n}})",
     "bulkWaAll": "WA Reminders ({{n}})",
     "bulkWaHint": "Click a patient to open WhatsApp with a pre-filled message.",
-    "waMsgLang": "Message language"
+    "waMsgLang": "Message language",
+    "billPreparedTitle": "Bill prepared by the doctor",
+    "collectedMAD": "Amount collected (MAD)"
   },
   "apptDetail": {
     "clinicalNotes": "Clinical notes",

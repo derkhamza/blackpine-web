@@ -447,7 +447,9 @@
     "bulkWaTitle": "Rappels WhatsApp ({{n}})",
     "bulkWaAll": "Rappels WA ({{n}})",
     "bulkWaHint": "Cliquez sur un patient pour ouvrir WhatsApp avec un message pré-rempli.",
-    "waMsgLang": "Langue du message"
+    "waMsgLang": "Langue du message",
+    "billPreparedTitle": "Facture préparée par le médecin",
+    "collectedMAD": "Montant encaissé (MAD)"
   },
   "apptDetail": {
     "clinicalNotes": "Notes cliniques",
