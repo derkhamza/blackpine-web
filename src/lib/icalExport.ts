@@ -57,7 +57,7 @@ export function exportAgendaIcal(
   const lines: string[] = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//Blackpine Cabinet//Cabinet Web//FR",
+    "PRODID:-//Iyadaty//Cabinet Web//FR",
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
     fold(`X-WR-CALNAME:${escText(calName)}`),

@@ -6,6 +6,7 @@ import { BLANK_DOCTOR_PROFILE } from "../lib/cabinetTypes";
 import {
   getToken, pullCabinet, pushCabinet, CabinetConflictError, type CabinetSnapshot,
   getSecretaryToken, secretaryPull, secretaryPushAppointments, secretaryPushPatients,
+  secretaryPushApptDocuments,
   listBackups, restoreBackup, type CabinetBackup,
 } from "../api/client";
 
@@ -467,11 +468,12 @@ export function CabinetProvider({
   const dirtyRef = useRef(false);
   // Ids deleted/edited locally since the last successful sync — consumed by the
   // conflict merge so a 409 never resurrects deletions nor drops local edits.
-  const tombstonesRef = useRef({ appts: new Set<string>(), patients: new Set<string>() });
-  const touchedRef    = useRef({ appts: new Set<string>(), patients: new Set<string>() });
+  const tombstonesRef = useRef({ appts: new Set<string>(), patients: new Set<string>(), apptDocs: new Set<string>() });
+  const touchedRef    = useRef({ appts: new Set<string>(), patients: new Set<string>(), apptDocs: new Set<string>() });
   const clearMergeMarks = () => {
     tombstonesRef.current.appts.clear();   tombstonesRef.current.patients.clear();
     touchedRef.current.appts.clear();      touchedRef.current.patients.clear();
+    tombstonesRef.current.apptDocs.clear(); touchedRef.current.apptDocs.clear();
   };
 
   // Apply a full snapshot received from the server into local state.
@@ -522,6 +524,7 @@ export function CabinetProvider({
           appointments:  snap.appointments,
           patients:      snap.patients,
           doctorProfile: snap.doctorProfile,
+          apptDocuments: snap.apptDocuments,
         } as CabinetSnapshot);
         hydrated.current = true;
         setSyncState("synced");
@@ -591,12 +594,14 @@ export function CabinetProvider({
           // deletions travel as an id list so they actually stick.
           secretaryPushAppointments(appointments, [...tombstonesRef.current.appts]),
           secretaryPushPatients(patients, [...tombstonesRef.current.patients]),
+          secretaryPushApptDocuments(apptDocuments, [...tombstonesRef.current.apptDocs]),
         ])
-          .then(([mergedAppts, mergedPatients]) => {
+          .then(([mergedAppts, mergedPatients, mergedDocs]) => {
             // Adopt the server's merged arrays (clinical fields preserved).
             applyingRemote.current = true;
             if (Array.isArray(mergedAppts))    setAppts(mergedAppts as Appointment[]);
             if (Array.isArray(mergedPatients)) setPatients(mergedPatients as Patient[]);
+            if (Array.isArray(mergedDocs))     setApptDocuments(mergedDocs as ApptDocument[]);
             dirtyRef.current = false;
             clearMergeMarks();
             setSyncState("synced");
@@ -638,6 +643,11 @@ export function CabinetProvider({
             setPatients(local => mergeConflict(
               (snap.patients ?? []) as Patient[], local,
               tombstonesRef.current.patients, touchedRef.current.patients));
+            // Attachments can also be added by the secretary between our pulls
+            // — merge them too so her scans survive the doctor's next push.
+            setApptDocuments(local => mergeConflict(
+              (snap.apptDocuments ?? []) as ApptDocument[], local,
+              tombstonesRef.current.apptDocs, touchedRef.current.apptDocs));
             // dirty stays true — the state changes above re-arm the debounced
             // push, which now carries the merged data + fresh base token.
             setSyncState("syncing");
@@ -863,10 +873,16 @@ export function CabinetProvider({
 
   // ── Appointment document attachments ──────────────────────────────────────
   const addApptDocument = useCallback(
-    (doc: Omit<ApptDocument, "id">) =>
-      setApptDocuments(prev => [...prev, { ...doc, id: uid() }]), []);
+    (doc: Omit<ApptDocument, "id">) => {
+      const id = uid();
+      touchedRef.current.apptDocs.add(id);
+      setApptDocuments(prev => [...prev, { ...doc, id }]);
+    }, []);
   const deleteApptDocument = useCallback(
-    (id: string) => setApptDocuments(prev => prev.filter(x => x.id !== id)), []);
+    (id: string) => {
+      tombstonesRef.current.apptDocs.add(id);
+      setApptDocuments(prev => prev.filter(x => x.id !== id));
+    }, []);
 
   const value: CabinetCtx = {
     appointments, addAppointment, updateAppointment, deleteAppointment, deleteAppointmentSeries,

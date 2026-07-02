@@ -27,7 +27,7 @@ function BrandPanel() {
         <div className="auth-brand-logo-row">
           <BlackpineLogo size={52} radius={14} />
           <div>
-            <div className="auth-brand-name">Blackpine</div>
+            <div className="auth-brand-name">Iyadaty</div>
             <div className="auth-brand-tagline">{t("auth.appTagline")}</div>
           </div>
         </div>
@@ -171,7 +171,7 @@ export function AuthPage() {
           {/* Logo — visible on mobile only */}
           <div className="auth-logo auth-logo-mobile">
             <BlackpineLogo size={40} radius={10} />
-            <span className="auth-logo-text">Blackpine Cabinet</span>
+            <span className="auth-logo-text">Iyadaty</span>
           </div>
 
           <h1 className="auth-title">{titles[mode]}</h1>
@@ -320,6 +320,9 @@ export function AuthPage() {
             <Link to="/supprimer-compte" className="auth-link" style={{ fontSize: 11 }}>
               {t("auth.deleteAccountLink")}
             </Link>
+          </p>
+          <p className="auth-footer-note" style={{ marginTop: 6, fontSize: 10.5, opacity: 0.75 }}>
+            {t("common.productOf")}
           </p>
         </div>
       </div>

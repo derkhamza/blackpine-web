@@ -217,7 +217,9 @@ function layoutDayAppts(appts: Appointment[]): Map<string, { col: number; cols: 
   return result;
 }
 const DAY_HEADERS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
-const TYPE_OPTS: AppointmentType[] = ["consultation", "controle", "suivi", "procedure", "urgence", "autre"];
+// Only these three types are offered for new appointments; legacy types
+// (suivi, procédure, urgence) remain displayable on existing records.
+const TYPE_OPTS: AppointmentType[] = ["consultation", "controle", "autre"];
 const STATUS_OPTS: AppointmentStatus[] = ["scheduled", "arrived", "in_consultation", "completed", "cancelled", "no_show"];
 
 // ── WhatsApp helpers ───────────────────────────────────────────────────────────
@@ -622,6 +624,7 @@ function ApptModal({ initial, defaultDate, isEdit, patients, appointments, onSav
               <label className="form-label">{t("agenda.type")}</label>
               <div className="appt-type-pills">
                 {TYPE_OPTS
+                  .concat(TYPE_OPTS.includes(type) ? [] : [type])   // legacy type stays selectable on old records
                   .filter(tp => !hiddenApptTypes.includes(tp) || tp === type)
                   .map(tp => {
                     const c = APPT_TYPE_COLORS[tp];
@@ -1610,7 +1613,7 @@ export function AgendaPage() {
                       const monthAppts = appointments.filter(a => a.date.startsWith(monthPrefix));
                       const calName = doctorProfile?.fullName
                         ? `Cabinet Dr. ${doctorProfile.fullName}`
-                        : "Blackpine Cabinet";
+                        : "Iyadaty";
                       exportAgendaIcal(monthAppts, calName, `agenda-${monthPrefix}.ics`);
                       showToast(t("agenda.exportedN", { n: monthAppts.length }));
                       setMoreOpen(false);

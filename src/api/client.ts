@@ -612,6 +612,7 @@ export interface SecretaryCabinet {
   appointments:  unknown[];
   patients:      unknown[];
   doctorProfile: unknown;
+  apptDocuments: unknown[];
 }
 
 export async function secretaryPull(clearOn401 = true): Promise<SecretaryCabinet> {
@@ -625,7 +626,23 @@ export async function secretaryPull(clearOn401 = true): Promise<SecretaryCabinet
     appointments:  (data as any).appointments  ?? [],
     patients:      (data as any).patients       ?? [],
     doctorProfile: (data as any).doctorProfile  ?? {},
+    apptDocuments: (data as any).apptDocuments  ?? [],
   };
+}
+
+/** Returns the server's merged appointment-attachments array (append-only merge). */
+export async function secretaryPushApptDocuments(
+  documents: unknown[],
+  deletedIds: string[] = [],
+): Promise<unknown[] | undefined> {
+  const res = await secretaryRequest("/cabinet/appt-documents", {
+    method: "POST",
+    body: JSON.stringify({ documents, deletedIds }),
+  });
+  if (res.status === 401) { clearSecretarySession(); throw new Error("SECRETARY_REVOKED"); }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error((data as any).error || "Secretary documents push failed");
+  return (data as any).apptDocuments as unknown[] | undefined;
 }
 
 /** Returns the server's merged appointments array (clinical fields preserved). */

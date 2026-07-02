@@ -534,7 +534,7 @@ export function Layout({ title, subtitle, actions, children }: Props) {
       <div className="sidebar-logo">
         <BlackpineLogo size={32} radius={8} />
         <div>
-          <div className="sidebar-logo-text">Blackpine</div>
+          <div className="sidebar-logo-text">Iyadaty</div>
           <div className="sidebar-logo-sub">Cabinet</div>
         </div>
         {/* Mobile close button */}

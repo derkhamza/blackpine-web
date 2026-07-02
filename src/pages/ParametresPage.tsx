@@ -459,7 +459,7 @@ function SmsRemindersSection({
 
 // ── Consultation types manager ────────────────────────────────────────────────
 
-const ALL_TYPES: AppointmentType[] = ["consultation", "controle", "suivi", "procedure", "urgence", "autre"];
+const ALL_TYPES: AppointmentType[] = ["consultation", "controle", "autre"];
 
 // ── Secretary granular permissions ─────────────────────────────────────────────
 
@@ -1585,7 +1585,7 @@ export function ParametresPage() {
               onClick={() => {
                 const calName = doctorProfile?.fullName
                   ? `Cabinet Dr. ${doctorProfile.fullName}`
-                  : "Blackpine Cabinet";
+                  : "Iyadaty";
                 exportAgendaIcal(appointments, calName);
                 showToast(t("settings.exportedIcal"));
               }}
@@ -1789,6 +1789,9 @@ export function ParametresPage() {
               <div style={{ fontWeight: 700, fontSize: 15 }}>{t("settings.aboutName")}</div>
               <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 3 }}>
                 {t("settings.aboutDesc")}
+              </div>
+              <div style={{ fontSize: 11, color: "var(--tertiary)", marginTop: 5 }}>
+                {t("common.productOf")}
               </div>
             </div>
           </div>

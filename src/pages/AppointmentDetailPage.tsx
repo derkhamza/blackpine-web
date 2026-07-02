@@ -33,8 +33,10 @@ import type { CustomNoteTemplate } from "../lib/cabinetTypes";
 const STATUS_OPTS: AppointmentStatus[] = [
   "scheduled", "arrived", "in_consultation", "completed", "cancelled", "no_show",
 ];
+// Only these three types are offered for new appointments; legacy types
+// (suivi, procédure, urgence) remain displayable on existing records.
 const TYPE_OPTS: AppointmentType[] = [
-  "consultation", "controle", "suivi", "procedure", "urgence", "autre",
+  "consultation", "controle", "autre",
 ];
 
 function fmtDate(iso: string, locale = "fr-FR") {
@@ -802,7 +804,8 @@ export function AppointmentDetailPage() {
   };
 
   const hiddenTypes = doctorProfile.hiddenConsultationTypes ?? [];
-  const visibleTypes = (["consultation", "controle", "suivi", "procedure", "urgence", "autre"] as AppointmentType[])
+  const visibleTypes = (["consultation", "controle", "autre"] as AppointmentType[])
+    .concat(TYPE_OPTS.includes(appt.type) ? [] : [appt.type])   // legacy types stay selectable on old records
     .filter(t => !hiddenTypes.includes(t) || t === appt.type);
 
   const specialtyGroups = getSpecialtyGroups(doctorProfile.specialtyLabel);
@@ -1546,22 +1549,22 @@ export function AppointmentDetailPage() {
               <span className="appt-docs-count">{apptDocs.length}</span>
             )}
           </div>
-          {!readOnly && <>
-            <button
-              className="btn btn-ghost btn-sm"
-              onClick={() => { setDocSizeWarn(false); docFileRef.current?.click(); }}
-            >
-              {t("apptDetail.addFile")}
-            </button>
-            <input
-              ref={docFileRef}
-              type="file"
-              accept="image/*,.pdf,.doc,.docx"
-              multiple
-              style={{ display: "none" }}
-              onChange={handleDocUpload}
-            />
-          </>}
+          {/* Secretaries attach documents at the desk too (analyses, mutuelle
+              forms, scans) — the sync pushes their additions to the server. */}
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => { setDocSizeWarn(false); docFileRef.current?.click(); }}
+          >
+            {t("apptDetail.addFile")}
+          </button>
+          <input
+            ref={docFileRef}
+            type="file"
+            accept="image/*,.pdf,.doc,.docx"
+            multiple
+            style={{ display: "none" }}
+            onChange={handleDocUpload}
+          />
         </div>
 
         {docSizeWarn && (

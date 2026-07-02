@@ -23,7 +23,7 @@
     "confirmedSub": "Your request has been recorded.",
     "confirmedNote": "The practice will contact you if needed. Please arrive a few minutes early.",
     "doctor": "Medical practice",
-    "poweredBy": "Powered by Blackpine Cabinet"
+    "poweredBy": "Powered by Iyadaty"
   },
   "common": {
     "cancel": "Cancel",
@@ -88,7 +88,8 @@
     "dueToday": "Today",
     "deadline": "Due:",
     "darkMode": "Dark mode",
-    "lightMode": "Light mode"
+    "lightMode": "Light mode",
+    "productOf": "A product of Blackpine Capital SARL"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -143,7 +144,7 @@
   },
   "deleteAccount": {
     "title": "Delete your account",
-    "intro": "You can request the permanent deletion of your Blackpine account and all associated data.",
+    "intro": "You can request the permanent deletion of your Iyadaty account and all associated data.",
     "whatTitle": "What will be deleted:",
     "item1": "Your profile and login credentials",
     "item2": "All your patients, appointments, prescriptions and documents",
@@ -177,7 +178,7 @@
     "trust1": "🔒 AES-256 encryption",
     "trust2": "🇲🇦 Built for Morocco",
     "trust3": "🌐 FR · EN · ع",
-    "footer": "© 2026 Blackpine — Built for doctors in Morocco",
+    "footer": "© 2026 Iyadaty — Built for doctors in Morocco",
     "syncNote": "Data synced with the Android app",
     "deleteAccountLink": "Delete my account and data",
     "loginTitle": "Sign In",
@@ -965,9 +966,9 @@
     "exportBeforeDelete": "Consider exporting your data before proceeding.",
     "deleteFinal": "Permanently delete",
     "installApp": "Install app",
-    "installAppSub": "Access Blackpine Cabinet as a native app",
+    "installAppSub": "Access Iyadaty as a native app",
     "appInstalled": "App installed",
-    "appInstalledHint": "Blackpine Cabinet is installed on your device",
+    "appInstalledHint": "Iyadaty is installed on your device",
     "installDevice": "Install on this device",
     "installCanHint": "Click to add the app to your home screen or desktop",
     "installManualHint": "Open this site in Chrome/Edge/Safari and use 'Add to Home Screen'",
@@ -977,10 +978,10 @@
     "offlineActive": "✓ Enabled",
     "about": "About",
     "deleteAccountLink": "Delete my account and data",
-    "aboutName": "Blackpine Cabinet Web",
+    "aboutName": "Iyadaty Web",
     "aboutDesc": "Medical practice management app",
     "alreadyInstalled": "App installed ✓",
-    "pwaDesc": "Install Blackpine on your home screen for offline access.",
+    "pwaDesc": "Install Iyadaty on your home screen for offline access.",
     "savedAt": "Saved on {{date}}",
     "noBackup": "No recent backup",
     "appointments": "Appts",
@@ -1146,7 +1147,7 @@
     "saveBtn": "Save profile",
     "saved": "Profile saved",
     "account": "Account",
-    "accountSubtitle": "Blackpine Cabinet account",
+    "accountSubtitle": "Iyadaty account",
     "yourName": "Your name",
     "logout": "Sign out"
   },
@@ -1214,7 +1215,7 @@
   "onboarding": {
     "ariaLabel": "Practice setup",
     "skip": "Skip",
-    "step0Title": "Welcome to Blackpine",
+    "step0Title": "Welcome to Iyadaty",
     "step0Sub": "Let's set up your medical practice in 2 minutes to personalize your prescriptions, certificates and patient records.",
     "step0Btn": "Set up my practice →",
     "step1Title": "Your doctor profile",

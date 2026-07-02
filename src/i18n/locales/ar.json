@@ -23,7 +23,7 @@
     "confirmedSub": "تم تسجيل طلبك.",
     "confirmedNote": "سيتصل بك المكتب عند الحاجة. يُرجى الحضور قبل بضع دقائق.",
     "doctor": "العيادة",
-    "poweredBy": "مُشغَّل بواسطة Blackpine Cabinet"
+    "poweredBy": "مُشغَّل بواسطة Iyadaty"
   },
   "common": {
     "cancel": "إلغاء",
@@ -88,7 +88,8 @@
     "dueToday": "اليوم",
     "deadline": "الموعد النهائي:",
     "darkMode": "الوضع الداكن",
-    "lightMode": "الوضع الفاتح"
+    "lightMode": "الوضع الفاتح",
+    "productOf": "منتج لشركة Blackpine Capital SARL"
   },
   "nav": {
     "dashboard": "لوحة التحكم",
@@ -143,7 +144,7 @@
   },
   "deleteAccount": {
     "title": "حذف حسابك",
-    "intro": "يمكنك طلب الحذف النهائي لحسابك في Blackpine وجميع البيانات المرتبطة به.",
+    "intro": "يمكنك طلب الحذف النهائي لحسابك في Iyadaty وجميع البيانات المرتبطة به.",
     "whatTitle": "ما الذي سيُحذف:",
     "item1": "ملفك الشخصي وبيانات تسجيل الدخول",
     "item2": "جميع مرضاك ومواعيدك ووصفاتك ومستنداتك",
@@ -177,7 +178,7 @@
     "trust1": "🔒 تشفير AES-256",
     "trust2": "🇲🇦 مصمّم للمغرب",
     "trust3": "🌐 FR · EN · ع",
-    "footer": "© 2026 Blackpine — مصمم للأطباء في المغرب",
+    "footer": "© 2026 Iyadaty — مصمم للأطباء في المغرب",
     "syncNote": "البيانات متزامنة مع تطبيق Android",
     "deleteAccountLink": "حذف حسابي وبياناتي",
     "loginTitle": "تسجيل الدخول",
@@ -965,9 +966,9 @@
     "exportBeforeDelete": "يُنصح بتصدير بياناتك قبل المتابعة.",
     "deleteFinal": "حذف نهائي",
     "installApp": "تثبيت التطبيق",
-    "installAppSub": "الوصول إلى Blackpine Cabinet كتطبيق أصلي",
+    "installAppSub": "الوصول إلى Iyadaty كتطبيق أصلي",
     "appInstalled": "تم تثبيت التطبيق",
-    "appInstalledHint": "Blackpine Cabinet مثبّت على جهازك",
+    "appInstalledHint": "Iyadaty مثبّت على جهازك",
     "installDevice": "التثبيت على هذا الجهاز",
     "installCanHint": "انقر لإضافة التطبيق إلى شاشتك الرئيسية أو سطح المكتب",
     "installManualHint": "افتح هذا الموقع في Chrome/Edge/Safari واستخدم 'إضافة إلى الشاشة الرئيسية'",
@@ -977,10 +978,10 @@
     "offlineActive": "✓ مفعّل",
     "about": "حول التطبيق",
     "deleteAccountLink": "حذف حسابي وبياناتي",
-    "aboutName": "Blackpine Cabinet Web",
+    "aboutName": "Iyadaty Web",
     "aboutDesc": "تطبيق إدارة العيادة الطبية",
     "alreadyInstalled": "تم تثبيت التطبيق ✓",
-    "pwaDesc": "ثبّت Blackpine على شاشتك الرئيسية للوصول بدون إنترنت.",
+    "pwaDesc": "ثبّت Iyadaty على شاشتك الرئيسية للوصول بدون إنترنت.",
     "savedAt": "تم الحفظ في {{date}}",
     "noBackup": "لا يوجد نسخ احتياطي حديث",
     "appointments": "المواعيد",
@@ -1146,7 +1147,7 @@
     "saveBtn": "حفظ الملف الشخصي",
     "saved": "تم حفظ الملف الشخصي",
     "account": "الحساب",
-    "accountSubtitle": "حساب Blackpine Cabinet",
+    "accountSubtitle": "حساب Iyadaty",
     "yourName": "اسمك",
     "logout": "تسجيل الخروج"
   },
@@ -1214,7 +1215,7 @@
   "onboarding": {
     "ariaLabel": "إعداد العيادة",
     "skip": "تخطي",
-    "step0Title": "مرحباً بك في Blackpine",
+    "step0Title": "مرحباً بك في Iyadaty",
     "step0Sub": "لنُعدّ عيادتك الطبية في دقيقتين لتخصيص وصفاتك وشهاداتك وملفات مرضاك.",
     "step0Btn": "إعداد عيادتي ←",
     "step1Title": "ملفك كطبيب",
