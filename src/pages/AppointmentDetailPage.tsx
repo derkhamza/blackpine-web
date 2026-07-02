@@ -612,17 +612,41 @@ export function AppointmentDetailPage() {
     setDoctorProfile({ ...doctorProfile, noteTemplates: myTemplates.filter(x => x.id !== id) });
   };
 
-  // ── Extra bilan groups (doctor-chosen, any specialty) ─────────────────────
-  const enabledBilans = BILAN_CATALOG.filter(b => (doctorProfile.extraBilans ?? []).includes(b.key));
-  const availableBilans = BILAN_CATALOG.filter(b => !(doctorProfile.extraBilans ?? []).includes(b.key));
+  // ── Extra bilan groups (any specialty) ────────────────────────────────────
+  // Two sources are merged: the doctor's profile-level default set (shows on
+  // every appointment, editable only by the doctor since it needs the profile
+  // sync) and per-appointment additions (ride the appointment sync, so a
+  // secretary can add a bilan and fill in the measurements at the desk).
+  const profileBilanKeys = doctorProfile.extraBilans ?? [];
+  const apptBilanKeys     = appt.extraBilans ?? [];
+  const enabledBilanKeys  = [...new Set([...profileBilanKeys, ...apptBilanKeys])];
+  const enabledBilans   = BILAN_CATALOG.filter(b => enabledBilanKeys.includes(b.key));
+  const availableBilans = BILAN_CATALOG.filter(b => !enabledBilanKeys.includes(b.key));
 
   const addBilan = (key: string) => {
-    if (!key) return;
-    setDoctorProfile({ ...doctorProfile, extraBilans: [...(doctorProfile.extraBilans ?? []), key] });
+    if (!key || enabledBilanKeys.includes(key)) return;
+    if (readOnly) {
+      // Secretary: store on the appointment (cannot write the doctor profile).
+      updateAppointment({ ...appt, extraBilans: [...apptBilanKeys, key] });
+    } else {
+      // Doctor: add to the profile default so it appears on future visits too.
+      setDoctorProfile({ ...doctorProfile, extraBilans: [...profileBilanKeys, key] });
+    }
   };
   const removeBilan = (key: string) => {
-    setDoctorProfile({ ...doctorProfile, extraBilans: (doctorProfile.extraBilans ?? []).filter(k => k !== key) });
+    // Remove from whichever source(s) hold it. A secretary can only clear the
+    // appointment-level copy; the doctor's profile default stays put for them.
+    if (apptBilanKeys.includes(key)) {
+      updateAppointment({ ...appt, extraBilans: apptBilanKeys.filter(k => k !== key) });
+    }
+    if (!readOnly && profileBilanKeys.includes(key)) {
+      setDoctorProfile({ ...doctorProfile, extraBilans: profileBilanKeys.filter(k => k !== key) });
+    }
   };
+  // A bilan can be removed by this session when it lives on the appointment
+  // (either role) or on the profile (doctor only).
+  const canRemoveBilan = (key: string) =>
+    apptBilanKeys.includes(key) || (!readOnly && profileBilanKeys.includes(key));
 
   const handleStatusChange = (s: AppointmentStatus) => {
     updateAppointment({ ...appt, status: s });
@@ -1117,8 +1141,8 @@ export function AppointmentDetailPage() {
             </div>
           </div>
 
-          {/* ── Specialty-specific fields + doctor-chosen bilans ────── */}
-          {(specialtyGroups.length > 0 || enabledBilans.length > 0 || !readOnly) && (
+          {/* ── Specialty-specific fields + doctor/secretary bilans ─── */}
+          {(specialtyGroups.length > 0 || enabledBilans.length > 0 || !bilanReadOnly) && (
             <div className="specialty-fields-section">
               <div className="specialty-fields-title">
                 <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
@@ -1129,7 +1153,7 @@ export function AppointmentDetailPage() {
                 {doctorProfile.specialtyLabel && (
                   <span className="specialty-fields-badge">{doctorProfile.specialtyLabel}</span>
                 )}
-                {!readOnly && availableBilans.length > 0 && (
+                {!bilanReadOnly && availableBilans.length > 0 && (
                   <select
                     className="form-select"
                     style={{ marginLeft: "auto", fontSize: 12, padding: "3px 8px", maxWidth: 210 }}
@@ -1165,7 +1189,7 @@ export function AppointmentDetailPage() {
                 <div key={group.key} className="specialty-group">
                   <div className="specialty-group-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     {group.title}
-                    {!readOnly && (
+                    {!bilanReadOnly && canRemoveBilan(group.key) && (
                       <button
                         type="button"
                         className="appt-detail-unlink-btn"

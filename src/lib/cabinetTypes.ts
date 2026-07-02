@@ -431,6 +431,11 @@ export interface Appointment {
   locationId?:      string;
   // Consultation duration tracking (seconds, set by consultation timer)
   consultationDuration?: number;
+  // Extra bilan groups enabled ON THIS APPOINTMENT (keys of BILAN_CATALOG),
+  // in addition to the doctor's profile-level default (doctorProfile.extraBilans).
+  // Stored per-appointment so a secretary — who cannot sync the doctor profile —
+  // can still add a bilan and fill in the measurements at the desk.
+  extraBilans?:    string[];
 }
 
 export type PatientGender = "M" | "F";
