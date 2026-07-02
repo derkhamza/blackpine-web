@@ -582,16 +582,15 @@ export function PatientDetailPage() {
             <button className="btn btn-ghost" style={{ fontSize: 12 }} onClick={openEdit}>
               {t("patientDetail.editBtn")}
             </button>
-            {!readOnly && (
-              <button
-                className="btn btn-ghost"
-                style={{ fontSize: 12, color: "var(--coral)" }}
-                onClick={handleDelete}
-                title={t("patientDetail.deleteRecord")}
-              >
-                {t("patientDetail.deleteRecord")}
-              </button>
-            )}
+            {/* Secretaries manage the patient desk — deletion allowed for both roles. */}
+            <button
+              className="btn btn-ghost"
+              style={{ fontSize: 12, color: "var(--coral)" }}
+              onClick={handleDelete}
+              title={t("patientDetail.deleteRecord")}
+            >
+              {t("patientDetail.deleteRecord")}
+            </button>
             <button
               className="btn btn-ghost"
               style={{ fontSize: 12 }}
@@ -864,17 +863,15 @@ export function PatientDetailPage() {
             </div>
           </div>
 
-          {!readOnly && (
-            <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end" }}>
-              <button
-                className="btn btn-ghost"
-                style={{ color: "var(--coral)", borderColor: "var(--coral)", fontSize: 12 }}
-                onClick={handleDelete}
-              >
-                {t("patientDetail.deleteRecord")}
-              </button>
-            </div>
-          )}
+          <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end" }}>
+            <button
+              className="btn btn-ghost"
+              style={{ color: "var(--coral)", borderColor: "var(--coral)", fontSize: 12 }}
+              onClick={handleDelete}
+            >
+              {t("patientDetail.deleteRecord")}
+            </button>
+          </div>
         </div>
       )}
 

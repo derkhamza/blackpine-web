@@ -644,10 +644,13 @@ export async function secretaryPushAppointments(
 }
 
 /** Returns the server's merged patients array (clinical fields preserved). */
-export async function secretaryPushPatients(patients: unknown[]): Promise<unknown[] | undefined> {
+export async function secretaryPushPatients(
+  patients: unknown[],
+  deletedIds: string[] = [],
+): Promise<unknown[] | undefined> {
   const res = await secretaryRequest("/cabinet/patients", {
     method: "POST",
-    body: JSON.stringify({ patients }),
+    body: JSON.stringify({ patients, deletedIds }),
   });
   if (res.status === 401) { clearSecretarySession(); throw new Error("SECRETARY_REVOKED"); }
   const data = await res.json().catch(() => ({}));

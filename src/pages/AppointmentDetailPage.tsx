@@ -258,6 +258,11 @@ export function AppointmentDetailPage() {
   // editable for them when the doctor grants recordVitals (default on).
   const secretaryPerms = doctorProfile.secretaryPermissions ?? DEFAULT_SECRETARY_PERMISSIONS;
   const vitalsReadOnly = readOnly && !secretaryPerms.recordVitals;
+  // Bilan clinique spécialisé / specialty fields hold MEASUREMENTS the
+  // secretary commonly takes — editable with the same permission as vitals.
+  // (The server only accepts extraFields from a secretary; the rest of the
+  // clinical note stays doctor-only.)
+  const bilanReadOnly = readOnly && !secretaryPerms.recordVitals;
 
   // Most recent prescription this patient received at any *other* appointment —
   // lets the doctor one-click "repeat last" for chronic patients.
@@ -1150,7 +1155,7 @@ export function AppointmentDetailPage() {
                         value={extraFields[field.key] ?? ""}
                         onChange={(v) => setExtraField(field.key, v)}
                         onBlur={(v) => saveExtraField(field.key, v)}
-                        readOnly={readOnly}
+                        readOnly={bilanReadOnly}
                       />
                     ))}
                   </div>
@@ -1180,7 +1185,7 @@ export function AppointmentDetailPage() {
                         value={extraFields[field.key] ?? ""}
                         onChange={(v) => setExtraField(field.key, v)}
                         onBlur={(v) => saveExtraField(field.key, v)}
-                        readOnly={readOnly}
+                        readOnly={bilanReadOnly}
                       />
                     ))}
                   </div>

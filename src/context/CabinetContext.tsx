@@ -590,7 +590,7 @@ export function CabinetProvider({
           // The server merge never drops records on its own; explicit local
           // deletions travel as an id list so they actually stick.
           secretaryPushAppointments(appointments, [...tombstonesRef.current.appts]),
-          secretaryPushPatients(patients),
+          secretaryPushPatients(patients, [...tombstonesRef.current.patients]),
         ])
           .then(([mergedAppts, mergedPatients]) => {
             // Adopt the server's merged arrays (clinical fields preserved).
