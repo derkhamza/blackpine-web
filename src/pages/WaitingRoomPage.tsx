@@ -34,6 +34,7 @@ interface CardProps {
 }
 
 function WaitCard({ appt, now, onArrive, onCall, onDone, onNoShow }: CardProps) {
+  // Cards can be dragged between columns to change status.
   const { t } = useTranslation();
   const color = (APPT_TYPE_COLORS as Record<string, string>)[appt.type] ?? "#888";
   const typeLabel = (APPT_TYPE_LABELS as Record<string, string>)[appt.type] ?? appt.type;
@@ -46,7 +47,14 @@ function WaitCard({ appt, now, onArrive, onCall, onDone, onNoShow }: CardProps) 
       : null;
 
   return (
-    <div className={`wr-card wr-s-${appt.status}`}>
+    <div
+      className={`wr-card wr-s-${appt.status}`}
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.setData("text/bp-appt", appt.id);
+        e.dataTransfer.effectAllowed = "move";
+      }}
+    >
       <div className="wr-card-top">
         <Link to={`/agenda/${appt.id}`} className="wr-card-time wr-card-open" title={t("waiting.openAppt")}>
           {appt.startTime} – {appt.endTime}
@@ -93,14 +101,35 @@ function WaitCard({ appt, now, onArrive, onCall, onDone, onNoShow }: CardProps) 
 
 // ── Column ────────────────────────────────────────────────────────────────────
 
-function Col({ title, accent, count, children }: {
+function Col({ title, accent, count, children, onDropAppt }: {
   title:    string;
   accent:   string;
   count:    number;
   children: ReactNode;
+  onDropAppt?: (apptId: string) => void;
 }) {
+  const [dragOver, setDragOver] = useState(false);
   return (
-    <div className="wr-col">
+    <div
+      className={`wr-col${dragOver ? " wr-col-dragover" : ""}`}
+      onDragOver={onDropAppt ? (e) => {
+        if (e.dataTransfer.types.includes("text/bp-appt")) {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
+          setDragOver(true);
+        }
+      } : undefined}
+      onDragLeave={onDropAppt ? (e) => {
+        // Only clear when actually leaving the column, not moving over a child.
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOver(false);
+      } : undefined}
+      onDrop={onDropAppt ? (e) => {
+        e.preventDefault();
+        setDragOver(false);
+        const id = e.dataTransfer.getData("text/bp-appt");
+        if (id) onDropAppt(id);
+      } : undefined}
+    >
       <div className="wr-col-hdr" style={{ borderTopColor: accent }}>
         <span className="wr-col-title">{title}</span>
         <span className="wr-col-count" style={{ background: accent + "22", color: accent }}>{count}</span>
@@ -156,6 +185,22 @@ export function WaitingRoomPage() {
   const noShow = useCallback((appt: Appointment) =>
     updateAppointment({ ...appt, status: "no_show" }), [updateAppointment]);
 
+  // Drag & drop between columns → status change (with check-in timestamps)
+  const dropToColumn = useCallback((col: "scheduled" | "arrived" | "in_consultation" | "done") =>
+    (apptId: string) => {
+      const appt = todayAppts.find(a => a.id === apptId);
+      if (!appt) return;
+      if (col === "scheduled" && appt.status !== "scheduled") {
+        updateAppointment({ ...appt, status: "scheduled" });
+      } else if (col === "arrived" && appt.status !== "arrived") {
+        updateAppointment({ ...appt, status: "arrived", checkedInAt: appt.checkedInAt ?? new Date().toISOString() });
+      } else if (col === "in_consultation" && appt.status !== "in_consultation") {
+        updateAppointment({ ...appt, status: "in_consultation", inConsultationAt: appt.inConsultationAt ?? new Date().toISOString() });
+      } else if (col === "done" && appt.status !== "completed") {
+        updateAppointment({ ...appt, status: "completed" });
+      }
+    }, [todayAppts, updateAppointment]);
+
   const timeStr = now.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
   const dateStr = now.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" });
 
@@ -191,7 +236,8 @@ export function WaitingRoomPage() {
         </div>
       ) : (
         <div className="wr-board">
-          <Col title={t("waiting.colScheduled")} accent="#6b7280" count={cols.scheduled.length}>
+          <Col title={t("waiting.colScheduled")} accent="#6b7280" count={cols.scheduled.length}
+            onDropAppt={dropToColumn("scheduled")}>
             {cols.scheduled.map(a => (
               <WaitCard key={a.id} appt={a} now={now}
                 onArrive={() => arrive(a)} onCall={() => call(a)}
@@ -199,7 +245,8 @@ export function WaitingRoomPage() {
             ))}
           </Col>
 
-          <Col title={t("waiting.colArrived")} accent="#d97706" count={cols.arrived.length}>
+          <Col title={t("waiting.colArrived")} accent="#d97706" count={cols.arrived.length}
+            onDropAppt={dropToColumn("arrived")}>
             {cols.arrived.map(a => (
               <WaitCard key={a.id} appt={a} now={now}
                 onArrive={() => arrive(a)} onCall={() => call(a)}
@@ -207,7 +254,8 @@ export function WaitingRoomPage() {
             ))}
           </Col>
 
-          <Col title={t("waiting.colInConsultation")} accent="#1890C5" count={cols.in_consultation.length}>
+          <Col title={t("waiting.colInConsultation")} accent="#1890C5" count={cols.in_consultation.length}
+            onDropAppt={dropToColumn("in_consultation")}>
             {cols.in_consultation.map(a => (
               <WaitCard key={a.id} appt={a} now={now}
                 onArrive={() => arrive(a)} onCall={() => call(a)}
@@ -215,7 +263,8 @@ export function WaitingRoomPage() {
             ))}
           </Col>
 
-          <Col title={t("waiting.colDoneAbsent")} accent="#15a876" count={cols.done.length}>
+          <Col title={t("waiting.colDoneAbsent")} accent="#15a876" count={cols.done.length}
+            onDropAppt={dropToColumn("done")}>
             {cols.done.map(a => (
               <WaitCard key={a.id} appt={a} now={now}
                 onArrive={() => arrive(a)} onCall={() => call(a)}

@@ -41,6 +41,32 @@ export function estimateStorageBytes(): number {
 
 const BACKUP_KEY = "bp.lastBackupAt";
 
+/**
+ * Per-record conflict merge used when our push is rejected (409) because
+ * another device (typically the secretary) wrote in between. The old behaviour
+ * adopted the server snapshot wholesale, silently discarding every local edit
+ * made since the last successful sync — including freshly created patients
+ * (the "patient introuvable" bug). Instead:
+ *   - records we deleted locally stay deleted (tombstones),
+ *   - records we edited/created locally win over the server copy,
+ *   - everything else adopts the server copy (keeps the other device's edits).
+ */
+function mergeConflict<T extends { id: string }>(
+  server: T[], local: T[], tombstones: Set<string>, touched: Set<string>,
+): T[] {
+  const localById = new Map(local.map(x => [x.id, x]));
+  const out: T[] = [];
+  for (const srv of server ?? []) {
+    if (!srv || !srv.id) continue;
+    if (tombstones.has(srv.id)) continue;               // deleted here → stays deleted
+    const loc = localById.get(srv.id);
+    out.push(loc && touched.has(srv.id) ? loc : srv);   // local edit wins, else server
+    localById.delete(srv.id);
+  }
+  for (const loc of localById.values()) out.push(loc);  // created here → keep
+  return out;
+}
+
 // Sub-keys that hold per-cabinet data. Must stay in sync with all save() calls below.
 const CABINET_SUBKEYS = [
   "appts", "patients", "employees", "doctor", "prescriptionTemplates",
@@ -361,32 +387,55 @@ export function CabinetProvider({
 
   // ── Appointments ──────────────────────────────────────────────────────────
   const addAppointment = useCallback(
-    (a: Omit<Appointment, "id">) => setAppts(p => [...p, { ...a, id: uid() }]), []);
+    (a: Omit<Appointment, "id">) => {
+      const id = uid();
+      touchedRef.current.appts.add(id);
+      setAppts(p => [...p, { ...a, id }]);
+    }, []);
   const updateAppointment = useCallback(
-    (a: Appointment) => setAppts(p => p.map(x => x.id === a.id ? a : x)), []);
+    (a: Appointment) => {
+      touchedRef.current.appts.add(a.id);
+      setAppts(p => p.map(x => x.id === a.id ? a : x));
+    }, []);
   const deleteAppointment = useCallback(
-    (id: string) => setAppts(p => p.filter(x => x.id !== id)), []);
+    (id: string) => {
+      tombstonesRef.current.appts.add(id);
+      setAppts(p => p.filter(x => x.id !== id));
+    }, []);
   /** Delete all appointments in the same recurring series from `fromDate` onwards (inclusive). */
   const deleteAppointmentSeries = useCallback(
     (ruleId: string, fromDate: string) =>
-      setAppts(p => p.filter(x => !(x.recurringRuleId === ruleId && x.date >= fromDate))),
+      setAppts(p => p.filter(x => {
+        const gone = x.recurringRuleId === ruleId && x.date >= fromDate;
+        if (gone) tombstonesRef.current.appts.add(x.id);
+        return !gone;
+      })),
     []);
 
   // ── Patients ──────────────────────────────────────────────────────────────
   const addPatient = useCallback(
     (p: Omit<Patient, "id" | "createdAt">) => {
       const created: Patient = { ...p, id: uid(), createdAt: new Date().toISOString() };
+      touchedRef.current.patients.add(created.id);
       setPatients(prev => [...prev, created]);
       return created;
     }, []);
   const updatePatient = useCallback(
-    (p: Patient) => setPatients(prev => prev.map(x => x.id === p.id ? p : x)), []);
+    (p: Patient) => {
+      touchedRef.current.patients.add(p.id);
+      setPatients(prev => prev.map(x => x.id === p.id ? p : x));
+    }, []);
   const deletePatient = useCallback(
     (id: string) => {
       // Removing a patient also clears their calendar entries so the agenda
       // never shows orphaned appointments pointing at a deleted record.
+      tombstonesRef.current.patients.add(id);
       setPatients(prev => prev.filter(x => x.id !== id));
-      setAppts(prev => prev.filter(x => x.patientId !== id));
+      setAppts(prev => prev.filter(x => {
+        const gone = x.patientId === id;
+        if (gone) tombstonesRef.current.appts.add(x.id);
+        return !gone;
+      }));
     }, []);
 
   // ── Employees ─────────────────────────────────────────────────────────────
@@ -416,6 +465,14 @@ export function CabinetProvider({
   const applyingRemote = useRef(false);
   // True when there are local edits not yet confirmed on the server.
   const dirtyRef = useRef(false);
+  // Ids deleted/edited locally since the last successful sync — consumed by the
+  // conflict merge so a 409 never resurrects deletions nor drops local edits.
+  const tombstonesRef = useRef({ appts: new Set<string>(), patients: new Set<string>() });
+  const touchedRef    = useRef({ appts: new Set<string>(), patients: new Set<string>() });
+  const clearMergeMarks = () => {
+    tombstonesRef.current.appts.clear();   tombstonesRef.current.patients.clear();
+    touchedRef.current.appts.clear();      touchedRef.current.patients.clear();
+  };
 
   // Apply a full snapshot received from the server into local state.
   const applySnapshot = useCallback((snapshot: CabinetSnapshot) => {
@@ -439,6 +496,7 @@ export function CabinetProvider({
     if (Array.isArray(snapshot.invoices))              setInvoices(snapshot.invoices as InvoiceRecord[]);
     if (Array.isArray(snapshot.apptDocuments))         setApptDocuments(snapshot.apptDocuments as ApptDocument[]);
     baseUpdatedAt.current = snapshot.updatedAt ?? null;
+    clearMergeMarks(); // fresh baseline — nothing local is pending anymore
   }, []);
 
   // ── Automatic backups (doctor only) ───────────────────────────────────────
@@ -529,7 +587,9 @@ export function CabinetProvider({
       // ── Secretary: push only the appointments + patients slices ──
       if (secretarySession) {
         Promise.all([
-          secretaryPushAppointments(appointments),
+          // The server merge never drops records on its own; explicit local
+          // deletions travel as an id list so they actually stick.
+          secretaryPushAppointments(appointments, [...tombstonesRef.current.appts]),
           secretaryPushPatients(patients),
         ])
           .then(([mergedAppts, mergedPatients]) => {
@@ -538,6 +598,7 @@ export function CabinetProvider({
             if (Array.isArray(mergedAppts))    setAppts(mergedAppts as Appointment[]);
             if (Array.isArray(mergedPatients)) setPatients(mergedPatients as Patient[]);
             dirtyRef.current = false;
+            clearMergeMarks();
             setSyncState("synced");
             setLastSynced(new Date().toISOString());
           })
@@ -558,17 +619,28 @@ export function CabinetProvider({
         .then((newUpdatedAt) => {
           if (newUpdatedAt) baseUpdatedAt.current = newUpdatedAt;
           dirtyRef.current = false;
+          clearMergeMarks();
           setSyncState("synced");
           setLastSynced(new Date().toISOString());
         })
         .catch((err) => {
           if (err instanceof CabinetConflictError) {
-            // Another device wrote newer data since we last pulled. Adopt the
-            // server's version so the devices converge instead of clobbering.
-            applySnapshot(err.snapshot);
-            dirtyRef.current = false;
-            setSyncState("synced");
-            setLastSynced(new Date().toISOString());
+            // Another device wrote newer data since we last pulled. Merge per
+            // record (local edits/creations win, local deletions stick, the
+            // other device's records are adopted) instead of clobbering local
+            // state — then re-push on the fresh base token. Collections other
+            // than appointments/patients are doctor-only, so local wins there.
+            const snap = err.snapshot;
+            baseUpdatedAt.current = snap.updatedAt ?? null;
+            setAppts(local => mergeConflict(
+              (snap.appointments ?? []) as Appointment[], local,
+              tombstonesRef.current.appts, touchedRef.current.appts));
+            setPatients(local => mergeConflict(
+              (snap.patients ?? []) as Patient[], local,
+              tombstonesRef.current.patients, touchedRef.current.patients));
+            // dirty stays true — the state changes above re-arm the debounced
+            // push, which now carries the merged data + fresh base token.
+            setSyncState("syncing");
           } else {
             setSyncState("error"); // keep dirty; will retry on next change
           }

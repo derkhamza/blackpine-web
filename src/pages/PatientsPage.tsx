@@ -7,7 +7,7 @@ import { CsvImportModal } from "../components/CsvImportModal";
 import { exportPatientsCsv } from "../lib/csvExport";
 import { findOrphanAppts } from "../lib/orphanAppts";
 import type { Patient, PatientGender } from "../lib/cabinetTypes";
-import { MOROCCAN_CITIES } from "../lib/cabinetTypes";
+import { MOROCCAN_CITIES, MUTUELLES } from "../lib/cabinetTypes";
 import { useTranslation } from "react-i18next";
 import { track } from "../lib/analytics";
 
@@ -60,6 +60,8 @@ function PatientModal({ initial, existingPatients = [], onSave, onClose }: Patie
   const [antecedents, setAntec]   = useState(initial?.antecedents ?? "");
   const [notes,       setNotes]   = useState(initial?.notes ?? "");
   const [city,        setCity]    = useState(initial?.city ?? "");
+  const [cnops,       setCnops]   = useState(initial?.cnopsNumber ?? "");
+  const [mutuelle,    setMutuelle] = useState(initial?.mutuelle ?? "");
   const [dupWarning,  setDupWarn] = useState<string | null>(null);
 
   const doSave = () => {
@@ -75,6 +77,8 @@ function PatientModal({ initial, existingPatients = [], onSave, onClose }: Patie
       antecedents: antecedents || undefined,
       notes: notes || undefined,
       city: city.trim() || undefined,
+      cnopsNumber: cnops.trim() || undefined,
+      mutuelle: mutuelle.trim() || undefined,
     });
     onClose();
   };
@@ -178,6 +182,21 @@ function PatientModal({ initial, existingPatients = [], onSave, onClose }: Patie
               <div className="form-group">
                 <label className="form-label">{t("common.notes")}</label>
                 <input className="form-input" value={notes} onChange={e => setNotes(e.target.value)} placeholder={t("patients.notesPlaceholder")} />
+              </div>
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">{t("patientDetail.cnopsLabel")}</label>
+                <input className="form-input" value={cnops} onChange={e => setCnops(e.target.value)}
+                  placeholder={t("patientDetail.cnopsPlaceholder")} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">{t("patientDetail.mutuelleLabel")}</label>
+                <input className="form-input" list="new-patient-mutuelles" value={mutuelle}
+                  onChange={e => setMutuelle(e.target.value)} placeholder={t("patientDetail.mutuellePlaceholder")} />
+                <datalist id="new-patient-mutuelles">
+                  {MUTUELLES.map(m => <option key={m} value={m} />)}
+                </datalist>
               </div>
             </div>
 

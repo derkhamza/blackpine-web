@@ -14,8 +14,9 @@ import type { CabinetLocation, AppointmentType, SecretaryPermissions, ActeCode, 
 import { APPT_TYPE_COLORS, DEFAULT_SECRETARY_PERMISSIONS, DEFAULT_DOCUMENT_SETTINGS, DOCUMENT_LAYOUT_LABELS } from "../lib/cabinetTypes";
 import { COMMON_DRUGS } from "../lib/ordonnancePrinter";
 import { ActeCatalogModal } from "../components/ActeCatalogModal";
+import { PageDesigner } from "../components/PageDesigner";
 import {
-  inviteCreate, inviteRevoke, type CabinetBackup,
+  type CabinetBackup,
   secretaryAccountList, secretaryAccountCreate, secretaryAccountRevoke, type SecretaryAccount,
   bookingGetMe, bookingSave, type BookingConfig,
   smsGetConfig, smsSaveConfig, type SmsConfig,
@@ -747,6 +748,13 @@ function DocumentSettingsSection({
         <input className="form-input" value={s.footerNote ?? ""} onChange={e => set({ footerNote: e.target.value || undefined })}
           placeholder={t("settings.docFooterNotePlaceholder")} />
       </div>
+
+      {/* ── Advanced page designer (pre-printed paper) ── */}
+      <div style={{ marginTop: 8, borderTop: "1px solid var(--border)", paddingTop: 14 }}>
+        <div className="secretary-info-title" style={{ marginBottom: 2 }}>{t("settings.pd.title")}</div>
+        <div className="secretary-info-desc" style={{ marginBottom: 10 }}>{t("settings.pd.desc")}</div>
+        <PageDesigner settings={s} onChange={onChange} />
+      </div>
     </div>
   );
 }
@@ -985,46 +993,6 @@ export function ParametresPage() {
     delete next.secretaryPin;
     setDoctorProfile(next);
     showToast(t("settings.pinRemoved"));
-  };
-
-  // ── Remote secretary invite ────────────────────────────────────────────────
-  const [inviteCode,    setInviteCode]    = useState<string | null>(null);
-  const [inviteExpires, setInviteExpires] = useState<string | null>(null);
-  const [inviteBusy,    setInviteBusy]    = useState(false);
-
-  const handleGenerateInvite = async () => {
-    setInviteBusy(true);
-    try {
-      const { code, expiresAt } = await inviteCreate();
-      setInviteCode(code);
-      setInviteExpires(expiresAt);
-    } catch (err) {
-      showToast((err as Error).message || t("settings.inviteError"), "error");
-    } finally {
-      setInviteBusy(false);
-    }
-  };
-  const handleRevokeInvite = async () => {
-    if (!confirm(t("settings.inviteRevokeConfirm"))) return;
-    setInviteBusy(true);
-    try {
-      await inviteRevoke();
-      setInviteCode(null);
-      setInviteExpires(null);
-      showToast(t("settings.inviteRevoked"));
-    } catch (err) {
-      showToast((err as Error).message || t("settings.inviteError"), "error");
-    } finally {
-      setInviteBusy(false);
-    }
-  };
-  const handleCopyInvite = () => {
-    if (inviteCode) {
-      navigator.clipboard?.writeText(inviteCode).then(
-        () => showToast(t("settings.inviteCopied")),
-        () => {},
-      );
-    }
   };
 
   // ── Persistent secretary accounts (username + password, revocable) ──────────
@@ -1393,36 +1361,6 @@ export function ParametresPage() {
               </div>
             </div>
           </div>
-
-          <SettingsRow
-            label={t("settings.inviteCodeLabel")}
-            hint={t("settings.inviteCodeHint")}
-          >
-            <div style={{ display: "flex", gap: 8 }}>
-              <button className="btn btn-primary" onClick={handleGenerateInvite} disabled={inviteBusy}>
-                {t("settings.generateInvite")}
-              </button>
-              <button className="btn btn-danger-ghost" onClick={handleRevokeInvite} disabled={inviteBusy}>
-                {t("settings.revokeInvite")}
-              </button>
-            </div>
-          </SettingsRow>
-
-          {inviteCode && (
-            <div className="invite-code-box">
-              <div className="invite-code-value" onClick={handleCopyInvite} title={t("settings.inviteCopy")}>
-                {inviteCode}
-              </div>
-              <div className="invite-code-meta">
-                {inviteExpires
-                  ? t("settings.inviteExpires", {
-                      date: new Date(inviteExpires).toLocaleString(),
-                    })
-                  : ""}
-              </div>
-              <div className="invite-code-hint">{t("settings.inviteShareHint")}</div>
-            </div>
-          )}
 
           {/* ── Persistent secretary accounts ── */}
           <div style={{ marginTop: 20, borderTop: "1px solid var(--border)", paddingTop: 16 }}>

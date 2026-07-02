@@ -373,55 +373,19 @@ export async function searchMedications(q: string, signal?: AbortSignal): Promis
   return ((data as any).medications ?? []) as MedicationHit[];
 }
 
-// ── Secretary invites (doctor side) ──────────────────────────────────────────
-
-export interface InviteCode { code: string; expiresAt: string; }
-
-export async function inviteCreate(): Promise<InviteCode> {
-  const res = await request("/invite/create", { method: "POST" });
-  if (res.status === 401) { clearToken(); throw new Error("TOKEN_EXPIRED"); }
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((data as any).error || "Invite create failed");
-  return data as InviteCode;
-}
-
-export async function inviteRevoke(): Promise<void> {
-  const res = await request("/invite/revoke", { method: "DELETE" });
-  if (res.status === 401) { clearToken(); throw new Error("TOKEN_EXPIRED"); }
-  if (!res.ok) {
-    const d = await res.json().catch(() => ({}));
-    throw new Error((d as any).error || "Invite revoke failed");
-  }
-}
-
 // ── Secretary login + restricted sync (secretary side) ────────────────────────
-
-/** Redeem an invite code; on success the secretary session is persisted. */
-export async function inviteRedeem(code: string): Promise<SecretaryOwner> {
-  const res = await fetch(`${API_BASE}/invite/redeem`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ code }),
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((data as any).error || "Code invalide ou expiré");
-  const owner: SecretaryOwner = {
-    ownerUserId: (data as any).ownerUserId,
-    ownerName:   (data as any).ownerName,
-    inviteCode:  (data as any).inviteCode,
-    linkedAt:    (data as any).linkedAt,
-  };
-  setSecretarySession((data as any).secretaryToken as string, owner);
-  return owner;
-}
 
 /** Secretary logs in with a persistent username + password account. */
 export async function secretaryLogin(username: string, password: string): Promise<SecretaryOwner> {
-  const res = await fetch(`${API_BASE}/secretary-accounts/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password }),
-  });
+  // Warm the serverless backend first, then go through the timeout+retry
+  // wrapper: a raw fetch here could hang for minutes on a cold start, leaving
+  // the secretary stuck on the "Connexion…" spinner.
+  await warmup();
+  const res = await fetchWithRetry(
+    `${API_BASE}/secretary-accounts/login`,
+    { method: "POST", body: JSON.stringify({ username, password }) },
+    { "Content-Type": "application/json" },
+  );
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error((data as any).error || "Identifiants invalides");
   const owner: SecretaryOwner = {
@@ -665,10 +629,13 @@ export async function secretaryPull(clearOn401 = true): Promise<SecretaryCabinet
 }
 
 /** Returns the server's merged appointments array (clinical fields preserved). */
-export async function secretaryPushAppointments(appointments: unknown[]): Promise<unknown[] | undefined> {
+export async function secretaryPushAppointments(
+  appointments: unknown[],
+  deletedIds: string[] = [],
+): Promise<unknown[] | undefined> {
   const res = await secretaryRequest("/cabinet/appointments", {
     method: "POST",
-    body: JSON.stringify({ appointments }),
+    body: JSON.stringify({ appointments, deletedIds }),
   });
   if (res.status === 401) { clearSecretarySession(); throw new Error("SECRETARY_REVOKED"); }
   const data = await res.json().catch(() => ({}));

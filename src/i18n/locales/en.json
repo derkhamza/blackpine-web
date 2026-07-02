@@ -446,7 +446,8 @@
     "conflictIgnore": "Create anyway",
     "bulkWaTitle": "WhatsApp Reminders ({{n}})",
     "bulkWaAll": "WA Reminders ({{n}})",
-    "bulkWaHint": "Click a patient to open WhatsApp with a pre-filled message."
+    "bulkWaHint": "Click a patient to open WhatsApp with a pre-filled message.",
+    "waMsgLang": "Message language"
   },
   "apptDetail": {
     "clinicalNotes": "Clinical notes",
@@ -589,7 +590,23 @@
     "emitInvoiceTitle": "Issue an official invoice",
     "billThisConsult": "💰 Bill this consultation",
     "billHint": "Creates a revenue entry in Transactions",
-    "billPatient": "Patient: {{name}} · {{type}}"
+    "billPatient": "Patient: {{name}} · {{type}}",
+    "tplMine": "My templates",
+    "tplMineEmpty": "No personal templates yet. Fill in the note, then save it as a template.",
+    "tplSaveCurrent": "Save note as template",
+    "tplNamePrompt": "Template name:",
+    "tplSaved": "Template “{{name}}” saved",
+    "tplDelete": "Delete this template",
+    "tplDeleteConfirm": "Delete this personal template?",
+    "tplEmptyNote": "The note is empty — nothing to save as a template.",
+    "addBilan": "Add a bilan",
+    "addBilanTitle": "Add a bilan type to your notes",
+    "removeBilan": "Remove",
+    "billRoHint": "Acts, prices and rebate are set by the doctor. You collect the payment below.",
+    "billPrepare": "Prepare (front-desk collection)",
+    "billPrepareTitle": "Save the acts and rebate without collecting — the secretary will collect at the desk",
+    "billPreparedToast": "Bill prepared — to be collected at the front desk",
+    "billPreparedBadge": "To collect"
   },
   "patients": {
     "title": "Patients",
@@ -722,7 +739,8 @@
     "ordReprint": "Reprint",
     "editGenderNone": "— Not specified —",
     "cityLabel": "City",
-    "cityPlaceholder": "Casablanca, Rabat…"
+    "cityPlaceholder": "Casablanca, Rabat…",
+    "tlExpandEmpty": "No clinical data recorded for this appointment."
   },
   "settings": {
     "title": "Settings",
@@ -811,7 +829,7 @@
     "enablePinHint": "Without a PIN, anyone can exit secretary mode",
     "setPin": "Set a PIN",
     "remoteSecretary": "Remote secretary",
-    "remoteSecretaryDesc": "Generate a code so a secretary can log in from their own device. They get access to the agenda, patients and waiting room, without being able to edit clinical data or see finances.",
+    "remoteSecretaryDesc": "Your secretary signs in from her own device with a permanent account (username + password). She has access to the agenda, patients and waiting room, without seeing finances.",
     "inviteCodeLabel": "Invitation code",
     "inviteCodeHint": "Valid for 48 hours. Share it with your secretary.",
     "generateInvite": "Generate code",
@@ -854,7 +872,13 @@
     "bookingEnd": "End",
     "bookingSlot": "Slot length",
     "bookingDays": "Working days",
-    "day_mon": "Mon", "day_tue": "Tue", "day_wed": "Wed", "day_thu": "Thu", "day_fri": "Fri", "day_sat": "Sat", "day_sun": "Sun",
+    "day_mon": "Mon",
+    "day_tue": "Tue",
+    "day_wed": "Wed",
+    "day_thu": "Thu",
+    "day_fri": "Fri",
+    "day_sat": "Sat",
+    "day_sun": "Sun",
     "smsTitle": "Automated SMS reminders",
     "smsSubtitle": "Text patients a reminder before their appointment",
     "smsDesc": "A reminder SMS is sent automatically to patients the day before their appointment. Requires an SMS provider configured on the server.",
@@ -964,7 +988,33 @@
     "teleconsults": "Teleconsults",
     "transactions": "Transactions",
     "employees": "Employees",
-    "patients": "Patients"
+    "patients": "Patients",
+    "pd": {
+      "title": "Advanced page layout (pre-printed paper)",
+      "desc": "Position each block to the millimetre to match your letterhead paper: drag blocks on the preview, set margins, add your logo.",
+      "kind_ordonnance": "Prescription (A5)",
+      "kind_facture": "Invoice (A4)",
+      "reset": "Reset layout",
+      "resetConfirm": "Reset this document's layout?",
+      "hint": "Drag a block to position it (mm from the page edge). Untick a block to skip printing it — useful when your pre-printed paper already carries the header. ⟲ returns a block to its automatic position.",
+      "margins": "Margins",
+      "blocks": "Printed blocks",
+      "unpin": "Automatic position",
+      "logo": "Logo",
+      "logoAdd": "Add a logo",
+      "logoReplace": "Replace logo",
+      "logoWidth": "Width",
+      "letterheadTip": "Tip: if your paper already carries your letterhead, untick “Header” and increase the top margin.",
+      "block_header": "Header (identity)",
+      "block_date": "Date / city",
+      "block_patient": "Patient",
+      "block_body": "Prescriptions",
+      "block_invoice": "INVOICE block / No.",
+      "block_parties": "Provider / Recipient",
+      "block_items": "Items table",
+      "block_signature": "Signature",
+      "block_footer": "Footer"
+    }
   },
   "pin": {
     "title": "🔐 Doctor code",

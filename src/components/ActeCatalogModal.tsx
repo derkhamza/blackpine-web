@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { ACTE_CATALOG, type ActeCatalogItem } from "../lib/acteCatalog";
 
@@ -25,7 +26,10 @@ export function ActeCatalogModal({ existingLabels, onAdd, onClose }: Props) {
       .filter(g => g.items.length > 0);
   }, [q]);
 
-  return (
+  // Portal to <body>: ancestors with entrance-animation transforms (settings
+  // sections) become containing blocks for position:fixed, which would trap
+  // the overlay inline inside the section instead of covering the viewport.
+  return createPortal(
     <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modal" style={{ maxWidth: 560, maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
         <div className="modal-header">
@@ -72,6 +76,7 @@ export function ActeCatalogModal({ existingLabels, onAdd, onClose }: Props) {
           <button className="btn btn-primary" onClick={onClose}>{t("acteCatalog.done")}</button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

@@ -1,5 +1,9 @@
 import type { OrdonnanceLine, CabinetDoctorProfile } from "./cabinetTypes";
 import { DEFAULT_DOCUMENT_SETTINGS } from "./cabinetTypes";
+import {
+  ORDONNANCE_DEFAULT_MARGINS, resolveMargins, pageRule,
+  blockStyle, blockHidden, logoHtml,
+} from "./docDesign";
 
 // ── Common drug suggestions (datalist) ───────────────────────────────────────
 //
@@ -456,6 +460,10 @@ export function printOrdonnance(opts: {
   const ds = { ...DEFAULT_DOCUMENT_SETTINGS, ...(doctorProfile.documentSettings ?? {}) };
   const letterhead = ds.layout === "letterhead";   // pre-printed paper: skip identity block
   const compact    = ds.layout === "compact";
+  // Advanced page design (margins / block positions / logo) — doctor-defined.
+  const design  = ds.ordonnanceDesign;
+  const margins = resolveMargins(design, ORDONNANCE_DEFAULT_MARGINS);
+  const bs = (key: string) => blockStyle(design, key, margins);
 
   const dateLabel = new Date(date + "T12:00:00").toLocaleDateString("fr-FR", {
     day: "numeric", month: "long", year: "numeric",
@@ -484,9 +492,9 @@ export function printOrdonnance(opts: {
   <meta charset="UTF-8"/>
   <title>Ordonnance — ${patientName}</title>
   <style>
-    @page { size: A5 portrait; margin: 13mm 15mm; }
+    ${pageRule("A5 portrait", margins)}
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: "Times New Roman", Times, serif; font-size: 11pt; color: #111; background: #fff; }
+    body { font-family: "Times New Roman", Times, serif; font-size: 11pt; color: #111; background: #fff; position: relative; }
 
     /* Header */
     .header {
@@ -530,8 +538,9 @@ export function printOrdonnance(opts: {
   </style>
 </head>
 <body>
-  <div class="header" style="${letterhead ? "border:none;padding-top:28mm;" : ""}${compact ? "padding-bottom:6px;margin-bottom:7px;" : ""}">
-    ${letterhead ? `<div></div>` : `<div>
+  ${logoHtml(design, margins)}
+  <div class="header" style="${letterhead ? "border:none;padding-top:28mm;" : ""}${compact ? "padding-bottom:6px;margin-bottom:7px;" : ""}${blockHidden(design, "header") && blockHidden(design, "date") ? "display:none;" : ""}">
+    ${letterhead || blockHidden(design, "header") ? `<div></div>` : `<div style="${bs("header")}">
       <div class="doc-name">${doctorProfile.fullName || "Dr."}</div>
       <div class="doc-meta">
         ${doctorProfile.specialtyLabel ? doctorProfile.specialtyLabel + "<br/>" : ""}
@@ -543,25 +552,25 @@ export function printOrdonnance(opts: {
         ${ds.headerNote ? `<div style="margin-top:3px;font-style:italic;">${ds.headerNote}</div>` : ""}
       </div>
     </div>`}
-    <div class="date-bloc">
+    <div class="date-bloc" style="${bs("date")}">
       ${cityPart ? cityPart + "<br/>" : ""}Le ${dateLabel}
     </div>
   </div>
 
-  <div class="patient-line">
+  <div class="patient-line" style="${bs("patient")}">
     Patient(e) : <strong>${patientName}</strong>
   </div>
 
-  <div class="rx-list">
+  <div class="rx-list" style="${bs("body")}">
     ${lines.length > 0 ? lineHtml : '<div style="color:#aaa;font-style:italic">(aucune prescription)</div>'}
   </div>
 
-  <div class="sig-area">
+  <div class="sig-area" style="${bs("signature")}">
     <div class="sig-label">Signature et cachet du médecin :</div>
     <div class="sig-line">${doctorProfile.fullName || ""}</div>
   </div>
 
-  <div class="footer">
+  <div class="footer" style="${bs("footer")}">
     ${ds.footerNote ? ds.footerNote : "Ordonnance médicale · Document confidentiel"}
   </div>
 

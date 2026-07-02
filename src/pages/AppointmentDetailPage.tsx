@@ -24,8 +24,9 @@ import { CertificateModal } from "../components/CertificateModal";
 import { ExamRequestModal } from "../components/ExamRequestModal";
 import { Icd10Picker }      from "../components/Icd10Picker";
 import type { Icd10Entry }  from "../lib/icd10";
-import { getSpecialtyGroups } from "../lib/specialtyFields";
+import { getSpecialtyGroups, BILAN_CATALOG } from "../lib/specialtyFields";
 import type { SpecialtyField } from "../lib/specialtyFields";
+import type { CustomNoteTemplate } from "../lib/cabinetTypes";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -246,7 +247,7 @@ export function AppointmentDetailPage() {
   const navigate    = useNavigate();
   const {
     appointments, patients, updateAppointment, deleteAppointment, addInvoice,
-    addPatient, doctorProfile, role,
+    addPatient, doctorProfile, setDoctorProfile, role,
     examRequests, addExamRequest, updateExamRequest,
     apptDocuments, addApptDocument, deleteApptDocument,
   } = useCabinet();
@@ -562,7 +563,7 @@ export function AppointmentDetailPage() {
     updateAppointment({ ...appt, vitalSigns: hasAny ? vs : undefined });
   };
 
-  const applyTemplate = (tpl: typeof NOTE_TEMPLATES[0]) => {
+  const applyTemplate = (tpl: { motif?: string; examination?: string; diagnosis?: string; treatment?: string }) => {
     if (tpl.motif       !== undefined) setMotif(tpl.motif);
     if (tpl.examination !== undefined) setExam(tpl.examination);
     if (tpl.diagnosis   !== undefined) setDiag(tpl.diagnosis);
@@ -577,6 +578,45 @@ export function AppointmentDetailPage() {
       },
     });
     setShowTemplates(false);
+  };
+
+  // ── Doctor's own note templates (stored on the synced doctorProfile) ──────
+  const myTemplates = doctorProfile.noteTemplates ?? [];
+
+  const saveCurrentAsTemplate = () => {
+    if (!motif.trim() && !exam.trim() && !diag.trim() && !treatment.trim()) {
+      toast(t("apptDetail.tplEmptyNote"), "warning");
+      return;
+    }
+    const label = window.prompt(t("apptDetail.tplNamePrompt"));
+    if (!label || !label.trim()) return;
+    const tpl: CustomNoteTemplate = {
+      id: `ntpl_${Date.now()}`,
+      label: label.trim(),
+      motif: motif.trim() || undefined,
+      examination: exam.trim() || undefined,
+      diagnosis: diag.trim() || undefined,
+      treatment: treatment.trim() || undefined,
+    };
+    setDoctorProfile({ ...doctorProfile, noteTemplates: [...myTemplates, tpl] });
+    toast(t("apptDetail.tplSaved", { name: tpl.label }), "success");
+  };
+
+  const deleteMyTemplate = (id: string) => {
+    if (!window.confirm(t("apptDetail.tplDeleteConfirm"))) return;
+    setDoctorProfile({ ...doctorProfile, noteTemplates: myTemplates.filter(x => x.id !== id) });
+  };
+
+  // ── Extra bilan groups (doctor-chosen, any specialty) ─────────────────────
+  const enabledBilans = BILAN_CATALOG.filter(b => (doctorProfile.extraBilans ?? []).includes(b.key));
+  const availableBilans = BILAN_CATALOG.filter(b => !(doctorProfile.extraBilans ?? []).includes(b.key));
+
+  const addBilan = (key: string) => {
+    if (!key) return;
+    setDoctorProfile({ ...doctorProfile, extraBilans: [...(doctorProfile.extraBilans ?? []), key] });
+  };
+  const removeBilan = (key: string) => {
+    setDoctorProfile({ ...doctorProfile, extraBilans: (doctorProfile.extraBilans ?? []).filter(k => k !== key) });
   };
 
   const handleStatusChange = (s: AppointmentStatus) => {
@@ -597,6 +637,11 @@ export function AppointmentDetailPage() {
       setBillItems(appt.billedItems.map(l => ({ ...l })));
       setBillReduction(appt.billedReduction ? String(appt.billedReduction) : "");
       total = appt.billedItems.reduce((s, l) => s + l.qty * l.unitPrice, 0) - (appt.billedReduction ?? 0);
+    } else if (appt.preparedItems && appt.preparedItems.length) {
+      // The doctor already composed the bill — the secretary only collects.
+      setBillItems(appt.preparedItems.map(l => ({ ...l })));
+      setBillReduction(appt.preparedReduction ? String(appt.preparedReduction) : "");
+      total = appt.preparedItems.reduce((s, l) => s + l.qty * l.unitPrice, 0) - (appt.preparedReduction ?? 0);
     } else {
       const base = doctorProfile.appointmentPrices?.[appt.type] ?? appt.billedAmount ?? 200;
       setBillItems([{ label: APPT_TYPE_LABELS[appt.type], qty: 1, unitPrice: Number(base) || 0 }]);
@@ -607,6 +652,22 @@ export function AppointmentDetailPage() {
     // patient pays part now and defers the rest.
     setBillCollected(String(Math.max(0, total)));
     setShowBill(true);
+  };
+
+  // Doctor saves the composed bill WITHOUT collecting — the secretary handles
+  // encaissement (payment / partial / deferred) at the front desk.
+  const handlePrepareBill = () => {
+    const items = billItems
+      .map(l => ({ label: l.label.trim(), qty: Math.max(1, Math.round(l.qty) || 1), unitPrice: Number(l.unitPrice) || 0 }))
+      .filter(l => l.label.length > 0);
+    if (items.length === 0) return;
+    updateAppointment({
+      ...appt,
+      preparedItems: items,
+      preparedReduction: billReductionN > 0 ? billReductionN : undefined,
+    });
+    toast(t("apptDetail.billPreparedToast"), "success");
+    setShowBill(false);
   };
 
   const addBillLine = (line: BillingLine) => setBillItems(prev => [...prev, line]);
@@ -643,6 +704,10 @@ export function AppointmentDetailPage() {
       billedReduction: billReductionN > 0 ? billReductionN : undefined,
       paidAmount: collected,
       payments: collected > 0 ? [{ amount: collected, date: now, method: "cash" }] : [],
+      // The prepared bill is consumed once invoiced (null survives JSON so the
+      // secretary's merge-push actually clears it on the server).
+      preparedItems: null,
+      preparedReduction: null,
     });
     setShowBill(false);
   };
@@ -748,6 +813,11 @@ export function AppointmentDetailPage() {
           </div>
           {appt.billedAt && (
             <span className="appt-detail-billed-badge">{t("apptDetail.billedBadge")}</span>
+          )}
+          {!appt.billedAt && (appt.preparedItems?.length ?? 0) > 0 && (
+            <span className="appt-detail-billed-badge" style={{ background: "var(--gold-soft, #FBF3E0)", color: "var(--gold, #D4962A)" }}>
+              {t("apptDetail.billPreparedBadge")}
+            </span>
           )}
           {appt.bookingSource === "online" && (
             <span className="appt-online-badge" title={appt.bookingPhone || ""}>🌐 {t("apptDetail.onlineBadge")}</span>
@@ -889,6 +959,13 @@ export function AppointmentDetailPage() {
                 {t("apptDetail.bill")}
               </button>
             )}
+            {/* Secretaries manage the schedule: deleting an appointment is allowed. */}
+            {readOnly && (
+              <button className="btn btn-ghost" style={{ color: "var(--coral)", borderColor: "var(--coral)" }}
+                onClick={handleDelete}>
+                {t("apptDetail.deleteBtn")}
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -932,6 +1009,12 @@ export function AppointmentDetailPage() {
           {showTemplates && (
             <div className="appt-templates-panel">
               <div className="appt-template-cats">
+                <button
+                  className={`tx-cat-chip${templateCat === "__mine" ? " active" : ""}`}
+                  onClick={() => setTemplateCat("__mine")}
+                >
+                  ★ {t("apptDetail.tplMine")}
+                </button>
                 {TEMPLATE_CATEGORIES.map((cat) => (
                   <button
                     key={cat}
@@ -942,23 +1025,60 @@ export function AppointmentDetailPage() {
                   </button>
                 ))}
               </div>
-              <div className="appt-template-list">
-                {templatesByCat.map((tpl) => (
-                  <button
-                    key={tpl.id}
-                    className="appt-template-item"
-                    onClick={() => applyTemplate(tpl)}
-                  >
-                    <div className="appt-template-label">{tpl.label}</div>
-                    {tpl.motif && (
-                      <div className="appt-template-preview">{tpl.motif.slice(0, 60)}…</div>
-                    )}
+              {templateCat === "__mine" ? (
+                <>
+                  <div className="appt-template-list">
+                    {myTemplates.map((tpl) => (
+                      <div key={tpl.id} className="appt-template-item" style={{ position: "relative" }}>
+                        <button
+                          style={{ all: "unset", cursor: "pointer", display: "block", width: "100%" }}
+                          onClick={() => applyTemplate(tpl)}
+                        >
+                          <div className="appt-template-label">{tpl.label}</div>
+                          {(tpl.motif || tpl.diagnosis) && (
+                            <div className="appt-template-preview">{(tpl.motif || tpl.diagnosis || "").slice(0, 60)}…</div>
+                          )}
+                        </button>
+                        <button
+                          className="modal-close"
+                          style={{ position: "absolute", top: 4, right: 4, fontSize: 13, width: 20, height: 20, lineHeight: "18px" }}
+                          title={t("apptDetail.tplDelete")}
+                          onClick={() => deleteMyTemplate(tpl.id)}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  {myTemplates.length === 0 && (
+                    <div style={{ fontSize: 12.5, color: "var(--muted)", padding: "4px 2px 8px" }}>
+                      {t("apptDetail.tplMineEmpty")}
+                    </div>
+                  )}
+                  <button className="btn btn-ghost" style={{ fontSize: 12 }} onClick={saveCurrentAsTemplate}>
+                    + {t("apptDetail.tplSaveCurrent")}
                   </button>
-                ))}
-              </div>
+                </>
+              ) : (
+                <div className="appt-template-list">
+                  {templatesByCat.map((tpl) => (
+                    <button
+                      key={tpl.id}
+                      className="appt-template-item"
+                      onClick={() => applyTemplate(tpl)}
+                    >
+                      <div className="appt-template-label">{tpl.label}</div>
+                      {tpl.motif && (
+                        <div className="appt-template-preview">{tpl.motif.slice(0, 60)}…</div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
+          {/* Chronology of a consultation: motif → examen → bilans → diagnostic → traitement */}
           <div className="appt-notes-grid">
             <div className="form-group">
               <div className="appt-note-label-row">
@@ -990,6 +1110,87 @@ export function AppointmentDetailPage() {
                 readOnly={readOnly}
               />
             </div>
+          </div>
+
+          {/* ── Specialty-specific fields + doctor-chosen bilans ────── */}
+          {(specialtyGroups.length > 0 || enabledBilans.length > 0 || !readOnly) && (
+            <div className="specialty-fields-section">
+              <div className="specialty-fields-title">
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
+                  <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.5"/>
+                  <path d="M8 5v3.5l2 1.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                </svg>
+                {t("apptDetail.specialtyFields")}
+                {doctorProfile.specialtyLabel && (
+                  <span className="specialty-fields-badge">{doctorProfile.specialtyLabel}</span>
+                )}
+                {!readOnly && availableBilans.length > 0 && (
+                  <select
+                    className="form-select"
+                    style={{ marginLeft: "auto", fontSize: 12, padding: "3px 8px", maxWidth: 210 }}
+                    value=""
+                    onChange={(e) => addBilan(e.target.value)}
+                    title={t("apptDetail.addBilanTitle")}
+                  >
+                    <option value="">+ {t("apptDetail.addBilan")}</option>
+                    {availableBilans.map(b => (
+                      <option key={b.key} value={b.key}>{b.title}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
+              {specialtyGroups.map((group) => (
+                <div key={group.title} className="specialty-group">
+                  <div className="specialty-group-title">{group.title}</div>
+                  <div className="specialty-fields-grid">
+                    {group.fields.map((field: SpecialtyField) => (
+                      <SpecialtyFieldInput
+                        key={field.key}
+                        field={field}
+                        value={extraFields[field.key] ?? ""}
+                        onChange={(v) => setExtraField(field.key, v)}
+                        onBlur={(v) => saveExtraField(field.key, v)}
+                        readOnly={readOnly}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+              {enabledBilans.map((group) => (
+                <div key={group.key} className="specialty-group">
+                  <div className="specialty-group-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    {group.title}
+                    {!readOnly && (
+                      <button
+                        type="button"
+                        className="appt-detail-unlink-btn"
+                        style={{ marginLeft: "auto" }}
+                        onClick={() => removeBilan(group.key)}
+                        title={t("apptDetail.removeBilan")}
+                      >
+                        {t("apptDetail.removeBilan")}
+                      </button>
+                    )}
+                  </div>
+                  <div className="specialty-fields-grid">
+                    {group.fields.map((field: SpecialtyField) => (
+                      <SpecialtyFieldInput
+                        key={field.key}
+                        field={field}
+                        value={extraFields[field.key] ?? ""}
+                        onChange={(v) => setExtraField(field.key, v)}
+                        onBlur={(v) => saveExtraField(field.key, v)}
+                        readOnly={readOnly}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Diagnostic & traitement come last — they conclude the consultation. */}
+          <div className="appt-notes-grid" style={{ marginTop: 14 }}>
             <div className="form-group">
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
                 <label className="form-label" style={{ margin: 0 }}>{t("apptDetail.diagnosis")}</label>
@@ -1034,39 +1235,6 @@ export function AppointmentDetailPage() {
               />
             </div>
           </div>
-
-          {/* ── Specialty-specific fields ─────────────────────────── */}
-          {specialtyGroups.length > 0 && (
-            <div className="specialty-fields-section">
-              <div className="specialty-fields-title">
-                <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
-                  <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.5"/>
-                  <path d="M8 5v3.5l2 1.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
-                </svg>
-                {t("apptDetail.specialtyFields")}
-                {doctorProfile.specialtyLabel && (
-                  <span className="specialty-fields-badge">{doctorProfile.specialtyLabel}</span>
-                )}
-              </div>
-              {specialtyGroups.map((group) => (
-                <div key={group.title} className="specialty-group">
-                  <div className="specialty-group-title">{group.title}</div>
-                  <div className="specialty-fields-grid">
-                    {group.fields.map((field: SpecialtyField) => (
-                      <SpecialtyFieldInput
-                        key={field.key}
-                        field={field}
-                        value={extraFields[field.key] ?? ""}
-                        onChange={(v) => setExtraField(field.key, v)}
-                        onBlur={(v) => saveExtraField(field.key, v)}
-                        readOnly={readOnly}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
 
           {/* Ordonnance shortcut */}
           {!readOnly && (
@@ -1435,9 +1603,20 @@ export function AppointmentDetailPage() {
                 {t("apptDetail.billPatient", { name: appt.patientName, type: APPT_TYPE_LABELS[appt.type] })}
               </div>
 
-              {/* Itemized lines: consultation base + each act performed */}
+              {/* Itemized lines: consultation base + each act performed.
+                  Prices & rebate are the DOCTOR's decision — the secretary
+                  sees them read-only and only handles the encaissement. */}
+              {readOnly && (
+                <div className="bill-ro-hint">{t("apptDetail.billRoHint")}</div>
+              )}
               <div className="bill-lines">
-                {billItems.map((l, i) => (
+                {billItems.map((l, i) => readOnly ? (
+                  <div className="bill-line bill-line-ro" key={i}>
+                    <span className="bill-line-ro-label">{l.label || "—"}</span>
+                    <span className="bill-line-ro-qty">{l.qty} ×</span>
+                    <span className="bill-line-ro-price">{formatMAD(l.unitPrice)}</span>
+                  </div>
+                ) : (
                   <div className="bill-line" key={i}>
                     <input
                       className="form-input bill-line-label"
@@ -1471,6 +1650,7 @@ export function AppointmentDetailPage() {
               </div>
 
               {/* Add an act — from the doctor's act list, or a blank custom line */}
+              {!readOnly && (
               <div className="bill-add-row">
                 {(doctorProfile.acteCodes?.length ?? 0) > 0 && (
                   <select
@@ -1498,8 +1678,10 @@ export function AppointmentDetailPage() {
                   + {t("apptDetail.billAddLine")}
                 </button>
               </div>
+              )}
 
-              {/* Reduction */}
+              {/* Reduction — doctor's decision */}
+              {!readOnly && (
               <div className="form-group" style={{ marginTop: 12 }}>
                 <label className="form-label">{t("apptDetail.billReduction")}</label>
                 <input
@@ -1510,6 +1692,7 @@ export function AppointmentDetailPage() {
                   onChange={(e) => setBillReduction(e.target.value)}
                 />
               </div>
+              )}
 
               {/* Totals */}
               <div className="bill-totals">
@@ -1555,6 +1738,16 @@ export function AppointmentDetailPage() {
             </div>
             <div className="modal-footer">
               <button className="btn btn-ghost" onClick={() => setShowBill(false)}>{t("common.cancel")}</button>
+              {!readOnly && (
+                <button
+                  className="btn btn-ghost"
+                  onClick={handlePrepareBill}
+                  disabled={billTotal <= 0}
+                  title={t("apptDetail.billPrepareTitle")}
+                >
+                  {t("apptDetail.billPrepare")}
+                </button>
+              )}
               <button
                 className="btn btn-primary"
                 style={{ background: "var(--green)" }}

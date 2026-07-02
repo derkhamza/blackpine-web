@@ -5,7 +5,7 @@ import { requestPasswordReset, verifyPasswordReset, warmup } from "../api/client
 import { BlackpineLogo } from "../components/Logo";
 import { useTranslation } from "react-i18next";
 
-type AuthMode = "login" | "signup" | "forgot" | "reset-verify" | "secretary" | "secretary-code";
+type AuthMode = "login" | "signup" | "forgot" | "reset-verify" | "secretary";
 
 // ── Brand panel features ───────────────────────────────────────────────────────
 
@@ -77,7 +77,7 @@ function BrandPanel() {
 
 export function AuthPage() {
   const { t } = useTranslation();
-  const { login, signup, startSecretarySession, startSecretaryLogin } = useApp();
+  const { login, signup, startSecretaryLogin } = useApp();
   const navigate = useNavigate();
 
   const [mode, setMode]         = useState<AuthMode>("login");
@@ -123,10 +123,6 @@ export function AuthPage() {
         await startSecretaryLogin(secUser, password);
         navigate("/");
 
-      } else if (mode === "secretary-code") {
-        await startSecretarySession(code);
-        navigate("/");
-
       } else if (mode === "forgot") {
         await requestPasswordReset(email);
         setSuccess(t("auth.codeSent"));
@@ -154,7 +150,6 @@ export function AuthPage() {
     forgot:           t("auth.forgotTitle"),
     "reset-verify":   t("auth.resetTitle"),
     secretary:        t("auth.secretaryTitle"),
-    "secretary-code": t("auth.secretaryTitle"),
   };
   const subs: Record<AuthMode, string> = {
     login:            t("auth.loginSub"),
@@ -162,7 +157,6 @@ export function AuthPage() {
     forgot:           t("auth.forgotSub"),
     "reset-verify":   t("auth.resetSub"),
     secretary:        t("auth.secretaryLoginSub"),
-    "secretary-code": t("auth.secretarySub"),
   };
 
   return (
@@ -187,8 +181,8 @@ export function AuthPage() {
             {error   && <div className="auth-error">{error}</div>}
             {success && <div className="auth-success">{success}</div>}
 
-            {/* Email — all modes except secretary login / code */}
-            {mode !== "secretary" && mode !== "secretary-code" && (
+            {/* Email — all modes except secretary login */}
+            {mode !== "secretary" && (
               <div className="form-group">
                 <label className="form-label" htmlFor="auth-email">{t("auth.emailLabel")}</label>
                 <input
@@ -212,22 +206,6 @@ export function AuthPage() {
                   value={secUser} onChange={e => setSecUser(e.target.value)}
                   required autoCapitalize="none" autoComplete="username"
                 />
-              </div>
-            )}
-
-            {/* Secretary invite code (legacy / first-time bootstrap) */}
-            {mode === "secretary-code" && (
-              <div className="form-group">
-                <label className="form-label" htmlFor="auth-sec-code">{t("auth.secretaryCodeLabel")}</label>
-                <input
-                  id="auth-sec-code" type="text" className="form-input auth-code-input"
-                  placeholder="ABC123"
-                  value={code}
-                  onChange={e => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6))}
-                  required autoCapitalize="characters" autoComplete="off"
-                  style={{ letterSpacing: "0.3em", textTransform: "uppercase" }}
-                />
-                <p className="auth-resend-hint" style={{ marginTop: 6 }}>{t("auth.secretaryCodeHint")}</p>
               </div>
             )}
 
@@ -296,7 +274,6 @@ export function AuthPage() {
                     forgot:           t("auth.sendCodeBtn"),
                     "reset-verify":   t("auth.resetBtn"),
                     secretary:        t("auth.secretaryLoginBtn"),
-                    "secretary-code": t("auth.secretaryBtn"),
                   }[mode]
               }
             </button>
@@ -322,18 +299,7 @@ export function AuthPage() {
               </>
             )}
             {mode === "secretary" && (
-              <>
-                <button className="auth-link" onClick={() => switchMode("secretary-code")}>{t("auth.secretaryUseCode")}</button>
-                <span className="auth-switch-sep">·</span>
-                <button className="auth-link" onClick={() => switchMode("login")}>{t("auth.backToLogin")}</button>
-              </>
-            )}
-            {mode === "secretary-code" && (
-              <>
-                <button className="auth-link" onClick={() => switchMode("secretary")}>{t("auth.secretaryUseAccount")}</button>
-                <span className="auth-switch-sep">·</span>
-                <button className="auth-link" onClick={() => switchMode("login")}>{t("auth.backToLogin")}</button>
-              </>
+              <button className="auth-link" onClick={() => switchMode("login")}>{t("auth.backToLogin")}</button>
             )}
             {(mode === "forgot" || mode === "reset-verify") && (
               <button className="auth-link" onClick={() => switchMode("login")}>{t("auth.backToLogin")}</button>

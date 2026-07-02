@@ -31,6 +31,19 @@ export interface CabinetDoctorProfile {
   secretaryPermissions?: SecretaryPermissions; // granular access the doctor grants the secretary
   acteCodes?:      ActeCode[];        // doctor-maintained list of medical act codes
   documentSettings?: DocumentSettings; // facture / ordonnance customisation
+  noteTemplates?:  CustomNoteTemplate[]; // doctor-saved clinical-note templates
+  extraBilans?:    string[];          // extra bilan groups (keys of BILAN_CATALOG) shown on every note
+}
+
+// A clinical-note template the doctor saved themselves (in addition to the
+// built-in NOTE_TEMPLATES library). Rides the synced doctorProfile.
+export interface CustomNoteTemplate {
+  id:           string;
+  label:        string;
+  motif?:       string;
+  examination?: string;
+  diagnosis?:   string;
+  treatment?:   string;
 }
 
 // A medical act code the doctor maintains themselves (no official tariff is
@@ -69,6 +82,27 @@ export const DOCUMENT_LAYOUT_LABELS: Record<DocumentLayout, string> = {
 };
 
 // Customisation applied to printed factures and ordonnances.
+// Free-form positioning of one printed block (mm from the PAGE edge, so the
+// doctor can line the output up with their pre-printed letterhead paper).
+export interface DocBlockDesign {
+  show?: boolean;   // default true
+  x?: number;       // mm from the left page edge; undefined = natural flow
+  y?: number;       // mm from the top page edge
+}
+
+// Custom page design for a printed document (facture / ordonnance).
+export interface PageDesign {
+  marginTop?:    number;  // mm
+  marginRight?:  number;
+  marginBottom?: number;
+  marginLeft?:   number;
+  logo?:   string;        // small data-URL image (resized on upload; synced)
+  logoX?:  number;        // mm from left page edge
+  logoY?:  number;        // mm from top page edge
+  logoW?:  number;        // mm wide
+  blocks?: Record<string, DocBlockDesign>;
+}
+
 export interface DocumentSettings {
   layout?:     DocumentLayout;
   showInpe?:   boolean;
@@ -76,6 +110,9 @@ export interface DocumentSettings {
   showRib?:    boolean;
   headerNote?: string;   // extra line under the doctor's identity
   footerNote?: string;   // custom footer text
+  // Advanced per-document page designs (margins, block positions, logo).
+  ordonnanceDesign?: PageDesign;
+  factureDesign?:    PageDesign;
 }
 
 export const DEFAULT_DOCUMENT_SETTINGS: DocumentSettings = {
@@ -354,6 +391,14 @@ export interface Appointment {
   // act has its own doctor-set price. billedAmount is the net after reduction.
   billedItems?:     BillingLine[];
   billedReduction?: number;   // MAD discount applied to the subtotal
+  // Bill PREPARED by the doctor (acts + prices + reduction decided medically),
+  // awaiting encaissement at the front desk. The secretary turns it into the
+  // final bill (billedAt/billedItems) when the patient pays / defers.
+  // Explicit null (not undefined) when consumed: the secretary sync merge only
+  // overwrites fields present in the JSON payload, and undefined keys are
+  // dropped by JSON.stringify.
+  preparedItems?:     BillingLine[] | null;
+  preparedReduction?: number | null;
   // Payment tracking. A patient may pay in full, in part, or defer entirely.
   // paidAmount is the cumulative cash collected so far (0 = fully deferred).
   // Undefined on a billed appointment means a legacy record paid in full.

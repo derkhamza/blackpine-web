@@ -1,6 +1,10 @@
 import type { CabinetDoctorProfile, BillingLine } from "./cabinetTypes";
 import { DEFAULT_DOCUMENT_SETTINGS } from "./cabinetTypes";
 import { amountInWords } from "./receiptPrinter";
+import {
+  FACTURE_DEFAULT_MARGINS, resolveMargins, pageRule,
+  blockStyle, blockHidden, logoHtml,
+} from "./docDesign";
 
 // ── Sequential invoice counter ────────────────────────────────────────────────
 
@@ -48,6 +52,10 @@ function fmtMAD(n: number): string {
 export function printFacture(opts: FactureOptions): void {
   const { invoiceNumber, invoiceDate, patientName, patientCnops, serviceLabel, serviceDate, amount, doctorProfile: doc } = opts;
   const ds = { ...DEFAULT_DOCUMENT_SETTINGS, ...(doc.documentSettings ?? {}) };
+  // Advanced page design (margins / block positions / logo) — doctor-defined.
+  const design  = ds.factureDesign;
+  const margins = resolveMargins(design, FACTURE_DEFAULT_MARGINS);
+  const bs = (key: string) => blockStyle(design, key, margins);
 
   // Build the itemized rows. Falls back to a single line for legacy records.
   const lines: BillingLine[] = (opts.items && opts.items.length)
@@ -80,9 +88,9 @@ export function printFacture(opts: FactureOptions): void {
   <meta charset="UTF-8"/>
   <title>Facture ${esc(invoiceNumber)}</title>
   <style>
-    @page { size: A4 portrait; margin: 16mm 18mm; }
+    ${pageRule("A4 portrait", margins)}
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: Arial, sans-serif; font-size: 10.5pt; color: #111; line-height: 1.5; }
+    body { font-family: Arial, sans-serif; font-size: 10.5pt; color: #111; line-height: 1.5; position: relative; }
 
     /* ── Top band ─────────────────────────────────────────────────────────── */
     .top-band {
@@ -162,9 +170,10 @@ export function printFacture(opts: FactureOptions): void {
 </head>
 <body>
 
+  ${logoHtml(design, margins)}
   <!-- Top band -->
   <div class="top-band">
-    <div>
+    ${blockHidden(design, "header") ? "<div></div>" : `<div style="${bs("header")}">
       <div class="doc-name">${esc(doc.fullName || "Cabinet médical")}</div>
       <div class="doc-meta">
         ${doc.specialtyLabel ? esc(doc.specialtyLabel) + "<br/>"          : ""}
@@ -175,18 +184,18 @@ export function printFacture(opts: FactureOptions): void {
         ${doc.phone          ? "Tél : " + esc(doc.phone) + "<br/>"         : ""}
         ${ds.headerNote      ? `<span style="font-style:italic;">${esc(ds.headerNote)}</span>` : ""}
       </div>
-    </div>
-    <div class="inv-block">
+    </div>`}
+    <div class="inv-block" style="${bs("invoice")}">
       <div class="inv-title">FACTURE</div>
       <div class="inv-num">N° ${esc(invoiceNumber)}</div>
       <div class="inv-date">Date : ${fmtDateLong(invoiceDate)}</div>
     </div>
   </div>
 
-  <hr class="rule"/>
+  <hr class="rule" style="${blockHidden(design, "header") ? "display:none;" : ""}"/>
 
   <!-- Parties -->
-  <div class="parties">
+  <div class="parties" style="${bs("parties")}">
     <div class="party">
       <div class="party-label">Prestataire</div>
       <div class="party-name">${esc(doc.fullName || "Cabinet médical")}</div>
@@ -211,6 +220,7 @@ export function printFacture(opts: FactureOptions): void {
   </div>
 
   <!-- Line items -->
+  <div style="${bs("items")}">
   <table class="items">
     <thead>
       <tr>
@@ -254,9 +264,10 @@ export function printFacture(opts: FactureOptions): void {
     Exonération de TVA conformément à l'article 91-I-B du Code Général des Impôts (CGI) —
     les actes médicaux et paramédicaux sont exonérés de TVA au Maroc.
   </div>
+  </div>
 
   <!-- Signature -->
-  <div class="sig-row">
+  <div class="sig-row" style="${bs("signature")}">
     <div class="sig-block">
       <div class="sig-label">Signature et cachet du prestataire</div>
       <div class="sig-box">${esc(doc.fullName || "")}</div>
@@ -264,7 +275,7 @@ export function printFacture(opts: FactureOptions): void {
   </div>
 
   <!-- Footer -->
-  <div class="footer">
+  <div class="footer" style="${bs("footer")}">
     ${ds.footerNote ? esc(ds.footerNote) : `Note d'honoraires ${esc(invoiceNumber)} · Document à conserver`}
   </div>
 

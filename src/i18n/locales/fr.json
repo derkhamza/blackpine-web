@@ -446,7 +446,8 @@
     "conflictIgnore": "Créer quand même",
     "bulkWaTitle": "Rappels WhatsApp ({{n}})",
     "bulkWaAll": "Rappels WA ({{n}})",
-    "bulkWaHint": "Cliquez sur un patient pour ouvrir WhatsApp avec un message pré-rempli."
+    "bulkWaHint": "Cliquez sur un patient pour ouvrir WhatsApp avec un message pré-rempli.",
+    "waMsgLang": "Langue du message"
   },
   "apptDetail": {
     "clinicalNotes": "Notes cliniques",
@@ -589,7 +590,23 @@
     "emitInvoiceTitle": "Émettre une facture officielle",
     "billThisConsult": "💰 Facturer cette consultation",
     "billHint": "Crée une recette dans Transactions",
-    "billPatient": "Patient : {{name}} · {{type}}"
+    "billPatient": "Patient : {{name}} · {{type}}",
+    "tplMine": "Mes modèles",
+    "tplMineEmpty": "Aucun modèle personnel. Remplissez la note puis enregistrez-la comme modèle.",
+    "tplSaveCurrent": "Enregistrer la note comme modèle",
+    "tplNamePrompt": "Nom du modèle :",
+    "tplSaved": "Modèle « {{name}} » enregistré",
+    "tplDelete": "Supprimer ce modèle",
+    "tplDeleteConfirm": "Supprimer ce modèle personnel ?",
+    "tplEmptyNote": "La note est vide — rien à enregistrer comme modèle.",
+    "addBilan": "Ajouter un bilan",
+    "addBilanTitle": "Ajouter un type de bilan à vos notes",
+    "removeBilan": "Retirer",
+    "billRoHint": "Actes, tarifs et remise décidés par le médecin. Vous encaissez le règlement ci-dessous.",
+    "billPrepare": "Préparer (encaissement au secrétariat)",
+    "billPrepareTitle": "Enregistrer les actes et la remise sans encaisser — la secrétaire encaissera au comptoir",
+    "billPreparedToast": "Facture préparée — à encaisser au secrétariat",
+    "billPreparedBadge": "À encaisser"
   },
   "patients": {
     "title": "Patients",
@@ -722,7 +739,8 @@
     "ordReprint": "Réimprimer",
     "editGenderNone": "— Non précisé —",
     "cityLabel": "Ville",
-    "cityPlaceholder": "Casablanca, Rabat…"
+    "cityPlaceholder": "Casablanca, Rabat…",
+    "tlExpandEmpty": "Aucune donnée clinique saisie pour ce rendez-vous."
   },
   "settings": {
     "title": "Paramètres",
@@ -811,7 +829,7 @@
     "enablePinHint": "Sans code, n'importe qui peut quitter le mode secrétaire",
     "setPin": "Définir un code",
     "remoteSecretary": "Secrétaire à distance",
-    "remoteSecretaryDesc": "Générez un code pour qu'une secrétaire se connecte depuis son propre appareil. Elle aura accès à l'agenda, aux patients et à la salle d'attente, sans pouvoir modifier les données cliniques ni voir les finances.",
+    "remoteSecretaryDesc": "Votre secrétaire se connecte depuis son propre appareil avec un compte permanent (identifiant + mot de passe). Elle a accès à l'agenda, aux patients et à la salle d'attente, sans voir les finances.",
     "inviteCodeLabel": "Code d'invitation",
     "inviteCodeHint": "Valable 48 heures. Communiquez-le à votre secrétaire.",
     "generateInvite": "Générer un code",
@@ -854,7 +872,13 @@
     "bookingEnd": "Fin",
     "bookingSlot": "Durée du créneau",
     "bookingDays": "Jours d'ouverture",
-    "day_mon": "Lun", "day_tue": "Mar", "day_wed": "Mer", "day_thu": "Jeu", "day_fri": "Ven", "day_sat": "Sam", "day_sun": "Dim",
+    "day_mon": "Lun",
+    "day_tue": "Mar",
+    "day_wed": "Mer",
+    "day_thu": "Jeu",
+    "day_fri": "Ven",
+    "day_sat": "Sam",
+    "day_sun": "Dim",
     "smsTitle": "Rappels SMS automatiques",
     "smsSubtitle": "Envoyez un SMS de rappel aux patients avant leur rendez-vous",
     "smsDesc": "Un SMS de rappel est envoyé automatiquement aux patients la veille de leur rendez-vous. Nécessite un fournisseur SMS configuré côté serveur.",
@@ -964,7 +988,33 @@
     "teleconsults": "Téléconsults",
     "transactions": "Transactions",
     "employees": "Employés",
-    "patients": "Patients"
+    "patients": "Patients",
+    "pd": {
+      "title": "Mise en page avancée (papier pré-imprimé)",
+      "desc": "Positionnez chaque bloc au millimètre pour l'aligner sur votre papier à en-tête : glissez les blocs sur l'aperçu, réglez les marges, ajoutez votre logo.",
+      "kind_ordonnance": "Ordonnance (A5)",
+      "kind_facture": "Facture (A4)",
+      "reset": "Réinitialiser la mise en page",
+      "resetConfirm": "Réinitialiser la mise en page de ce document ?",
+      "hint": "Glissez un bloc pour le positionner (mm depuis le bord de la page). Décochez un bloc pour ne pas l'imprimer — utile si votre papier pré-imprimé contient déjà l'en-tête. ⟲ remet un bloc en position automatique.",
+      "margins": "Marges",
+      "blocks": "Blocs imprimés",
+      "unpin": "Position automatique",
+      "logo": "Logo",
+      "logoAdd": "Ajouter un logo",
+      "logoReplace": "Remplacer le logo",
+      "logoWidth": "Largeur",
+      "letterheadTip": "Astuce : si votre papier contient déjà votre en-tête, décochez « En-tête » et augmentez la marge haute.",
+      "block_header": "En-tête (identité)",
+      "block_date": "Date / ville",
+      "block_patient": "Patient",
+      "block_body": "Prescriptions",
+      "block_invoice": "Bloc FACTURE / N°",
+      "block_parties": "Prestataire / Destinataire",
+      "block_items": "Tableau des actes",
+      "block_signature": "Signature",
+      "block_footer": "Pied de page"
+    }
   },
   "pin": {
     "title": "🔐 Code médecin",

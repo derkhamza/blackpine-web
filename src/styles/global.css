@@ -2240,6 +2240,18 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 /* ── Itemized billing modal ────────────────────────────────────────────────── */
 .bill-lines { display: flex; flex-direction: column; gap: 6px; }
 .bill-line { display: flex; gap: 6px; align-items: center; }
+/* Read-only rendering for the secretary: prices are the doctor's decision */
+.bill-ro-hint {
+  font-size: 12px; color: var(--muted); background: var(--surface-alt);
+  border-radius: var(--r); padding: 7px 10px; margin-bottom: 10px;
+}
+.bill-line-ro {
+  padding: 7px 10px; background: var(--surface-alt); border-radius: var(--r);
+  font-size: 13.5px;
+}
+.bill-line-ro-label { flex: 1 1 auto; min-width: 0; font-weight: 600; }
+.bill-line-ro-qty   { flex: 0 0 auto; color: var(--muted); font-size: 12.5px; }
+.bill-line-ro-price { flex: 0 0 auto; font-weight: 700; }
 .bill-line-label { flex: 1 1 auto; min-width: 0; }
 .bill-line-qty   { width: 56px; flex: 0 0 auto; text-align: center; }
 .bill-line-price { width: 96px; flex: 0 0 auto; text-align: right; }
@@ -3333,6 +3345,114 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   padding: 20px 0;
 }
 
+/* ── Page designer (pre-printed paper layout editor) ────────────────────── */
+.pd-wrap { display: flex; flex-direction: column; gap: 10px; }
+.pd-tabs { display: flex; gap: 8px; align-items: center; }
+.pd-body { display: flex; gap: 16px; flex-wrap: wrap; }
+.pd-page {
+  position: relative;
+  background: #fff;
+  border: 1px solid var(--border-strong, #c9d6e2);
+  border-radius: 4px;
+  box-shadow: var(--shadow-card);
+  flex: 0 0 auto;
+  touch-action: none;
+  overflow: hidden;
+}
+[data-theme="dark"] .pd-page { background: #f4f6f9; }
+.pd-margins {
+  position: absolute;
+  border: 1px dashed #b9cee0;
+  pointer-events: none;
+}
+.pd-block {
+  position: absolute;
+  background: rgba(24, 144, 197, 0.10);
+  border: 1px solid rgba(24, 144, 197, 0.45);
+  border-radius: 3px;
+  cursor: grab;
+  display: flex;
+  align-items: flex-start;
+  padding: 2px 4px;
+  user-select: none;
+}
+.pd-block:active { cursor: grabbing; }
+.pd-block.selected { border-color: #0A4E7E; border-width: 2px; background: rgba(24, 144, 197, 0.18); }
+.pd-block.pinned { border-style: solid; box-shadow: 0 1px 3px rgba(10,78,126,.25); }
+.pd-block-label {
+  font-size: 9px; font-weight: 700; color: #0A4E7E;
+  text-transform: uppercase; letter-spacing: 0.3px; line-height: 1.2;
+}
+.pd-logo {
+  position: absolute; cursor: grab; user-select: none;
+  border: 1px dashed transparent; border-radius: 2px;
+}
+.pd-logo.selected, .pd-logo:hover { border-color: #0A4E7E; }
+.pd-controls { flex: 1 1 240px; min-width: 220px; display: flex; flex-direction: column; gap: 8px; }
+.pd-hint { font-size: 11.5px; color: var(--muted); line-height: 1.5; }
+.pd-ctl-title {
+  font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.4px;
+  color: var(--muted); margin-top: 6px;
+}
+.pd-margin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.pd-margin-field { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.pd-margin-field input { width: 62px; padding: 4px 6px; }
+.pd-mm { font-size: 11px; color: var(--tertiary); }
+.pd-block-list { display: flex; flex-direction: column; gap: 2px; }
+.pd-block-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 8px; border-radius: var(--r); cursor: pointer;
+  font-size: 12.5px;
+}
+.pd-block-row:hover { background: var(--surface-alt); }
+.pd-block-row.selected { background: var(--blue-soft); }
+.pd-block-row-label { flex: 1; }
+.pd-unpin {
+  border: none; background: none; cursor: pointer; color: var(--muted);
+  font-size: 13px; padding: 0 4px;
+}
+.pd-unpin:hover { color: var(--blue); }
+.pd-pos-row { display: flex; align-items: center; gap: 10px; font-size: 12px; flex-wrap: wrap; }
+.pd-pos-row label { display: flex; align-items: center; gap: 4px; }
+.pd-pos-row input { width: 68px; padding: 4px 6px; }
+.pd-pos-label { font-weight: 700; font-size: 11.5px; }
+.pd-logo-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.pd-logo-size { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+
+/* ── Timeline: inline compact consultation view ─────────────────────────── */
+.tl-chevron { font-size: 9px; color: var(--tertiary); }
+.tl-expand {
+  margin-top: 8px;
+  padding: 10px 12px;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  cursor: default;
+}
+.tl-expand-vitals { display: flex; flex-wrap: wrap; gap: 6px; }
+.tl-vital-chip {
+  font-size: 11.5px; font-weight: 700;
+  background: var(--blue-soft); color: var(--navy);
+  border-radius: var(--r-pill); padding: 2px 9px;
+}
+.tl-expand-field { display: flex; gap: 8px; font-size: 12.5px; align-items: baseline; }
+.tl-expand-label {
+  flex: 0 0 88px; font-size: 10.5px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.3px; color: var(--muted);
+}
+.tl-expand-value { flex: 1; white-space: pre-wrap; }
+.tl-expand-empty { font-size: 12px; color: var(--tertiary); font-style: italic; }
+
+/* Drag & drop between columns */
+.wr-col-dragover {
+  outline: 2px dashed var(--blue);
+  outline-offset: -2px;
+  background: var(--blue-soft);
+}
+
 /* Cards */
 .wr-card {
   background: var(--bg);
@@ -3340,7 +3460,9 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   border-radius: var(--r);
   padding: 11px 12px;
   transition: box-shadow var(--trans);
+  cursor: grab;
 }
+.wr-card:active { cursor: grabbing; }
 .wr-card:hover { box-shadow: var(--shadow-card); }
 .wr-s-arrived         { border-left: 3px solid #d97706; }
 .wr-s-in_consultation { border-left: 3px solid var(--blue); }
@@ -4677,6 +4799,29 @@ a.ana-top-name:hover { color: var(--blue); text-decoration: underline; }
   text-transform: uppercase;
   letter-spacing: 0.4px;
   margin-bottom: 10px;
+}
+/* Message-language chips (message can be Arabic even in a fr/en UI) */
+.wa-lang-chips {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.wa-lang-chip {
+  padding: 5px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--trans);
+}
+.wa-lang-chip:hover { border-color: var(--blue); color: var(--blue); }
+.wa-lang-chip.active {
+  background: var(--blue-soft);
+  border-color: var(--blue);
+  color: var(--navy);
 }
 .wa-picker-empty {
   padding: 20px;
@@ -6489,9 +6634,12 @@ a.ana-top-name:hover { color: var(--blue); text-decoration: underline; }
 
 /* Page body entrance animation */
 .page-body { animation: bodyFadeIn var(--dur) var(--ease-out) both; }
+/* End at transform:none (not translateY(0)): an explicit transform kept by
+   fill-mode both makes .page-body a containing block for position:fixed,
+   trapping modal overlays inside the scroll area. */
 @keyframes bodyFadeIn {
   from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: translateY(0); }
+  to   { opacity: 1; transform: none; }
 }
 @media (prefers-reduced-motion: reduce) { .page-body { animation: none !important; } }
 

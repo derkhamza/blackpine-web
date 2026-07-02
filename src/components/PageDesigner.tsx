@@ -1,0 +1,337 @@
+import { useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { DocumentSettings, PageDesign, DocBlockDesign } from "../lib/cabinetTypes";
+import {
+  ORDONNANCE_DEFAULT_MARGINS, FACTURE_DEFAULT_MARGINS,
+  ORDONNANCE_BLOCKS, FACTURE_BLOCKS, resolveMargins,
+} from "../lib/docDesign";
+
+// ── Visual page designer for pre-printed paper ────────────────────────────────
+//
+// The doctor drags each printed block on a scaled A5/A4 preview to line the
+// output up with their letterhead paper: margins, block positions (mm from the
+// page edge), optional logo. Everything is stored in doctorProfile.
+// documentSettings.{ordonnanceDesign,factureDesign} and applied by the print
+// functions.
+
+type DocKind = "ordonnance" | "facture";
+
+const PAGE_MM: Record<DocKind, { w: number; h: number }> = {
+  ordonnance: { w: 148, h: 210 },   // A5 portrait
+  facture:    { w: 210, h: 297 },   // A4 portrait
+};
+
+// Natural (flow) positions used only to draw un-pinned blocks on the preview.
+const FLOW_Y: Record<DocKind, Record<string, { y: number; h: number }>> = {
+  ordonnance: {
+    header:    { y: 13,  h: 30 },
+    date:      { y: 13,  h: 10 },
+    patient:   { y: 48,  h: 9  },
+    body:      { y: 62,  h: 95 },
+    signature: { y: 162, h: 22 },
+    footer:    { y: 196, h: 8  },
+  },
+  facture: {
+    header:    { y: 16,  h: 34 },
+    invoice:   { y: 16,  h: 22 },
+    parties:   { y: 58,  h: 34 },
+    items:     { y: 98,  h: 110 },
+    signature: { y: 218, h: 28 },
+    footer:    { y: 280, h: 8  },
+  },
+};
+
+// Blocks whose natural flow position is on the right side of the page.
+const RIGHT_BLOCKS = new Set(["date", "invoice", "signature"]);
+
+const MAX_LOGO_PX = 320;       // logo is resized before storing (synced field)
+
+function resizeImageToDataUrl(file: File, cb: (dataUrl: string | null) => void) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, MAX_LOGO_PX / img.width);
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      const ctx = canvas.getContext("2d");
+      if (!ctx) { cb(null); return; }
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      cb(canvas.toDataURL("image/png"));
+    };
+    img.onerror = () => cb(null);
+    img.src = reader.result as string;
+  };
+  reader.onerror = () => cb(null);
+  reader.readAsDataURL(file);
+}
+
+export function PageDesigner({
+  settings, onChange,
+}: {
+  settings: DocumentSettings;
+  onChange: (s: DocumentSettings) => void;
+}) {
+  const { t } = useTranslation();
+  const [kind, setKind] = useState<DocKind>("ordonnance");
+  const [selected, setSelected] = useState<string | null>(null);
+  const pageRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const dragRef = useRef<{ key: string; startX: number; startY: number; origX: number; origY: number } | null>(null);
+
+  const designKey = kind === "ordonnance" ? "ordonnanceDesign" : "factureDesign";
+  const design: PageDesign = settings[designKey] ?? {};
+  const defaults = kind === "ordonnance" ? ORDONNANCE_DEFAULT_MARGINS : FACTURE_DEFAULT_MARGINS;
+  const margins = resolveMargins(design, defaults);
+  const blocks = kind === "ordonnance" ? ORDONNANCE_BLOCKS : FACTURE_BLOCKS;
+  const page = PAGE_MM[kind];
+
+  // Preview scale: fixed width, px per mm.
+  const PREVIEW_W = 300;
+  const scale = PREVIEW_W / page.w;
+
+  const setDesign = (patch: Partial<PageDesign>) =>
+    onChange({ ...settings, [designKey]: { ...design, ...patch } });
+
+  const setBlock = (key: string, patch: Partial<DocBlockDesign>) =>
+    setDesign({ blocks: { ...(design.blocks ?? {}), [key]: { ...(design.blocks?.[key] ?? {}), ...patch } } });
+
+  const blockLabel = (key: string) => t(`settings.pd.block_${key}`);
+
+  // Position of a block on the preview (mm from page edge).
+  const blockPos = (key: string) => {
+    const b = design.blocks?.[key];
+    const flow = FLOW_Y[kind][key];
+    const w = RIGHT_BLOCKS.has(key) ? 45 : page.w - margins.left - margins.right;
+    const x = b?.x ?? (RIGHT_BLOCKS.has(key) ? page.w - margins.right - w : margins.left);
+    const y = b?.y ?? flow.y;
+    return { x, y, w: RIGHT_BLOCKS.has(key) ? w : Math.min(w, page.w - x - margins.right), h: flow.h };
+  };
+
+  // ── Drag handling (pointer events, mm-precise) ─────────────────────────────
+  const onPointerDown = (key: string) => (e: React.PointerEvent) => {
+    e.preventDefault();
+    setSelected(key);
+    const pos = key === "__logo"
+      ? { x: design.logoX ?? margins.left, y: design.logoY ?? margins.top }
+      : blockPos(key);
+    dragRef.current = { key, startX: e.clientX, startY: e.clientY, origX: pos.x, origY: pos.y };
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  };
+  const onPointerMove = (e: React.PointerEvent) => {
+    const d = dragRef.current;
+    if (!d) return;
+    const dx = (e.clientX - d.startX) / scale;
+    const dy = (e.clientY - d.startY) / scale;
+    const nx = Math.max(0, Math.min(page.w - 10, Math.round((d.origX + dx) * 2) / 2));
+    const ny = Math.max(0, Math.min(page.h - 5, Math.round((d.origY + dy) * 2) / 2));
+    if (d.key === "__logo") setDesign({ logoX: nx, logoY: ny });
+    else setBlock(d.key, { x: nx, y: ny });
+  };
+  const onPointerUp = () => { dragRef.current = null; };
+
+  const handleLogoFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    resizeImageToDataUrl(file, (dataUrl) => {
+      if (!dataUrl) return;
+      setDesign({ logo: dataUrl, logoX: design.logoX ?? margins.left, logoY: design.logoY ?? margins.top, logoW: design.logoW ?? 30 });
+    });
+  };
+
+  const selBlock: DocBlockDesign | undefined = selected && selected !== "__logo" ? design.blocks?.[selected] : undefined;
+  const hasCustom = !!settings[designKey] && Object.keys(settings[designKey]!).length > 0;
+
+  return (
+    <div className="pd-wrap">
+      {/* Doc selector */}
+      <div className="pd-tabs">
+        {(["ordonnance", "facture"] as DocKind[]).map(k => (
+          <button
+            key={k}
+            type="button"
+            className={`tx-cat-chip${kind === k ? " active" : ""}`}
+            onClick={() => { setKind(k); setSelected(null); }}
+          >
+            {t(`settings.pd.kind_${k}`)}
+          </button>
+        ))}
+        {hasCustom && (
+          <button
+            type="button"
+            className="btn btn-ghost"
+            style={{ marginLeft: "auto", fontSize: 11, color: "var(--coral)" }}
+            onClick={() => {
+              if (!window.confirm(t("settings.pd.resetConfirm"))) return;
+              const next = { ...settings };
+              delete next[designKey];
+              onChange(next);
+              setSelected(null);
+            }}
+          >
+            {t("settings.pd.reset")}
+          </button>
+        )}
+      </div>
+
+      <div className="pd-body">
+        {/* ── Scaled page preview ── */}
+        <div
+          ref={pageRef}
+          className="pd-page"
+          style={{ width: PREVIEW_W, height: Math.round(page.h * scale) }}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onClick={(e) => { if (e.target === pageRef.current) setSelected(null); }}
+        >
+          {/* margin guides */}
+          <div
+            className="pd-margins"
+            style={{
+              left: margins.left * scale, top: margins.top * scale,
+              right: margins.right * scale, bottom: margins.bottom * scale,
+            }}
+          />
+          {/* blocks */}
+          {blocks.map(key => {
+            const b = design.blocks?.[key];
+            if (b?.show === false) return null;
+            const pos = blockPos(key);
+            const pinned = b?.x != null || b?.y != null;
+            return (
+              <div
+                key={key}
+                className={`pd-block${selected === key ? " selected" : ""}${pinned ? " pinned" : ""}`}
+                style={{
+                  left: pos.x * scale, top: pos.y * scale,
+                  width: pos.w * scale, height: pos.h * scale,
+                }}
+                onPointerDown={onPointerDown(key)}
+                title={t("settings.pd.dragHint")}
+              >
+                <span className="pd-block-label">{blockLabel(key)}</span>
+              </div>
+            );
+          })}
+          {/* logo */}
+          {design.logo && (
+            <img
+              src={design.logo}
+              alt="logo"
+              className={`pd-logo${selected === "__logo" ? " selected" : ""}`}
+              style={{
+                left: (design.logoX ?? margins.left) * scale,
+                top: (design.logoY ?? margins.top) * scale,
+                width: (design.logoW ?? 30) * scale,
+              }}
+              onPointerDown={onPointerDown("__logo")}
+              draggable={false}
+            />
+          )}
+        </div>
+
+        {/* ── Controls ── */}
+        <div className="pd-controls">
+          <div className="pd-hint">{t("settings.pd.hint")}</div>
+
+          {/* Margins */}
+          <div className="pd-ctl-title">{t("settings.pd.margins")}</div>
+          <div className="pd-margin-grid">
+            {([["marginTop", "↑"], ["marginBottom", "↓"], ["marginLeft", "←"], ["marginRight", "→"]] as [keyof PageDesign, string][]).map(([k, arrow]) => (
+              <label key={k} className="pd-margin-field">
+                <span>{arrow}</span>
+                <input
+                  className="form-input"
+                  type="number" min="0" max="60" step="1"
+                  value={String((design[k] as number | undefined) ?? (defaults as unknown as Record<string, number>)[
+                    k === "marginTop" ? "top" : k === "marginBottom" ? "bottom" : k === "marginLeft" ? "left" : "right"
+                  ])}
+                  onChange={e => setDesign({ [k]: Math.max(0, parseFloat(e.target.value) || 0) })}
+                />
+                <span className="pd-mm">mm</span>
+              </label>
+            ))}
+          </div>
+
+          {/* Blocks: show/hide + selected position */}
+          <div className="pd-ctl-title">{t("settings.pd.blocks")}</div>
+          <div className="pd-block-list">
+            {blocks.map(key => {
+              const b = design.blocks?.[key];
+              const shown = b?.show !== false;
+              return (
+                <div key={key} className={`pd-block-row${selected === key ? " selected" : ""}`} onClick={() => setSelected(key)}>
+                  <input
+                    type="checkbox"
+                    checked={shown}
+                    onChange={e => setBlock(key, { show: e.target.checked })}
+                    onClick={e => e.stopPropagation()}
+                  />
+                  <span className="pd-block-row-label">{blockLabel(key)}</span>
+                  {(b?.x != null || b?.y != null) && (
+                    <button
+                      type="button"
+                      className="pd-unpin"
+                      title={t("settings.pd.unpin")}
+                      onClick={(e) => { e.stopPropagation(); setBlock(key, { x: undefined, y: undefined }); }}
+                    >
+                      ⟲
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Selected block numeric position */}
+          {selected && selected !== "__logo" && (
+            <div className="pd-pos-row">
+              <span className="pd-pos-label">{blockLabel(selected)}</span>
+              <label>X <input className="form-input" type="number" step="0.5"
+                value={selBlock?.x ?? ""} placeholder="auto"
+                onChange={e => setBlock(selected, { x: e.target.value === "" ? undefined : parseFloat(e.target.value) })} /> mm</label>
+              <label>Y <input className="form-input" type="number" step="0.5"
+                value={selBlock?.y ?? ""} placeholder="auto"
+                onChange={e => setBlock(selected, { y: e.target.value === "" ? undefined : parseFloat(e.target.value) })} /> mm</label>
+            </div>
+          )}
+
+          {/* Logo */}
+          <div className="pd-ctl-title">{t("settings.pd.logo")}</div>
+          <div className="pd-logo-row">
+            <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleLogoFile} />
+            <button type="button" className="btn btn-ghost" style={{ fontSize: 12 }} onClick={() => fileRef.current?.click()}>
+              {design.logo ? t("settings.pd.logoReplace") : t("settings.pd.logoAdd")}
+            </button>
+            {design.logo && (
+              <>
+                <label className="pd-logo-size">
+                  {t("settings.pd.logoWidth")}
+                  <input
+                    type="range" min="10" max="80" step="1"
+                    value={design.logoW ?? 30}
+                    onChange={e => setDesign({ logoW: parseInt(e.target.value, 10) })}
+                  />
+                  <span className="pd-mm">{design.logoW ?? 30} mm</span>
+                </label>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  style={{ fontSize: 12, color: "var(--coral)" }}
+                  onClick={() => setDesign({ logo: undefined, logoX: undefined, logoY: undefined, logoW: undefined })}
+                >
+                  {t("common.delete")}
+                </button>
+              </>
+            )}
+          </div>
+          <div className="pd-hint" style={{ marginTop: 4 }}>
+            {t("settings.pd.letterheadTip")}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

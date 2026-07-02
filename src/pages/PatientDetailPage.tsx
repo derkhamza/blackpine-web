@@ -140,7 +140,7 @@ export function PatientDetailPage() {
   const {
     patients, appointments,
     examResults, prescriptions, teleSessions, certificates, examRequests,
-    updatePatient, deletePatient, doctorProfile, role,
+    updatePatient, deletePatient, doctorProfile, role, syncState,
   } = useCabinet();
   const { transactions } = useApp();
   const readOnly = role === "secretary"; // secretary: contact edits ok, clinical read-only
@@ -150,15 +150,16 @@ export function PatientDetailPage() {
   // ── Tabs ──────────────────────────────────────────────────────────────────
   const [tab, setTab] = useState<"timeline" | "dossier" | "consultations" | "vitals" | "ordonnances">("timeline");
 
+  // Timeline: which appointment entry is expanded inline (compact view of the
+  // consultation without leaving the patient page).
+  const [expandedTl, setExpandedTl] = useState<string | null>(null);
+
   // ── Dossier inline fields ─────────────────────────────────────────────────
   const [bloodType,   setBloodType]   = useState("");
   const [allergies,   setAllergies]   = useState("");
   const [antecedents, setAntecedents] = useState("");
   const [medications, setMedications] = useState("");
   const [notes,       setNotes]       = useState("");
-  const [cnops,       setCnops]       = useState("");
-  const [mutuelle,    setMutuelle]    = useState("");
-  const [city,        setCity]        = useState("");
 
   // ── Add timeline event ────────────────────────────────────────────────────
   const [showAddEvent, setShowAddEvent] = useState(false);
@@ -184,6 +185,11 @@ export function PatientDetailPage() {
   const [editPhone, setEPhone]  = useState("");
   const [editDob,   setEDob]    = useState("");
   const [editGender, setEGender] = useState<PatientGender | "">("");
+  // AMO / mutuelle / ville are identity information, edited with the rest of
+  // the patient info (not part of the dossier médical).
+  const [editCnops,    setECnops]    = useState("");
+  const [editMutuelle, setEMutuelle] = useState("");
+  const [editCity,     setECity]     = useState("");
 
   useEffect(() => {
     if (!patient) return;
@@ -192,9 +198,6 @@ export function PatientDetailPage() {
     setAntecedents(patient.antecedents ?? "");
     setMedications(patient.currentMedications ?? "");
     setNotes(patient.notes ?? "");
-    setCnops(patient.cnopsNumber ?? "");
-    setMutuelle(patient.mutuelle ?? "");
-    setCity(patient.city ?? "");
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patient?.id]);
 
@@ -205,6 +208,9 @@ export function PatientDetailPage() {
     setEPhone(patient.phone ?? "");
     setEDob(patient.dateOfBirth ?? "");
     setEGender(patient.gender ?? "");
+    setECnops(patient.cnopsNumber ?? "");
+    setEMutuelle(patient.mutuelle ?? "");
+    setECity(patient.city ?? "");
     setShowEdit(true);
   };
 
@@ -217,9 +223,6 @@ export function PatientDetailPage() {
       antecedents:        antecedents.trim() || undefined,
       currentMedications: medications.trim() || undefined,
       notes:              notes.trim()       || undefined,
-      cnopsNumber:        cnops.trim()       || undefined,
-      mutuelle:           mutuelle.trim()    || undefined,
-      city:               city.trim()        || undefined,
     });
   };
 
@@ -231,6 +234,9 @@ export function PatientDetailPage() {
       phone: editPhone || undefined,
       dateOfBirth: editDob || undefined,
       gender: (editGender || undefined) as PatientGender | undefined,
+      cnopsNumber: editCnops.trim() || undefined,
+      mutuelle: editMutuelle.trim() || undefined,
+      city: editCity.trim() || undefined,
     });
     setShowEdit(false);
   };
@@ -461,6 +467,19 @@ export function PatientDetailPage() {
   }, [patientAppts, examResults, prescriptions, certificates, examRequests, teleSessions, patient?.timelineEvents, patientId, fullName, i18n.language]);
 
   if (!patient) {
+    // While a sync is in flight the patients array may be momentarily
+    // incomplete — show a neutral loading state instead of flashing
+    // "patient introuvable" at the user.
+    if (syncState === "syncing") {
+      return (
+        <Layout title="…" subtitle="">
+          <div className="tx-empty" style={{ padding: "48px 0" }}>
+            <div className="auth-spinner" style={{ margin: "0 auto 12px" }} />
+            <div style={{ fontSize: 13, color: "var(--muted)" }}>{t("common.loading")}</div>
+          </div>
+        </Layout>
+      );
+    }
     return (
       <Layout title={t("patientDetail.notFound")} subtitle="">
         <div className="tx-empty">
@@ -520,9 +539,19 @@ export function PatientDetailPage() {
                   🩸 {patient.bloodType || bloodType}
                 </span>
               )}
-              {(patient.cnopsNumber || cnops) && (
+              {patient.cnopsNumber && (
                 <span className="patient-tag" style={{ background: "#6b46c118", color: "#6b46c1" }}>
-                  AMO {patient.cnopsNumber || cnops}
+                  AMO {patient.cnopsNumber}
+                </span>
+              )}
+              {patient.mutuelle && (
+                <span className="patient-tag" style={{ background: "var(--green-soft)", color: "var(--green)" }}>
+                  🏥 {patient.mutuelle}
+                </span>
+              )}
+              {patient.city && (
+                <span className="patient-tag" style={{ background: "var(--surface-alt)", color: "var(--muted)" }}>
+                  📍 {patient.city}
                 </span>
               )}
             </div>
@@ -553,6 +582,16 @@ export function PatientDetailPage() {
             <button className="btn btn-ghost" style={{ fontSize: 12 }} onClick={openEdit}>
               {t("patientDetail.editBtn")}
             </button>
+            {!readOnly && (
+              <button
+                className="btn btn-ghost"
+                style={{ fontSize: 12, color: "var(--coral)" }}
+                onClick={handleDelete}
+                title={t("patientDetail.deleteRecord")}
+              >
+                {t("patientDetail.deleteRecord")}
+              </button>
+            )}
             <button
               className="btn btn-ghost"
               style={{ fontSize: 12 }}
@@ -637,6 +676,14 @@ export function PatientDetailPage() {
                   idx === 0 ||
                   entry.date.slice(0, 7) !== tlEntries[idx - 1].date.slice(0, 7);
                 const isLast = idx === tlEntries.length - 1;
+                // Appointments expand INLINE (compact consultation view) — the
+                // doctor shouldn't need to leave the patient page for a recap.
+                const isRdv = entry.kind === "rdv";
+                const rdvAppt = isRdv ? patientAppts.find(a => `rdv-${a.id}` === entry.id) : undefined;
+                const expanded = expandedTl === entry.id;
+                const onEntryClick = isRdv
+                  ? () => setExpandedTl(expanded ? null : entry.id)
+                  : entry.link ? () => navigate(entry.link!) : undefined;
                 return (
                   <div key={entry.id}>
                     {showMonth && (
@@ -647,12 +694,12 @@ export function PatientDetailPage() {
                       </div>
                     )}
                     <div
-                      className={`tl-entry${entry.link ? " tl-entry-clickable" : ""}`}
-                      onClick={entry.link ? () => navigate(entry.link!) : undefined}
-                      role={entry.link ? "button" : undefined}
-                      tabIndex={entry.link ? 0 : undefined}
-                      onKeyDown={entry.link ? (e) => { if (e.key === "Enter") navigate(entry.link!); } : undefined}
-                      style={entry.link ? { cursor: "pointer" } : undefined}
+                      className={`tl-entry${onEntryClick ? " tl-entry-clickable" : ""}`}
+                      onClick={onEntryClick}
+                      role={onEntryClick ? "button" : undefined}
+                      tabIndex={onEntryClick ? 0 : undefined}
+                      onKeyDown={onEntryClick ? (e) => { if (e.key === "Enter") onEntryClick(); } : undefined}
+                      style={onEntryClick ? { cursor: "pointer" } : undefined}
                     >
                       <div className="tl-icon-col">
                         <div className="tl-icon" style={{ background: entry.color + "18", color: entry.color }}>
@@ -663,11 +710,69 @@ export function PatientDetailPage() {
                       <div className="tl-body">
                         <div className="tl-row-top">
                           <span className="tl-title">{entry.title}</span>
-                          <span className="tl-date">{fmtDate(entry.date, locale)}</span>
+                          <span className="tl-date">
+                            {fmtDate(entry.date, locale)}
+                            {isRdv && (
+                              <span className="tl-chevron">{expanded ? " ▲" : " ▼"}</span>
+                            )}
+                          </span>
                         </div>
                         {entry.subtitle && <div className="tl-subtitle">{entry.subtitle}</div>}
                         {entry.detail && <div className="tl-detail">{entry.detail}</div>}
-                        {entry.link && (
+
+                        {/* ── Compact inline consultation view ── */}
+                        {expanded && rdvAppt && (
+                          <div className="tl-expand" onClick={(e) => e.stopPropagation()}>
+                            {rdvAppt.vitalSigns && Object.values(rdvAppt.vitalSigns).some(v => v != null) && (
+                              <div className="tl-expand-vitals">
+                                {rdvAppt.vitalSigns.bpSys != null && rdvAppt.vitalSigns.bpDia != null && (
+                                  <span className="tl-vital-chip">TA {(rdvAppt.vitalSigns.bpSys / 10).toFixed(0)}/{(rdvAppt.vitalSigns.bpDia / 10).toFixed(0)} cmHg</span>
+                                )}
+                                {rdvAppt.vitalSigns.hr != null && <span className="tl-vital-chip">FC {rdvAppt.vitalSigns.hr} bpm</span>}
+                                {rdvAppt.vitalSigns.temp != null && <span className="tl-vital-chip">{rdvAppt.vitalSigns.temp} °C</span>}
+                                {rdvAppt.vitalSigns.spo2 != null && <span className="tl-vital-chip">SpO₂ {rdvAppt.vitalSigns.spo2}%</span>}
+                                {rdvAppt.vitalSigns.weight != null && <span className="tl-vital-chip">{rdvAppt.vitalSigns.weight} kg</span>}
+                              </div>
+                            )}
+                            {([
+                              ["motif",       rdvAppt.consultationNote?.motif],
+                              ["examination", rdvAppt.consultationNote?.examination],
+                              ["diagnosis",   rdvAppt.consultationNote?.diagnosis],
+                              ["treatment",   rdvAppt.consultationNote?.treatment],
+                            ] as const).map(([key, val]) => val ? (
+                              <div className="tl-expand-field" key={key}>
+                                <span className="tl-expand-label">{t(`apptDetail.${key}`)}</span>
+                                <span className="tl-expand-value">{val}</span>
+                              </div>
+                            ) : null)}
+                            {(rdvAppt.savedOrdonnance?.lines.length ?? 0) > 0 && (
+                              <div className="tl-expand-field">
+                                <span className="tl-expand-label">{t("patientDetail.tabOrdonnances", { n: "" }).trim()}</span>
+                                <span className="tl-expand-value">
+                                  {rdvAppt.savedOrdonnance!.lines.map(l => l.drug).join(" · ")}
+                                </span>
+                              </div>
+                            )}
+                            {rdvAppt.billedAt && (
+                              <div className="tl-expand-field">
+                                <span className="tl-expand-label">{t("patientDetail.rdvBilled")}</span>
+                                <span className="tl-expand-value">{formatMAD(rdvAppt.billedAmount ?? 0)}</span>
+                              </div>
+                            )}
+                            {!rdvAppt.consultationNote && !rdvAppt.vitalSigns && !rdvAppt.billedAt && (
+                              <div className="tl-expand-empty">{t("patientDetail.tlExpandEmpty")}</div>
+                            )}
+                            <button
+                              className="tl-link"
+                              style={{ border: "none", background: "none", padding: 0, cursor: "pointer" }}
+                              onClick={() => navigate(`/agenda/${rdvAppt.id}`)}
+                            >
+                              {t("patientDetail.tlViewDetail")} →
+                            </button>
+                          </div>
+                        )}
+
+                        {entry.link && !isRdv && (
                           <span className="tl-link">{t("patientDetail.tlViewDetail")} →</span>
                         )}
                       </div>
@@ -709,49 +814,6 @@ export function PatientDetailPage() {
               </div>
             </div>
 
-            {/* CNOPS */}
-            <div className="form-group">
-              <label className="form-label">{t("patientDetail.cnopsLabel")}</label>
-              <input
-                className="form-input"
-                placeholder={t("patientDetail.cnopsPlaceholder")}
-                value={cnops}
-                onChange={(e) => setCnops(e.target.value)}
-                onBlur={saveDossier}
-              />
-            </div>
-
-            {/* Mutuelle */}
-            <div className="form-group">
-              <label className="form-label">{t("patientDetail.mutuelleLabel")}</label>
-              <input
-                className="form-input"
-                list="mutuelle-list"
-                placeholder={t("patientDetail.mutuellePlaceholder")}
-                value={mutuelle}
-                onChange={(e) => setMutuelle(e.target.value)}
-                onBlur={saveDossier}
-              />
-              <datalist id="mutuelle-list">
-                {MUTUELLES.map(m => <option key={m} value={m} />)}
-              </datalist>
-            </div>
-
-            {/* Ville */}
-            <div className="form-group">
-              <label className="form-label">{t("patientDetail.cityLabel")}</label>
-              <input
-                className="form-input"
-                list="city-list"
-                placeholder={t("patientDetail.cityPlaceholder")}
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-                onBlur={saveDossier}
-              />
-              <datalist id="city-list">
-                {MOROCCAN_CITIES.map(c => <option key={c} value={c} />)}
-              </datalist>
-            </div>
           </div>
 
           <div className="patient-dossier-fields">
@@ -1110,6 +1172,29 @@ export function PatientDetailPage() {
                   <option value="M">{t("patients.male")}</option>
                   <option value="F">{t("patients.female")}</option>
                 </select>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">{t("patientDetail.cnopsLabel")}</label>
+                  <input className="form-input" value={editCnops} onChange={(e) => setECnops(e.target.value)}
+                    placeholder={t("patientDetail.cnopsPlaceholder")} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">{t("patientDetail.mutuelleLabel")}</label>
+                  <input className="form-input" list="mutuelle-list" value={editMutuelle}
+                    onChange={(e) => setEMutuelle(e.target.value)} placeholder={t("patientDetail.mutuellePlaceholder")} />
+                  <datalist id="mutuelle-list">
+                    {MUTUELLES.map(m => <option key={m} value={m} />)}
+                  </datalist>
+                </div>
+              </div>
+              <div className="form-group">
+                <label className="form-label">{t("patientDetail.cityLabel")}</label>
+                <input className="form-input" list="city-list" value={editCity}
+                  onChange={(e) => setECity(e.target.value)} placeholder={t("patientDetail.cityPlaceholder")} />
+                <datalist id="city-list">
+                  {MOROCCAN_CITIES.map(c => <option key={c} value={c} />)}
+                </datalist>
               </div>
             </div>
             <div className="modal-footer">

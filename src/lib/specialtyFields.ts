@@ -378,6 +378,72 @@ export const SPECIALTY_FIELD_MAP: SpecialtyFieldMap = {
   ],
 };
 
+// ── Extra bilan groups the doctor can enable (any specialty) ─────────────────
+// "Bilan clinique spécialisé" is not one-size-fits-all: a doctor can add the
+// bilan types they actually practise (métabolique, radiologique, …). The keys
+// are stored on doctorProfile.extraBilans; field keys are prefixed to avoid
+// colliding with specialty-field keys in consultationNote.extraFields.
+
+export interface BilanGroup extends SpecialtyGroup { key: string; }
+
+export const BILAN_CATALOG: BilanGroup[] = [
+  {
+    key: "metabolique",
+    title: "Bilan métabolique",
+    fields: [
+      { key: "bl_hba1c",     label: "HbA1c",           type: "number", unit: "%",     placeholder: "6.5" },
+      { key: "bl_glycemie",  label: "Glycémie à jeun", type: "number", unit: "g/L",   placeholder: "1.0" },
+      { key: "bl_chol_t",    label: "Cholestérol total", type: "number", unit: "g/L", placeholder: "1.9" },
+      { key: "bl_ldl",       label: "LDL",             type: "number", unit: "g/L",   placeholder: "1.1" },
+      { key: "bl_hdl",       label: "HDL",             type: "number", unit: "g/L",   placeholder: "0.5" },
+      { key: "bl_tg",        label: "Triglycérides",   type: "number", unit: "g/L",   placeholder: "1.2" },
+      { key: "bl_uricemie",  label: "Uricémie",        type: "number", unit: "mg/L",  placeholder: "55" },
+    ],
+  },
+  {
+    key: "biologique",
+    title: "Bilan biologique",
+    fields: [
+      { key: "bl_nfs",        label: "NFS",             type: "text",   placeholder: "Hb 13,5 g/dL, GB 7 G/L, plaquettes 250 G/L" },
+      { key: "bl_crp",        label: "CRP",             type: "number", unit: "mg/L", placeholder: "5" },
+      { key: "bl_creat",      label: "Créatininémie",   type: "number", unit: "mg/L", placeholder: "9" },
+      { key: "bl_iono",       label: "Ionogramme",      type: "text",   placeholder: "Na 140, K 4,1" },
+      { key: "bl_transam",    label: "Transaminases",   type: "text",   placeholder: "ASAT 25, ALAT 30 UI/L" },
+      { key: "bl_tsh_bio",    label: "TSH",             type: "number", unit: "mUI/L", placeholder: "2.0" },
+      { key: "bl_bio_autres", label: "Autres résultats", type: "textarea", rows: 2, placeholder: "Ferritine, vitamine D…" },
+    ],
+  },
+  {
+    key: "radiologique",
+    title: "Bilan radiologique",
+    fields: [
+      { key: "bl_rx_type",       label: "Type d'imagerie", type: "select", options: ["Radiographie", "Échographie", "Scanner (TDM)", "IRM", "Mammographie", "Autre"] },
+      { key: "bl_rx_region",     label: "Région explorée", type: "text",   placeholder: "Thorax, abdomen, rachis lombaire…" },
+      { key: "bl_rx_resultat",   label: "Résultat",        type: "textarea", rows: 3, placeholder: "Description des images…" },
+      { key: "bl_rx_conclusion", label: "Conclusion",      type: "text",   placeholder: "Pas d'anomalie décelable" },
+    ],
+  },
+  {
+    key: "cardiaque",
+    title: "Bilan cardiaque",
+    fields: [
+      { key: "bl_ecg_rythme", label: "ECG — rythme",   type: "select", options: ["Sinusal", "Fibrillation auriculaire", "Flutter", "Tachycardie", "Bradycardie", "Bloc"] },
+      { key: "bl_ecg_fc",     label: "FC (ECG)",        type: "number", unit: "bpm", placeholder: "72" },
+      { key: "bl_ecg_anom",   label: "Anomalies ECG",   type: "text",   placeholder: "Pas d'anomalie de repolarisation" },
+      { key: "bl_echo_coeur", label: "Échocardiographie", type: "text", placeholder: "FE 60 %, pas de valvulopathie" },
+    ],
+  },
+  {
+    key: "specialise",
+    title: "Bilan spécialisé",
+    fields: [
+      { key: "bl_spec_titre",    label: "Intitulé du bilan", type: "text", placeholder: "Bilan allergologique, bilan thyroïdien…" },
+      { key: "bl_spec_resultat", label: "Résultats",         type: "textarea", rows: 3, placeholder: "Résultats détaillés…" },
+      { key: "bl_spec_conclusion", label: "Conclusion",      type: "text", placeholder: "" },
+    ],
+  },
+];
+
 // Specialties that share the same field config
 SPECIALTY_FIELD_MAP["medecine_interne"] = SPECIALTY_FIELD_MAP["medecin_generaliste"];
 SPECIALTY_FIELD_MAP["medecine_urgence"] = SPECIALTY_FIELD_MAP["medecin_generaliste"];

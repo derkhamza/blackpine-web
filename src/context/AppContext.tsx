@@ -10,7 +10,7 @@ import {
 import {
   getStoredUser, isLoggedIn, login as apiLogin, logout as apiLogout,
   pullData, pushData, signup as apiSignup, type AuthUser,
-  getSecretaryToken, getSecretaryOwner, inviteRedeem, clearSecretarySession,
+  getSecretaryToken, getSecretaryOwner, clearSecretarySession,
   secretaryLogin, warmup, type SecretaryOwner,
 } from "../api/client";
 import { generateRecurringTransactions, type RecurringRule } from "../lib/recurringTransactions";
@@ -44,10 +44,9 @@ interface AppCtx {
   signup: (email: string, pass: string) => Promise<void>;
   logout: () => void;
 
-  // secretary session (restricted, separate-device login via invite code)
+  // secretary session (restricted, separate-device login via secretary account)
   secretaryOwner: SecretaryOwner | null;
   isSecretary: boolean;
-  startSecretarySession: (code: string) => Promise<void>;
   startSecretaryLogin: (username: string, password: string) => Promise<void>;
   endSecretarySession: () => void;
 
@@ -219,15 +218,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // ── Secretary session ────────────────────────────────────────────────────
-  const startSecretarySession = useCallback(async (code: string) => {
-    // A secretary login is mutually exclusive with a doctor login.
-    apiLogout();
-    setUser(null); setIsAuth(false);
-    const owner = await inviteRedeem(code.toUpperCase().trim());
-    setSecretaryOwner(owner);
-  }, []);
-
   // Persistent account login (username + password) — no expiry, revocable by doctor.
+  // A secretary login is mutually exclusive with a doctor login.
   const startSecretaryLogin = useCallback(async (username: string, password: string) => {
     apiLogout();
     setUser(null); setIsAuth(false);
@@ -314,7 +306,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const value: AppCtx = {
     user, isAuthenticated, login, signup, logout,
-    secretaryOwner, isSecretary: !!secretaryOwner, startSecretarySession, startSecretaryLogin, endSecretarySession,
+    secretaryOwner, isSecretary: !!secretaryOwner, startSecretaryLogin, endSecretarySession,
     profile, setProfile,
     transactions, addTransaction, updateTransaction, deleteTransaction,
     assets, addAsset, updateAsset, deleteAsset,
