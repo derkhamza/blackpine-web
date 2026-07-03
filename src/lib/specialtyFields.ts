@@ -401,6 +401,20 @@ export const BILAN_CATALOG: BilanGroup[] = [
     ],
   },
   {
+    // Point-of-care measurements typically taken at the desk (endocrinology /
+    // diabetology): capillary glucose + urine dipstick. Secretary-fillable.
+    key: "capillaire_urinaire",
+    title: "Glycémie capillaire & bandelette urinaire",
+    fields: [
+      { key: "bl_gly_cap",   label: "Glycémie capillaire", type: "number", unit: "g/L", placeholder: "1.10" },
+      { key: "bl_bu_glyco",  label: "Glycosurie",          type: "select", options: ["Négatif", "Traces", "+", "++", "+++", "++++"] },
+      { key: "bl_bu_aceto",  label: "Acétonurie (cétones)", type: "select", options: ["Négatif", "Traces", "+", "++", "+++", "++++"] },
+      { key: "bl_bu_prot",   label: "Protéinurie",         type: "select", options: ["Négatif", "Traces", "+", "++", "+++", "++++"] },
+      { key: "bl_bu_ph",     label: "pH urinaire",         type: "number", placeholder: "6.0" },
+      { key: "bl_bu_autres", label: "BU — autres (sang, nitrites, leucocytes…)", type: "text", placeholder: "Sang négatif, nitrites négatifs, leucocytes négatifs" },
+    ],
+  },
+  {
     key: "biologique",
     title: "Bilan biologique",
     fields: [
