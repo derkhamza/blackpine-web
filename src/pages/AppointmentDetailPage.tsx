@@ -315,9 +315,6 @@ export function AppointmentDetailPage() {
   const [weight, setWeight] = useState("");
   const [height, setHeight] = useState("");
 
-  // ── Reimbursement ─────────────────────────────────────────────────────────
-  const [rmbAmount, setRmbAmount] = useState("");
-
   // ── Ordonnance modal ──────────────────────────────────────────────────────
   const [showOrd,  setShowOrd]  = useState(false);
 
@@ -505,7 +502,6 @@ export function AppointmentDetailPage() {
     setSpo2(vs.spo2 != null ? String(vs.spo2) : "");
     setWeight(vs.weight != null ? String(vs.weight) : "");
     setHeight(vs.height != null ? String(vs.height) : "");
-    setRmbAmount(appt.reimbursementAmount != null ? String(appt.reimbursementAmount) : "");
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appt?.id]);
 
@@ -785,14 +781,6 @@ export function AppointmentDetailPage() {
     setShowPay(false);
   };
 
-  const handleRmbSave = () => {
-    const n = parseFloat(rmbAmount.replace(",", "."));
-    updateAppointment({
-      ...appt,
-      reimbursementAmount: isNaN(n) ? undefined : n,
-    });
-  };
-
   const handleDelete = () => {
     if (!window.confirm(t("apptDetail.deleteConfirm", { name: appt.patientName }))) return;
     deleteAppointment(appt.id);
@@ -1033,7 +1021,7 @@ export function AppointmentDetailPage() {
           { key: "notes",  label: t("apptDetail.clinicalNotes"), dot: hasNotes },
           { key: "vitals", label: t("apptDetail.vitalSigns"),    dot: !!appt.vitalSigns },
           // The follow-up / AMO tab is financial — hidden from secretaries.
-          ...(readOnly ? [] : [{ key: "suivi" as const, label: t("apptDetail.followup"), dot: !!appt.reimbursementStatus || !!appt.followUpDate }]),
+          ...(readOnly ? [] : [{ key: "suivi" as const, label: t("apptDetail.followup"), dot: !!appt.mutuellePapersFilled || !!appt.followUpDate }]),
         ] as const).map(({ key, label, dot }) => (
           <button
             key={key}

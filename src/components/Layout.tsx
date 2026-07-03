@@ -488,8 +488,9 @@ export function Layout({ title, subtitle, actions, children }: Props) {
       return diff >= 0 && diff <= 3;
     }).length;
 
-    const cnopsPending = appointments.filter(
-      a => a.reimbursementStatus === "pending",
+    // Completed visits whose fee has not been collected yet — actionable billing.
+    const unbilledTotal = appointments.filter(
+      a => a.status === "completed" && !a.billedAt,
     ).length;
 
     const waitingNow = appointments.filter(
@@ -507,7 +508,7 @@ export function Layout({ title, subtitle, actions, children }: Props) {
 
     return {
       "/agenda":       unbilledToday + followUpsSoon,
-      "/facturation":  cnopsPending,
+      "/facturation":  unbilledTotal,
       "/salle-attente":waitingNow,
       "/rappels":      overdueFollowUps,
       "/stocks":       lowStock,

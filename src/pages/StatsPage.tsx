@@ -190,6 +190,30 @@ export function StatsPage({ noLayout = false }: { noLayout?: boolean } = {}) {
   }, [completedAppts]);
   const maxTypeCount = typeBreakdown[0]?.[1] ?? 1;
 
+  // ── Acts performed ────────────────────────────────────────────────────────
+  // Aggregate every billed line item across all appointments: how many times
+  // each act was performed and how much revenue it brought in.
+  const acteBreakdown = useMemo(() => {
+    const map = new Map<string, { count: number; revenue: number }>();
+    for (const a of appointments) {
+      if (!a.billedItems) continue;
+      for (const it of a.billedItems) {
+        const label = it.label.trim();
+        if (!label) continue;
+        const e = map.get(label) ?? { count: 0, revenue: 0 };
+        e.count   += it.qty;
+        e.revenue += it.unitPrice * it.qty;
+        map.set(label, e);
+      }
+    }
+    return [...map.entries()]
+      .map(([label, v]) => ({ label, count: v.count, revenue: v.revenue }))
+      .sort((a, b) => b.count - a.count || b.revenue - a.revenue);
+  }, [appointments]);
+  const maxActeCount   = acteBreakdown[0]?.count ?? 1;
+  const acteTotalCount = acteBreakdown.reduce((s, a) => s + a.count, 0);
+  const acteTotalRev   = acteBreakdown.reduce((s, a) => s + a.revenue, 0);
+
   // ── Empty state ───────────────────────────────────────────────────────────
   const isEmpty = completedAppts.length === 0;
 
@@ -398,6 +422,39 @@ export function StatsPage({ noLayout = false }: { noLayout?: boolean } = {}) {
                           />
                         </div>
                         <span className="stats-type-count" style={{ color }}>{count}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </SectionCard>
+          )}
+
+          {/* Acts performed */}
+          {acteBreakdown.length > 0 && (
+            <SectionCard title={t("stats.actesTitle")}>
+              <div className="stats-kpi-sub" style={{ padding: "0 0 8px" }}>
+                {t("stats.actesSummary", { n: acteTotalCount, rev: formatMAD(acteTotalRev) })}
+              </div>
+              <div className="stats-type-list">
+                {acteBreakdown.map((acte, idx) => {
+                  const pct = Math.round((acte.count / maxActeCount) * 100);
+                  return (
+                    <div key={acte.label}>
+                      {idx > 0 && <div className="stats-type-divider" />}
+                      <div className="stats-type-row">
+                        <div className="stats-type-dot" style={{ background: "var(--green)" }} />
+                        <span className="stats-type-label" title={acte.label}>{acte.label}</span>
+                        <div className="stats-type-bar-track">
+                          <div
+                            className="stats-type-bar-fill"
+                            style={{ width: `${pct}%`, background: "var(--green)", opacity: 0.8 }}
+                          />
+                        </div>
+                        <span className="stats-acte-count">
+                          <span className="stats-type-count" style={{ color: "var(--green)" }}>{acte.count}×</span>
+                          <span className="stats-acte-rev">{formatMAD(acte.revenue)}</span>
+                        </span>
                       </div>
                     </div>
                   );

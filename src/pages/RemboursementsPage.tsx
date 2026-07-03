@@ -1,4 +1,4 @@
-import { FormEvent, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Layout } from "../components/Layout";
@@ -7,227 +7,81 @@ import { useCabinet } from "../context/CabinetContext";
 import { useApp } from "../context/AppContext";
 import type { Appointment } from "../lib/cabinetTypes";
 import { APPT_TYPE_LABELS } from "../lib/cabinetTypes";
-import { formatMAD, todayIso } from "../lib/format";
-import { AnimatedNumber } from "../components/AnimatedNumber";
+import { todayIso } from "../lib/format";
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── AMO / CNOPS papers log ──────────────────────────────────────────────────
+// In Moroccan private practice the doctor only fills the mutuelle form and hands
+// it to the patient — there is no reimbursement follow-up on the doctor's side.
+// So this is a simple checklist: for each mutuelle patient's visit, was the
+// paper filled and given? No amounts, no declaration status, no rejection rates.
 
-type StatusFilter = "all" | "pending" | "received" | "rejected" | "to_declare";
-
-const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
-  pending:  { bg: "var(--gold-soft)",  color: "var(--gold)"  },
-  received: { bg: "var(--green-soft)", color: "var(--green)" },
-  rejected: { bg: "var(--coral-soft)", color: "var(--coral)" },
-};
-
-// ── Update modal ──────────────────────────────────────────────────────────────
-
-function UpdateModal({
-  appt, onSave, onClose,
-}: {
-  appt:    Appointment;
-  onSave:  (patch: Partial<Appointment>) => void;
-  onClose: () => void;
-}) {
-  const { t, i18n } = useTranslation();
-  const locale = i18n.language?.slice(0, 2) === "ar" ? "ar-MA"
-               : i18n.language?.slice(0, 2) === "en" ? "en-US" : "fr-FR";
-  const [status, setStatus]   = useState<string>(appt.reimbursementStatus ?? "pending");
-  const [amount, setAmount]   = useState(appt.reimbursementAmount != null ? String(appt.reimbursementAmount) : "");
-  const [date,   setDate]     = useState(appt.reimbursementDate ?? "");
-
-  function fmtDate(iso: string) {
-    return new Date(iso + "T12:00:00").toLocaleDateString(locale, {
-      day: "2-digit", month: "short", year: "numeric",
-    });
-  }
-
-  const handleSubmit = (e: FormEvent) => {
-    e.preventDefault();
-    const n = parseFloat(amount.replace(",", "."));
-    onSave({
-      reimbursementStatus:  status as Appointment["reimbursementStatus"],
-      reimbursementAmount:  isNaN(n) ? undefined : n,
-      reimbursementDate:    date || undefined,
-    });
-    onClose();
-  };
-
-  return (
-    <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="modal" style={{ maxWidth: 400 }}>
-        <div className="modal-header">
-          <h2 className="modal-title">{t("remboursements.modalTitle")}</h2>
-          <button className="modal-close" onClick={onClose}>×</button>
-        </div>
-        <form onSubmit={handleSubmit}>
-          <div className="modal-body" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <div style={{ fontSize: 13, fontWeight: 600 }}>{appt.patientName}</div>
-            <div style={{ fontSize: 12, color: "var(--muted)" }}>
-              {fmtDate(appt.date)} · {APPT_TYPE_LABELS[appt.type]}
-            </div>
-            <div className="form-group">
-              <label className="form-label">{t("remboursements.statusLabel")}</label>
-              <select className="form-select" value={status}
-                onChange={e => setStatus(e.target.value)}>
-                <option value="pending">{t("remboursements.pending")}</option>
-                <option value="received">{t("remboursements.received")}</option>
-                <option value="rejected">{t("remboursements.rejected")}</option>
-              </select>
-            </div>
-            <div className="form-group">
-              <label className="form-label">{t("remboursements.amountLabel")}</label>
-              <input className="form-input" type="number" min="0" step="0.01"
-                placeholder="0.00" value={amount} onChange={e => setAmount(e.target.value)} />
-            </div>
-            <div className="form-group">
-              <label className="form-label">{t("remboursements.dateLabel")}</label>
-              <input className="form-input" type="date" value={date}
-                onChange={e => setDate(e.target.value)} />
-            </div>
-          </div>
-          <div className="modal-footer">
-            <button type="button" className="btn btn-ghost" onClick={onClose}>{t("common.cancel")}</button>
-            <button type="submit" className="btn btn-primary">{t("common.save")}</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-// ── Claim row ─────────────────────────────────────────────────────────────────
-
-function ClaimRow({
-  appt, patients, onUpdate,
-}: {
-  appt:      Appointment;
-  patients:  { id: string; cnopsNumber?: string }[];
-  onUpdate:  () => void;
-}) {
-  const { t, i18n } = useTranslation();
-  const locale = i18n.language?.slice(0, 2) === "ar" ? "ar-MA"
-               : i18n.language?.slice(0, 2) === "en" ? "en-US" : "fr-FR";
-
-  function fmtDate(iso: string) {
-    return new Date(iso + "T12:00:00").toLocaleDateString(locale, {
-      day: "2-digit", month: "short", year: "numeric",
-    });
-  }
-
-  const patientCnops = appt.patientId
-    ? patients.find(p => p.id === appt.patientId)?.cnopsNumber
-    : null;
-
-  const st = appt.reimbursementStatus ?? "to_declare";
-  const style = st !== "to_declare" ? STATUS_COLORS[st] : { bg: "var(--surface-alt)", color: "var(--muted)" };
-
-  const statusLabel = st === "to_declare" ? t("remboursements.toDeclare")
-    : st === "pending"  ? t("remboursements.pending")
-    : st === "received" ? t("remboursements.received")
-    : t("remboursements.rejected");
-
-  return (
-    <tr className="rmb-row">
-      <td>
-        <div className="rmb-patient-name">
-          <Link to={`/agenda/${appt.id}`} className="rmb-appt-link">{appt.patientName}</Link>
-        </div>
-        {patientCnops && (
-          <div className="rmb-cnops-num">CNOPS {patientCnops}</div>
-        )}
-      </td>
-      <td style={{ color: "var(--muted)", fontSize: 12 }}>{fmtDate(appt.date)}</td>
-      <td style={{ fontSize: 12 }}>{APPT_TYPE_LABELS[appt.type]}</td>
-      <td style={{ fontWeight: 600 }}>
-        {appt.billedAmount != null ? formatMAD(appt.billedAmount) : "—"}
-      </td>
-      <td style={{ fontWeight: 600, color: appt.reimbursementAmount ? "var(--green)" : "var(--muted)" }}>
-        {appt.reimbursementAmount != null ? formatMAD(appt.reimbursementAmount) : "—"}
-      </td>
-      <td>
-        <span
-          className="rmb-status-badge"
-          style={{ background: style.bg, color: style.color }}
-        >
-          {statusLabel}
-        </span>
-      </td>
-      <td style={{ color: "var(--muted)", fontSize: 12 }}>
-        {appt.reimbursementDate ? fmtDate(appt.reimbursementDate) : "—"}
-      </td>
-      <td>
-        <button className="rmb-update-btn" onClick={onUpdate}>
-          {t("remboursements.updateBtn")}
-        </button>
-      </td>
-    </tr>
-  );
-}
-
-// ── Main page ─────────────────────────────────────────────────────────────────
+type PaperFilter = "all" | "to_fill" | "filled";
 
 export function RemboursementsPage({ noLayout = false }: { noLayout?: boolean } = {}) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { appointments, patients, updateAppointment } = useCabinet();
   const { fiscalYear } = useApp();
-
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [yearFilter,   setYearFilter]   = useState(fiscalYear);
-  const [search,       setSearch]       = useState("");
-  const [updateModal,  setUpdateModal]  = useState<Appointment | null>(null);
-  // suppress unused var warning — todayIso is needed for type inference
-  void todayIso;
-
   const showToast = useToast();
 
-  // ── KPI computation ───────────────────────────────────────────────────────
+  const [filter,     setFilter]     = useState<PaperFilter>("all");
+  const [yearFilter, setYearFilter] = useState(fiscalYear);
+  const [search,     setSearch]     = useState("");
+
+  const locale = i18n.language?.slice(0, 2) === "ar" ? "ar-MA"
+               : i18n.language?.slice(0, 2) === "en" ? "en-US" : "fr-FR";
+  const fmtDate = (iso: string) =>
+    new Date(iso + "T12:00:00").toLocaleDateString(locale, { day: "2-digit", month: "short", year: "numeric" });
+
+  // Patient → mutuelle info lookup.
+  const patMap = useMemo(() => {
+    const m = new Map<string, { mutuelle?: string; cnopsNumber?: string }>();
+    for (const p of patients) m.set(p.id, { mutuelle: p.mutuelle, cnopsNumber: p.cnopsNumber });
+    return m;
+  }, [patients]);
+
+  // Visits where mutuelle paperwork is relevant: a completed/billed visit whose
+  // linked patient carries a mutuelle name or a CNOPS/AMO number.
+  const relevant = useMemo(() => {
+    return appointments.filter(a => {
+      if (!a.date.startsWith(String(yearFilter))) return false;
+      if (!(a.billedAt || a.status === "completed")) return false;
+      if (!a.patientId) return false;
+      const info = patMap.get(a.patientId);
+      return !!(info && (info.mutuelle || info.cnopsNumber));
+    });
+  }, [appointments, patMap, yearFilter]);
 
   const kpis = useMemo(() => {
-    const yearAppts = appointments.filter(a => a.date.startsWith(String(yearFilter)));
-    let pending = 0, pendingAmt = 0, received = 0, receivedAmt = 0, rejected = 0;
-    for (const a of yearAppts) {
-      if (!a.reimbursementStatus) continue;
-      const amt = a.reimbursementAmount ?? 0;
-      if      (a.reimbursementStatus === "pending")  { pending++;  pendingAmt  += amt; }
-      else if (a.reimbursementStatus === "received") { received++; receivedAmt += amt; }
-      else if (a.reimbursementStatus === "rejected") { rejected++; }
-    }
-    const total = pending + received + rejected;
-    const rate  = total > 0 ? Math.round((received / total) * 100) : 0;
-    const toDeclare = yearAppts.filter(a => !a.reimbursementStatus && (a.billedAt || a.status === "completed")).length;
-    return { pending, pendingAmt, received, receivedAmt, rejected, total, rate, toDeclare };
-  }, [appointments, yearFilter]);
-
-  // ── Filtered rows ─────────────────────────────────────────────────────────
+    let filled = 0, toFill = 0;
+    for (const a of relevant) { if (a.mutuellePapersFilled) filled++; else toFill++; }
+    return { filled, toFill, total: relevant.length };
+  }, [relevant]);
 
   const rows = useMemo(() => {
     const q = search.toLowerCase().trim();
-    return appointments
-      .filter(a => {
-        if (!a.date.startsWith(String(yearFilter))) return false;
-        if (statusFilter === "to_declare") {
-          return !a.reimbursementStatus && (!!a.billedAt || a.status === "completed");
-        }
-        if (statusFilter === "all") {
-          return !!a.reimbursementStatus || (!a.reimbursementStatus && (!!a.billedAt || a.status === "completed"));
-        }
-        return a.reimbursementStatus === statusFilter;
-      })
+    return relevant
+      .filter(a => filter === "all" ? true : filter === "filled" ? !!a.mutuellePapersFilled : !a.mutuellePapersFilled)
       .filter(a => !q || a.patientName.toLowerCase().includes(q))
       .sort((a, b) => b.date.localeCompare(a.date));
-  }, [appointments, statusFilter, yearFilter, search]);
+  }, [relevant, filter, search]);
 
-  // Year options (last 5 years)
   const yearNow = new Date().getFullYear();
   const yearOptions = Array.from({ length: 5 }, (_, i) => yearNow - 2 + i);
 
-  const tabs: { key: StatusFilter; labelKey: string; count: number }[] = [
-    { key: "all",        labelKey: "tabAll",        count: kpis.total + kpis.toDeclare },
-    { key: "pending",    labelKey: "tabPending",    count: kpis.pending },
-    { key: "received",   labelKey: "tabReceived",   count: kpis.received },
-    { key: "rejected",   labelKey: "tabRejected",   count: kpis.rejected },
-    { key: "to_declare", labelKey: "tabToDeclare",  count: kpis.toDeclare },
+  const toggle = (a: Appointment) => {
+    const now = !a.mutuellePapersFilled;
+    updateAppointment({
+      ...a,
+      mutuellePapersFilled: now,
+      mutuellePapersDate: now ? todayIso() : undefined,
+    });
+    showToast(now ? t("remboursements.toastFilled") : t("remboursements.toastUnfilled"));
+  };
+
+  const tabs: { key: PaperFilter; label: string; count: number }[] = [
+    { key: "all",     label: t("remboursements.tabAll"),    count: kpis.total  },
+    { key: "to_fill", label: t("remboursements.tabToFill"), count: kpis.toFill },
+    { key: "filled",  label: t("remboursements.tabFilled"), count: kpis.filled },
   ];
 
   const body = (
@@ -235,90 +89,35 @@ export function RemboursementsPage({ noLayout = false }: { noLayout?: boolean } 
       {/* ── KPI cards ── */}
       <div className="stats-grid" style={{ marginBottom: 20 }}>
         <div className="stat-card">
-          <div className="stat-label">{t("remboursements.kpiPending")}</div>
-          <div className="stat-value" style={{ color: "var(--gold)" }}>
-            {kpis.pendingAmt > 0 ? <AnimatedNumber value={kpis.pendingAmt} format={formatMAD} /> : <AnimatedNumber value={kpis.pending} />}
-          </div>
-          <div className="stat-sub">{t("remboursements.dossierCount", { n: kpis.pending, s: kpis.pending !== 1 ? "s" : "" })}</div>
+          <div className="stat-label">{t("remboursements.kpiToFill")}</div>
+          <div className="stat-value" style={{ color: kpis.toFill > 0 ? "var(--gold)" : "var(--green)" }}>{kpis.toFill}</div>
+          <div className="stat-sub">{t("remboursements.year", { year: yearFilter })}</div>
         </div>
         <div className="stat-card">
-          <div className="stat-label">{t("remboursements.kpiReceived", { year: yearFilter })}</div>
-          <div className="stat-value" style={{ color: "var(--green)" }}>
-            {kpis.receivedAmt > 0 ? <AnimatedNumber value={kpis.receivedAmt} format={formatMAD} /> : <AnimatedNumber value={kpis.received} />}
-          </div>
-          <div className="stat-sub">{t("remboursements.dossierCount", { n: kpis.received, s: kpis.received !== 1 ? "s" : "" })}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">{t("remboursements.kpiRejected")}</div>
-          <div className="stat-value" style={{ color: "var(--coral)" }}>{kpis.rejected}</div>
+          <div className="stat-label">{t("remboursements.kpiFilled")}</div>
+          <div className="stat-value" style={{ color: "var(--green)" }}>{kpis.filled}</div>
           <div className="stat-sub">
-            {kpis.total > 0
-              ? t("remboursements.rejectionRate", { pct: Math.round((kpis.rejected / kpis.total) * 100) })
-              : "—"}
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">{t("remboursements.kpiRate")}</div>
-          <div className="stat-value" style={{ color: "var(--blue)" }}>
-            {kpis.total > 0 ? `${kpis.rate}%` : "—"}
-          </div>
-          <div className="stat-sub">
-            {kpis.toDeclare > 0 && (
-              <span style={{ color: "var(--gold)", fontWeight: 600 }}>
-                {t("remboursements.toDeclareCount", { n: kpis.toDeclare })}
-              </span>
-            )}
+            {kpis.total > 0 ? t("remboursements.filledPct", { pct: Math.round((kpis.filled / kpis.total) * 100) }) : "—"}
           </div>
         </div>
       </div>
 
-      {/* Progress bar */}
-      {kpis.total > 0 && (
-        <div className="rmb-progress-bar">
-          <div className="rmb-progress-track">
-            {kpis.received > 0 && (
-              <div
-                className="rmb-progress-seg received"
-                style={{ width: `${Math.round((kpis.received / kpis.total) * 100)}%` }}
-                title={t("remboursements.legendReceived", { n: kpis.received })}
-              />
-            )}
-            {kpis.rejected > 0 && (
-              <div
-                className="rmb-progress-seg rejected"
-                style={{ width: `${Math.round((kpis.rejected / kpis.total) * 100)}%` }}
-                title={t("remboursements.legendRejected", { n: kpis.rejected })}
-              />
-            )}
-          </div>
-          <div className="rmb-progress-legend">
-            <span style={{ color: "var(--green)" }}>{t("remboursements.legendReceived", { n: kpis.received })}</span>
-            <span style={{ color: "var(--gold)" }}>{t("remboursements.legendPending", { n: kpis.pending })}</span>
-            <span style={{ color: "var(--coral)" }}>{t("remboursements.legendRejected", { n: kpis.rejected })}</span>
-          </div>
-        </div>
-      )}
-
       {/* ── Filter bar ── */}
       <div className="rmb-filter-bar">
-        {/* Status tabs */}
         <div className="rmb-tabs">
           {tabs.map(tab => (
             <button
               key={tab.key}
-              className={`rmb-tab${statusFilter === tab.key ? " active" : ""}`}
-              onClick={() => setStatusFilter(tab.key)}
+              className={`rmb-tab${filter === tab.key ? " active" : ""}`}
+              onClick={() => setFilter(tab.key)}
             >
-              {t(`remboursements.${tab.labelKey}`)}
-              {tab.count > 0 && (
-                <span className="rmb-tab-badge">{tab.count}</span>
-              )}
+              {tab.label}
+              {tab.count > 0 && <span className="rmb-tab-badge">{tab.count}</span>}
             </button>
           ))}
         </div>
 
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-          {/* Year selector */}
           <select
             className="form-select"
             style={{ padding: "6px 10px", fontSize: 13, width: "auto" }}
@@ -327,8 +126,6 @@ export function RemboursementsPage({ noLayout = false }: { noLayout?: boolean } 
           >
             {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
           </select>
-
-          {/* Search */}
           <div className="rmb-search-wrap">
             <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
               <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.4"/>
@@ -347,17 +144,9 @@ export function RemboursementsPage({ noLayout = false }: { noLayout?: boolean } 
       {/* ── Table ── */}
       {rows.length === 0 ? (
         <div className="tx-empty">
-          <div style={{ fontSize: 36, marginBottom: 10 }}>🏥</div>
-          <div style={{ fontWeight: 700, marginBottom: 6 }}>
-            {statusFilter === "to_declare"
-              ? t("remboursements.emptyToDeclare")
-              : t("remboursements.emptyAll")}
-          </div>
-          <div style={{ color: "var(--muted)", fontSize: 13 }}>
-            {statusFilter === "all"
-              ? t("remboursements.emptyHintAll")
-              : t("remboursements.emptyHintFilter")}
-          </div>
+          <div style={{ fontSize: 36, marginBottom: 10 }}>🗂️</div>
+          <div style={{ fontWeight: 700, marginBottom: 6 }}>{t("remboursements.emptyPapers")}</div>
+          <div style={{ color: "var(--muted)", fontSize: 13 }}>{t("remboursements.emptyHintPapers")}</div>
         </div>
       ) : (
         <div className="rmb-table-wrap">
@@ -369,60 +158,56 @@ export function RemboursementsPage({ noLayout = false }: { noLayout?: boolean } 
                   <th>{t("remboursements.colPatient")}</th>
                   <th>{t("remboursements.colDate")}</th>
                   <th>{t("remboursements.colType")}</th>
-                  <th>{t("remboursements.colBilled")}</th>
-                  <th>{t("remboursements.colAmo")}</th>
-                  <th>{t("remboursements.colStatus")}</th>
-                  <th>{t("remboursements.colEncaisse")}</th>
+                  <th>{t("remboursements.colMutuelle")}</th>
+                  <th>{t("remboursements.colPaper")}</th>
                   <th></th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map(appt => (
-                  <ClaimRow
-                    key={appt.id}
-                    appt={appt}
-                    patients={patients}
-                    onUpdate={() => setUpdateModal(appt)}
-                  />
-                ))}
+                {rows.map(appt => {
+                  const info = appt.patientId ? patMap.get(appt.patientId) : undefined;
+                  const mutLabel = info?.mutuelle
+                    ? info.mutuelle + (info.cnopsNumber ? ` · ${info.cnopsNumber}` : "")
+                    : info?.cnopsNumber ? `CNOPS ${info.cnopsNumber}` : "—";
+                  return (
+                    <tr key={appt.id} className="rmb-row">
+                      <td>
+                        <Link to={`/agenda/${appt.id}`} className="rmb-appt-link">{appt.patientName}</Link>
+                      </td>
+                      <td style={{ color: "var(--muted)", fontSize: 12 }}>{fmtDate(appt.date)}</td>
+                      <td style={{ fontSize: 12 }}>{APPT_TYPE_LABELS[appt.type]}</td>
+                      <td style={{ fontSize: 12 }}>{mutLabel}</td>
+                      <td>
+                        {appt.mutuellePapersFilled ? (
+                          <span className="rmb-status-badge" style={{ background: "var(--green-soft)", color: "var(--green)" }}>
+                            {t("remboursements.statusFilled")}
+                            {appt.mutuellePapersDate ? ` · ${fmtDate(appt.mutuellePapersDate)}` : ""}
+                          </span>
+                        ) : (
+                          <span className="rmb-status-badge" style={{ background: "var(--gold-soft)", color: "var(--gold)" }}>
+                            {t("remboursements.statusToFill")}
+                          </span>
+                        )}
+                      </td>
+                      <td>
+                        <button className="rmb-update-btn" onClick={() => toggle(appt)}>
+                          {appt.mutuellePapersFilled ? t("remboursements.markUnfilled") : t("remboursements.markFilled")}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
-              {/* Totals footer for received / pending */}
-              {statusFilter !== "to_declare" && rows.some(a => a.reimbursementAmount) && (
-                <tfoot>
-                  <tr>
-                    <td colSpan={4} style={{ fontWeight: 700, paddingLeft: 14 }}>{t("remboursements.totalDisplayed")}</td>
-                    <td style={{ fontWeight: 800, color: "var(--green)" }}>
-                      {formatMAD(rows.reduce((s, a) => s + (a.reimbursementAmount ?? 0), 0))}
-                    </td>
-                    <td colSpan={3}></td>
-                  </tr>
-                </tfoot>
-              )}
             </table>
           </div>
         </div>
       )}
-
-      {/* ── Update modal ── */}
-      {updateModal && (
-        <UpdateModal
-          appt={updateModal}
-          onSave={patch => {
-            updateAppointment({ ...updateModal, ...patch });
-            showToast(t("remboursements.toastUpdated"));
-          }}
-          onClose={() => setUpdateModal(null)}
-        />
-      )}
-
     </>
   );
+
   if (noLayout) return body;
   return (
-    <Layout
-      title={t("remboursements.title")}
-      subtitle={t("remboursements.subtitle", { n: kpis.pending, s: kpis.pending !== 1 ? "s" : "", year: yearFilter })}
-    >
+    <Layout title={t("remboursements.title")} subtitle={t("remboursements.papersSubtitle")}>
       {body}
     </Layout>
   );

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { Layout } from "../components/Layout";
@@ -35,11 +35,27 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
   const [selYear, setSelYear] = useState(currentYear);
   const [search,  setSearch]  = useState("");
   const [unpaidOnly, setUnpaidOnly] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<"all" | "emitted" | "toemit">("all");
+  const [sortKey, setSortKey] = useState<"date" | "name" | "amount">("date");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  const toggleExpand = (id: string) => setExpanded(prev => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
+
+  // Click a sortable header: same key flips direction, new key resets to desc.
+  const sortBy = (key: "date" | "name" | "amount") => {
+    if (key === sortKey) setSortDir(d => (d === "asc" ? "desc" : "asc"));
+    else { setSortKey(key); setSortDir("desc"); }
+  };
+  const sortArrow = (key: "date" | "name" | "amount") =>
+    sortKey === key ? (sortDir === "asc" ? " ▲" : " ▼") : "";
 
   const billed = useMemo(
-    () => [...appointments]
-      .filter(a => !!a.billedAt)
-      .sort((a, b) => b.billedAt!.localeCompare(a.billedAt!)),
+    () => appointments.filter(a => !!a.billedAt),
     [appointments],
   );
 
@@ -51,14 +67,26 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return billed.filter(a => {
+    const rows = billed.filter(a => {
       if (yearOf(a.billedAt!) !== selYear) return false;
       if (q && !a.patientName.toLowerCase().includes(q) &&
                !(a.invoiceNumber ?? "").toLowerCase().includes(q)) return false;
       if (unpaidOnly && paymentSummary(a).balance <= 0) return false;
+      if (statusFilter === "emitted" && !a.invoiceNumber) return false;
+      if (statusFilter === "toemit"  &&  a.invoiceNumber) return false;
       return true;
     });
-  }, [billed, selYear, search, unpaidOnly]);
+    const dir = sortDir === "asc" ? 1 : -1;
+    rows.sort((a, b) => {
+      let cmp = 0;
+      if (sortKey === "name")        cmp = a.patientName.localeCompare(b.patientName);
+      else if (sortKey === "amount") cmp = (a.billedAmount ?? 0) - (b.billedAmount ?? 0);
+      else /* date */                cmp = (a.billedAt ?? "").localeCompare(b.billedAt ?? "");
+      if (cmp === 0) cmp = (a.billedAt ?? "").localeCompare(b.billedAt ?? "");
+      return cmp * dir;
+    });
+    return rows;
+  }, [billed, selYear, search, unpaidOnly, statusFilter, sortKey, sortDir]);
 
   const kpis = useMemo(() => {
     const withInv    = filtered.filter(a => !!a.invoiceNumber);
@@ -156,9 +184,28 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
             </button>
           ))}
         </div>
+        <div className="fac-status-chips" style={{ marginLeft: "auto" }}>
+          <button
+            className={`fac-year-tab${statusFilter === "all" ? " active" : ""}`}
+            onClick={() => setStatusFilter("all")}
+          >
+            {t("factures.filterAll")}
+          </button>
+          <button
+            className={`fac-year-tab${statusFilter === "emitted" ? " active" : ""}`}
+            onClick={() => setStatusFilter("emitted")}
+          >
+            {t("factures.filterEmitted")}
+          </button>
+          <button
+            className={`fac-year-tab${statusFilter === "toemit" ? " active" : ""}`}
+            onClick={() => setStatusFilter("toemit")}
+          >
+            {t("factures.filterToEmit")}
+          </button>
+        </div>
         <button
           className={`fac-year-tab fac-unpaid-toggle${unpaidOnly ? " active" : ""}`}
-          style={{ marginLeft: "auto" }}
           onClick={() => setUnpaidOnly(v => !v)}
         >
           {t("factures.unpaidOnly")}
@@ -189,17 +236,48 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
           <table className="fac-table">
             <thead>
               <tr>
+                <th className="fac-expand-col"></th>
                 <th>{t("factures.colInvoice")}</th>
-                <th>{t("factures.colPatient")}</th>
-                <th>{t("factures.colDate")}</th>
+                <th>
+                  <button className="fac-sort-th" onClick={() => sortBy("name")}>
+                    {t("factures.colPatient")}{sortArrow("name")}
+                  </button>
+                </th>
+                <th>
+                  <button className="fac-sort-th" onClick={() => sortBy("date")}>
+                    {t("factures.colDate")}{sortArrow("date")}
+                  </button>
+                </th>
                 <th>{t("factures.colType")}</th>
-                <th className="fac-r">{t("factures.colAmount")}</th>
+                <th className="fac-r">
+                  <button className="fac-sort-th" onClick={() => sortBy("amount")}>
+                    {t("factures.colAmount")}{sortArrow("amount")}
+                  </button>
+                </th>
                 <th className="fac-r">{t("factures.colActions")}</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map(a => (
-                <tr key={a.id}>
+              {filtered.map(a => {
+                const items = a.billedItems && a.billedItems.length > 0
+                  ? a.billedItems
+                  : [{ label: APPT_TYPE_LABELS[a.type], qty: 1, unitPrice: a.billedAmount ?? 0 }];
+                const isOpen = expanded.has(a.id);
+                return (
+                <Fragment key={a.id}>
+                <tr className={isOpen ? "fac-row-open" : undefined}>
+                  <td className="fac-expand-col">
+                    <button
+                      className={`fac-expand-btn${isOpen ? " open" : ""}`}
+                      onClick={() => toggleExpand(a.id)}
+                      aria-label={t("factures.showActs")}
+                      title={t("factures.showActs")}
+                    >
+                      <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                        <path d="M2.5 4.5L6 8l3.5-3.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </button>
+                  </td>
                   <td>
                     {a.invoiceNumber
                       ? <span className="fac-inv-num">{a.invoiceNumber}</span>
@@ -244,11 +322,49 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
                     </div>
                   </td>
                 </tr>
-              ))}
+                {isOpen && (
+                  <tr className="fac-acts-row">
+                    <td></td>
+                    <td colSpan={6}>
+                      <div className="fac-acts-box">
+                        <div className="fac-acts-title">{t("factures.actsTitle")}</div>
+                        <table className="fac-acts-table">
+                          <tbody>
+                            {items.map((it, i) => (
+                              <tr key={i}>
+                                <td className="fac-acts-label">{it.label}</td>
+                                <td className="fac-acts-qty">×{it.qty}</td>
+                                <td className="fac-acts-unit">{formatMAD(it.unitPrice)}</td>
+                                <td className="fac-acts-sub fac-r">{formatMAD(it.unitPrice * it.qty)}</td>
+                              </tr>
+                            ))}
+                            {a.billedReduction ? (
+                              <tr className="fac-acts-reduction">
+                                <td className="fac-acts-label">{t("factures.reduction")}</td>
+                                <td></td><td></td>
+                                <td className="fac-acts-sub fac-r" style={{ color: "var(--coral)" }}>
+                                  −{formatMAD(a.billedReduction)}
+                                </td>
+                              </tr>
+                            ) : null}
+                            <tr className="fac-acts-total">
+                              <td className="fac-acts-label">{t("factures.actsTotal")}</td>
+                              <td></td><td></td>
+                              <td className="fac-acts-sub fac-r">{formatMAD(a.billedAmount ?? 0)}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
+                );
+              })}
             </tbody>
             <tfoot>
               <tr>
-                <td colSpan={4} className="fac-total-label">
+                <td colSpan={5} className="fac-total-label">
                   {t("factures.footerTotal", { n: filtered.length, s: filtered.length !== 1 ? "s" : "" })}
                 </td>
                 <td className="fac-r fac-total-val">

@@ -73,10 +73,15 @@ function BarChart({ data, color = "var(--blue)", height = 100 }: {
 
 // ── Horizontal bar (for age groups / blood types) ─────────────────────────────
 
-function HBar({ label, value, max, color, pct }: {
+function HBar({ label, value, max, color, pct, total }: {
   label: string; value: number; max: number; color: string; pct?: boolean;
+  // Denominator for the percentage. Defaults to `max`, but for distributions the
+  // caller passes the group total so the % is a share of all patients — not a
+  // share of the largest bar (which would always read 100%).
+  total?: number;
 }) {
   const width = max > 0 ? (value / max) * 100 : 0;
+  const pctBase = total ?? max;
   return (
     <div className="ana-hbar-row">
       <div className="ana-hbar-label">{label}</div>
@@ -84,7 +89,7 @@ function HBar({ label, value, max, color, pct }: {
         <div className="ana-hbar-fill" style={{ width: `${width}%`, background: color }} />
       </div>
       <div className="ana-hbar-val">
-        {value}{pct && max > 0 ? ` (${Math.round((value / max) * 100)}%)` : ""}
+        {value}{pct && pctBase > 0 ? ` (${Math.round((value / pctBase) * 100)}%)` : ""}
       </div>
     </div>
   );
@@ -276,6 +281,7 @@ export function AnalytiquesContent() {
                   label={g.label}
                   value={g.value}
                   max={Math.max(...ageDist.map(a => a.value), 1)}
+                  total={ageDist.reduce((s, a) => s + a.value, 0)}
                   color={["#60a5fa","#34d399","#a78bfa","#fb923c","#f472b6"][i]}
                   pct
                 />
@@ -295,6 +301,7 @@ export function AnalytiquesContent() {
                   label={t(`analytiques.${g.labelKey}`)}
                   value={g.value}
                   max={maxGender}
+                  total={genderDist.reduce((s, g2) => s + g2.value, 0)}
                   color={g.color}
                   pct
                 />
@@ -318,6 +325,7 @@ export function AnalytiquesContent() {
                     label={b.label}
                     value={b.value}
                     max={Math.max(...bloodDist.map(d => d.value), 1)}
+                    total={bloodDist.reduce((s, d) => s + d.value, 0)}
                     color="var(--coral)"
                     pct
                   />

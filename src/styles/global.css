@@ -2070,6 +2070,9 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 }
 .stats-type-bar-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
 .stats-type-count { font-size: 13px; font-weight: 700; width: 24px; text-align: right; flex-shrink: 0; }
+.stats-acte-count { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; flex-shrink: 0; min-width: 72px; }
+.stats-acte-count .stats-type-count { width: auto; }
+.stats-acte-rev { font-size: 11px; font-weight: 600; color: var(--muted); white-space: nowrap; }
 
 /* ── Patient Detail ─────────────────────────────────────────────────────── */
 .patient-header-card {
@@ -3745,6 +3748,40 @@ a.wr-card-open:hover {
 .fac-table tbody tr:hover td { background: var(--bg); }
 .fac-table tfoot td { background: var(--surface-alt); font-weight: 600; font-size: 12px; }
 .fac-r { text-align: right !important; }
+
+/* Sortable header buttons */
+.fac-sort-th {
+  background: none; border: none; padding: 0; font: inherit; color: inherit;
+  cursor: pointer; font-weight: inherit; letter-spacing: inherit; text-transform: inherit;
+}
+.fac-sort-th:hover { color: var(--blue); }
+[dir="rtl"] .fac-sort-th { text-align: right; }
+
+/* Emitted-status filter chips */
+.fac-status-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* Expand column + chevron */
+.fac-expand-col { width: 28px; text-align: center; padding-left: 4px !important; padding-right: 4px !important; }
+.fac-expand-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; border: none; background: none; cursor: pointer;
+  color: var(--muted); border-radius: 5px; transition: transform var(--trans), color var(--trans), background var(--trans);
+}
+.fac-expand-btn:hover { color: var(--blue); background: var(--surface-alt); }
+.fac-expand-btn.open { transform: rotate(180deg); color: var(--blue); }
+.fac-table tbody tr.fac-row-open td { background: var(--bg); }
+
+/* Acts breakdown row */
+.fac-acts-row td { background: var(--surface-alt) !important; padding: 0 !important; }
+.fac-acts-box { padding: 10px 14px 12px; }
+.fac-acts-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-bottom: 6px; }
+.fac-acts-table { width: 100%; border-collapse: collapse; }
+.fac-acts-table td { padding: 4px 8px; font-size: 12.5px; border-bottom: 1px dashed var(--border); }
+.fac-acts-table tr:last-child td { border-bottom: none; }
+.fac-acts-label { font-weight: 500; }
+.fac-acts-qty, .fac-acts-unit { color: var(--muted); width: 60px; }
+.fac-acts-sub { font-weight: 600; width: 90px; white-space: nowrap; }
+.fac-acts-total td { font-weight: 800; border-top: 1.5px solid var(--border); }
 
 .fac-inv-num {
   font-family: monospace; font-size: 12px; font-weight: 700;
