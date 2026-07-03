@@ -82,7 +82,7 @@ function BrandPanel() {
         <div className="auth-brand-logo-row">
           <BlackpineLogo size={52} radius={14} />
           <div>
-            <div className="auth-brand-name">Blackpine Cabinet</div>
+            <div className="auth-brand-name">Blackpine</div>
             <div className="auth-brand-tagline">{t("auth.appTagline")}</div>
           </div>
         </div>
@@ -235,7 +235,7 @@ export function AuthPage() {
           {/* Logo — visible on mobile only */}
           <div className="auth-logo auth-logo-mobile">
             <BlackpineLogo size={40} radius={10} />
-            <span className="auth-logo-text">Blackpine Cabinet</span>
+            <span className="auth-logo-text">Blackpine</span>
           </div>
 
           <h1 className="auth-title">{titles[mode]}</h1>

@@ -1690,7 +1690,7 @@ export function ParametresPage() {
               onClick={() => {
                 const calName = doctorProfile?.fullName
                   ? `Cabinet Dr. ${doctorProfile.fullName}`
-                  : "Blackpine Cabinet";
+                  : "Blackpine";
                 exportAgendaIcal(appointments, calName);
                 showToast(t("settings.exportedIcal"));
               }}

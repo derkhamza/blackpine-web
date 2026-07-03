@@ -16,7 +16,7 @@ export function BlackpineLogo({
       height={size}
       viewBox="0 0 72 72"
       role="img"
-      aria-label="Blackpine Cabinet"
+      aria-label="Blackpine"
       style={{ display: "block", flexShrink: 0, borderRadius: radius }}
     >
       <rect width="72" height="72" rx="16" fill="#0A4E7E" />
