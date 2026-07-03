@@ -1619,7 +1619,7 @@ export function AgendaPage() {
                       const monthAppts = appointments.filter(a => a.date.startsWith(monthPrefix));
                       const calName = doctorProfile?.fullName
                         ? `Cabinet Dr. ${doctorProfile.fullName}`
-                        : "Iyadaty";
+                        : "Blackpine Cabinet";
                       exportAgendaIcal(monthAppts, calName, `agenda-${monthPrefix}.ics`);
                       showToast(t("agenda.exportedN", { n: monthAppts.length }));
                       setMoreOpen(false);

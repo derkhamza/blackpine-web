@@ -41,7 +41,7 @@ interface AppCtx {
   user: AuthUser | null;
   isAuthenticated: boolean;
   login:  (email: string, pass: string) => Promise<void>;
-  signup: (email: string, pass: string) => Promise<void>;
+  signup: (email: string, pass: string, code: string) => Promise<void>;
   logout: () => void;
 
   // secretary session (restricted, separate-device login via secretary account)
@@ -199,9 +199,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const signup = useCallback(async (email: string, pass: string) => {
+  const signup = useCallback(async (email: string, pass: string, code: string) => {
     clearSecretarySession(); setSecretaryOwner(null);
-    const u = await apiSignup(email, pass);
+    const u = await apiSignup(email, pass, code);
     setUser(u); setIsAuth(true);
     // Brand-new account: nothing on the server to clobber, so allow pushes.
     hydratedRef.current = true;

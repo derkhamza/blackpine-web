@@ -1,11 +1,66 @@
 import { FormEvent, useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useApp } from "../context/AppContext";
-import { requestPasswordReset, verifyPasswordReset, warmup } from "../api/client";
+import { requestPasswordReset, verifyPasswordReset, sendSignupCode, warmup } from "../api/client";
 import { BlackpineLogo } from "../components/Logo";
 import { useTranslation } from "react-i18next";
 
-type AuthMode = "login" | "signup" | "forgot" | "reset-verify" | "secretary";
+type AuthMode = "login" | "signup" | "signup-verify" | "forgot" | "reset-verify" | "secretary";
+
+// ── Password field with show/hide toggle ────────────────────────────────────────
+
+const EyeIcon = (
+  <svg width="17" height="17" viewBox="0 0 20 20" fill="none">
+    <path d="M1.5 10S4.5 4 10 4s8.5 6 8.5 6-3 6-8.5 6-8.5-6-8.5-6Z" stroke="currentColor" strokeWidth="1.5"/>
+    <circle cx="10" cy="10" r="2.4" stroke="currentColor" strokeWidth="1.5"/>
+  </svg>
+);
+const EyeOffIcon = (
+  <svg width="17" height="17" viewBox="0 0 20 20" fill="none">
+    <path d="M2 10s3-6 8-6c1.4 0 2.6.4 3.7 1M18 10s-3 6-8 6c-1.4 0-2.6-.4-3.7-1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    <path d="M8 8.2A2.5 2.5 0 0 0 11.8 12M3 3l14 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+  </svg>
+);
+
+function PwInput({
+  id, value, onChange, autoComplete, minLength = 6, placeholder = "••••••••",
+}: {
+  id: string;
+  value: string;
+  onChange: (v: string) => void;
+  autoComplete: string;
+  minLength?: number;
+  placeholder?: string;
+}) {
+  const { t } = useTranslation();
+  const [show, setShow] = useState(false);
+  const label = show ? t("auth.hidePassword") : t("auth.showPassword");
+  return (
+    <div className="pw-field">
+      <input
+        id={id}
+        type={show ? "text" : "password"}
+        className="form-input"
+        placeholder={placeholder}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        required
+        autoComplete={autoComplete}
+        minLength={minLength}
+      />
+      <button
+        type="button"
+        className="pw-toggle"
+        onClick={() => setShow(s => !s)}
+        aria-label={label}
+        title={label}
+        tabIndex={-1}
+      >
+        {show ? EyeOffIcon : EyeIcon}
+      </button>
+    </div>
+  );
+}
 
 // ── Brand panel features ───────────────────────────────────────────────────────
 
@@ -27,7 +82,7 @@ function BrandPanel() {
         <div className="auth-brand-logo-row">
           <BlackpineLogo size={52} radius={14} />
           <div>
-            <div className="auth-brand-name">Iyadaty</div>
+            <div className="auth-brand-name">Blackpine Cabinet</div>
             <div className="auth-brand-tagline">{t("auth.appTagline")}</div>
           </div>
         </div>
@@ -116,7 +171,14 @@ export function AuthPage() {
         navigate("/");
 
       } else if (mode === "signup") {
-        await signup(email, password);
+        // Step 1 — send the email verification code, then ask for it.
+        await sendSignupCode(email.trim());
+        switchMode("signup-verify");
+        setSuccess(t("auth.signupCodeSent"));
+
+      } else if (mode === "signup-verify") {
+        // Step 2 — create the account with the verification code.
+        await signup(email.trim(), password, code.trim());
         navigate("/");
 
       } else if (mode === "secretary") {
@@ -147,6 +209,7 @@ export function AuthPage() {
   const titles: Record<AuthMode, string> = {
     login:            t("auth.loginTitle"),
     signup:           t("auth.signupTitle"),
+    "signup-verify":  t("auth.signupVerifyTitle"),
     forgot:           t("auth.forgotTitle"),
     "reset-verify":   t("auth.resetTitle"),
     secretary:        t("auth.secretaryTitle"),
@@ -154,6 +217,7 @@ export function AuthPage() {
   const subs: Record<AuthMode, string> = {
     login:            t("auth.loginSub"),
     signup:           t("auth.signupSub"),
+    "signup-verify":  t("auth.signupVerifySub", { email }),
     forgot:           t("auth.forgotSub"),
     "reset-verify":   t("auth.resetSub"),
     secretary:        t("auth.secretaryLoginSub"),
@@ -171,7 +235,7 @@ export function AuthPage() {
           {/* Logo — visible on mobile only */}
           <div className="auth-logo auth-logo-mobile">
             <BlackpineLogo size={40} radius={10} />
-            <span className="auth-logo-text">Iyadaty</span>
+            <span className="auth-logo-text">Blackpine Cabinet</span>
           </div>
 
           <h1 className="auth-title">{titles[mode]}</h1>
@@ -190,8 +254,8 @@ export function AuthPage() {
                   placeholder={t("auth.emailPlaceholder")}
                   value={email} onChange={e => setEmail(e.target.value)}
                   required autoComplete="email"
-                  readOnly={mode === "reset-verify"}
-                  style={mode === "reset-verify" ? { opacity: 0.6 } : undefined}
+                  readOnly={mode === "reset-verify" || mode === "signup-verify"}
+                  style={mode === "reset-verify" || mode === "signup-verify" ? { opacity: 0.6 } : undefined}
                 />
               </div>
             )}
@@ -213,19 +277,17 @@ export function AuthPage() {
             {(mode === "login" || mode === "signup" || mode === "secretary") && (
               <div className="form-group">
                 <label className="form-label" htmlFor="auth-password">{t("auth.passwordLabel")}</label>
-                <input
-                  id="auth-password" type="password" className="form-input"
-                  placeholder="••••••••"
-                  value={password} onChange={e => setPass(e.target.value)}
-                  required
+                <PwInput
+                  id="auth-password"
+                  value={password}
+                  onChange={setPass}
                   autoComplete={mode === "login" || mode === "secretary" ? "current-password" : "new-password"}
-                  minLength={6}
                 />
               </div>
             )}
 
-            {/* Reset code */}
-            {mode === "reset-verify" && (
+            {/* Verification code — signup & password reset */}
+            {(mode === "reset-verify" || mode === "signup-verify") && (
               <div className="form-group">
                 <label className="form-label" htmlFor="auth-code">{t("auth.codeLabel")}</label>
                 <input
@@ -242,20 +304,20 @@ export function AuthPage() {
               <>
                 <div className="form-group">
                   <label className="form-label" htmlFor="auth-newpass">{t("auth.newPassLabel")}</label>
-                  <input
-                    id="auth-newpass" type="password" className="form-input"
-                    placeholder="••••••••"
-                    value={newPass} onChange={e => setNewPass(e.target.value)}
-                    required minLength={6} autoComplete="new-password"
+                  <PwInput
+                    id="auth-newpass"
+                    value={newPass}
+                    onChange={setNewPass}
+                    autoComplete="new-password"
                   />
                 </div>
                 <div className="form-group">
                   <label className="form-label" htmlFor="auth-newpass2">{t("auth.confirmPassLabel")}</label>
-                  <input
-                    id="auth-newpass2" type="password" className="form-input"
-                    placeholder="••••••••"
-                    value={newPass2} onChange={e => setNewPass2(e.target.value)}
-                    required minLength={6} autoComplete="new-password"
+                  <PwInput
+                    id="auth-newpass2"
+                    value={newPass2}
+                    onChange={setNewPass2}
+                    autoComplete="new-password"
                   />
                 </div>
               </>
@@ -270,7 +332,8 @@ export function AuthPage() {
                 ? <><span className="auth-spinner" />{t("auth.loadingBtn")}</>
                 : {
                     login:            t("auth.loginBtn"),
-                    signup:           t("auth.signupBtn"),
+                    signup:           t("auth.signupContinueBtn"),
+                    "signup-verify":  t("auth.createAccountBtn"),
                     forgot:           t("auth.sendCodeBtn"),
                     "reset-verify":   t("auth.resetBtn"),
                     secretary:        t("auth.secretaryLoginBtn"),
@@ -301,7 +364,7 @@ export function AuthPage() {
             {mode === "secretary" && (
               <button className="auth-link" onClick={() => switchMode("login")}>{t("auth.backToLogin")}</button>
             )}
-            {(mode === "forgot" || mode === "reset-verify") && (
+            {(mode === "forgot" || mode === "reset-verify" || mode === "signup-verify") && (
               <button className="auth-link" onClick={() => switchMode("login")}>{t("auth.backToLogin")}</button>
             )}
           </div>
@@ -310,6 +373,13 @@ export function AuthPage() {
             <p className="auth-resend-hint">
               {t("auth.noCode")}{" "}
               <button className="auth-link" onClick={() => switchMode("forgot")}>{t("auth.resend")}</button>
+            </p>
+          )}
+
+          {mode === "signup-verify" && (
+            <p className="auth-resend-hint">
+              {t("auth.noCode")}{" "}
+              <button className="auth-link" onClick={() => switchMode("signup")}>{t("auth.resend")}</button>
             </p>
           )}
 

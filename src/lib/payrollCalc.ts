@@ -177,7 +177,7 @@ export function printBulletin(
           <path d="M4 11h6a4 4 0 0 1 0 8H4v-8Z" fill="white" fill-opacity="0.6"/>
         </svg>
       </div>
-      <div class="logo-txt">Iyadaty</div>
+      <div class="logo-txt">Blackpine Cabinet</div>
     </div>
   </div>
 
@@ -261,7 +261,7 @@ export function printBulletin(
   </div>
 
   <div class="footer">
-    Bulletin établi le ${new Date().toLocaleDateString("fr-FR")} · Généré par Iyadaty
+    Bulletin établi le ${new Date().toLocaleDateString("fr-FR")} · Généré par Blackpine Cabinet
   </div>
 
   <script>window.onload = function(){ window.print(); };<\/script>

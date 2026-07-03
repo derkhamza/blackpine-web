@@ -575,7 +575,7 @@ export function Layout({ title, subtitle, actions, children }: Props) {
         >
           <BlackpineLogo size={32} radius={8} />
           <div>
-            <div className="sidebar-logo-text">Iyadaty</div>
+            <div className="sidebar-logo-text">Blackpine Cabinet</div>
             <div className="sidebar-logo-sub">Cabinet</div>
           </div>
         </button>

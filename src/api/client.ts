@@ -133,8 +133,18 @@ export interface AuthUser { id: string; email: string; }
 
 // ── Auth ───────────────────────────────────────────────────────────────────
 
-export async function signup(email: string, password: string): Promise<AuthUser> {
-  const res  = await request("/auth/signup", { method: "POST", body: JSON.stringify({ email, password }) });
+// Step 1 of signup: send a 6-digit verification code to the email. Rejects (409)
+// if an account already exists for it.
+export async function sendSignupCode(email: string): Promise<void> {
+  const res  = await request("/verify/send-code", { method: "POST", body: JSON.stringify({ email }) });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "Envoi du code échoué");
+}
+
+// Step 2 of signup: create the account, passing the verification code the user
+// entered. The server verifies + consumes it before creating the user.
+export async function signup(email: string, password: string, code: string): Promise<AuthUser> {
+  const res  = await request("/auth/signup", { method: "POST", body: JSON.stringify({ email, password, code }) });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Inscription échouée");
   setToken(data.token);

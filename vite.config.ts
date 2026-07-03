@@ -25,8 +25,8 @@ export default defineConfig({
         ],
       },
       manifest: {
-        name: "Iyadaty",
-        short_name: "Iyadaty",
+        name: "Blackpine Cabinet",
+        short_name: "Blackpine",
         description: "Gestion de cabinet médical — agenda, patients, finances",
         theme_color: "#1E3A2F",
         background_color: "#F5F4EF",

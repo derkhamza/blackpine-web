@@ -6926,6 +6926,12 @@ a.ana-top-name:hover { color: var(--blue); text-decoration: underline; }
 .settings-danger-link:hover { background: var(--coral-soft, rgba(232,91,91,.1)); text-decoration: underline; }
 .auth-submit-btn { width: 100%; justify-content: center; padding: 12px 0; font-size: 14px; font-weight: 600; margin-top: 6px; }
 .auth-code-input { letter-spacing: 0.35em; font-size: 22px !important; text-align: center; font-weight: 700; }
+.pw-field { position: relative; }
+.pw-field .form-input { padding-right: 42px; }
+.pw-toggle { position: absolute; right: 5px; top: 50%; transform: translateY(-50%); display: flex; align-items: center; justify-content: center; background: none; border: none; padding: 7px; color: var(--muted); cursor: pointer; border-radius: 7px; transition: color var(--trans), background var(--trans); }
+.pw-toggle:hover { color: var(--text); background: var(--surface-alt); }
+[dir="rtl"] .pw-field .form-input { padding-right: 12px; padding-left: 42px; }
+[dir="rtl"] .pw-toggle { right: auto; left: 5px; }
 .auth-link { background: none; border: none; color: var(--blue); font-weight: 600; font-size: inherit; padding: 0; cursor: pointer; transition: opacity var(--trans); }
 .auth-link:hover { opacity: 0.75; text-decoration: underline; }
 .auth-switch-sep { margin: 0 8px; color: var(--border); }

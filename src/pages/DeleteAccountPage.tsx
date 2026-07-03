@@ -44,7 +44,7 @@ export function DeleteAccountPage() {
       <div className="delacc-card">
         <div className="delacc-logo">
           <BlackpineLogo size={40} radius={10} />
-          <span>Iyadaty</span>
+          <span>Blackpine Cabinet</span>
         </div>
 
         {done ? (
