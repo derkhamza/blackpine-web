@@ -149,9 +149,11 @@ function SpecialtyFieldInput({
       {labelEl}
       <input
         className="form-input sf-input"
-        type={field.type === "number" ? "text" : "text"}
+        type="text"
         inputMode={field.type === "number" ? "decimal" : "text"}
-        placeholder={field.placeholder}
+        /* Number fields: no example placeholder (it reads like a real value);
+           text fields keep their descriptive hint. */
+        placeholder={field.type === "number" ? undefined : field.placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onBlur={(e) => onBlur(e.target.value)}
@@ -355,8 +357,9 @@ export function AppointmentDetailPage() {
       lastName:  parts.slice(1).join(" "),
       phone:     appt.bookingPhone || undefined,
     });
+    const fullName = `${created.firstName} ${created.lastName ?? ""}`.trim();
     const orphans = findOrphanAppts(appointments, appt.patientName);
-    orphans.forEach(a => updateAppointment({ ...a, patientId: created.id }));
+    orphans.forEach(a => updateAppointment({ ...a, patientId: created.id, patientName: fullName || a.patientName }));
     toast(t("apptDetail.patientCreated", { count: orphans.length }), "success");
   };
 

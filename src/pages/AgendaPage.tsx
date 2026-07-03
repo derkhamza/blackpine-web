@@ -1135,8 +1135,12 @@ function TGSlotGrid({
           >
             <span className="tgrid-event-time">{appt.startTime}</span>
             <span className="tgrid-event-name">{appt.patientName}</span>
-            {!compact && appt.billedAt        && <span className="tgrid-badge green">✓</span>}
-            {!compact && appt.savedOrdonnance && <span className="tgrid-badge blue">℞</span>}
+            {(appt.billedAt || appt.savedOrdonnance) && (
+              <span className="tgrid-badges">
+                {appt.billedAt        && <span className="tgrid-badge green">✓</span>}
+                {appt.savedOrdonnance && <span className="tgrid-badge blue">℞</span>}
+              </span>
+            )}
           </div>
         );
       })}
@@ -1408,11 +1412,13 @@ export function AgendaPage() {
       const bodyRect  = body.getBoundingClientRect();
       const yTop      = ev.clientY - bodyRect.top - grabDy;
       const startTime = snapDragTime(yTop, gridStart, gridEnd, durMin);
-      const top       = tTop(startTime, gridStart);
       const height    = tHeight(startTime, addMinutes(startTime, durMin));
+      // Ghost follows the cursor (grab-point preserved) instead of snapping to
+      // the slot top, so the card stays under the pointer; the drop still snaps
+      // to `startTime`, which the ghost shows as its label.
       setTgDrag({
         appt, durMin,
-        preview: { iso, startTime, left: bodyRect.left + 2, top: bodyRect.top + top, width: bodyRect.width - 4, height },
+        preview: { iso, startTime, left: bodyRect.left + 2, top: ev.clientY - grabDy, width: bodyRect.width - 4, height },
       });
     };
     const up = () => {

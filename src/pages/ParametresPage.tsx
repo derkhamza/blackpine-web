@@ -57,8 +57,8 @@ const SECTION_ICONS: Record<string, { tone: string; node: React.ReactNode }> = {
     </svg>) },
   customDrugs: { tone: "#06B6D4", node: (
     <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
-      <rect x="2.6" y="7" width="12.8" height="4.9" rx="2.45" transform="rotate(-45 2.6 7)" stroke="currentColor" strokeWidth="1.5"/>
-      <path d="M7.7 5.2l3.9 3.9" stroke="currentColor" strokeWidth="1.5"/>
+      <rect x="3" y="6.5" width="12" height="5" rx="2.5" transform="rotate(45 9 9)" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M7.2 10.8 10.8 7.2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
     </svg>) },
   acteCodes: { tone: "#F59E0B", node: (
     <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>

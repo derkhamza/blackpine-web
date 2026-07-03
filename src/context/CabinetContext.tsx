@@ -455,6 +455,22 @@ export function CabinetProvider({
     (p: Patient) => {
       touchedRef.current.patients.add(p.id);
       setPatients(prev => prev.map(x => x.id === p.id ? p : x));
+      // Appointments store a denormalised patientName (used by the agenda,
+      // ordonnance and facture). Keep it in sync when the patient is renamed so
+      // the new name shows everywhere immediately, not just on the patient page.
+      const fullName = `${p.firstName} ${p.lastName ?? ""}`.trim();
+      setAppts(prev => {
+        let changed = false;
+        const next = prev.map(a => {
+          if (a.patientId === p.id && a.patientName !== fullName && fullName) {
+            changed = true;
+            touchedRef.current.appts.add(a.id);
+            return { ...a, patientName: fullName };
+          }
+          return a;
+        });
+        return changed ? next : prev;
+      });
     }, []);
   const deletePatient = useCallback(
     (id: string) => {

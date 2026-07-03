@@ -601,6 +601,7 @@ export function Layout({ title, subtitle, actions, children }: Props) {
       <div className="sidebar-nav">
         {(["Quotidien", "Clinique", "Gestion", "Finances", "Paramètres"] as const).map(group => {
           const items = navItems.filter(n => n.group === group);
+          if (items.length === 0) return null;  // don't render an empty group label (secretary view)
           const groupLabel = group === "Quotidien" ? t("navGroup.daily")
             : group === "Clinique"   ? t("navGroup.clinical")
             : group === "Gestion"    ? t("navGroup.management")
