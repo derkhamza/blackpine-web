@@ -367,6 +367,32 @@ export function CabinetProvider({
   // Secretary mode — session only (resets on page reload for security)
   const [secretaryMode, setSecretaryMode] = useState(false);
 
+  // Keep every LINKED appointment's denormalised patientName in lockstep with
+  // its patient record — no matter how the name changed: a rename, a merge, a
+  // .json import, a re-link, or a server pull that carried a stale name. This is
+  // the safety net behind updatePatient(); it guarantees the agenda, ordonnance
+  // and facture never show an out-of-date name for a linked patient. It is a
+  // no-op (returns the same array) once everything already matches, so it does
+  // not loop despite depending on `appointments`.
+  useEffect(() => {
+    if (patients.length === 0) return;
+    const nameById = new Map(patients.map(p => [p.id, `${p.firstName} ${p.lastName ?? ""}`.trim()]));
+    setAppts(prev => {
+      let changed = false;
+      const next = prev.map(a => {
+        if (!a.patientId) return a;
+        const name = nameById.get(a.patientId);
+        if (name && name !== a.patientName) {
+          changed = true;
+          touchedRef.current.appts.add(a.id);
+          return { ...a, patientName: name };
+        }
+        return a;
+      });
+      return changed ? next : prev;
+    });
+  }, [patients, appointments]);
+
   // Persist to localStorage on every change (namespaced by user)
   useEffect(() => { save(`${pfx}.appts`,     appointments);  }, [appointments, pfx]);
   useEffect(() => { save(`${pfx}.patients`,  patients);      }, [patients, pfx]);

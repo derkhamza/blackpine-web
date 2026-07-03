@@ -1019,7 +1019,7 @@ export function AppointmentDetailPage() {
       <div className="appt-tabs">
         {([
           { key: "notes",  label: t("apptDetail.clinicalNotes"), dot: hasNotes },
-          { key: "vitals", label: t("apptDetail.vitalSigns"),    dot: !!appt.vitalSigns },
+          { key: "vitals", label: t("apptDetail.measuresTab"),   dot: !!appt.vitalSigns || filledBilan.length > 0 },
           // The follow-up / AMO tab is financial — hidden from secretaries.
           ...(readOnly ? [] : [{ key: "suivi" as const, label: t("apptDetail.followup"), dot: !!appt.mutuellePapersFilled || !!appt.followUpDate }]),
         ] as const).map(({ key, label, dot }) => (
@@ -1157,111 +1157,35 @@ export function AppointmentDetailPage() {
             </div>
           </div>
 
-          {/* ── Specialty-specific fields + doctor/secretary bilans ─── */}
-          {(specialtyGroups.length > 0 || enabledBilans.length > 0 || !bilanReadOnly) && (
+          {/* Measurements at a glance — read-only. All entry/editing of vital
+              signs + bilan clinique lives in the dedicated "Mesures & bilan" tab. */}
+          {filledBilan.length > 0 && (
             <div className="specialty-fields-section">
               <div className="specialty-fields-title">
                 <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
                   <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.5"/>
                   <path d="M8 5v3.5l2 1.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
                 </svg>
-                {t("apptDetail.specialtyFields")}
-                {doctorProfile.specialtyLabel && (
-                  <span className="specialty-fields-badge">{doctorProfile.specialtyLabel}</span>
-                )}
-                {!bilanReadOnly && availableBilans.length > 0 && (
-                  <select
-                    className="form-select"
-                    style={{ marginLeft: "auto", fontSize: 12, padding: "3px 8px", maxWidth: 210 }}
-                    value=""
-                    onChange={(e) => addBilan(e.target.value)}
-                    title={t("apptDetail.addBilanTitle")}
-                  >
-                    <option value="">+ {t("apptDetail.addBilan")}</option>
-                    {availableBilans.map(b => (
-                      <option key={b.key} value={b.key}>{b.title}</option>
-                    ))}
-                  </select>
-                )}
-              </div>
-              {/* Compact results — what the secretary keyed in, read at a glance */}
-              {filledBilan.length > 0 && (
-                <div className="bilan-summary">
-                  {filledBilan.map(({ field }) => (
-                    <div key={field.key} className="bilan-summary-item">
-                      <span className="bilan-summary-label">{field.label}</span>
-                      <span className="bilan-summary-value">
-                        {extraFields[field.key]}{field.unit ? ` ${field.unit}` : ""}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Doctor toggles the input grid on demand; the secretary always sees it */}
-              {!bilanReadOnly && !readOnly && filledBilan.length > 0 && (
+                {t("apptDetail.measuresGlance")}
                 <button
                   type="button"
                   className="bilan-edit-toggle"
-                  onClick={() => setShowBilanEdit(v => !v)}
+                  style={{ marginLeft: "auto" }}
+                  onClick={() => setTab("vitals")}
                 >
-                  {showBilanInputs ? t("apptDetail.bilanHideInputs") : t("apptDetail.bilanEditInputs")}
+                  {t("apptDetail.openMeasuresTab")}
                 </button>
-              )}
-
-              {bilanReadOnly && filledBilan.length === 0 && (
-                <div className="bilan-empty-hint">{t("apptDetail.bilanNoMeasures")}</div>
-              )}
-
-              {showBilanInputs && <>
-              {specialtyGroups.map((group) => (
-                <div key={group.title} className="specialty-group">
-                  <div className="specialty-group-title">{group.title}</div>
-                  <div className="specialty-fields-grid">
-                    {group.fields.map((field: SpecialtyField) => (
-                      <SpecialtyFieldInput
-                        key={field.key}
-                        field={field}
-                        value={extraFields[field.key] ?? ""}
-                        onChange={(v) => setExtraField(field.key, v)}
-                        onBlur={(v) => saveExtraField(field.key, v)}
-                        readOnly={bilanReadOnly}
-                      />
-                    ))}
+              </div>
+              <div className="bilan-summary">
+                {filledBilan.map(({ field }) => (
+                  <div key={field.key} className="bilan-summary-item">
+                    <span className="bilan-summary-label">{field.label}</span>
+                    <span className="bilan-summary-value">
+                      {extraFields[field.key]}{field.unit ? ` ${field.unit}` : ""}
+                    </span>
                   </div>
-                </div>
-              ))}
-              {enabledBilans.map((group) => (
-                <div key={group.key} className="specialty-group">
-                  <div className="specialty-group-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    {group.title}
-                    {!bilanReadOnly && canRemoveBilan(group.key) && (
-                      <button
-                        type="button"
-                        className="appt-detail-unlink-btn"
-                        style={{ marginLeft: "auto" }}
-                        onClick={() => removeBilan(group.key)}
-                        title={t("apptDetail.removeBilan")}
-                      >
-                        {t("apptDetail.removeBilan")}
-                      </button>
-                    )}
-                  </div>
-                  <div className="specialty-fields-grid">
-                    {group.fields.map((field: SpecialtyField) => (
-                      <SpecialtyFieldInput
-                        key={field.key}
-                        field={field}
-                        value={extraFields[field.key] ?? ""}
-                        onChange={(v) => setExtraField(field.key, v)}
-                        onBlur={(v) => saveExtraField(field.key, v)}
-                        readOnly={bilanReadOnly}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))}
-              </>}
+                ))}
+              </div>
             </div>
           )}
 
@@ -1380,6 +1304,115 @@ export function AppointmentDetailPage() {
             <span className="vs-legend-item" style={{ color: "var(--coral)" }}>● {t("apptDetail.vsAbnormal")}</span>
             <span className="vs-legend-hint">{t("apptDetail.vsHint")}</span>
           </div>
+
+          {/* ── Bilan clinique / specialty measurements — entered here (usually by
+              the secretary), shown compactly in Notes cliniques for the doctor. ── */}
+          {(specialtyGroups.length > 0 || enabledBilans.length > 0 || !bilanReadOnly) && (
+            <div className="specialty-fields-section" style={{ marginTop: 18 }}>
+              <div className="specialty-fields-title">
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
+                  <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.5"/>
+                  <path d="M8 5v3.5l2 1.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                </svg>
+                {t("apptDetail.specialtyFields")}
+                {doctorProfile.specialtyLabel && (
+                  <span className="specialty-fields-badge">{doctorProfile.specialtyLabel}</span>
+                )}
+                {!bilanReadOnly && availableBilans.length > 0 && (
+                  <select
+                    className="form-select"
+                    style={{ marginLeft: "auto", fontSize: 12, padding: "3px 8px", maxWidth: 210 }}
+                    value=""
+                    onChange={(e) => addBilan(e.target.value)}
+                    title={t("apptDetail.addBilanTitle")}
+                  >
+                    <option value="">+ {t("apptDetail.addBilan")}</option>
+                    {availableBilans.map(b => (
+                      <option key={b.key} value={b.key}>{b.title}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
+              {/* Compact results — read at a glance */}
+              {filledBilan.length > 0 && (
+                <div className="bilan-summary">
+                  {filledBilan.map(({ field }) => (
+                    <div key={field.key} className="bilan-summary-item">
+                      <span className="bilan-summary-label">{field.label}</span>
+                      <span className="bilan-summary-value">
+                        {extraFields[field.key]}{field.unit ? ` ${field.unit}` : ""}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Doctor toggles the input grid on demand; the secretary always sees it */}
+              {!bilanReadOnly && !readOnly && filledBilan.length > 0 && (
+                <button
+                  type="button"
+                  className="bilan-edit-toggle"
+                  onClick={() => setShowBilanEdit(v => !v)}
+                >
+                  {showBilanInputs ? t("apptDetail.bilanHideInputs") : t("apptDetail.bilanEditInputs")}
+                </button>
+              )}
+
+              {bilanReadOnly && filledBilan.length === 0 && (
+                <div className="bilan-empty-hint">{t("apptDetail.bilanNoMeasures")}</div>
+              )}
+
+              {showBilanInputs && <>
+              {specialtyGroups.map((group) => (
+                <div key={group.title} className="specialty-group">
+                  <div className="specialty-group-title">{group.title}</div>
+                  <div className="specialty-fields-grid">
+                    {group.fields.map((field: SpecialtyField) => (
+                      <SpecialtyFieldInput
+                        key={field.key}
+                        field={field}
+                        value={extraFields[field.key] ?? ""}
+                        onChange={(v) => setExtraField(field.key, v)}
+                        onBlur={(v) => saveExtraField(field.key, v)}
+                        readOnly={bilanReadOnly}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+              {enabledBilans.map((group) => (
+                <div key={group.key} className="specialty-group">
+                  <div className="specialty-group-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    {group.title}
+                    {!bilanReadOnly && canRemoveBilan(group.key) && (
+                      <button
+                        type="button"
+                        className="appt-detail-unlink-btn"
+                        style={{ marginLeft: "auto" }}
+                        onClick={() => removeBilan(group.key)}
+                        title={t("apptDetail.removeBilan")}
+                      >
+                        {t("apptDetail.removeBilan")}
+                      </button>
+                    )}
+                  </div>
+                  <div className="specialty-fields-grid">
+                    {group.fields.map((field: SpecialtyField) => (
+                      <SpecialtyFieldInput
+                        key={field.key}
+                        field={field}
+                        value={extraFields[field.key] ?? ""}
+                        onChange={(v) => setExtraField(field.key, v)}
+                        onBlur={(v) => saveExtraField(field.key, v)}
+                        readOnly={bilanReadOnly}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+              </>}
+            </div>
+          )}
         </div>
       )}
 

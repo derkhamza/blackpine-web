@@ -12,6 +12,7 @@ import {
   TELE_STATUS_LABELS,
   MUTUELLES, MOROCCAN_CITIES,
 } from "../lib/cabinetTypes";
+import { getSpecialtyGroups, BILAN_CATALOG } from "../lib/specialtyFields";
 import { formatMAD, formatDateShort, todayIso } from "../lib/format";
 import { outstandingTotal } from "../lib/billing";
 import { printPatientReport } from "../lib/patientReportPrinter";
@@ -342,7 +343,45 @@ export function PatientDetailPage() {
       .sort((a, b) => a.label.localeCompare(b.label));
   }, [examResults, patientId]);
 
-  const hasTrends = hasVitals || labSeries.length > 0;
+  // ── Bilan clinique measurements: evolution of the numeric point-of-care
+  // measurements (glycémie capillaire, HbA1c, FE, etc.) entered per visit. ──────
+  const bilanFieldMeta = useMemo(() => {
+    const map = new Map<string, { label: string; unit?: string; type?: string }>();
+    const groups = [...getSpecialtyGroups(doctorProfile.specialtyLabel), ...BILAN_CATALOG];
+    for (const g of groups) for (const f of g.fields) map.set(f.key, { label: f.label, unit: f.unit, type: f.type });
+    return map;
+  }, [doctorProfile.specialtyLabel]);
+
+  const bilanSeries = useMemo(() => {
+    const byKey: Record<string, { label: string; unit: string; pts: TrendPoint[] }> = {};
+    const appts = [...patientAppts]
+      .filter((a) => a.consultationNote?.extraFields)
+      .sort((a, b) => a.date.localeCompare(b.date));
+    for (const a of appts) {
+      const ef = a.consultationNote!.extraFields!;
+      for (const [key, raw] of Object.entries(ef)) {
+        if (String(raw ?? "").trim() === "") continue;
+        const meta = bilanFieldMeta.get(key);
+        // Only chart numeric fields (skip text / select measurements).
+        if (meta && meta.type && meta.type !== "number") continue;
+        const num = parseFloat(String(raw).replace(",", ".").replace(/[^\d.\-]/g, ""));
+        if (!isFinite(num)) continue;
+        const s = byKey[key] ??= { label: meta?.label ?? key, unit: meta?.unit ?? "", pts: [] };
+        s.pts.push({ date: a.date, val: num, bad: false });
+      }
+    }
+    return Object.values(byKey)
+      .filter((s) => s.pts.length >= 2)
+      .map((s) => {
+        const vals = s.pts.map((p) => p.val);
+        const lo = Math.min(...vals), hi = Math.max(...vals);
+        const pad = ((hi - lo) || Math.abs(hi) || 1) * 0.15;
+        return { ...s, yMin: lo - pad, yMax: hi + pad };
+      })
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [patientAppts, bilanFieldMeta]);
+
+  const hasTrends = hasVitals || labSeries.length > 0 || bilanSeries.length > 0;
 
   // ── Unified timeline ──────────────────────────────────────────────────────
   const EXAM_ICONS: Record<string, string> = { biologie: "🔬", imagerie: "🩻", ecg: "💗", autre: "📋" };
@@ -1015,6 +1054,26 @@ export function PatientDetailPage() {
                         points={s.pts} unit={s.unit} label={s.label}
                         yMin={s.yMin} yMax={s.yMax}
                         dangerHigh={s.refMax} dangerLow={s.refMin}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {bilanSeries.length > 0 && (
+                <>
+                  <div className="appt-section-header" style={{ marginTop: (hasVitals || labSeries.length > 0) ? 22 : 0 }}>
+                    <div className="appt-section-title">{t("patientDetail.bilanTrendsTitle")}</div>
+                    <span style={{ fontSize: 11, color: "var(--tertiary)" }}>
+                      {t("patientDetail.labsMeasures", { n: bilanSeries.length, s: bilanSeries.length !== 1 ? "s" : "" })}
+                    </span>
+                  </div>
+                  <div className="vitals-charts-grid">
+                    {bilanSeries.map((s) => (
+                      <TrendChart
+                        key={s.label}
+                        points={s.pts} unit={s.unit} label={s.label}
+                        yMin={s.yMin} yMax={s.yMax}
                       />
                     ))}
                   </div>

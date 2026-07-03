@@ -2802,15 +2802,22 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
 /* Data summary */
 .settings-data-summary {
-  display: flex; gap: 0; padding: 16px 20px; border-bottom: 1px solid var(--border);
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px 0;
+  padding: 16px 20px; border-bottom: 1px solid var(--border);
 }
 .settings-data-stat {
-  flex: 1; text-align: center; padding: 0 12px;
+  text-align: center; padding: 0 10px; min-width: 0;
   border-right: 1px solid var(--border);
 }
-.settings-data-stat:last-child { border-right: none; }
+/* No divider on the last column of each row (4-up grid). */
+.settings-data-stat:nth-child(4n) { border-right: none; }
 .settings-data-val { font-size: 22px; font-weight: 800; color: var(--text); }
-.settings-data-lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; font-weight: 600; margin-top: 2px; }
+.settings-data-lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; font-weight: 600; margin-top: 2px; overflow-wrap: anywhere; }
+@media (max-width: 560px) {
+  .settings-data-summary { grid-template-columns: repeat(2, 1fr); }
+  .settings-data-stat { border-right: none; }
+  .settings-data-stat:nth-child(2n) { border-right: none; }
+}
 
 /* Import preview */
 .settings-import-preview {
