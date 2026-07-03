@@ -63,7 +63,10 @@ export function clearSecretarySession() {
 // and gateway statuses (502/503/504) — never on 4xx (real errors like a wrong
 // password) so genuine failures still surface immediately.
 
-const MAX_RETRIES = 2;
+// 3 retries (4 attempts): a serverless cold start can time out or 500 twice in
+// a row while the lambda + DB warm up — the extra attempt keeps the secretary
+// login (and first sync) from failing where a click-again would have worked.
+const MAX_RETRIES = 3;
 // 500 included: a Vercel cold start that errors during DB init returns 500
 // (FUNCTION_INVOCATION_FAILED); the retry hits a now-warm instance. All our
 // endpoints are idempotent (credential checks + snapshot-replace sync), so

@@ -7504,6 +7504,28 @@ a.ana-top-name:hover { color: var(--blue); text-decoration: underline; }
   border-top: 1.5px solid var(--border);
   padding-top: 16px;
 }
+/* Compact bilan results — what the secretary entered, read at a glance */
+.bilan-summary {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  margin: 10px 0 6px;
+}
+.bilan-summary-item {
+  display: inline-flex; align-items: baseline; gap: 6px;
+  padding: 5px 11px; border-radius: 999px;
+  background: var(--blue-soft, rgba(24,144,197,.10));
+  border: 1px solid var(--border);
+  font-size: 12.5px; line-height: 1.2;
+}
+.bilan-summary-label { color: var(--muted); }
+.bilan-summary-value { font-weight: 700; color: var(--text); }
+.bilan-edit-toggle {
+  margin: 4px 0 2px; padding: 3px 10px;
+  background: none; border: 1px dashed var(--border); border-radius: 7px;
+  color: var(--blue); font-size: 12px; cursor: pointer;
+  transition: background var(--trans), border-color var(--trans);
+}
+.bilan-edit-toggle:hover { background: var(--surface-alt); border-color: var(--blue); }
+.bilan-empty-hint { margin: 8px 0 2px; font-size: 12.5px; color: var(--muted); font-style: italic; }
 .specialty-fields-title {
   display: flex;
   align-items: center;

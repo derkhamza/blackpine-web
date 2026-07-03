@@ -460,6 +460,10 @@ export function AppointmentDetailPage() {
   // ── Consultation timer ────────────────────────────────────────────────────
   const [timerRunning, setTimerRunning]   = useState(false);
   const [timerSeconds, setTimerSeconds]   = useState(0);
+  // Bilan measurements are usually keyed in by the secretary; the doctor mostly
+  // reads them. So the doctor sees a compact results summary and only reveals
+  // the input grid on demand. (The secretary/data-enterer always sees inputs.)
+  const [showBilanEdit, setShowBilanEdit] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   useEffect(() => {
     if (timerRunning) {
@@ -815,6 +819,18 @@ export function AppointmentDetailPage() {
     .filter(t => !hiddenTypes.includes(t) || t === appt.type);
 
   const specialtyGroups = getSpecialtyGroups(doctorProfile.specialtyLabel);
+
+  // Flatten every bilan/specialty field, then keep only the ones that hold a
+  // value — this is the compact "results" list the doctor reads at a glance.
+  const bilanFieldList = [...specialtyGroups, ...enabledBilans].flatMap(g =>
+    g.fields.map(f => ({ field: f, groupTitle: g.title })),
+  );
+  const filledBilan = bilanFieldList.filter(x => (extraFields[x.field.key] ?? "").trim() !== "");
+  // Who keys the measurements in: a secretary (the data-enterer) always gets the
+  // input grid; the doctor gets the compact results and an explicit "edit" toggle
+  // — unless nothing has been entered yet, in which case show the inputs so the
+  // measurements can be captured directly.
+  const showBilanInputs = !bilanReadOnly && (readOnly || showBilanEdit || filledBilan.length === 0);
 
   return (
     <Layout
@@ -1177,6 +1193,36 @@ export function AppointmentDetailPage() {
                   </select>
                 )}
               </div>
+              {/* Compact results — what the secretary keyed in, read at a glance */}
+              {filledBilan.length > 0 && (
+                <div className="bilan-summary">
+                  {filledBilan.map(({ field }) => (
+                    <div key={field.key} className="bilan-summary-item">
+                      <span className="bilan-summary-label">{field.label}</span>
+                      <span className="bilan-summary-value">
+                        {extraFields[field.key]}{field.unit ? ` ${field.unit}` : ""}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Doctor toggles the input grid on demand; the secretary always sees it */}
+              {!bilanReadOnly && !readOnly && filledBilan.length > 0 && (
+                <button
+                  type="button"
+                  className="bilan-edit-toggle"
+                  onClick={() => setShowBilanEdit(v => !v)}
+                >
+                  {showBilanInputs ? t("apptDetail.bilanHideInputs") : t("apptDetail.bilanEditInputs")}
+                </button>
+              )}
+
+              {bilanReadOnly && filledBilan.length === 0 && (
+                <div className="bilan-empty-hint">{t("apptDetail.bilanNoMeasures")}</div>
+              )}
+
+              {showBilanInputs && <>
               {specialtyGroups.map((group) => (
                 <div key={group.title} className="specialty-group">
                   <div className="specialty-group-title">{group.title}</div>
@@ -1224,6 +1270,7 @@ export function AppointmentDetailPage() {
                   </div>
                 </div>
               ))}
+              </>}
             </div>
           )}
 
