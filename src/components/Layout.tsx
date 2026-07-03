@@ -540,6 +540,7 @@ export function Layout({ title, subtitle, actions, children }: Props) {
     { to: "/comptabilite",  label: t("nav.accounting"),   icon: "comptabilite", group: "Finances" },
     { to: "/salaires",      label: t("nav.payroll"),      icon: "payroll",      group: "Finances" },
     // ── Paramètres ────────────────────────────────────────────────────────
+    { to: "/profil",        label: t("nav.profile"),      icon: "profile",      group: "Paramètres" },
     { to: "/parametres",    label: t("nav.settings"),     icon: "parametres",   group: "Paramètres" },
     ...(isAdmin ? [{ to: "/admin", label: t("nav.admin"), icon: "analytiques", group: "Paramètres" }] : []),
   ];

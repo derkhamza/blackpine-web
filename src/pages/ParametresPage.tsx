@@ -4,7 +4,6 @@ import { Layout } from "../components/Layout";
 import { useToast } from "../components/Toast";
 import { useCabinet } from "../context/CabinetContext";
 import { useApp } from "../context/AppContext";
-import { ProfilePage } from "./ProfilePage";
 import { useDarkMode } from "../lib/useDarkMode";
 import { exportPatientsCsv, exportAppointmentsCsv } from "../lib/csvExport";
 import { exportAgendaIcal } from "../lib/icalExport";
@@ -1033,9 +1032,6 @@ export function ParametresPage() {
   // backup alerts) lands on the Settings tab with the Backup section open.
   const [searchParams] = useSearchParams();
   const focusSection = searchParams.get("section");
-  const [settingsTab, setSettingsTab] = useState<"profil" | "parametres">(
-    focusSection ? "parametres" : "profil",
-  );
   useEffect(() => {
     if (!focusSection) return;
     const el = document.getElementById(`settings-${focusSection}`);
@@ -1253,25 +1249,7 @@ export function ParametresPage() {
 
   return (
     <Layout title={t("settings.title")} subtitle={t("settings.subtitle")}>
-      {/* ── Tab bar ── */}
-      <div className="tab-bar" style={{ marginBottom: 20 }}>
-        <button
-          className={`tab-btn${settingsTab === "profil" ? " active" : ""}`}
-          onClick={() => setSettingsTab("profil")}
-        >
-          {t("settings.profile")}
-        </button>
-        <button
-          className={`tab-btn${settingsTab === "parametres" ? " active" : ""}`}
-          onClick={() => setSettingsTab("parametres")}
-        >
-          {t("settings.params")}
-        </button>
-      </div>
-
-      {settingsTab === "profil" && <ProfilePage noLayout />}
-
-      {settingsTab === "parametres" && <div className="settings-page">
+      <div className="settings-page">
 
         {/* ── Sécurité & confidentialité ── */}
         <Section icon="security" title={t("settings.securityTitle")} subtitle={t("settings.securitySub")} defaultOpen>
@@ -1911,7 +1889,7 @@ export function ParametresPage() {
             {t("settings.deleteAccountLink")}
           </Link>
         </div>
-      </div>}
+      </div>
 
       {/* ── Confirm clear modal ── */}
       {confirmClear && (

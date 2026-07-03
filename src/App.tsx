@@ -128,7 +128,6 @@ export function App() {
       <Route path="/messages"     element={<Navigate to="/communication" replace />} />
       <Route path="/teleconsult"  element={<Navigate to="/communication" replace />} />
       <Route path="/fournisseurs" element={<Navigate to="/stocks" replace />} />
-      <Route path="/profil"       element={<Navigate to="/parametres" replace />} />
       <Route path="/activite" element={<Navigate to="/analytiques" replace />} />
       <Route path="/agenda" element={
         <RequireAuth secretaryOk><AgendaPage /></RequireAuth>
