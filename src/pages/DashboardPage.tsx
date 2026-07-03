@@ -8,6 +8,8 @@ import { AnimatedNumber } from "../components/AnimatedNumber";
 import { NOTE_COLOR_VALUES } from "../lib/cabinetTypes";
 import { useTranslation } from "react-i18next";
 
+const DISMISSED_KEY = "bp.dashDismissedAlerts";
+
 // ── Alert item ────────────────────────────────────────────────────────────────
 
 interface Alert {
@@ -17,9 +19,15 @@ interface Alert {
   text:    string;
   subtext?: string;
   route:   string;
+  // How "bad" the alert currently is (item count, MB, days…). A dismissed alert
+  // stays hidden until its weight rises above the value it had when dismissed,
+  // so acknowledging it silences it but a worsening situation resurfaces it.
+  weight?: number;
 }
 
-function AlertPill({ alert, navigate }: { alert: Alert; navigate: (r: string) => void }) {
+function AlertPill({ alert, navigate, onDismiss, dismissLabel }: {
+  alert: Alert; navigate: (r: string) => void; onDismiss: (a: Alert) => void; dismissLabel: string;
+}) {
   const colors = {
     critical: { bg: "var(--coral-soft)", border: "var(--coral)", text: "var(--coral)" },
     warning:  { bg: "var(--gold-soft)",  border: "var(--gold)",  text: "#9a6e00" },
@@ -39,6 +47,17 @@ function AlertPill({ alert, navigate }: { alert: Alert; navigate: (r: string) =>
       <svg width="10" height="10" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0, opacity: .6 }}>
         <path d="M4.5 3l3 3-3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
       </svg>
+      <button
+        type="button"
+        className="dash-alert-dismiss"
+        title={dismissLabel}
+        aria-label={dismissLabel}
+        onClick={e => { e.stopPropagation(); onDismiss(alert); }}
+      >
+        <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+          <path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+        </svg>
+      </button>
     </div>
   );
 }
@@ -79,6 +98,20 @@ export function DashboardPage() {
 
   const [alertsCollapsed, setAlertsCollapsed] = useState(false);
   const [financeOpen,     setFinanceOpen]     = useState(false);
+
+  // Dismissed alerts: id → weight at time of dismissal. An alert reappears only
+  // if its current weight exceeds that value (i.e. the situation got worse), so
+  // acknowledging a nudge silences it without hiding a genuine escalation.
+  const [dismissed, setDismissed] = useState<Record<string, number>>(() => {
+    try { return JSON.parse(localStorage.getItem(DISMISSED_KEY) ?? "{}"); } catch { return {}; }
+  });
+  const dismissAlert = (a: Alert) => {
+    setDismissed(prev => {
+      const next = { ...prev, [a.id]: a.weight ?? 1 };
+      try { localStorage.setItem(DISMISSED_KEY, JSON.stringify(next)); } catch { /* quota */ }
+      return next;
+    });
+  };
 
   // ── Today's agenda ─────────────────────────────────────────────────────────
   const todayAppts = useMemo(() =>
@@ -148,7 +181,7 @@ export function DashboardPage() {
         icon: <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M2 5l5-3 5 3v4l-5 3-5-3V5Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/></svg>,
         text: t("dashboard.outOfStock", { n: outOfStock.length, s: outOfStock.length > 1 ? "s" : "" }),
         subtext: outOfStock.slice(0, 3).map(s => s.name).join(", "),
-        route: "/stocks",
+        route: "/stocks", weight: outOfStock.length,
       });
     } else if (lowStock.length > 0) {
       list.push({
@@ -156,7 +189,7 @@ export function DashboardPage() {
         icon: <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M2 5l5-3 5 3v4l-5 3-5-3V5Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/></svg>,
         text: t("dashboard.lowStock", { n: lowStock.length, s: lowStock.length > 1 ? "s" : "" }),
         subtext: lowStock.slice(0, 3).map(s => s.name).join(", "),
-        route: "/stocks",
+        route: "/stocks", weight: lowStock.length,
       });
     }
 
@@ -171,7 +204,7 @@ export function DashboardPage() {
         icon: <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><rect x="1" y="2" width="12" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.3"/><path d="M4 6h6M4 8.5h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>,
         text: t("dashboard.overdueOrders", { n: overduePO.length, s: overduePO.length > 1 ? "s" : "" }),
         subtext: overduePO.slice(0, 2).map(o => o.supplierName ?? "Fournisseur").join(", "),
-        route: "/fournisseurs",
+        route: "/fournisseurs", weight: overduePO.length,
       });
     }
 
@@ -196,7 +229,7 @@ export function DashboardPage() {
         icon: <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><circle cx="6.5" cy="7" r="4.5" stroke="currentColor" strokeWidth="1.3"/><path d="M10 3.5l3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>,
         text: t("dashboard.abnExams", { n: abnExams.length, s: abnExams.length > 1 ? "s" : "" }),
         subtext: abnExams.slice(0, 2).map(e => e.patientName + " – " + e.title).join(" | "),
-        route: "/examens",
+        route: "/examens", weight: abnExams.length,
       });
     }
 
@@ -210,7 +243,7 @@ export function DashboardPage() {
         icon: <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><rect x="1" y="2" width="12" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.3"/><path d="M4 6h6M4 8.5h4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>,
         text: t("dashboard.overdueTasks", { n: overdueTasks.length, s: overdueTasks.length > 1 ? "s" : "" }),
         subtext: overdueTasks.slice(0, 2).map(n => n.title).join(", "),
-        route: "/notes",
+        route: "/notes", weight: overdueTasks.length,
       });
     }
 
@@ -223,7 +256,7 @@ export function DashboardPage() {
         id: "unbilled", level: "info",
         icon: <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M3 2h6l3 3v7a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/><path d="M9 2v3h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/><path d="M5 8h4M5 10h2.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>,
         text: t("dashboard.unbilledToday", { n: unbilledToday.length, s: unbilledToday.length > 1 ? "s" : "" }),
-        route: "/factures",
+        route: "/factures", weight: unbilledToday.length,
       });
     }
 
@@ -235,7 +268,7 @@ export function DashboardPage() {
         icon: <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><rect x="1" y="2" width="12" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.3"/><path d="M4 1v2M10 1v2M1 6h12" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/><path d="M7 8.5v2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="7" cy="7.5" r=".5" fill="currentColor"/></svg>,
         text: t("dashboard.overdueFollowUps", { n: overdueFollowUps.length, s: overdueFollowUps.length > 1 ? "s" : "" }),
         subtext: overdueFollowUps.slice(0, 2).map(a => a.patientName).join(", "),
-        route: "/rappels",
+        route: "/rappels", weight: overdueFollowUps.length,
       });
     }
 
@@ -249,11 +282,13 @@ export function DashboardPage() {
         icon: <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.3"/><path d="M1.5 7h11M7 1.5c1.6 1.5 1.6 9.5 0 11M7 1.5c-1.6 1.5-1.6 9.5 0 11" stroke="currentColor" strokeWidth="1.1"/></svg>,
         text: t("dashboard.onlineBookings", { n: onlineBookings.length, s: onlineBookings.length > 1 ? "s" : "" }),
         subtext: onlineBookings.slice(0, 2).map(a => `${a.patientName} · ${a.date.slice(5).replace("-", "/")}`).join(" | "),
-        route: "/agenda",
+        route: "/agenda", weight: onlineBookings.length,
       });
     }
 
-    // Storage health
+    // Storage health — this browser's local storage nears its ~10 MB cap
+    // (mostly attachments). Weight = MB so a growing footprint resurfaces a
+    // dismissed alert; the wording explains the concept in plain language.
     const storageBytes = estimateStorageBytes();
     const storageMB = storageBytes / (1024 * 1024);
     if (storageMB > 7) {
@@ -261,16 +296,16 @@ export function DashboardPage() {
         id: "storage-critical", level: "critical",
         icon: <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><rect x="1" y="3" width="12" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.3"/><path d="M4 7h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>,
         text: t("dashboard.storageCritical", { mb: storageMB.toFixed(1) }),
-        subtext: t("dashboard.storageExportNow"),
-        route: "/parametres",
+        subtext: t("dashboard.storageExplain"),
+        route: "/parametres", weight: Math.round(storageMB),
       });
     } else if (storageMB > 4) {
       list.push({
         id: "storage-warn", level: "warning",
         icon: <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><rect x="1" y="3" width="12" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.3"/><path d="M4 7h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>,
         text: t("dashboard.storageWarn", { mb: storageMB.toFixed(1) }),
-        subtext: t("dashboard.storageExportHint"),
-        route: "/parametres",
+        subtext: t("dashboard.storageExplain"),
+        route: "/parametres", weight: Math.round(storageMB),
       });
     }
 
@@ -282,7 +317,7 @@ export function DashboardPage() {
           id: "backup-remind", level: "info",
           icon: <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M2 7a5 5 0 1 0 5-5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/><path d="M7 2V5l2 1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/></svg>,
           text: t("dashboard.backupRemind", { n: daysSince }),
-          route: "/parametres",
+          route: "/parametres", weight: daysSince,
         });
       }
     } else if (patients.length > 5) {
@@ -297,7 +332,12 @@ export function DashboardPage() {
     return list;
   }, [stockItems, purchaseOrders, examResults, notes, appointments, patients, lastBackupAt, today]);
 
-  const criticalAlerts = alerts.filter(a => a.level === "critical");
+  // Hide alerts that were dismissed and haven't worsened since.
+  const visibleAlerts = alerts.filter(a => {
+    const d = dismissed[a.id];
+    return d === undefined || (a.weight ?? 1) > d;
+  });
+  const criticalAlerts = visibleAlerts.filter(a => a.level === "critical");
 
   // ── Finance snapshot (compact) ────────────────────────────────────────────
   const yearTx = useMemo(
@@ -445,7 +485,7 @@ export function DashboardPage() {
       {/* ══════════════════════════════════════════════════
           ALERTS
       ══════════════════════════════════════════════════ */}
-      {alerts.length > 0 && (
+      {visibleAlerts.length > 0 && (
         <div className="dash-alerts-section">
           <div
             className="dash-alerts-header"
@@ -456,7 +496,7 @@ export function DashboardPage() {
                 <span className="dash-alerts-critical-dot" />
               )}
               {t("dashboard.alerts")}
-              <span className="dash-alerts-count">{alerts.length}</span>
+              <span className="dash-alerts-count">{visibleAlerts.length}</span>
             </div>
             <button className="dash-alerts-toggle">
               {alertsCollapsed
@@ -467,8 +507,8 @@ export function DashboardPage() {
           </div>
           {!alertsCollapsed && (
             <div className="dash-alerts-list">
-              {alerts.map(a => (
-                <AlertPill key={a.id} alert={a} navigate={navigate} />
+              {visibleAlerts.map(a => (
+                <AlertPill key={a.id} alert={a} navigate={navigate} onDismiss={dismissAlert} dismissLabel={t("dashboard.dismissAlert")} />
               ))}
             </div>
           )}
