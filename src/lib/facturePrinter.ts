@@ -2,7 +2,7 @@ import type { CabinetDoctorProfile, BillingLine } from "./cabinetTypes";
 import { DEFAULT_DOCUMENT_SETTINGS } from "./cabinetTypes";
 import { amountInWords } from "./receiptPrinter";
 import {
-  FACTURE_DEFAULT_MARGINS, resolveMargins, pageRule,
+  FACTURE_DEFAULT_MARGINS, resolveMargins, pageRule, resolvePageSize, backgroundHtml,
   blockStyle, blockHidden, logoHtml,
 } from "./docDesign";
 
@@ -88,7 +88,7 @@ export function printFacture(opts: FactureOptions): void {
   <meta charset="UTF-8"/>
   <title>Facture ${esc(invoiceNumber)}</title>
   <style>
-    ${pageRule("A4 portrait", margins)}
+    ${pageRule(resolvePageSize(design, "A4").css, margins)}
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: Arial, sans-serif; font-size: 10.5pt; color: #111; line-height: 1.5; position: relative; }
 
@@ -170,6 +170,7 @@ export function printFacture(opts: FactureOptions): void {
 </head>
 <body>
 
+  ${backgroundHtml(design)}
   ${logoHtml(design, margins)}
   <!-- Top band -->
   <div class="top-band">

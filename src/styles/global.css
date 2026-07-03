@@ -3412,6 +3412,13 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   overflow: hidden;
 }
 [data-theme="dark"] .pd-page { background: #f4f6f9; }
+/* Letterhead reference behind the blocks, dimmed so guides stay readable */
+.pd-bg {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: fill; opacity: 0.5; pointer-events: none; border-radius: 4px;
+}
+.pd-paper-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.pd-bg-print { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); cursor: pointer; }
 .pd-margins {
   position: absolute;
   border: 1px dashed #b9cee0;

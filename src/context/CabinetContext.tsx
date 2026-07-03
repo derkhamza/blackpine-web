@@ -626,6 +626,20 @@ export function CabinetProvider({
     };
   }, [userId, secretarySession, pullFromServer]);
 
+  // Poll while the tab is visible so a change made on one side (doctor or
+  // secretary) shows up on the other within ~12s without needing to refocus —
+  // near-real-time two-way sync. Skipped when there are unsynced local edits
+  // (dirtyRef) so a pull can never clobber work in progress.
+  useEffect(() => {
+    if (!userId && !secretarySession) return;
+    const id = setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      if (!hydrated.current || dirtyRef.current) return;
+      pullFromServer();
+    }, 12000);
+    return () => clearInterval(id);
+  }, [userId, secretarySession, pullFromServer]);
+
   // Debounced push — fires 3s after the last mutation while a session is active
   useEffect(() => {
     if (!secretarySession && (!userId || !getToken())) return;

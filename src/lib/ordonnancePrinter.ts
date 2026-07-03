@@ -1,7 +1,7 @@
 import type { OrdonnanceLine, CabinetDoctorProfile } from "./cabinetTypes";
 import { DEFAULT_DOCUMENT_SETTINGS } from "./cabinetTypes";
 import {
-  ORDONNANCE_DEFAULT_MARGINS, resolveMargins, pageRule,
+  ORDONNANCE_DEFAULT_MARGINS, resolveMargins, pageRule, resolvePageSize, backgroundHtml,
   blockStyle, blockHidden, logoHtml,
 } from "./docDesign";
 
@@ -492,7 +492,7 @@ export function printOrdonnance(opts: {
   <meta charset="UTF-8"/>
   <title>Ordonnance — ${patientName}</title>
   <style>
-    ${pageRule("A5 portrait", margins)}
+    ${pageRule(resolvePageSize(design, "A5").css, margins)}
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: "Times New Roman", Times, serif; font-size: 11pt; color: #111; background: #fff; position: relative; }
 
@@ -538,6 +538,7 @@ export function printOrdonnance(opts: {
   </style>
 </head>
 <body>
+  ${backgroundHtml(design)}
   ${logoHtml(design, margins)}
   <div class="header" style="${letterhead ? "border:none;padding-top:28mm;" : ""}${compact ? "padding-bottom:6px;margin-bottom:7px;" : ""}${blockHidden(design, "header") && blockHidden(design, "date") ? "display:none;" : ""}">
     ${letterhead || blockHidden(design, "header") ? `<div></div>` : `<div style="${bs("header")}">

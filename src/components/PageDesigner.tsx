@@ -1,9 +1,9 @@
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { DocumentSettings, PageDesign, DocBlockDesign } from "../lib/cabinetTypes";
+import type { DocumentSettings, PageDesign, DocBlockDesign, PaperSize } from "../lib/cabinetTypes";
 import {
   ORDONNANCE_DEFAULT_MARGINS, FACTURE_DEFAULT_MARGINS,
-  ORDONNANCE_BLOCKS, FACTURE_BLOCKS, resolveMargins,
+  ORDONNANCE_BLOCKS, FACTURE_BLOCKS, resolveMargins, resolvePageSize,
 } from "../lib/docDesign";
 
 // ── Visual page designer for pre-printed paper ────────────────────────────────
@@ -16,10 +16,8 @@ import {
 
 type DocKind = "ordonnance" | "facture";
 
-const PAGE_MM: Record<DocKind, { w: number; h: number }> = {
-  ordonnance: { w: 148, h: 210 },   // A5 portrait
-  facture:    { w: 210, h: 297 },   // A4 portrait
-};
+const DEFAULT_SIZE: Record<DocKind, PaperSize> = { ordonnance: "A5", facture: "A4" };
+const PAPER_OPTS: PaperSize[] = ["A5", "A4", "Letter"];
 
 // Natural (flow) positions used only to draw un-pinned blocks on the preview.
 const FLOW_Y: Record<DocKind, Record<string, { y: number; h: number }>> = {
@@ -45,20 +43,25 @@ const FLOW_Y: Record<DocKind, Record<string, { y: number; h: number }>> = {
 const RIGHT_BLOCKS = new Set(["date", "invoice", "signature"]);
 
 const MAX_LOGO_PX = 320;       // logo is resized before storing (synced field)
+const MAX_BG_PX   = 1240;      // full-page background — larger, JPEG to stay small
 
-function resizeImageToDataUrl(file: File, cb: (dataUrl: string | null) => void) {
+function resizeImageToDataUrl(
+  file: File, cb: (dataUrl: string | null) => void,
+  maxPx = MAX_LOGO_PX, mime: "image/png" | "image/jpeg" = "image/png",
+) {
   const reader = new FileReader();
   reader.onload = () => {
     const img = new Image();
     img.onload = () => {
-      const scale = Math.min(1, MAX_LOGO_PX / img.width);
+      const scale = Math.min(1, maxPx / img.width);
       const canvas = document.createElement("canvas");
       canvas.width = Math.round(img.width * scale);
       canvas.height = Math.round(img.height * scale);
       const ctx = canvas.getContext("2d");
       if (!ctx) { cb(null); return; }
+      if (mime === "image/jpeg") { ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height); }
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      cb(canvas.toDataURL("image/png"));
+      cb(canvas.toDataURL(mime, mime === "image/jpeg" ? 0.85 : undefined));
     };
     img.onerror = () => cb(null);
     img.src = reader.result as string;
@@ -78,6 +81,7 @@ export function PageDesigner({
   const [selected, setSelected] = useState<string | null>(null);
   const pageRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const bgFileRef = useRef<HTMLInputElement>(null);
   const dragRef = useRef<{ key: string; startX: number; startY: number; origX: number; origY: number } | null>(null);
 
   const designKey = kind === "ordonnance" ? "ordonnanceDesign" : "factureDesign";
@@ -85,7 +89,7 @@ export function PageDesigner({
   const defaults = kind === "ordonnance" ? ORDONNANCE_DEFAULT_MARGINS : FACTURE_DEFAULT_MARGINS;
   const margins = resolveMargins(design, defaults);
   const blocks = kind === "ordonnance" ? ORDONNANCE_BLOCKS : FACTURE_BLOCKS;
-  const page = PAGE_MM[kind];
+  const page = resolvePageSize(design, DEFAULT_SIZE[kind]);
 
   // Preview scale: fixed width, px per mm.
   const PREVIEW_W = 300;
@@ -141,6 +145,13 @@ export function PageDesigner({
     });
   };
 
+  const handleBgFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    resizeImageToDataUrl(file, (dataUrl) => { if (dataUrl) setDesign({ background: dataUrl }); }, MAX_BG_PX, "image/jpeg");
+  };
+
   const selBlock: DocBlockDesign | undefined = selected && selected !== "__logo" ? design.blocks?.[selected] : undefined;
   const hasCustom = !!settings[designKey] && Object.keys(settings[designKey]!).length > 0;
 
@@ -186,6 +197,10 @@ export function PageDesigner({
           onPointerUp={onPointerUp}
           onClick={(e) => { if (e.target === pageRef.current) setSelected(null); }}
         >
+          {/* letterhead background reference */}
+          {design.background && (
+            <img src={design.background} alt="" className="pd-bg" draggable={false} />
+          )}
           {/* margin guides */}
           <div
             className="pd-margins"
@@ -235,6 +250,21 @@ export function PageDesigner({
         {/* ── Controls ── */}
         <div className="pd-controls">
           <div className="pd-hint">{t("settings.pd.hint")}</div>
+
+          {/* Paper size */}
+          <div className="pd-ctl-title">{t("settings.pd.paperSize")}</div>
+          <div className="pd-paper-row">
+            {PAPER_OPTS.map(sz => (
+              <button
+                key={sz}
+                type="button"
+                className={`tx-cat-chip${(design.pageSize ?? DEFAULT_SIZE[kind]) === sz ? " active" : ""}`}
+                onClick={() => setDesign({ pageSize: sz })}
+              >
+                {sz}
+              </button>
+            ))}
+          </div>
 
           {/* Margins */}
           <div className="pd-ctl-title">{t("settings.pd.margins")}</div>
@@ -330,6 +360,36 @@ export function PageDesigner({
           <div className="pd-hint" style={{ marginTop: 4 }}>
             {t("settings.pd.letterheadTip")}
           </div>
+
+          {/* Background model (letterhead reference) */}
+          <div className="pd-ctl-title">{t("settings.pd.background")}</div>
+          <div className="pd-logo-row">
+            <input ref={bgFileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleBgFile} />
+            <button type="button" className="btn btn-ghost" style={{ fontSize: 12 }} onClick={() => bgFileRef.current?.click()}>
+              {design.background ? t("settings.pd.bgReplace") : t("settings.pd.bgAdd")}
+            </button>
+            {design.background && (
+              <>
+                <label className="pd-bg-print">
+                  <input
+                    type="checkbox"
+                    checked={!!design.printBackground}
+                    onChange={e => setDesign({ printBackground: e.target.checked })}
+                  />
+                  {t("settings.pd.printBackground")}
+                </label>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  style={{ fontSize: 12, color: "var(--coral)" }}
+                  onClick={() => setDesign({ background: undefined, printBackground: undefined })}
+                >
+                  {t("common.delete")}
+                </button>
+              </>
+            )}
+          </div>
+          <div className="pd-hint" style={{ marginTop: 4 }}>{t("settings.pd.bgTip")}</div>
         </div>
       </div>
     </div>

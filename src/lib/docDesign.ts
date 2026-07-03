@@ -1,4 +1,4 @@
-import type { PageDesign } from "./cabinetTypes";
+import type { PageDesign, PaperSize } from "./cabinetTypes";
 
 // ── Shared helpers to apply a PageDesign inside the print HTML ────────────────
 //
@@ -24,8 +24,30 @@ export function resolveMargins(d: PageDesign | undefined, dflt: PageMargins): Pa
   };
 }
 
-export function pageRule(size: "A4 portrait" | "A5 portrait", m: PageMargins): string {
+// Paper sizes the designer offers (portrait, mm). `css` is the CSS @page size.
+export const PAGE_SIZES: Record<PaperSize, { w: number; h: number; css: string }> = {
+  A4:     { w: 210, h: 297, css: "A4 portrait" },
+  A5:     { w: 148, h: 210, css: "A5 portrait" },
+  Letter: { w: 216, h: 279, css: "216mm 279mm" },
+};
+
+/** Resolve the effective paper size for a design, falling back to the doc default. */
+export function resolvePageSize(d: PageDesign | undefined, dflt: PaperSize) {
+  return PAGE_SIZES[d?.pageSize ?? dflt];
+}
+
+export function pageRule(size: string, m: PageMargins): string {
   return `@page { size: ${size}; margin: ${m.top}mm ${m.right}mm ${m.bottom}mm ${m.left}mm; }`;
+}
+
+/**
+ * Full-page background image (a scanned letterhead the doctor uploads), printed
+ * only when they opt in — most use pre-printed paper and just want it for
+ * alignment in the designer. Sits behind everything, ignoring page margins.
+ */
+export function backgroundHtml(d: PageDesign | undefined): string {
+  if (!d?.background || !d.printBackground) return "";
+  return `<img src="${d.background}" alt="" style="position:fixed;top:0;left:0;width:100%;height:100%;object-fit:fill;z-index:-1;"/>`;
 }
 
 /** True when the doctor hid this block. */

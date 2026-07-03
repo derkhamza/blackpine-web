@@ -91,7 +91,10 @@ export interface DocBlockDesign {
 }
 
 // Custom page design for a printed document (facture / ordonnance).
+export type PaperSize = "A4" | "A5" | "Letter";
+
 export interface PageDesign {
+  pageSize?:     PaperSize; // paper size (defaults: ordonnance=A5, facture=A4)
   marginTop?:    number;  // mm
   marginRight?:  number;
   marginBottom?: number;
@@ -100,6 +103,8 @@ export interface PageDesign {
   logoX?:  number;        // mm from left page edge
   logoY?:  number;        // mm from top page edge
   logoW?:  number;        // mm wide
+  background?:   string;  // full-page reference image (letterhead scan) — data URL
+  printBackground?: boolean; // also print the background (off = pre-printed paper)
   blocks?: Record<string, DocBlockDesign>;
 }
 
