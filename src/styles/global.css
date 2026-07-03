@@ -315,6 +315,10 @@ img { max-width: 100%; display: block; }
   display: flex; align-items: center; justify-content: space-between;
   gap: 12px;
 }
+.page-title-icon {
+  flex-shrink: 0; width: 30px; height: 30px; border-radius: 8px;
+  display: inline-flex; align-items: center; justify-content: center;
+}
 .page-title { font-size: 15px; font-weight: 700; color: var(--text); letter-spacing: -0.2px; }
 .page-sub { font-size: 11px; color: var(--muted); margin-top: 1px; font-weight: 400; }
 .page-body { flex: 1; overflow-y: auto; padding: 20px 24px; }

@@ -206,6 +206,39 @@ function Icon({ name }: { name: string }) {
   return icons[name] ?? null;
 }
 
+// Route → header icon + accent tone. Keyed by the first path segment so detail
+// pages (/agenda/:id, /patients/:id) inherit their section's icon. Tones follow
+// the sidebar groups (daily=blue, clinical=sky, management=violet, finance=amber,
+// settings=slate) so the header badge reinforces where you are.
+const PAGE_ICONS: Record<string, { icon: string; tone: string }> = {
+  "":              { icon: "dashboard",     tone: "#2563EB" },
+  agenda:          { icon: "agenda",        tone: "#2563EB" },
+  "salle-attente": { icon: "waiting",       tone: "#2563EB" },
+  patients:        { icon: "patients",      tone: "#2563EB" },
+  documents:       { icon: "ordonnances",   tone: "#0EA5E9" },
+  ordonnances:     { icon: "ordonnances",   tone: "#0EA5E9" },
+  certificats:     { icon: "certificats",   tone: "#0EA5E9" },
+  examens:         { icon: "examens",       tone: "#0EA5E9" },
+  communication:   { icon: "messages",      tone: "#0EA5E9" },
+  messages:        { icon: "messages",      tone: "#0EA5E9" },
+  teleconsult:     { icon: "teleconsult",   tone: "#0EA5E9" },
+  calculateurs:    { icon: "calculateurs",  tone: "#0EA5E9" },
+  notes:           { icon: "notes",         tone: "#8B5CF6" },
+  stocks:          { icon: "stocks",        tone: "#8B5CF6" },
+  fournisseurs:    { icon: "fournisseurs",  tone: "#8B5CF6" },
+  facturation:     { icon: "factures",      tone: "#F59E0B" },
+  factures:        { icon: "factures",      tone: "#F59E0B" },
+  remboursements:  { icon: "remboursements",tone: "#F59E0B" },
+  rapports:        { icon: "report",        tone: "#F59E0B" },
+  rapport:         { icon: "report",        tone: "#F59E0B" },
+  comptabilite:    { icon: "comptabilite",  tone: "#F59E0B" },
+  optimisation:    { icon: "optimisation",  tone: "#F59E0B" },
+  salaires:        { icon: "payroll",       tone: "#F59E0B" },
+  parametres:      { icon: "parametres",    tone: "#64748B" },
+  profil:          { icon: "profile",       tone: "#64748B" },
+  admin:           { icon: "analytiques",   tone: "#64748B" },
+};
+
 // ── Language switcher ──────────────────────────────────────────────────────────
 const LANGS = [
   { code: "fr", flag: "🇫🇷", label: "FR" },
@@ -319,6 +352,8 @@ export function Layout({ title, subtitle, actions, children }: Props) {
   // Home page differs by role (doctor → dashboard, secretary → agenda).
   const homePath = isRealSecretary ? "/agenda" : "/";
   const showBack = pathname !== homePath;
+  // Header icon badge, resolved from the first path segment (root → dashboard).
+  const pageIcon = PAGE_ICONS[pathname.split("/")[1] ?? ""];
 
   // Restore the desktop sidebar's scroll position across page navigations
   // (the Layout — and thus the sidebar — remounts on every route change).
@@ -714,6 +749,15 @@ export function Layout({ title, subtitle, actions, children }: Props) {
             </button>
           )}
 
+          {pageIcon && (
+            <span
+              className="page-title-icon"
+              style={{ color: pageIcon.tone, background: pageIcon.tone + "1A" }}
+              aria-hidden
+            >
+              <Icon name={pageIcon.icon} />
+            </span>
+          )}
           <div style={{ flex: 1, minWidth: 0 }}>
             <div className="page-title">{title}</div>
             {subtitle && <div className="page-sub">{subtitle}</div>}
