@@ -265,6 +265,12 @@ export function AppointmentDetailPage() {
   // (The server only accepts extraFields from a secretary; the rest of the
   // clinical note stays doctor-only.)
   const bilanReadOnly = readOnly && !secretaryPerms.recordVitals;
+  // Motif de consultation (reason for visit) is a front-desk field: the
+  // secretary who checks the patient in usually records it. So it's editable
+  // by the secretary too — the rest of the note (examen, diagnostic,
+  // traitement) stays doctor-only. The server mirrors this: it accepts
+  // consultationNote.motif from a secretary, nothing else beyond extraFields.
+  const motifReadOnly = false;
 
   // Most recent prescription this patient received at any *other* appointment —
   // lets the doctor one-click "repeat last" for chronic patients.
@@ -1115,7 +1121,7 @@ export function AppointmentDetailPage() {
             <div className="form-group">
               <div className="appt-note-label-row">
                 <label className="form-label" style={{ margin: 0 }}>{t("apptDetail.motif")}</label>
-                {!readOnly && <DictationButton lang={locale} onText={dictateInto("motif", setMotif, motif)} />}
+                {!motifReadOnly && <DictationButton lang={locale} onText={dictateInto("motif", setMotif, motif)} />}
               </div>
               <textarea
                 className="form-input appt-textarea"
@@ -1124,7 +1130,7 @@ export function AppointmentDetailPage() {
                 value={motif}
                 onChange={(e) => setMotif(e.target.value)}
                 onBlur={() => saveNotes()}
-                readOnly={readOnly}
+                readOnly={motifReadOnly}
               />
             </div>
             <div className="form-group">

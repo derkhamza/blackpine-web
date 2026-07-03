@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import { useToast } from "../components/Toast";
 import { useCabinet } from "../context/CabinetContext";
@@ -1029,7 +1029,18 @@ export function ParametresPage() {
   const locale = i18n.language?.slice(0, 2) === "ar" ? "ar-MA"
                : i18n.language?.slice(0, 2) === "en" ? "en-US" : "fr-FR";
 
-  const [settingsTab, setSettingsTab] = useState<"profil" | "parametres">("profil");
+  // Deep-link support: /parametres?section=backup (from dashboard storage /
+  // backup alerts) lands on the Settings tab with the Backup section open.
+  const [searchParams] = useSearchParams();
+  const focusSection = searchParams.get("section");
+  const [settingsTab, setSettingsTab] = useState<"profil" | "parametres">(
+    focusSection ? "parametres" : "profil",
+  );
+  useEffect(() => {
+    if (!focusSection) return;
+    const el = document.getElementById(`settings-${focusSection}`);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [focusSection]);
   const {
     appointments, patients, employees,
     examResults, prescriptions, certificates, teleSessions,
@@ -1525,10 +1536,12 @@ export function ParametresPage() {
         </Section>
 
         {/* ── Sauvegarde & Restauration ── */}
+        <div id="settings-backup">
         <Section
           icon="backup"
           title={t("settings.backup")}
           subtitle={t("settings.backupSub")}
+          defaultOpen={focusSection === "backup"}
         >
           {/* Summary */}
           <div className="settings-data-summary">
@@ -1785,6 +1798,7 @@ export function ParametresPage() {
             </div>
           )}
         </Section>
+        </div>
 
         {/* ── Zone de danger ── */}
         <Section

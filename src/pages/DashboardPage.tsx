@@ -229,7 +229,9 @@ export function DashboardPage() {
         icon: <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><circle cx="6.5" cy="7" r="4.5" stroke="currentColor" strokeWidth="1.3"/><path d="M10 3.5l3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>,
         text: t("dashboard.abnExams", { n: abnExams.length, s: abnExams.length > 1 ? "s" : "" }),
         subtext: abnExams.slice(0, 2).map(e => e.patientName + " – " + e.title).join(" | "),
-        route: "/examens", weight: abnExams.length,
+        // One abnormal result for a known patient → open their file; else the exams list.
+        route: abnExams.length === 1 && abnExams[0].patientId ? `/patients/${abnExams[0].patientId}` : "/examens",
+        weight: abnExams.length,
       });
     }
 
@@ -256,7 +258,9 @@ export function DashboardPage() {
         id: "unbilled", level: "info",
         icon: <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M3 2h6l3 3v7a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/><path d="M9 2v3h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/><path d="M5 8h4M5 10h2.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>,
         text: t("dashboard.unbilledToday", { n: unbilledToday.length, s: unbilledToday.length > 1 ? "s" : "" }),
-        route: "/factures", weight: unbilledToday.length,
+        // One unbilled visit → open it (the Bill button lives there); many → billing list.
+        route: unbilledToday.length === 1 ? `/agenda/${unbilledToday[0].id}` : "/factures",
+        weight: unbilledToday.length,
       });
     }
 
@@ -268,7 +272,9 @@ export function DashboardPage() {
         icon: <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><rect x="1" y="2" width="12" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.3"/><path d="M4 1v2M10 1v2M1 6h12" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/><path d="M7 8.5v2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><circle cx="7" cy="7.5" r=".5" fill="currentColor"/></svg>,
         text: t("dashboard.overdueFollowUps", { n: overdueFollowUps.length, s: overdueFollowUps.length > 1 ? "s" : "" }),
         subtext: overdueFollowUps.slice(0, 2).map(a => a.patientName).join(", "),
-        route: "/rappels", weight: overdueFollowUps.length,
+        // One overdue follow-up → open that appointment; many → the reminders list.
+        route: overdueFollowUps.length === 1 ? `/agenda/${overdueFollowUps[0].id}` : "/rappels",
+        weight: overdueFollowUps.length,
       });
     }
 
@@ -282,7 +288,9 @@ export function DashboardPage() {
         icon: <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.3"/><path d="M1.5 7h11M7 1.5c1.6 1.5 1.6 9.5 0 11M7 1.5c-1.6 1.5-1.6 9.5 0 11" stroke="currentColor" strokeWidth="1.1"/></svg>,
         text: t("dashboard.onlineBookings", { n: onlineBookings.length, s: onlineBookings.length > 1 ? "s" : "" }),
         subtext: onlineBookings.slice(0, 2).map(a => `${a.patientName} · ${a.date.slice(5).replace("-", "/")}`).join(" | "),
-        route: "/agenda", weight: onlineBookings.length,
+        // One new online booking → open it to review/confirm; many → the agenda.
+        route: onlineBookings.length === 1 ? `/agenda/${onlineBookings[0].id}` : "/agenda",
+        weight: onlineBookings.length,
       });
     }
 
@@ -297,7 +305,7 @@ export function DashboardPage() {
         icon: <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><rect x="1" y="3" width="12" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.3"/><path d="M4 7h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>,
         text: t("dashboard.storageCritical", { mb: storageMB.toFixed(1) }),
         subtext: t("dashboard.storageExplain"),
-        route: "/parametres", weight: Math.round(storageMB),
+        route: "/parametres?section=backup", weight: Math.round(storageMB),
       });
     } else if (storageMB > 4) {
       list.push({
@@ -305,7 +313,7 @@ export function DashboardPage() {
         icon: <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><rect x="1" y="3" width="12" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.3"/><path d="M4 7h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>,
         text: t("dashboard.storageWarn", { mb: storageMB.toFixed(1) }),
         subtext: t("dashboard.storageExplain"),
-        route: "/parametres", weight: Math.round(storageMB),
+        route: "/parametres?section=backup", weight: Math.round(storageMB),
       });
     }
 
