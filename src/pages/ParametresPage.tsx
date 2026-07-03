@@ -32,10 +32,86 @@ function downloadText(content: string, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-function Section({ title, subtitle, children, defaultOpen = false }: {
-  title: string; subtitle?: string; children: React.ReactNode; defaultOpen?: boolean;
+// Distinct icon + accent tone per settings section, for at-a-glance navigation.
+// Icons are 18×18 stroke glyphs using currentColor so the tone drives both.
+const SECTION_ICONS: Record<string, { tone: string; node: React.ReactNode }> = {
+  security: { tone: "#2563EB", node: (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
+      <path d="M9 2l5 2v4.2c0 3.4-2.3 5.6-5 6.8-2.7-1.2-5-3.4-5-6.8V4l5-2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+      <path d="M6.7 8.6l1.6 1.6 3.1-3.3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>) },
+  appearance: { tone: "#8B5CF6", node: (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
+      <circle cx="9" cy="9" r="5.6" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M9 3.4a5.6 5.6 0 0 1 0 11.2z" fill="currentColor"/>
+    </svg>) },
+  locations: { tone: "#EF4444", node: (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
+      <path d="M9 2.4c2.5 0 4.4 1.9 4.4 4.4 0 3.1-4.4 8.4-4.4 8.4S4.6 9.9 4.6 6.8C4.6 4.3 6.5 2.4 9 2.4z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+      <circle cx="9" cy="6.8" r="1.7" stroke="currentColor" strokeWidth="1.5"/>
+    </svg>) },
+  consultationTypes: { tone: "#10B981", node: (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
+      <path d="M3 8.7V4.2a1 1 0 0 1 1-1h4.5L15.2 9.9 10 15.1 3 8.7z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+      <circle cx="6.2" cy="6.4" r="1" fill="currentColor"/>
+    </svg>) },
+  customDrugs: { tone: "#06B6D4", node: (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
+      <rect x="2.6" y="7" width="12.8" height="4.9" rx="2.45" transform="rotate(-45 2.6 7)" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M7.7 5.2l3.9 3.9" stroke="currentColor" strokeWidth="1.5"/>
+    </svg>) },
+  acteCodes: { tone: "#F59E0B", node: (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
+      <path d="M7.4 3.2 6 14.8M12 3.2l-1.4 11.6M3.4 6.7h11.4M2.8 11.3h11.4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>) },
+  docFormat: { tone: "#0EA5E9", node: (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
+      <path d="M5 2.6h5L13.6 6.2V15a.6.6 0 0 1-.6.6H5a.6.6 0 0 1-.6-.6V3.2a.6.6 0 0 1 .6-.6z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+      <path d="M9.8 2.6v3.6h3.6M6.6 9.4h4.8M6.6 12h4.8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>) },
+  booking: { tone: "#6366F1", node: (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
+      <rect x="3.3" y="4" width="11.4" height="11" rx="1.6" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M3.3 7.4h11.4M6.4 2.4v3M11.6 2.4v3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>) },
+  sms: { tone: "#14B8A6", node: (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
+      <path d="M3.4 8.6c0-2.6 2.5-4.4 5.6-4.4s5.6 1.8 5.6 4.4-2.5 4.4-5.6 4.4c-.8 0-1.6-.1-2.3-.35L4 14.6l.7-2.5A4.1 4.1 0 0 1 3.4 8.6z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+    </svg>) },
+  secretary: { tone: "#EC4899", node: (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
+      <circle cx="7" cy="6.6" r="2.3" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M3 14.2c0-2.2 1.8-3.6 4-3.6s4 1.4 4 3.6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      <path d="M11.6 5.4a2.3 2.3 0 0 1 0 4.1M12.2 10.8c1.7.2 3 1.5 3 3.4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>) },
+  backup: { tone: "#64748B", node: (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
+      <rect x="3" y="3.4" width="12" height="3.2" rx="1" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M4 6.6V14a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V6.6M7.4 9.6h3.2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>) },
+  clearData: { tone: "#DC2626", node: (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
+      <path d="M4 5.4h10M7 5.4V4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1.4M5.5 5.4l.7 8.4a1 1 0 0 0 1 .9h3.6a1 1 0 0 0 1-.9l.7-8.4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M7.8 8v4M10.2 8v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>) },
+  installApp: { tone: "#16A34A", node: (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
+      <rect x="5" y="2.4" width="8" height="13.2" rx="1.6" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M7.7 3.6h2.6M8.4 13.4h1.2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>) },
+  about: { tone: "#94A3B8", node: (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
+      <circle cx="9" cy="9" r="6" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M9 8.2v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      <circle cx="9" cy="5.9" r="0.5" fill="currentColor" stroke="currentColor" strokeWidth="0.6"/>
+    </svg>) },
+};
+
+function Section({ title, subtitle, children, defaultOpen = false, icon }: {
+  title: string; subtitle?: string; children: React.ReactNode; defaultOpen?: boolean; icon?: string;
 }) {
   const [open, setOpen] = useState(defaultOpen);
+  const meta = icon ? SECTION_ICONS[icon] : null;
   return (
     <div className={`settings-section${open ? " open" : ""}`}>
       <button
@@ -44,9 +120,16 @@ function Section({ title, subtitle, children, defaultOpen = false }: {
         aria-expanded={open}
         onClick={() => setOpen(o => !o)}
       >
-        <div>
-          <div className="settings-section-title">{title}</div>
-          {subtitle && <div className="settings-section-sub">{subtitle}</div>}
+        <div className="settings-section-headmain">
+          {meta && (
+            <span className="settings-section-icon" style={{ color: meta.tone, background: meta.tone + "1A" }} aria-hidden>
+              {meta.node}
+            </span>
+          )}
+          <div>
+            <div className="settings-section-title">{title}</div>
+            {subtitle && <div className="settings-section-sub">{subtitle}</div>}
+          </div>
         </div>
         <svg className="settings-section-chevron" width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
           <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
@@ -1180,12 +1263,12 @@ export function ParametresPage() {
       {settingsTab === "parametres" && <div className="settings-page">
 
         {/* ── Sécurité & confidentialité ── */}
-        <Section title={t("settings.securityTitle")} subtitle={t("settings.securitySub")} defaultOpen>
+        <Section icon="security" title={t("settings.securityTitle")} subtitle={t("settings.securitySub")} defaultOpen>
           <SecuritySection />
         </Section>
 
         {/* ── Apparence ── */}
-        <Section title={t("settings.appearance")} subtitle={t("settings.appearanceSub")}>
+        <Section icon="appearance" title={t("settings.appearance")} subtitle={t("settings.appearanceSub")}>
           <SettingsRow
             label={t("settings.darkTheme")}
             hint={t("settings.darkHint")}
@@ -1199,6 +1282,7 @@ export function ParametresPage() {
 
         {/* ── Emplacements du cabinet ── */}
         <Section
+          icon="locations"
           title={t("settings.locations")}
           subtitle={t("settings.locationsSub")}
         >
@@ -1210,6 +1294,7 @@ export function ParametresPage() {
 
         {/* ── Types de consultation ── */}
         <Section
+          icon="consultationTypes"
           title={t("settings.consultationTypes")}
           subtitle={t("settings.consultationTypesSub")}
         >
@@ -1223,6 +1308,7 @@ export function ParametresPage() {
 
         {/* ── Médicaments personnalisés ── */}
         <Section
+          icon="customDrugs"
           title={t("settings.customDrugs")}
           subtitle={t("settings.customDrugsSub")}
         >
@@ -1234,6 +1320,7 @@ export function ParametresPage() {
 
         {/* ── Codes des actes ── */}
         <Section
+          icon="acteCodes"
           title={t("settings.acteCodesTitle")}
           subtitle={t("settings.acteCodesSub")}
         >
@@ -1245,6 +1332,7 @@ export function ParametresPage() {
 
         {/* ── Format des documents ── */}
         <Section
+          icon="docFormat"
           title={t("settings.docFormatTitle")}
           subtitle={t("settings.docFormatSub")}
         >
@@ -1256,6 +1344,7 @@ export function ParametresPage() {
 
         {/* ── Réservation en ligne ── */}
         <Section
+          icon="booking"
           title={t("settings.bookingTitle")}
           subtitle={t("settings.bookingSubtitle")}
         >
@@ -1264,6 +1353,7 @@ export function ParametresPage() {
 
         {/* ── Rappels SMS automatiques ── */}
         <Section
+          icon="sms"
           title={t("settings.smsTitle")}
           subtitle={t("settings.smsSubtitle")}
         >
@@ -1272,6 +1362,7 @@ export function ParametresPage() {
 
         {/* ── Mode secrétaire ── */}
         <Section
+          icon="secretary"
           title={t("settings.secretaryMode")}
           subtitle={t("settings.secretaryModeSub")}
         >
@@ -1435,6 +1526,7 @@ export function ParametresPage() {
 
         {/* ── Sauvegarde & Restauration ── */}
         <Section
+          icon="backup"
           title={t("settings.backup")}
           subtitle={t("settings.backupSub")}
         >
@@ -1696,6 +1788,7 @@ export function ParametresPage() {
 
         {/* ── Zone de danger ── */}
         <Section
+          icon="clearData"
           title={t("settings.clearData")}
           subtitle={t("settings.clearDataSub")}
         >
@@ -1728,6 +1821,7 @@ export function ParametresPage() {
 
         {/* ── Application mobile / PWA ── */}
         <Section
+          icon="installApp"
           title={t("settings.installApp")}
           subtitle={t("settings.installAppSub")}
         >
@@ -1777,7 +1871,7 @@ export function ParametresPage() {
         </Section>
 
         {/* ── À propos ── */}
-        <Section title={t("settings.about")}>
+        <Section icon="about" title={t("settings.about")}>
           <div className="settings-about">
             <div className="settings-about-logo">
               <svg width="28" height="28" viewBox="0 0 20 20" fill="none">
