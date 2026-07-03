@@ -131,6 +131,7 @@
     "returnDoctor": "Revenir en mode médecin",
     "closeMenu": "Fermer le menu",
     "openMenu": "Ouvrir le menu",
+    "goHome": "Retour à l'accueil",
     "syncReady": "Prêt",
     "syncing": "Sync…",
     "syncFailed": "Sync échoué",

@@ -76,7 +76,7 @@ export function ProfilePage({ noLayout = false }: { noLayout?: boolean } = {}) {
   const handleLogout = () => { logout(); navigate("/login"); };
 
   const avatarText = doc.fullName ? initials(doc.fullName) : "?";
-  const hasName    = doc.fullName.trim().length > 0;
+  const hasName    = (doc.fullName ?? "").trim().length > 0;
 
   const body = (
     <>

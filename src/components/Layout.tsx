@@ -565,13 +565,20 @@ export function Layout({ title, subtitle, actions, children }: Props) {
   // ── Shared sidebar content ────────────────────────────────────────────────
   const sidebarContent = (
     <>
-      {/* Logo */}
+      {/* Logo — clicking it returns to the home page (dashboard, or agenda for secretaries) */}
       <div className="sidebar-logo">
-        <BlackpineLogo size={32} radius={8} />
-        <div>
-          <div className="sidebar-logo-text">Iyadaty</div>
-          <div className="sidebar-logo-sub">Cabinet</div>
-        </div>
+        <button
+          type="button"
+          className="sidebar-logo-btn"
+          onClick={() => { navigate(homePath); closeDrawer(); }}
+          aria-label={t("sidebar.goHome")}
+        >
+          <BlackpineLogo size={32} radius={8} />
+          <div>
+            <div className="sidebar-logo-text">Iyadaty</div>
+            <div className="sidebar-logo-sub">Cabinet</div>
+          </div>
+        </button>
         {/* Mobile close button */}
         <button className="sidebar-close-btn" onClick={closeDrawer} aria-label={t("sidebar.closeMenu")}>
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
