@@ -3,6 +3,7 @@ import {
 } from "react";
 import type { Appointment, ApptDocument, CabinetDoctorProfile, Certificate, Employee, InvoiceRecord, Patient, Prescription, PrescriptionTemplate, StockItem, WaTemplate, TeleSession, InternalNote, Supplier, PurchaseOrder, PurchaseOrderLine, ExamResult, ExamRequest } from "../lib/cabinetTypes";
 import { BLANK_DOCTOR_PROFILE } from "../lib/cabinetTypes";
+import { idbGet, idbSet } from "../lib/idbStore";
 import {
   getToken, pullCabinet, pushCabinet, CabinetConflictError, type CabinetSnapshot,
   getSecretaryToken, secretaryPull, secretaryPushAppointments, secretaryPushPatients,
@@ -358,9 +359,11 @@ export function CabinetProvider({
   const [invoices, setInvoices] = useState<InvoiceRecord[]>(
     () => load(`${pfx}.invoices`, [])
   );
-  const [apptDocuments, setApptDocuments] = useState<ApptDocument[]>(
-    () => load(`${pfx}.apptDocs`, [])
-  );
+  // Attachments live in IndexedDB (big quota), not localStorage (~10 MB cap).
+  // State starts empty and is hydrated asynchronously from IDB just below.
+  const [apptDocuments, setApptDocuments] = useState<ApptDocument[]>([]);
+  const apptDocsLoaded    = useRef(false); // IDB hydration finished (gates persist)
+  const serverDocsApplied = useRef(false); // a pull already set the authoritative copy
   // Secretary mode — session only (resets on page reload for security)
   const [secretaryMode, setSecretaryMode] = useState(false);
 
@@ -381,7 +384,34 @@ export function CabinetProvider({
   useEffect(() => { save(`${pfx}.examRequests`,   examRequests);   }, [examRequests, pfx]);
   useEffect(() => { save(`${pfx}.certificates`,   certificates);   }, [certificates, pfx]);
   useEffect(() => { save(`${pfx}.invoices`,       invoices);       }, [invoices, pfx]);
-  useEffect(() => { save(`${pfx}.apptDocs`,      apptDocuments);  }, [apptDocuments, pfx]);
+
+  // Attachments: hydrate from IndexedDB, migrating any legacy localStorage copy
+  // once. Runs before the server pull; a completed pull (serverDocsApplied) wins
+  // so this cache never clobbers fresh server data.
+  useEffect(() => {
+    apptDocsLoaded.current = false;
+    serverDocsApplied.current = false;
+    let cancelled = false;
+    const key = `${pfx}.apptDocs`;
+    (async () => {
+      let docs = await idbGet<ApptDocument[]>(key);
+      if (!docs) {
+        const legacy = load<ApptDocument[]>(key, []); // one-time move off localStorage
+        if (Array.isArray(legacy) && legacy.length) { docs = legacy; await idbSet(key, legacy); }
+      }
+      try { localStorage.removeItem(key); } catch { /* ignore */ }
+      if (!cancelled && !serverDocsApplied.current) setApptDocuments((docs as ApptDocument[]) ?? []);
+      apptDocsLoaded.current = true;
+    })();
+    return () => { cancelled = true; };
+  }, [pfx]);
+
+  // Persist attachments to IndexedDB (not localStorage — they are the space hog).
+  // Gated on hydration so the initial empty state can't overwrite the cache.
+  useEffect(() => {
+    if (!apptDocsLoaded.current) return;
+    void idbSet(`${pfx}.apptDocs`, apptDocuments);
+  }, [apptDocuments, pfx]);
 
   const setDoctorProfile = useCallback(
     (p: CabinetDoctorProfile) => setDoctorProfileState(p), []);
@@ -496,7 +526,13 @@ export function CabinetProvider({
     if (Array.isArray(snapshot.purchaseOrders))        setPurchaseOrders(snapshot.purchaseOrders as PurchaseOrder[]);
     if (Array.isArray(snapshot.examResults))           setExamResults(snapshot.examResults as ExamResult[]);
     if (Array.isArray(snapshot.invoices))              setInvoices(snapshot.invoices as InvoiceRecord[]);
-    if (Array.isArray(snapshot.apptDocuments))         setApptDocuments(snapshot.apptDocuments as ApptDocument[]);
+    if (Array.isArray(snapshot.apptDocuments)) {
+      // Server copy is authoritative; block the IDB hydration from overwriting it
+      // and mark loaded so this fresh copy is written back to IDB.
+      serverDocsApplied.current = true;
+      apptDocsLoaded.current = true;
+      setApptDocuments(snapshot.apptDocuments as ApptDocument[]);
+    }
     baseUpdatedAt.current = snapshot.updatedAt ?? null;
     clearMergeMarks(); // fresh baseline — nothing local is pending anymore
   }, []);
