@@ -51,6 +51,7 @@ function PatientModal({ initial, existingPatients = [], onSave, onClose }: Patie
   const { t } = useTranslation();
   const [firstName,   setFirst]   = useState(initial?.firstName ?? "");
   const [lastName,    setLast]    = useState(initial?.lastName ?? "");
+  const [arabicName,  setArabic]  = useState(initial?.arabicName ?? "");
   const [phone,       setPhone]   = useState(initial?.phone ?? "");
   const [dateOfBirth, setDob]     = useState(initial?.dateOfBirth ?? "");
   const [gender,      setGender]  = useState<PatientGender | "">(initial?.gender ?? "");
@@ -68,6 +69,7 @@ function PatientModal({ initial, existingPatients = [], onSave, onClose }: Patie
     onSave({
       firstName: firstName.trim(),
       lastName: lastName.trim(),
+      arabicName: arabicName.trim() || undefined,
       phone: phone || undefined,
       dateOfBirth: dateOfBirth || undefined,
       gender: gender as PatientGender || undefined,
@@ -122,6 +124,18 @@ function PatientModal({ initial, existingPatients = [], onSave, onClose }: Patie
                 <label className="form-label">{t("patients.lastName")}</label>
                 <input className="form-input" value={lastName} onChange={e => setLast(e.target.value)} required />
               </div>
+            </div>
+            <div className="form-group">
+              <label className="form-label">{t("patients.arabicName")}</label>
+              <input
+                className="form-input"
+                dir="rtl"
+                lang="ar"
+                placeholder={t("patients.arabicNamePlaceholder")}
+                value={arabicName}
+                onChange={e => setArabic(e.target.value)}
+              />
+              <div className="settings-row-hint" style={{ marginTop: 4 }}>{t("patients.arabicNameHint")}</div>
             </div>
             <div className="form-row">
               <div className="form-group">
