@@ -427,7 +427,17 @@ export function CabinetProvider({
         if (Array.isArray(legacy) && legacy.length) { docs = legacy; await idbSet(key, legacy); }
       }
       try { localStorage.removeItem(key); } catch { /* ignore */ }
-      if (!cancelled && !serverDocsApplied.current) setApptDocuments((docs as ApptDocument[]) ?? []);
+      if (!cancelled && !serverDocsApplied.current) {
+        const loaded = (docs as ApptDocument[]) ?? [];
+        const loadedIds = new Set(loaded.map(d => d.id));
+        // If the user attached a file before this async load resolved, keep it
+        // (it's marked touched) instead of letting the cache overwrite it.
+        setApptDocuments(prev => {
+          if (prev.length === 0) return loaded;
+          const extras = prev.filter(d => touchedRef.current.apptDocs.has(d.id) && !loadedIds.has(d.id));
+          return extras.length ? [...loaded, ...extras] : loaded;
+        });
+      }
       apptDocsLoaded.current = true;
     })();
     return () => { cancelled = true; };
@@ -574,7 +584,16 @@ export function CabinetProvider({
       // and mark loaded so this fresh copy is written back to IDB.
       serverDocsApplied.current = true;
       apptDocsLoaded.current = true;
-      setApptDocuments(snapshot.apptDocuments as ApptDocument[]);
+      const serverDocs = snapshot.apptDocuments as ApptDocument[];
+      const serverIds  = new Set(serverDocs.map(d => d.id));
+      // Preserve attachments this device added but hasn't pushed yet (still
+      // marked touched). Without this, a boot/refocus pull whose snapshot
+      // predates the new file makes it vanish "the first time" it's added.
+      const touched = new Set(touchedRef.current.apptDocs);
+      setApptDocuments(prev => {
+        const extras = prev.filter(d => touched.has(d.id) && !serverIds.has(d.id));
+        return extras.length ? [...serverDocs, ...extras] : serverDocs;
+      });
     }
     baseUpdatedAt.current = snapshot.updatedAt ?? null;
     clearMergeMarks(); // fresh baseline — nothing local is pending anymore
