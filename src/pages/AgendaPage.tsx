@@ -1189,6 +1189,7 @@ export function AgendaPage() {
   } | null>(null);
   const tgDragMovedRef = useRef(false);
   const icalInputRef = useRef<HTMLInputElement>(null);
+  const tgridScrollRef = useRef<HTMLDivElement>(null);
   const [moreOpen, setMoreOpen] = useState(false);
 
   // Drag a RDV onto another day column → reschedule to that day (time unchanged).
@@ -1389,6 +1390,30 @@ export function AgendaPage() {
   }, [weekApptsByDay]);
   const gridHours = gridHourList(gridStart, gridEnd);
   const nowTop = ((nowMinutes - gridStart * 60) / 60) * TG_PX_H;
+
+  // Auto-scroll the week grid so the doctor lands on the relevant part of the
+  // day — the current time when today is in view, otherwise the earliest booked
+  // appointment. Fires only on view/week/geometry change (not every minute
+  // tick) so it never fights a manual scroll.
+  useEffect(() => {
+    if (view !== "week") return;
+    const el = tgridScrollRef.current;
+    if (!el) return;
+    let targetPx: number | null = null;
+    if (weekDays.includes(today) && nowMinutes >= gridStart * 60) {
+      targetPx = ((nowMinutes - gridStart * 60) / 60) * TG_PX_H;
+    } else {
+      const starts: number[] = [];
+      for (const iso of weekDays)
+        for (const a of weekApptsByDay.get(iso) ?? []) {
+          const m = timeToMin(a.startTime);
+          if (m != null) starts.push(m);
+        }
+      if (starts.length) targetPx = ((Math.min(...starts) - gridStart * 60) / 60) * TG_PX_H;
+    }
+    if (targetPx != null) el.scrollTo({ top: Math.max(0, targetPx - 90), behavior: "auto" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, weekDays[0], gridStart, gridEnd]);
 
   // Pointer-drag an RDV inside the week time-grid: vertical = new time, sideways
   // = new day. A floating ghost tracks the snapped slot; a tap (no movement)
@@ -1794,7 +1819,7 @@ export function AgendaPage() {
           </div>
 
           {/* Time-grid */}
-          <div className="tgrid-scroll">
+          <div className="tgrid-scroll" ref={tgridScrollRef}>
             <div className="tgrid-inner">
               {/* Column headers row */}
               <div className="tgrid-hdr-row">
