@@ -13,6 +13,7 @@ import type { CabinetLocation, AppointmentType, SecretaryPermissions, ActeCode, 
 import { APPT_TYPE_COLORS, DEFAULT_SECRETARY_PERMISSIONS, DEFAULT_DOCUMENT_SETTINGS, DOCUMENT_LAYOUT_LABELS } from "../lib/cabinetTypes";
 import { COMMON_DRUGS } from "../lib/ordonnancePrinter";
 import { ActeCatalogModal } from "../components/ActeCatalogModal";
+import { BlackpineLogo } from "../components/Logo";
 import { PageDesigner } from "../components/PageDesigner";
 import {
   type CabinetBackup,
@@ -1866,10 +1867,7 @@ export function ParametresPage() {
         <Section icon="about" title={t("settings.about")}>
           <div className="settings-about">
             <div className="settings-about-logo">
-              <svg width="28" height="28" viewBox="0 0 20 20" fill="none">
-                <path d="M4 4h5.5a3.5 3.5 0 0 1 0 7H4V4Z" fill="var(--navy)" fillOpacity="0.8"/>
-                <path d="M4 11h6a4 4 0 0 1 0 8H4v-8Z" fill="var(--navy)" fillOpacity="0.5"/>
-              </svg>
+              <BlackpineLogo size={40} radius={10} />
             </div>
             <div>
               <div style={{ fontWeight: 700, fontSize: 15 }}>{t("settings.aboutName")}</div>

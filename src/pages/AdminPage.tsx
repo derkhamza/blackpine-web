@@ -168,6 +168,129 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 const shortDate = (iso: string | null) => (iso ? iso.slice(0, 10) : "—");
 const PLAN_LABELS: Record<string, string> = { free_trial: "Essai", pro: "Pro", premium: "Premium" };
 
+// ── Risks & shortfalls ─────────────────────────────────────────────────────────
+// Synthesises the doctors list + aggregate stats into an actionable "what needs
+// attention" view. All computed client-side from endpoints already in use — no
+// new backend, counts only, no patient PII.
+
+type RiskLevel = "critical" | "warning" | "info";
+interface RiskBucket {
+  id: string; level: RiskLevel; title: string; hint: string;
+  docs: { email: string; note: string }[];
+}
+const RISK_TONE: Record<RiskLevel, string> = {
+  critical: "var(--coral)", warning: "var(--gold)", info: "var(--blue)",
+};
+
+function RiskRow({ bucket, open, onToggle }: { bucket: RiskBucket; open: boolean; onToggle: () => void }) {
+  const tone = RISK_TONE[bucket.level];
+  return (
+    <div className={`admin-risk-row${open ? " open" : ""}`}>
+      <button className="admin-risk-head" onClick={onToggle}>
+        <span className="admin-risk-count" style={{ background: tone }}>{bucket.docs.length}</span>
+        <span className="admin-risk-titles">
+          <span className="admin-risk-title">{bucket.title}</span>
+          <span className="admin-risk-hint">{bucket.hint}</span>
+        </span>
+        <span className="admin-doc-caret">{open ? "▾" : "▸"}</span>
+      </button>
+      {open && (
+        <div className="admin-risk-list">
+          {bucket.docs.map((d) => (
+            <div key={d.email} className="admin-risk-item">
+              <span className="admin-risk-email">{d.email}</span>
+              <span className="admin-risk-note" style={{ color: tone }}>{d.note}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Feature-adoption bar: % of accounts using a capability. Low % = product shortfall.
+function AdoptionBar({ label, n, total, weak }: { label: string; n: number; total: number; weak: boolean }) {
+  const pct = total > 0 ? Math.round((n / total) * 100) : 0;
+  const tone = weak ? "var(--coral)" : pct >= 50 ? "var(--green)" : "var(--gold)";
+  return (
+    <div className="admin-barlist-row">
+      <div className="admin-barlist-name" title={label}>{label}{weak && " · lacune"}</div>
+      <div className="admin-barlist-track">
+        <div className="admin-barlist-fill" style={{ width: `${Math.max(2, pct)}%`, background: tone }} />
+      </div>
+      <div className="admin-barlist-val">{pct}% · {n}/{total}</div>
+    </div>
+  );
+}
+
+function RisksSection({ stats, retention }: { stats: AdminStats; retention: AdminRetention | null }) {
+  const [doctors, setDoctors] = useState<AdminDoctor[] | null>(null);
+  const [open, setOpen] = useState<string | null>(null);
+  useEffect(() => { adminGetDoctors().then((r) => setDoctors(r.doctors)).catch(() => setDoctors([])); }, []);
+
+  if (!doctors) return <Section title="Risques & lacunes"><div className="admin-empty">Chargement…</div></Section>;
+
+  const now = Date.now();
+  const since = (iso: string | null) => (iso ? Math.floor((now - new Date(iso).getTime()) / 86400000) : null);
+  const until = (iso: string | null) => (iso ? Math.ceil((new Date(iso).getTime() - now) / 86400000) : null);
+
+  const expiring = doctors.filter((d) => d.plan === "free_trial" && until(d.expiresAt) != null && until(d.expiresAt)! >= 0 && until(d.expiresAt)! <= 7);
+  const expired  = doctors.filter((d) => until(d.expiresAt) != null && until(d.expiresAt)! < 0);
+  const churned  = doctors.filter((d) => (d.apptCount > 0 || d.eventCount > 0) && (since(d.lastActive) ?? 9999) > 30);
+  const sleeping = doctors.filter((d) => { const s = since(d.lastActive); return s != null && s >= 8 && s <= 30; });
+  const stalled  = doctors.filter((d) => d.apptCount === 0 && d.eventCount === 0 && (since(d.createdAt) ?? 0) >= 2);
+  const emptyCab = doctors.filter((d) => d.patientCount === 0 && d.eventCount > 0 && (since(d.createdAt) ?? 0) >= 7);
+
+  const allBuckets: RiskBucket[] = [
+    { id: "expiring", level: "critical", title: "Essais expirant ≤ 7 j", hint: "à convertir avant l'échéance",
+      docs: expiring.map((d) => ({ email: d.email, note: until(d.expiresAt)! <= 0 ? "expire aujourd'hui" : `expire dans ${until(d.expiresAt)} j` })) },
+    { id: "expired", level: "critical", title: "Abonnements / essais expirés", hint: "accès perdu — relancer ou clôturer",
+      docs: expired.map((d) => ({ email: d.email, note: `expiré depuis ${-until(d.expiresAt)!} j` })) },
+    { id: "churned", level: "warning", title: "Médecins perdus (+30 j sans activité)", hint: "étaient actifs — revenus à risque",
+      docs: churned.map((d) => ({ email: d.email, note: `inactif ${since(d.lastActive)} j` })) },
+    { id: "sleeping", level: "warning", title: "En sommeil (8–30 j)", hint: "signal précoce de décrochage",
+      docs: sleeping.map((d) => ({ email: d.email, note: `vu il y a ${since(d.lastActive)} j` })) },
+    { id: "stalled", level: "warning", title: "Jamais activés", hint: "inscrits mais aucune utilisation — onboarding à revoir",
+      docs: stalled.map((d) => ({ email: d.email, note: `inscrit il y a ${since(d.createdAt)} j` })) },
+    { id: "emptyCab", level: "info", title: "Cabinets sans patient", hint: "utilisent l'app mais n'ont rien saisi",
+      docs: emptyCab.map((d) => ({ email: d.email, note: `inscrit il y a ${since(d.createdAt)} j` })) },
+  ];
+  const buckets = allBuckets.filter((b) => b.docs.length > 0);
+
+  const total = stats.doctors.total;
+  const stickiness = retention?.stickiness.ratio ?? null;
+
+  return (
+    <>
+      <Section title="Risques & lacunes">
+        {buckets.length === 0 ? (
+          <div className="admin-empty">✓ Aucun risque majeur détecté sur les comptes.</div>
+        ) : (
+          <div className="admin-risks">
+            {buckets.map((b) => (
+              <RiskRow key={b.id} bucket={b} open={open === b.id} onToggle={() => setOpen(open === b.id ? null : b.id)} />
+            ))}
+          </div>
+        )}
+      </Section>
+
+      <Section title="Adoption des fonctionnalités (lacunes produit)">
+        <div className="admin-barlist">
+          <AdoptionBar label="Réservation en ligne" n={stats.features.bookingEnabled} total={total} weak={total > 0 && stats.features.bookingEnabled / total < 0.25} />
+          <AdoptionBar label="Rappels SMS"           n={stats.features.smsEnabled}     total={total} weak={total > 0 && stats.features.smsEnabled / total < 0.25} />
+          <AdoptionBar label="Notifications push"    n={stats.features.pushDoctors}    total={total} weak={total > 0 && stats.features.pushDoctors / total < 0.25} />
+          <AdoptionBar label="Secrétaire"            n={stats.features.secretaryDoctors} total={total} weak={total > 0 && stats.features.secretaryDoctors / total < 0.15} />
+        </div>
+        <div className="admin-sub">
+          Engagement (stickiness DAU/MAU) : {stickiness != null
+            ? <strong style={{ color: stickiness < 20 ? "var(--coral)" : "var(--green)" }}>{stickiness}%{stickiness < 20 ? " · faible" : ""}</strong>
+            : "n/d"} — un ratio élevé signifie que les médecins reviennent quotidiennement.
+        </div>
+      </Section>
+    </>
+  );
+}
+
 // Destructive account controls for one doctor. State is per-doctor (keyed).
 function AdminZone({ doctor, onChanged, onDeleted }: {
   doctor: AdminDoctor;
@@ -408,6 +531,9 @@ export function AdminPage() {
         <Tile label="Actifs · 30 jours" value={stats.active.mau} />
         <Tile label="Nouveaux · 30 jours" value={stats.doctors.new30} accent="var(--gold)" />
       </div>
+
+      {/* ── Risks & shortfalls (actionable, first) ── */}
+      <RisksSection stats={stats} retention={retention} />
 
       {/* ── Signups over time ── */}
       <Section title="Inscriptions — 30 derniers jours">
