@@ -14,6 +14,9 @@ export interface CabinetLocation {
 
 export interface CabinetDoctorProfile {
   fullName:        string;
+  // Optional Arabic spelling of the doctor's name, used for the {docteur} /
+  // {cabinet} variables in Arabic WhatsApp messages; falls back to fullName.
+  arabicFullName?: string;
   specialtyLabel?: string;
   inpe?:           string;   // INPE — Identifiant National des Professionnels et Établissements de santé
   ordre?:          string;   // N° d'inscription au Conseil National de l'Ordre des Médecins
@@ -458,6 +461,10 @@ export interface Patient {
   id: string;
   firstName: string;
   lastName: string;
+  // Optional Arabic spelling of the name, typed by the doctor/secretary (Latin→
+  // Arabic transliteration is too lossy to auto-generate). Used for the {patient}
+  // variable in Arabic WhatsApp messages; falls back to firstName + lastName.
+  arabicName?: string;
   phone?: string;
   dateOfBirth?: string;   // "YYYY-MM-DD"
   gender?: PatientGender;

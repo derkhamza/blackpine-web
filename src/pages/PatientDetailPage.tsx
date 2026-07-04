@@ -183,6 +183,7 @@ export function PatientDetailPage() {
   const [showEdit, setShowEdit] = useState(false);
   const [editFirst, setEFirst]  = useState("");
   const [editLast,  setELast]   = useState("");
+  const [editArabic, setEArabic] = useState("");
   const [editPhone, setEPhone]  = useState("");
   const [editDob,   setEDob]    = useState("");
   const [editGender, setEGender] = useState<PatientGender | "">("");
@@ -206,6 +207,7 @@ export function PatientDetailPage() {
     if (!patient) return;
     setEFirst(patient.firstName);
     setELast(patient.lastName);
+    setEArabic(patient.arabicName ?? "");
     setEPhone(patient.phone ?? "");
     setEDob(patient.dateOfBirth ?? "");
     setEGender(patient.gender ?? "");
@@ -232,6 +234,7 @@ export function PatientDetailPage() {
     updatePatient({
       ...patient,
       firstName: editFirst.trim(), lastName: editLast.trim(),
+      arabicName: editArabic.trim() || undefined,
       phone: editPhone || undefined,
       dateOfBirth: editDob || undefined,
       gender: (editGender || undefined) as PatientGender | undefined,
@@ -1210,6 +1213,18 @@ export function PatientDetailPage() {
                   <label className="form-label">{t("patients.lastName")}</label>
                   <input className="form-input" value={editLast} onChange={(e) => setELast(e.target.value)} required />
                 </div>
+              </div>
+              <div className="form-group">
+                <label className="form-label">{t("patients.arabicName")}</label>
+                <input
+                  className="form-input"
+                  dir="rtl"
+                  lang="ar"
+                  placeholder={t("patients.arabicNamePlaceholder")}
+                  value={editArabic}
+                  onChange={(e) => setEArabic(e.target.value)}
+                />
+                <div className="settings-row-hint" style={{ marginTop: 4 }}>{t("patients.arabicNameHint")}</div>
               </div>
               <div className="form-row">
                 <div className="form-group">

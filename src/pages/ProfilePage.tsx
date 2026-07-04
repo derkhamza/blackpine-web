@@ -133,6 +133,21 @@ export function ProfilePage({ noLayout = false }: { noLayout?: boolean } = {}) {
               </div>
 
               <div className="form-row">
+                <div className="form-group" style={{ flex: 2 }}>
+                  <label className="form-label">{t("profile.arabicFullName")}</label>
+                  <input
+                    className="form-input"
+                    dir="rtl"
+                    lang="ar"
+                    placeholder={t("profile.arabicFullNamePlaceholder")}
+                    value={doc.arabicFullName ?? ""}
+                    onChange={e => updateDoc("arabicFullName", e.target.value || undefined)}
+                  />
+                  <div className="settings-row-hint" style={{ marginTop: 4 }}>{t("profile.arabicFullNameHint")}</div>
+                </div>
+              </div>
+
+              <div className="form-row">
                 <div className="form-group">
                   <label className="form-label">{t("profile.inpe")}</label>
                   <input

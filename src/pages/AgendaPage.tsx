@@ -232,13 +232,19 @@ function renderWaBody(
   appt: Appointment,
   doctorFullName?: string,
   lang: WaMsgLang = "fr",
+  opts?: { patientArabicName?: string; doctorArabicName?: string },
 ): string {
   const d = new Date(appt.date + "T12:00:00").toLocaleDateString(WA_MSG_LOCALE[lang], {
     weekday: "long", day: "numeric", month: "long",
   });
-  const docName = doctorFullName?.trim();
+  // In an Arabic message, prefer the Arabic spelling of the names when the
+  // doctor has entered one; otherwise fall back to the stored Latin name.
+  const patientName = (lang === "ar" && opts?.patientArabicName?.trim())
+    ? opts.patientArabicName.trim() : appt.patientName;
+  const docName = (lang === "ar" && opts?.doctorArabicName?.trim())
+    ? opts.doctorArabicName.trim() : doctorFullName?.trim();
   return body
-    .replace(/\{patient\}/g, appt.patientName)
+    .replace(/\{patient\}/g, patientName)
     .replace(/\{date\}/g,    d)
     .replace(/\{heure\}/g,   appt.startTime)
     .replace(/\{docteur\}/g, docName ? `${WA_DOCTOR_PREFIX[lang]} ${docName}`  : WA_DOCTOR_FALLBACK[lang])
@@ -248,13 +254,15 @@ function renderWaBody(
 // ── WhatsApp template picker ──────────────────────────────────────────────────
 
 function WaPickerModal({
-  appt, phone, templates, doctorFullName, onClose,
+  appt, phone, templates, doctorFullName, patientArabicName, doctorArabicName, onClose,
 }: {
-  appt:           Appointment;
-  phone:          string;
-  templates:      WaTemplate[];
-  doctorFullName?: string;
-  onClose:        () => void;
+  appt:              Appointment;
+  phone:             string;
+  templates:         WaTemplate[];
+  doctorFullName?:   string;
+  patientArabicName?: string;
+  doctorArabicName?: string;
+  onClose:           () => void;
 }) {
   const { t, i18n } = useTranslation();
   // The MESSAGE language is chosen independently of the app UI language —
@@ -267,8 +275,9 @@ function WaPickerModal({
     weekday: "long", day: "numeric", month: "long",
   });
   const clean = phone.replace(/\D/g, "");
+  const waOpts = { patientArabicName, doctorArabicName };
   const buildUrl = (body: string) =>
-    `https://wa.me/${clean}?text=${encodeURIComponent(renderWaBody(body, appt, doctorFullName, msgLang))}`;
+    `https://wa.me/${clean}?text=${encodeURIComponent(renderWaBody(body, appt, doctorFullName, msgLang, waOpts))}`;
 
   // Built-in translated messages for the selected language. When the doctor's
   // own templates exist and the language is French, the built-ins would just
@@ -349,7 +358,7 @@ function WaPickerModal({
                     </svg>
                   </div>
                   <div className="wa-picker-card-body" dir={isRtl ? "rtl" : "ltr"}>
-                    {renderWaBody(b.body, appt, doctorFullName, msgLang)}
+                    {renderWaBody(b.body, appt, doctorFullName, msgLang, waOpts)}
                   </div>
                 </a>
               ))}
@@ -382,7 +391,7 @@ function WaPickerModal({
                     </svg>
                   </div>
                   <div className="wa-picker-card-body" dir={isRtl ? "rtl" : "ltr"}>
-                    {renderWaBody(t.body, appt, doctorFullName, msgLang)}
+                    {renderWaBody(t.body, appt, doctorFullName, msgLang, waOpts)}
                   </div>
                 </a>
               ))}
@@ -2140,6 +2149,12 @@ export function AgendaPage() {
           phone={waPickerTarget.phone}
           templates={waTemplates}
           doctorFullName={doctorProfile?.fullName}
+          doctorArabicName={doctorProfile?.arabicFullName}
+          patientArabicName={
+            waPickerTarget.appt.patientId
+              ? patients.find(p => p.id === waPickerTarget.appt.patientId)?.arabicName
+              : undefined
+          }
           onClose={() => setWaPickerTarget(null)}
         />
       )}
@@ -2217,7 +2232,7 @@ export function AgendaPage() {
                 const bulkWaLang: WaMsgLang = i18n.language?.slice(0, 2) === "ar" ? "ar"
                   : i18n.language?.slice(0, 2) === "en" ? "en" : "fr";
                 const link = tpl
-                  ? `https://wa.me/${phone.replace(/\D/g, "")}?text=${encodeURIComponent(renderWaBody(tpl.body, appt, doctorProfile?.fullName, bulkWaLang))}`
+                  ? `https://wa.me/${phone.replace(/\D/g, "")}?text=${encodeURIComponent(renderWaBody(tpl.body, appt, doctorProfile?.fullName, bulkWaLang, { patientArabicName: pt?.arabicName, doctorArabicName: doctorProfile?.arabicFullName }))}`
                   : `https://wa.me/${phone.replace(/\D/g, "")}`;
                 return (
                   <a
