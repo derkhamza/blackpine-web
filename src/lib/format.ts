@@ -16,6 +16,23 @@ export function todayIso(): string {
   return new Date().toISOString().split("T")[0];
 }
 
+/** Whole-years age from an ISO birth date (YYYY-MM-DD); null when unknown/invalid.
+ *  Birthday-accurate (not a 365.25-day approximation). */
+export function calcAge(dob?: string): number | null {
+  if (!dob) return null;
+  const birth = new Date(dob + "T12:00:00");
+  if (Number.isNaN(birth.getTime())) return null;
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  if (
+    today.getMonth() < birth.getMonth() ||
+    (today.getMonth() === birth.getMonth() && today.getDate() < birth.getDate())
+  ) {
+    age--;
+  }
+  return age;
+}
+
 // ── Tension artérielle (TA) ────────────────────────────────────────────────────
 // Vitals are stored in mmHg (120/80). Moroccan/French clinical convention reads
 // TA in cmHg (12/8), so we display divided by 10.

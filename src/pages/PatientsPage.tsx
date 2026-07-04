@@ -10,28 +10,10 @@ import type { Patient, PatientGender } from "../lib/cabinetTypes";
 import { MOROCCAN_CITIES, MUTUELLES } from "../lib/cabinetTypes";
 import { useTranslation } from "react-i18next";
 import { track } from "../lib/analytics";
-import { fullName } from "../lib/nameFormat";
+import { fullName, initials, avatarColor } from "../lib/nameFormat";
+import { calcAge } from "../lib/format";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-function calcAge(dob?: string): number | null {
-  if (!dob) return null;
-  return Math.floor((Date.now() - new Date(dob).getTime()) / (1000 * 60 * 60 * 24 * 365.25));
-}
-
-function initials(p: Patient): string {
-  return `${p.lastName[0] ?? ""}${p.firstName[0] ?? ""}`.toUpperCase();
-}
-
-const AVATAR_COLORS = [
-  "#1890C5","#15A876","#D4962A","#9B72D0","#E85B5B","#0A4E7E","#2ECC71","#E67E22",
-];
-
-function avatarColor(name: string): string {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) & 0xffff;
-  return AVATAR_COLORS[h % AVATAR_COLORS.length];
-}
 
 // ── Patient modal ─────────────────────────────────────────────────────────────
 

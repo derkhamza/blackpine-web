@@ -13,26 +13,14 @@ import {
   MUTUELLES, MOROCCAN_CITIES,
 } from "../lib/cabinetTypes";
 import { getSpecialtyGroups, BILAN_CATALOG } from "../lib/specialtyFields";
-import { formatMAD, formatDateShort, todayIso } from "../lib/format";
-import { fullName as fmtFullName, initials as fmtInitials } from "../lib/nameFormat";
+import { formatMAD, formatDateShort, todayIso, calcAge } from "../lib/format";
+import { fullName as fmtFullName, initials as fmtInitials, avatarColor } from "../lib/nameFormat";
 import { outstandingTotal } from "../lib/billing";
 import { printPatientReport } from "../lib/patientReportPrinter";
 import { printOrdonnance } from "../lib/ordonnancePrinter";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const AVATAR_COLORS = [
-  "#1890C5","#15A876","#D4962A","#9B72D0","#E85B5B","#0A4E7E","#2ECC71","#E67E22",
-];
-function avatarColor(name: string): string {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) & 0xffff;
-  return AVATAR_COLORS[h % AVATAR_COLORS.length];
-}
-function calcAge(dob?: string): number | null {
-  if (!dob) return null;
-  return Math.floor((Date.now() - new Date(dob).getTime()) / (1000 * 60 * 60 * 24 * 365.25));
-}
 function fmtDate(iso: string, locale = "fr-FR") {
   return new Date(iso + "T12:00:00").toLocaleDateString(locale, {
     day: "numeric", month: "short", year: "numeric",

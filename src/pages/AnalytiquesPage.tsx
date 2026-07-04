@@ -3,18 +3,11 @@ import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Layout } from "../components/Layout";
 import { useCabinet } from "../context/CabinetContext";
-import { todayIso, formatMAD } from "../lib/format";
+import { todayIso, formatMAD, calcAge } from "../lib/format";
 import { StatsPage } from "./StatsPage";
 import { ClinicalStatsContent } from "./ClinicalStatsPage";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-function calcAge(dob: string): number {
-  return Math.floor(
-    (new Date(todayIso() + "T12:00:00").getTime() - new Date(dob + "T12:00:00").getTime())
-    / (365.25 * 86400000),
-  );
-}
 
 function getLast12Months(locale: string): { key: string; label: string }[] {
   const now = new Date();
@@ -141,8 +134,7 @@ export function AnalytiquesContent() {
 
   // ── Patient KPIs ──────────────────────────────────────────────────────────
   const kpis = useMemo(() => {
-    const withDob    = patients.filter(p => !!p.dateOfBirth);
-    const ages       = withDob.map(p => calcAge(p.dateOfBirth!));
+    const ages       = patients.map(p => calcAge(p.dateOfBirth)).filter((a): a is number => a != null);
     const avgAge     = ages.length > 0 ? Math.round(ages.reduce((s, a) => s + a, 0) / ages.length) : null;
     const newThisMth = patients.filter(p => p.createdAt.startsWith(thisMonth)).length;
     const withCnops  = patients.filter(p => !!p.cnopsNumber).length;
@@ -155,8 +147,8 @@ export function AnalytiquesContent() {
     return AGE_GROUPS.map(g => ({
       label: g.label,
       value: withDob.filter(p => {
-        const a = calcAge(p.dateOfBirth!);
-        return a >= g.min && a <= g.max;
+        const a = calcAge(p.dateOfBirth);
+        return a != null && a >= g.min && a <= g.max;
       }).length,
     }));
   }, [patients]);

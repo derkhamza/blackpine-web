@@ -12,7 +12,7 @@ import {
   APPT_TYPE_LABELS, APPT_TYPE_COLORS, APPT_STATUS_LABELS,
   WA_TEMPLATE_CATEGORY_LABELS, WA_TEMPLATE_CATEGORY_COLORS,
 } from "../lib/cabinetTypes";
-import { todayIso } from "../lib/format";
+import { todayIso, calcAge } from "../lib/format";
 import { fullName as fmtFullName } from "../lib/nameFormat";
 import {
   WA_MSG_LANGS, WA_MSG_LOCALE, BUILTIN_WA_MESSAGES, type WaMsgLang,
@@ -67,17 +67,6 @@ type AgendaView = "day" | "week" | "month";
 function colour(hex: string, muted = false) { return muted ? "var(--border)" : hex; }
 
 // ── Smart-prefill helpers ──────────────────────────────────────────────────────
-
-function calcAge(dob: string): number {
-  const today = new Date();
-  const birth = new Date(dob + "T12:00:00");
-  let age = today.getFullYear() - birth.getFullYear();
-  if (
-    today.getMonth() < birth.getMonth() ||
-    (today.getMonth() === birth.getMonth() && today.getDate() < birth.getDate())
-  ) age--;
-  return age;
-}
 
 interface SmartPrefill {
   type: AppointmentType;

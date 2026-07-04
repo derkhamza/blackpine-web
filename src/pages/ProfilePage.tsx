@@ -8,6 +8,7 @@ import type { CabinetDoctorProfile } from "../lib/cabinetTypes";
 import { SPECIALTIES } from "../lib/cabinetTypes";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { initialsFromName } from "../lib/nameFormat";
 
 function fmtPhone(raw: string): string {
   const d = raw.replace(/\D/g, "").slice(0, 10);
@@ -22,15 +23,6 @@ type Marital  = DoctorProfile["maritalStatus"];
 type Commune  = DoctorProfile["communeType"];
 type Practice = DoctorProfile["practiceType"];
 type LegalForm = DoctorProfile["legalForm"];
-
-// ── Avatar helper ─────────────────────────────────────────────────────────────
-
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0][0].toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
 
 // ── Section wrapper ───────────────────────────────────────────────────────────
 
@@ -75,7 +67,7 @@ export function ProfilePage({ noLayout = false }: { noLayout?: boolean } = {}) {
 
   const handleLogout = () => { logout(); navigate("/login"); };
 
-  const avatarText = doc.fullName ? initials(doc.fullName) : "?";
+  const avatarText = doc.fullName ? initialsFromName(doc.fullName) : "?";
   const hasName    = (doc.fullName ?? "").trim().length > 0;
 
   const body = (

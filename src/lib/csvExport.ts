@@ -1,5 +1,6 @@
 import type { Patient, Appointment } from "./cabinetTypes";
 import { APPT_TYPE_LABELS, APPT_STATUS_LABELS } from "./cabinetTypes";
+import { calcAge } from "./format";
 
 // ── Core ──────────────────────────────────────────────────────────────────────
 
@@ -28,17 +29,11 @@ function download(filename: string, headers: string[], rows: unknown[][]): void 
   URL.revokeObjectURL(url);
 }
 
-function calcAge(dob: string): number {
-  return Math.floor(
-    (Date.now() - new Date(dob + "T12:00:00").getTime()) / (365.25 * 86400000),
-  );
-}
-
 // ── Patients ──────────────────────────────────────────────────────────────────
 
 export function exportPatientsCsv(patients: Patient[]): void {
   const headers = [
-    "Prénom", "Nom", "Date de naissance", "Âge", "Sexe",
+    "Nom", "Prénom", "Date de naissance", "Âge", "Sexe",
     "Téléphone", "CIN", "Groupe sanguin", "N° AMO/CNOPS",
     "Allergies", "Antécédents médicaux", "Médicaments en cours", "Notes",
     "Créé le",
@@ -49,10 +44,10 @@ export function exportPatientsCsv(patients: Patient[]): void {
       `${a.lastName}${a.firstName}`.localeCompare(`${b.lastName}${b.firstName}`),
     )
     .map(p => [
-      p.firstName,
       p.lastName,
+      p.firstName,
       p.dateOfBirth ?? "",
-      p.dateOfBirth ? calcAge(p.dateOfBirth) : "",
+      calcAge(p.dateOfBirth) ?? "",
       p.gender === "M" ? "Masculin" : p.gender === "F" ? "Féminin" : "",
       p.phone          ?? "",
       p.cin            ?? "",

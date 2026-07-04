@@ -5,7 +5,7 @@ import type {
 import {
   APPT_TYPE_LABELS, EXAM_TYPE_LABELS, CERT_TYPE_LABELS,
 } from "./cabinetTypes";
-import { mmHgToCmHg } from "./format";
+import { mmHgToCmHg, calcAge } from "./format";
 import { fullName as fmtFullName } from "./nameFormat";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -15,10 +15,9 @@ function fmtDate(iso: string, opts?: Intl.DateTimeFormatOptions) {
     day: "2-digit", month: "2-digit", year: "numeric",
   });
 }
-function calcAge(dob?: string): string {
-  if (!dob) return "—";
-  const y = Math.floor((Date.now() - new Date(dob).getTime()) / (365.25 * 86400000));
-  return `${y} ans`;
+function ageLabel(dob?: string): string {
+  const y = calcAge(dob);
+  return y == null ? "—" : `${y} ans`;
 }
 
 function escHtml(s: string): string {
@@ -372,7 +371,7 @@ export function printPatientReport(opts: {
       <div class="patient-name">${escHtml(fullName)}</div>
       <div class="patient-meta">
         ${patient.gender === "M" ? "Homme · " : patient.gender === "F" ? "Femme · " : ""}
-        ${patient.dateOfBirth ? "né(e) le " + fmtDate(patient.dateOfBirth) + " · " + calcAge(patient.dateOfBirth) : ""}
+        ${patient.dateOfBirth ? "né(e) le " + fmtDate(patient.dateOfBirth) + " · " + ageLabel(patient.dateOfBirth) : ""}
         ${patient.phone ? " · " + escHtml(patient.phone) : ""}
       </div>
     </div>
