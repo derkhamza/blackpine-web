@@ -14,6 +14,7 @@ import {
 } from "../lib/cabinetTypes";
 import { getSpecialtyGroups, BILAN_CATALOG } from "../lib/specialtyFields";
 import { formatMAD, formatDateShort, todayIso } from "../lib/format";
+import { fullName as fmtFullName, initials as fmtInitials } from "../lib/nameFormat";
 import { outstandingTotal } from "../lib/billing";
 import { printPatientReport } from "../lib/patientReportPrinter";
 import { printOrdonnance } from "../lib/ordonnancePrinter";
@@ -257,7 +258,7 @@ export function PatientDetailPage() {
   const patientOutstanding = useMemo(() => outstandingTotal(patientAppts), [patientAppts]);
   const ordAppts       = patientAppts.filter((a) => !!a.savedOrdonnance && a.savedOrdonnance.lines.length > 0);
 
-  const fullName = patient ? `${patient.firstName} ${patient.lastName}` : "";
+  const fullName = patient ? fmtFullName(patient) : "";
 
   // A document belongs to this patient when it carries this patient's id. As a
   // fallback for legacy documents that were saved with no id, we match by name —
@@ -561,7 +562,7 @@ export function PatientDetailPage() {
       <div className="patient-header-card">
         <div className="patient-header-left">
           <div className="patient-header-avatar" style={{ background: color + "20", color }}>
-            {`${patient.firstName[0] ?? ""}${patient.lastName[0] ?? ""}`.toUpperCase()}
+            {fmtInitials(patient)}
           </div>
           <div className="patient-header-info">
             <div className="patient-header-name">{fullName}</div>
@@ -1206,12 +1207,12 @@ export function PatientDetailPage() {
             <div className="modal-body" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <div className="form-row">
                 <div className="form-group">
-                  <label className="form-label">{t("patients.firstName")}</label>
-                  <input className="form-input" value={editFirst} onChange={(e) => setEFirst(e.target.value)} required autoFocus />
+                  <label className="form-label">{t("patients.lastName")}</label>
+                  <input className="form-input" value={editLast} onChange={(e) => setELast(e.target.value)} required autoFocus />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">{t("patients.lastName")}</label>
-                  <input className="form-input" value={editLast} onChange={(e) => setELast(e.target.value)} required />
+                  <label className="form-label">{t("patients.firstName")}</label>
+                  <input className="form-input" value={editFirst} onChange={(e) => setEFirst(e.target.value)} required />
                 </div>
               </div>
               <div className="form-group">

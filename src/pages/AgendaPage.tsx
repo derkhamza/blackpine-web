@@ -13,6 +13,7 @@ import {
   WA_TEMPLATE_CATEGORY_LABELS, WA_TEMPLATE_CATEGORY_COLORS,
 } from "../lib/cabinetTypes";
 import { todayIso } from "../lib/format";
+import { fullName as fmtFullName } from "../lib/nameFormat";
 import {
   WA_MSG_LANGS, WA_MSG_LOCALE, BUILTIN_WA_MESSAGES, type WaMsgLang,
   WA_DOCTOR_PREFIX, WA_CABINET_PREFIX, WA_DOCTOR_FALLBACK, WA_CABINET_FALLBACK,
@@ -453,7 +454,7 @@ function ApptModal({ initial, defaultDate, isEdit, patients, appointments, onSav
   const applyLink = (match: Patient) => {
     setPid(match.id);
     setNameChoices([]);
-    setName(`${match.firstName} ${match.lastName}`.trim());
+    setName(fmtFullName(match));
     if (!isEdit) {
       const prefill = getSmartPrefill(match.id, appointments);
       if (prefill) {
@@ -479,7 +480,7 @@ function ApptModal({ initial, defaultDate, isEdit, patients, appointments, onSav
     setName(val);
     const v = val.trim().toLowerCase();
     const exact = patients.filter(
-      p => `${p.firstName} ${p.lastName}`.toLowerCase() === v
+      p => fmtFullName(p).toLowerCase() === v
     );
     if (exact.length === 1) {
       applyLink(exact[0]);
@@ -560,7 +561,7 @@ function ApptModal({ initial, defaultDate, isEdit, patients, appointments, onSav
               />
               <datalist id="appt-patient-list">
                 {patients.map(p => (
-                  <option key={p.id} value={`${p.firstName} ${p.lastName}`} />
+                  <option key={p.id} value={fmtFullName(p)} />
                 ))}
               </datalist>
               {nameChoices.length >= 2 && !linkedPid && (
@@ -573,7 +574,7 @@ function ApptModal({ initial, defaultDate, isEdit, patients, appointments, onSav
                       className="patient-picker-choice rv-press"
                       onClick={() => applyLink(p)}
                     >
-                      <span className="patient-picker-choice-name">{p.firstName} {p.lastName}</span>
+                      <span className="patient-picker-choice-name">{fmtFullName(p)}</span>
                       <span className="patient-picker-choice-meta">
                         {patientDistinguisher(p) || t("patientPicker.noInfo")}
                       </span>
@@ -1253,7 +1254,7 @@ export function AgendaPage() {
       const smart = getSmartPrefill(p.id, appointments);
       setModal({
         prefill: {
-          patientName: `${p.firstName} ${p.lastName}`,
+          patientName: fmtFullName(p),
           patientId:   p.id,
           date:        today,
           startTime:   smart?.startTime ?? "09:00",

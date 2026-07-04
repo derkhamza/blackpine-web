@@ -6,6 +6,7 @@ import {
   APPT_TYPE_LABELS, EXAM_TYPE_LABELS, CERT_TYPE_LABELS,
 } from "./cabinetTypes";
 import { mmHgToCmHg } from "./format";
+import { fullName as fmtFullName } from "./nameFormat";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -201,7 +202,7 @@ export function printPatientReport(opts: {
     examResults    = [],
     certificates   = [],
   } = opts;
-  const fullName = `${patient.firstName} ${patient.lastName}`;
+  const fullName = fmtFullName(patient);
 
   // Sort appointments newest-first
   const patientAppts = [...appointments]

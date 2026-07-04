@@ -10,6 +10,7 @@ import type { Patient, PatientGender } from "../lib/cabinetTypes";
 import { MOROCCAN_CITIES, MUTUELLES } from "../lib/cabinetTypes";
 import { useTranslation } from "react-i18next";
 import { track } from "../lib/analytics";
+import { fullName } from "../lib/nameFormat";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -19,7 +20,7 @@ function calcAge(dob?: string): number | null {
 }
 
 function initials(p: Patient): string {
-  return `${p.firstName[0] ?? ""}${p.lastName[0] ?? ""}`.toUpperCase();
+  return `${p.lastName[0] ?? ""}${p.firstName[0] ?? ""}`.toUpperCase();
 }
 
 const AVATAR_COLORS = [
@@ -98,7 +99,7 @@ function PatientModal({ initial, existingPatients = [], onSave, onClose }: Patie
       );
       if (dup) {
         const dob = dup.dateOfBirth ? ` · ${dup.dateOfBirth}` : "";
-        setDupWarn(`${dup.firstName} ${dup.lastName}${dob}`);
+        setDupWarn(`${fullName(dup)}${dob}`);
         return;
       }
     }
@@ -117,12 +118,12 @@ function PatientModal({ initial, existingPatients = [], onSave, onClose }: Patie
           <div className="modal-body" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <div className="form-row">
               <div className="form-group">
-                <label className="form-label">{t("patients.firstName")}</label>
-                <input className="form-input" value={firstName} onChange={e => setFirst(e.target.value)} required autoFocus />
+                <label className="form-label">{t("patients.lastName")}</label>
+                <input className="form-input" value={lastName} onChange={e => setLast(e.target.value)} required autoFocus />
               </div>
               <div className="form-group">
-                <label className="form-label">{t("patients.lastName")}</label>
-                <input className="form-input" value={lastName} onChange={e => setLast(e.target.value)} required />
+                <label className="form-label">{t("patients.firstName")}</label>
+                <input className="form-input" value={firstName} onChange={e => setFirst(e.target.value)} required />
               </div>
             </div>
             <div className="form-group">
@@ -255,7 +256,7 @@ function PatientCard({
         {initials(patient)}
       </div>
       <div className="patient-info">
-        <div className="patient-name">{patient.firstName} {patient.lastName}</div>
+        <div className="patient-name">{fullName(patient)}</div>
         <div className="patient-meta">
           {patient.gender && (
             <span style={{ color: "var(--muted)" }}>{patient.gender === "M" ? "♂" : "♀"}</span>
@@ -420,7 +421,7 @@ export function PatientsPage() {
                   onDetail={() => navigate(`/patients/${p.id}`)}
                   onEdit={() => setModal({ patient: p })}
                   onDelete={() => {
-                    if (confirm(t("patients.deleteConfirmName", { firstName: p.firstName, lastName: p.lastName }))) {
+                    if (confirm(t("patients.deleteConfirmName", { name: fullName(p) }))) {
                       deletePatient(p.id);
                       showToast(t("patients.deleted"));
                     }
@@ -445,8 +446,7 @@ export function PatientsPage() {
               const created = addPatient(p);
               track("action:create_patient");
               // Attach appointments booked under this name before the record existed.
-              const fullName = `${created.firstName} ${created.lastName}`.trim();
-              const orphans = findOrphanAppts(appointments, fullName);
+              const orphans = findOrphanAppts(appointments, fullName(created));
               orphans.forEach(a => updateAppointment({ ...a, patientId: created.id }));
               showToast(orphans.length
                 ? t("patients.addedLinked", { count: orphans.length })

@@ -4,6 +4,7 @@ import { Layout } from "../components/Layout";
 import { useToast } from "../components/Toast";
 import { useCabinet } from "../context/CabinetContext";
 import { todayIso } from "../lib/format";
+import { fullName as fmtFullName } from "../lib/nameFormat";
 import type { ExamResult, ExamType, ExamValue } from "../lib/cabinetTypes";
 import { EXAM_TYPE_LABELS, EXAM_TYPE_COLORS } from "../lib/cabinetTypes";
 
@@ -220,7 +221,7 @@ function ExamModal({ initial, patients, doctorName, onSave, onClose }: ExamModal
   const handleSelectPatient = (pid: string) => {
     setPatientId(pid);
     const p = patients.find(x => x.id === pid);
-    setPatientName(p ? p.firstName + " " + p.lastName : "");
+    setPatientName(p ? fmtFullName(p) : "");
   };
 
   const addValue  = () => setValues(prev => [...prev, { label: "", value: "", unit: undefined, refMin: undefined, refMax: undefined }]);
@@ -252,9 +253,8 @@ function ExamModal({ initial, patients, doctorName, onSave, onClose }: ExamModal
     e.preventDefault();
     const validValues = values.filter(v => v.label.trim() && v.value.trim());
     if (!title.trim() || validValues.length === 0) return;
-    const name = patientId
-      ? (patients.find(p => p.id === patientId)?.firstName ?? "") + " " + (patients.find(p => p.id === patientId)?.lastName ?? "")
-      : patientName.trim();
+    const linkedPatient = patientId ? patients.find(p => p.id === patientId) : undefined;
+    const name = linkedPatient ? fmtFullName(linkedPatient) : patientName.trim();
     onSave({
       patientId:   patientId   || undefined,
       patientName: name        || "Patient inconnu",
@@ -285,7 +285,7 @@ function ExamModal({ initial, patients, doctorName, onSave, onClose }: ExamModal
                   onChange={e => handleSelectPatient(e.target.value)}>
                   <option value="">{t("examens.patientSelect")}</option>
                   {patients.map(p => (
-                    <option key={p.id} value={p.id}>{p.firstName} {p.lastName}</option>
+                    <option key={p.id} value={p.id}>{fmtFullName(p)}</option>
                   ))}
                 </select>
               </div>

@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { fullName } from "../lib/nameFormat";
 
 // A patient name field that disambiguates between several patients who share
 // the same name. When the typed name matches exactly one patient it links
@@ -19,7 +20,7 @@ export interface PickerPatient {
 }
 
 export function pickerName(p: PickerPatient): string {
-  return `${p.firstName} ${p.lastName}`.trim();
+  return fullName(p);
 }
 
 function distinguisher(p: PickerPatient): string {

@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 import { useCabinet } from "../context/CabinetContext";
 import { formatMAD, formatDateShort } from "../lib/format";
+import { fullName as fmtFullName } from "../lib/nameFormat";
 import {
   APPT_TYPE_LABELS, APPT_STATUS_LABELS,
   EXAM_TYPE_LABELS, CERT_TYPE_LABELS,
@@ -77,7 +78,7 @@ export function CommandPalette({ onClose }: Props) {
 
     // Patients
     for (const p of patients) {
-      const full = `${p.firstName} ${p.lastName}`.toLowerCase();
+      const full = `${p.lastName} ${p.firstName} ${p.firstName} ${p.lastName}`.toLowerCase();
       if (
         full.includes(q) ||
         p.phone?.replace(/\s/g, "").includes(q.replace(/\s/g, "")) ||
@@ -91,7 +92,7 @@ export function CommandPalette({ onClose }: Props) {
         out.push({
           id:       p.id,
           kind:     "patient",
-          title:    `${p.firstName} ${p.lastName}`,
+          title:    fmtFullName(p),
           subtitle: meta || t("commandPalette.noInfo"),
           path:     `/patients/${p.id}`,
           accent:   "var(--blue)",

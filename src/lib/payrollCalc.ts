@@ -1,6 +1,7 @@
 // Moroccan payroll calculation — exact copy of blackpine-app/lib/payrollCalc.ts
 
 import type { CabinetDoctorProfile, ContractType, Employee } from "./cabinetTypes";
+import { personName } from "./nameFormat";
 
 export interface PayrollResult {
   grossSalary: number;
@@ -103,7 +104,7 @@ export function printBulletin(
 <html lang="fr">
 <head>
   <meta charset="UTF-8"/>
-  <title>Bulletin de paie — ${employee.firstName} ${employee.lastName} — ${monthLabel}</title>
+  <title>Bulletin de paie — ${personName(employee.firstName, employee.lastName)} — ${monthLabel}</title>
   <style>
     @page { size: A4 portrait; margin: 14mm 16mm; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -189,7 +190,7 @@ export function printBulletin(
   <div class="info-grid">
     <div class="info-box">
       <div class="info-lbl">Employé(e)</div>
-      <div class="info-val">${employee.firstName} ${employee.lastName}</div>
+      <div class="info-val">${personName(employee.firstName, employee.lastName)}</div>
     </div>
     <div class="info-box">
       <div class="info-lbl">Poste</div>

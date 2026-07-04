@@ -666,7 +666,7 @@
     "noPatientsHint": "Add your first patient to get started.",
     "noResults": "No results for \"{{q}}\"",
     "deleteConfirm": "Delete this patient and all their data?",
-    "deleteConfirmName": "Delete {{firstName}} {{lastName}}?",
+    "deleteConfirmName": "Delete {{name}}?",
     "deleted": "Patient deleted",
     "added": "Patient added",
     "addedLinked": "Patient added — {{count}} appointment(s) attached",

@@ -4,6 +4,7 @@ import {
 import type { Appointment, ApptDocument, CabinetDoctorProfile, Certificate, Employee, InvoiceRecord, Patient, Prescription, PrescriptionTemplate, StockItem, WaTemplate, TeleSession, InternalNote, Supplier, PurchaseOrder, PurchaseOrderLine, ExamResult, ExamRequest } from "../lib/cabinetTypes";
 import { BLANK_DOCTOR_PROFILE } from "../lib/cabinetTypes";
 import { idbGet, idbSet } from "../lib/idbStore";
+import { fullName } from "../lib/nameFormat";
 import {
   getToken, pullCabinet, pushCabinet, CabinetConflictError, type CabinetSnapshot,
   getSecretaryToken, secretaryPull, secretaryPushAppointments, secretaryPushPatients,
@@ -376,7 +377,7 @@ export function CabinetProvider({
   // not loop despite depending on `appointments`.
   useEffect(() => {
     if (patients.length === 0) return;
-    const nameById = new Map(patients.map(p => [p.id, `${p.firstName} ${p.lastName ?? ""}`.trim()]));
+    const nameById = new Map(patients.map(p => [p.id, fullName(p)]));
     setAppts(prev => {
       let changed = false;
       const next = prev.map(a => {
@@ -484,14 +485,14 @@ export function CabinetProvider({
       // Appointments store a denormalised patientName (used by the agenda,
       // ordonnance and facture). Keep it in sync when the patient is renamed so
       // the new name shows everywhere immediately, not just on the patient page.
-      const fullName = `${p.firstName} ${p.lastName ?? ""}`.trim();
+      const fullNameStr = fullName(p);
       setAppts(prev => {
         let changed = false;
         const next = prev.map(a => {
-          if (a.patientId === p.id && a.patientName !== fullName && fullName) {
+          if (a.patientId === p.id && a.patientName !== fullNameStr && fullNameStr) {
             changed = true;
             touchedRef.current.appts.add(a.id);
-            return { ...a, patientName: fullName };
+            return { ...a, patientName: fullNameStr };
           }
           return a;
         });

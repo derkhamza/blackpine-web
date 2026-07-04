@@ -5,6 +5,7 @@ import { AnimatedNumber } from "../components/AnimatedNumber";
 import { useToast } from "../components/Toast";
 import { useCabinet } from "../context/CabinetContext";
 import { todayIso } from "../lib/format";
+import { fullName as fmtFullName } from "../lib/nameFormat";
 import type { TeleSession, TelePlatform, TeleStatus } from "../lib/cabinetTypes";
 import {
   TELE_PLATFORM_LABELS, TELE_PLATFORM_COLORS,
@@ -83,7 +84,7 @@ function SessionModal({ initial, patients, onSave, onClose }: SessionModalProps)
   const handleNameChange = (val: string) => {
     setPatientName(val);
     const p = patients.find(x =>
-      `${x.firstName} ${x.lastName}`.toLowerCase() === val.toLowerCase()
+      fmtFullName(x).toLowerCase() === val.toLowerCase()
     );
     if (p) {
       setPatientId(p.id);
@@ -128,7 +129,7 @@ function SessionModal({ initial, patients, onSave, onClose }: SessionModalProps)
                   value={patientName} onChange={e => handleNameChange(e.target.value)}
                   placeholder={t("teleconsult.patientPlaceholder")} required />
                 <datalist id="tele-patient-list">
-                  {patients.map(p => <option key={p.id} value={`${p.firstName} ${p.lastName}`} />)}
+                  {patients.map(p => <option key={p.id} value={fmtFullName(p)} />)}
                 </datalist>
               </div>
               <div className="form-group" style={{ flex: "0 0 160px" }}>

@@ -7,6 +7,7 @@ import { useApp } from "../context/AppContext";
 import type { Employee, EmployeeRole, ContractType } from "../lib/cabinetTypes";
 import { EMPLOYEE_ROLE_LABELS, CONTRACT_TYPE_LABELS } from "../lib/cabinetTypes";
 import { computePayroll, fmtMAD, printBulletin } from "../lib/payrollCalc";
+import { personName, initials as fmtInitials } from "../lib/nameFormat";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -71,14 +72,14 @@ function EmployeeModal({
           <div className="modal-body" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <div className="form-row">
               <div className="form-group">
-                <label className="form-label">{t("payroll.firstNameLabel")}</label>
-                <input className="form-input" value={draft.firstName}
-                  onChange={e => field({ firstName: e.target.value })} required autoFocus />
-              </div>
-              <div className="form-group">
                 <label className="form-label">{t("payroll.lastNameLabel")}</label>
                 <input className="form-input" value={draft.lastName}
-                  onChange={e => field({ lastName: e.target.value })} required />
+                  onChange={e => field({ lastName: e.target.value })} required autoFocus />
+              </div>
+              <div className="form-group">
+                <label className="form-label">{t("payroll.firstNameLabel")}</label>
+                <input className="form-input" value={draft.firstName}
+                  onChange={e => field({ firstName: e.target.value })} required />
               </div>
             </div>
             <div className="form-row">
@@ -198,10 +199,10 @@ function EmployeeCard({
   return (
     <div className="employee-card" onClick={onEdit}>
       <div className="employee-avatar" style={{ background: color + "18", color }}>
-        {`${employee.firstName[0] ?? ""}${employee.lastName[0] ?? ""}`.toUpperCase()}
+        {fmtInitials(employee)}
       </div>
       <div className="employee-info">
-        <div className="employee-name">{employee.firstName} {employee.lastName}</div>
+        <div className="employee-name">{personName(employee.firstName, employee.lastName)}</div>
         <span className="employee-role-badge" style={{ background: color + "18", color }}>
           {EMPLOYEE_ROLE_LABELS[employee.role]}
         </span>
@@ -415,7 +416,7 @@ export function PayrollPage() {
                   return (
                     <tr key={e.id}>
                       <td>
-                        <div style={{ fontWeight: 700 }}>{e.firstName} {e.lastName}</div>
+                        <div style={{ fontWeight: 700 }}>{personName(e.firstName, e.lastName)}</div>
                         <span style={{
                           fontSize: 11, color,
                           background: color + "15",
@@ -491,7 +492,7 @@ export function PayrollPage() {
               locale={locale}
               onEdit={() => setModal({ employee: e })}
               onDelete={() => {
-                if (confirm(t("payroll.deleteConfirm", { name: `${e.firstName} ${e.lastName}` }))) {
+                if (confirm(t("payroll.deleteConfirm", { name: personName(e.firstName, e.lastName) }))) {
                   deleteEmployee(e.id);
                   showToast(t("payroll.deleted"));
                 }

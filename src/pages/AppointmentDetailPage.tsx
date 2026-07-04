@@ -7,6 +7,7 @@ import { useCabinet } from "../context/CabinetContext";
 import { useApp } from "../context/AppContext";
 import { useToast } from "../components/Toast";
 import { findOrphanAppts } from "../lib/orphanAppts";
+import { fullName as fmtFullName } from "../lib/nameFormat";
 import type {
   Appointment, AppointmentStatus, AppointmentType,
   ConsultationNote, VitalSigns, OrdonnanceLine, SavedCertificate, BillingLine, PaymentMethod,
@@ -180,7 +181,7 @@ function LinkPatientModal({
   const filtered = useMemo(() => {
     const needle = norm(q.trim());
     const list = needle
-      ? patients.filter(p => norm(`${p.firstName} ${p.lastName} ${p.phone ?? ""}`).includes(needle))
+      ? patients.filter(p => norm(`${p.lastName} ${p.firstName} ${p.firstName} ${p.lastName} ${p.phone ?? ""}`).includes(needle))
       : patients;
     return list.slice(0, 50);
   }, [patients, q]);
@@ -224,10 +225,10 @@ function LinkPatientModal({
                     background: "var(--blue-soft)", color: "var(--blue)", fontWeight: 700,
                     display: "grid", placeItems: "center", fontSize: 13,
                   }}>
-                    {(p.firstName[0] ?? "?").toUpperCase()}
+                    {(p.lastName[0] ?? p.firstName[0] ?? "?").toUpperCase()}
                   </span>
                   <span style={{ flex: 1, minWidth: 0 }}>
-                    <span style={{ fontWeight: 600, display: "block" }}>{p.firstName} {p.lastName}</span>
+                    <span style={{ fontWeight: 600, display: "block" }}>{fmtFullName(p)}</span>
                     {p.phone && <span style={{ fontSize: 12, color: "var(--muted)" }}>{p.phone}</span>}
                   </span>
                 </button>
@@ -348,13 +349,15 @@ export function AppointmentDetailPage() {
   // attaches every still-unlinked appointment booked under that same name.
   const handleCreatePatientFromAppt = () => {
     if (!appt) return;
+    // Names are written Moroccan-style (last name first), so the first token is
+    // the family name and the remainder is the given name.
     const parts = appt.patientName.trim().split(/\s+/);
     const created = addPatient({
-      firstName: parts[0] ?? appt.patientName.trim(),
-      lastName:  parts.slice(1).join(" "),
+      lastName:  parts[0] ?? appt.patientName.trim(),
+      firstName: parts.slice(1).join(" "),
       phone:     appt.bookingPhone || undefined,
     });
-    const fullName = `${created.firstName} ${created.lastName ?? ""}`.trim();
+    const fullName = fmtFullName(created);
     const orphans = findOrphanAppts(appointments, appt.patientName);
     orphans.forEach(a => updateAppointment({ ...a, patientId: created.id, patientName: fullName || a.patientName }));
     toast(t("apptDetail.patientCreated", { count: orphans.length }), "success");
@@ -1989,7 +1992,7 @@ export function AppointmentDetailPage() {
           patients={patients}
           apptName={appt.patientName}
           onPick={(p) => {
-            updateAppointment({ ...appt, patientId: p.id, patientName: `${p.firstName} ${p.lastName}`.trim() });
+            updateAppointment({ ...appt, patientId: p.id, patientName: fmtFullName(p) });
             setShowLink(false);
           }}
           onClose={() => setShowLink(false)}

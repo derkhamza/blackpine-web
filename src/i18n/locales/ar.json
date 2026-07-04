@@ -666,7 +666,7 @@
     "noPatientsHint": "أضف مريضك الأول للبدء.",
     "noResults": "لا نتائج لـ «{{q}}»",
     "deleteConfirm": "حذف هذا المريض وكل بياناته؟",
-    "deleteConfirmName": "حذف {{firstName}} {{lastName}}؟",
+    "deleteConfirmName": "حذف {{name}}؟",
     "deleted": "تم حذف المريض",
     "added": "تمت إضافة المريض",
     "addedLinked": "تمت إضافة المريض — تم ربط {{count}} موعد",
