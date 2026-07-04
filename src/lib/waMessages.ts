@@ -20,6 +20,13 @@ export const WA_MSG_LOCALE: Record<WaMsgLang, string> = {
   en: "en-US",
 };
 
+// Language-appropriate wording for the {docteur} / {cabinet} variables so an
+// Arabic message doesn't carry a French "Dr." / "Cabinet Dr." prefix.
+export const WA_DOCTOR_PREFIX:   Record<WaMsgLang, string> = { fr: "Dr.",         en: "Dr.",  ar: "د." };
+export const WA_CABINET_PREFIX:  Record<WaMsgLang, string> = { fr: "Cabinet Dr.", en: "Dr.",  ar: "عيادة د." };
+export const WA_DOCTOR_FALLBACK: Record<WaMsgLang, string> = { fr: "le médecin",  en: "the doctor", ar: "الطبيب" };
+export const WA_CABINET_FALLBACK: Record<WaMsgLang, string> = { fr: "le cabinet", en: "the clinic", ar: "العيادة" };
+
 export interface BuiltinWaMessage {
   id:       string;
   category: WaTemplateCategory;
