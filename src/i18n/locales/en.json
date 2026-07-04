@@ -636,7 +636,7 @@
     "editPatient": "Edit patient",
     "addPatient": "Add a patient",
     "search": "Search a patient…",
-    "searchPlaceholder": "Search by name or phone…",
+    "searchPlaceholder": "Search by name, phone or CIN…",
     "lastName": "Last name",
     "arabicName": "Name in Arabic",
     "arabicNamePlaceholder": "الاسم بالعربية",

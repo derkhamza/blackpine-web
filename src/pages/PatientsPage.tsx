@@ -303,10 +303,13 @@ export function PatientsPage() {
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
     if (!q) return patients;
+    const qDigits = q.replace(/\D/g, "");
     return patients.filter(p =>
       p.firstName.toLowerCase().includes(q) ||
       p.lastName.toLowerCase().includes(q) ||
-      (p.phone && p.phone.includes(q))
+      (p.arabicName && p.arabicName.toLowerCase().includes(q)) ||
+      (p.cin && p.cin.toLowerCase().includes(q)) ||
+      (qDigits.length > 0 && p.phone && p.phone.replace(/\D/g, "").includes(qDigits))
     );
   }, [patients, search]);
 

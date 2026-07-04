@@ -636,7 +636,7 @@
     "editPatient": "تعديل بيانات المريض",
     "addPatient": "إضافة مريض",
     "search": "البحث عن مريض…",
-    "searchPlaceholder": "البحث بالاسم أو رقم الهاتف…",
+    "searchPlaceholder": "البحث بالاسم أو الهاتف أو البطاقة الوطنية…",
     "lastName": "اللقب",
     "arabicName": "الاسم بالعربية",
     "arabicNamePlaceholder": "مثال: سارة العلوي",
