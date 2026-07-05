@@ -17,7 +17,7 @@ import {
   APPT_TYPE_LABELS, APPT_TYPE_COLORS, APPT_STATUS_LABELS, DEFAULT_SECRETARY_PERMISSIONS,
 } from "../lib/cabinetTypes";
 import { NOTE_TEMPLATES, TEMPLATE_CATEGORIES } from "../lib/noteTemplates";
-import { todayIso, formatMAD, formatDateShort, mmHgToCmHg, cmHgToMmHg, bmiClassify } from "../lib/format";
+import { todayIso, formatMAD, formatDateShort, bmiClassify } from "../lib/format";
 import { printReceipt } from "../lib/receiptPrinter";
 import { nextInvoiceNumber, printFacture } from "../lib/facturePrinter";
 import { OrdonnanceModal }  from "../components/OrdonnanceModal";
@@ -498,8 +498,8 @@ export function AppointmentDetailPage() {
     setTreatment(n.treatment ?? "");
     setExtraFields(n.extraFields ?? {});
     const vs = appt.vitalSigns ?? {};
-    setBpSys(vs.bpSys != null ? mmHgToCmHg(vs.bpSys) : "");
-    setBpDia(vs.bpDia != null ? mmHgToCmHg(vs.bpDia) : "");
+    setBpSys(vs.bpSys != null ? String(vs.bpSys) : "");
+    setBpDia(vs.bpDia != null ? String(vs.bpDia) : "");
     setHr(vs.hr != null ? String(vs.hr) : "");
     setTemp(vs.temp != null ? String(vs.temp) : "");
     setSpo2(vs.spo2 != null ? String(vs.spo2) : "");
@@ -575,7 +575,7 @@ export function AppointmentDetailPage() {
   const saveVitals = () => {
     const p = (s: string) => { const n = parseFloat(s.replace(",", ".")); return isNaN(n) ? undefined : n; };
     const vs: VitalSigns = {
-      bpSys: cmHgToMmHg(bpSys), bpDia: cmHgToMmHg(bpDia), hr: p(hr),
+      bpSys: p(bpSys), bpDia: p(bpDia), hr: p(hr),
       temp: p(temp), spo2: p(spo2), weight: p(weight), height: p(height),
     };
     const hasAny = Object.values(vs).some((v) => v !== undefined);
@@ -1279,9 +1279,9 @@ export function AppointmentDetailPage() {
             <div className="vs-bp-group">
               <div className="vs-group-label">{t("apptDetail.bpGroup")}</div>
               <div className="vs-bp-row">
-                <VsInput label={t("apptDetail.bpSysLabel")} unit="cmHg" value={bpSys} onChange={setBpSys} onBlur={saveVitals} vsKey="bpSys" colorScale={10} readOnly={vitalsReadOnly} />
+                <VsInput label={t("apptDetail.bpSysLabel")} unit="mmHg" value={bpSys} onChange={setBpSys} onBlur={saveVitals} vsKey="bpSys" readOnly={vitalsReadOnly} />
                 <span className="vs-bp-slash">/</span>
-                <VsInput label={t("apptDetail.bpDiaLabel")} unit="cmHg" value={bpDia} onChange={setBpDia} onBlur={saveVitals} vsKey="bpDia" colorScale={10} readOnly={vitalsReadOnly} />
+                <VsInput label={t("apptDetail.bpDiaLabel")} unit="mmHg" value={bpDia} onChange={setBpDia} onBlur={saveVitals} vsKey="bpDia" readOnly={vitalsReadOnly} />
               </div>
             </div>
 

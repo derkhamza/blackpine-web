@@ -5,7 +5,7 @@ import type {
 import {
   APPT_TYPE_LABELS, EXAM_TYPE_LABELS, CERT_TYPE_LABELS,
 } from "./cabinetTypes";
-import { mmHgToCmHg, calcAge } from "./format";
+import { calcAge } from "./format";
 import { fullName as fmtFullName } from "./nameFormat";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -34,7 +34,7 @@ function latestVitals(appts: Appointment[]): string {
   const vs = withVitals[0].vitalSigns!;
   const date = fmtDate(withVitals[0].date);
   const parts: string[] = [];
-  if (vs.bpSys != null && vs.bpDia != null) parts.push(`TA ${mmHgToCmHg(vs.bpSys)}/${mmHgToCmHg(vs.bpDia)} cmHg`);
+  if (vs.bpSys != null && vs.bpDia != null) parts.push(`TA ${vs.bpSys}/${vs.bpDia} mmHg`);
   if (vs.hr     != null) parts.push(`FC ${vs.hr} bpm`);
   if (vs.temp   != null) parts.push(`T° ${vs.temp} °C`);
   if (vs.spo2   != null) parts.push(`SpO₂ ${vs.spo2}%`);

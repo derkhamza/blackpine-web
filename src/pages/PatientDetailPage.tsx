@@ -276,7 +276,7 @@ export function PatientDetailPage() {
   const bpPoints  = useMemo(() =>
     vitalsAppts
       .filter((a) => a.vitalSigns?.bpSys != null)
-      .map((a) => ({ date: a.date, val: a.vitalSigns!.bpSys! / 10, bad: a.vitalSigns!.bpSys! > 140 || a.vitalSigns!.bpSys! < 90 })),
+      .map((a) => ({ date: a.date, val: a.vitalSigns!.bpSys!, bad: a.vitalSigns!.bpSys! > 140 || a.vitalSigns!.bpSys! < 90 })),
     [vitalsAppts]);
 
   const hrPoints  = useMemo(() =>
@@ -756,7 +756,7 @@ export function PatientDetailPage() {
                             {rdvAppt.vitalSigns && Object.values(rdvAppt.vitalSigns).some(v => v != null) && (
                               <div className="tl-expand-vitals">
                                 {rdvAppt.vitalSigns.bpSys != null && rdvAppt.vitalSigns.bpDia != null && (
-                                  <span className="tl-vital-chip">TA {(rdvAppt.vitalSigns.bpSys / 10).toFixed(0)}/{(rdvAppt.vitalSigns.bpDia / 10).toFixed(0)} cmHg</span>
+                                  <span className="tl-vital-chip">TA {rdvAppt.vitalSigns.bpSys}/{rdvAppt.vitalSigns.bpDia} mmHg</span>
                                 )}
                                 {rdvAppt.vitalSigns.hr != null && <span className="tl-vital-chip">FC {rdvAppt.vitalSigns.hr} bpm</span>}
                                 {rdvAppt.vitalSigns.temp != null && <span className="tl-vital-chip">{rdvAppt.vitalSigns.temp} °C</span>}
@@ -1004,8 +1004,8 @@ export function PatientDetailPage() {
                   <div className="vitals-charts-grid">
                     {bpPoints.length > 0 && (
                       <TrendChart
-                        points={bpPoints} unit="cmHg" label={t("patientDetail.vitalsBp")}
-                        yMin={8} yMax={18} dangerHigh={14} dangerLow={9} warnHigh={13}
+                        points={bpPoints} unit="mmHg" label={t("patientDetail.vitalsBp")}
+                        yMin={80} yMax={180} dangerHigh={140} dangerLow={90} warnHigh={130}
                       />
                     )}
                     {hrPoints.length > 0 && (
