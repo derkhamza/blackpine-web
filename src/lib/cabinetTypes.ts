@@ -216,7 +216,6 @@ export const MUTUELLES: string[] = [
   "OMFAM",
   "ONDH",
   "CNSS – AMO",
-  "RAMED",
   "Allianz Maroc",
   "AXA Assurance Maroc",
   "Atlanta",

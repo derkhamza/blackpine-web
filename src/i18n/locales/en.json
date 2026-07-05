@@ -745,7 +745,7 @@
     "tlPrescMore": "+ {{n}} more",
     "dossierTitle": "Medical file",
     "dossierAutoSave": "Auto-saved on field exit",
-    "cnopsLabel": "AMO / CNOPS / RAMED no.",
+    "cnopsLabel": "AMO / CNOPS no.",
     "cnopsPlaceholder": "Registration number…",
     "mutuelleLabel": "Mutuelle / Insurance",
     "mutuellePlaceholder": "CNOPS, CNSS – AMO, Allianz…",

@@ -745,7 +745,7 @@
     "tlPrescMore": "+ {{n}} autre{{s}}",
     "dossierTitle": "Dossier médical",
     "dossierAutoSave": "Auto-sauvegardé à la sortie du champ",
-    "cnopsLabel": "N° AMO / CNOPS / RAMED",
+    "cnopsLabel": "N° AMO / CNOPS",
     "cnopsPlaceholder": "Numéro immatriculation…",
     "mutuelleLabel": "Mutuelle / Assurance",
     "mutuellePlaceholder": "CNOPS, CNSS – AMO, Allianz…",
