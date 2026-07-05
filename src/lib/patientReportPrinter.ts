@@ -7,6 +7,10 @@ import {
 } from "./cabinetTypes";
 import { calcAge } from "./format";
 import { fullName as fmtFullName } from "./nameFormat";
+import {
+  DOC_DEFAULT_MARGINS, designForKind, resolveMargins, resolvePageSize,
+  pageRule, backgroundHtml, blockStyle, logoHtml,
+} from "./docDesign";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -230,6 +234,13 @@ export function printPatientReport(opts: {
     </tr>`;
   }).join("");
 
+  // Doctor-defined page design. The report is a flowing multi-page dossier, so
+  // only margins / paper / logo / letterhead + header/footer show-hide apply
+  // (blockStyle never positions absolutely here — no section carries x/y).
+  const design  = designForKind(doctorProfile.documentSettings, "report");
+  const margins = resolveMargins(design, DOC_DEFAULT_MARGINS.report);
+  const bs = (key: string) => blockStyle(design, key, margins);
+
   const alertHtml = patient.allergies ? `
     <div class="allergy-alert">
       <div class="alert-icon">⚠</div>
@@ -242,9 +253,9 @@ export function printPatientReport(opts: {
   <meta charset="UTF-8"/>
   <title>Dossier — ${escHtml(fullName)}</title>
   <style>
-    @page { size: A4 portrait; margin: 14mm 16mm; }
+    ${pageRule(resolvePageSize(design, "A4").css, margins)}
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: Arial, sans-serif; font-size: 10pt; color: #111; }
+    body { font-family: Arial, sans-serif; font-size: 10pt; color: #111; position: relative; }
 
     /* Header */
     .hdr { display: flex; justify-content: space-between; align-items: flex-start;
@@ -347,8 +358,10 @@ export function printPatientReport(opts: {
   </style>
 </head>
 <body>
+  ${backgroundHtml(design)}
+  ${logoHtml(design, margins)}
   <!-- Header -->
-  <div class="hdr">
+  <div class="hdr" style="${bs("header")}">
     <div>
       <div class="doc-name">${escHtml(doctorProfile.fullName || "Cabinet médical")}</div>
       <div class="doc-meta">
@@ -440,7 +453,7 @@ export function printPatientReport(opts: {
   </div>` : ""}
 
   <!-- Footer -->
-  <div class="footer-row">
+  <div class="footer-row" style="${bs("footer")}">
     <div>Dossier confidentiel — usage médical exclusif<br/>${escHtml(fullName)}</div>
     <div class="sig-area">
       <div class="sig-lbl">Signature du médecin :</div>

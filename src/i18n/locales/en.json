@@ -1039,6 +1039,8 @@
       "kind_certificate": "Certificate (A5)",
       "kind_examRequest": "Exam request (A5)",
       "kind_receipt": "Receipt (A5)",
+      "kind_report": "Patient report (A4)",
+      "flowHint": "This document spans several pages: set the margins, logo and background model, and hide the header or footer if your paper already carries them. Free block positioning isn't available here.",
       "reset": "Reset layout",
       "resetConfirm": "Reset this document's layout?",
       "hint": "Drag a block to position it (mm from the page edge). Untick a block to skip printing it — useful when your pre-printed paper already carries the header. ⟲ returns a block to its automatic position.",

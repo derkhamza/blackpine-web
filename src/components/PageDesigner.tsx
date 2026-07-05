@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { DocumentSettings, PageDesign, DocBlockDesign, PaperSize, DocKind } from "../lib/cabinetTypes";
 import {
-  DOC_DEFAULT_MARGINS, DOC_DEFAULT_SIZE, DOC_BLOCKS,
+  DOC_DEFAULT_MARGINS, DOC_DEFAULT_SIZE, DOC_BLOCKS, isFlowDoc,
   designForKind, resolveMargins, resolvePageSize,
 } from "../lib/docDesign";
 
@@ -13,7 +13,7 @@ import {
 // page edge), optional logo. Everything is stored in doctorProfile.
 // documentSettings.designs[kind] and applied by the print functions.
 
-const DOC_KINDS: DocKind[] = ["ordonnance", "facture", "certificate", "examRequest", "receipt"];
+const DOC_KINDS: DocKind[] = ["ordonnance", "facture", "certificate", "examRequest", "receipt", "report"];
 const PAPER_OPTS: PaperSize[] = ["A5", "A4", "Letter"];
 
 // Natural (flow) positions used only to draw un-pinned blocks on the preview.
@@ -56,6 +56,10 @@ const FLOW_Y: Record<DocKind, Record<string, { y: number; h: number }>> = {
     amount:    { y: 106, h: 32 },
     signature: { y: 150, h: 30 },
     footer:    { y: 192, h: 8  },
+  },
+  report: {
+    header:    { y: 14,  h: 26 },
+    footer:    { y: 279, h: 10 },
   },
 };
 
@@ -109,6 +113,9 @@ export function PageDesigner({
   const margins = resolveMargins(design, defaults);
   const blocks = DOC_BLOCKS[kind];
   const page = resolvePageSize(design, DOC_DEFAULT_SIZE[kind]);
+  // Multi-page flowing documents (the patient report) can't have their sections
+  // dragged to absolute positions — only shown/hidden — so disable positioning.
+  const flow = isFlowDoc(kind);
 
   // Preview scale: fixed width, px per mm.
   const PREVIEW_W = 300;
@@ -136,6 +143,9 @@ export function PageDesigner({
   const onPointerDown = (key: string) => (e: React.PointerEvent) => {
     e.preventDefault();
     setSelected(key);
+    // Flow documents can't reposition their sections — selecting toggles the
+    // show/hide checkbox reference only. The logo may still be placed freely.
+    if (flow && key !== "__logo") return;
     const pos = key === "__logo"
       ? { x: design.logoX ?? margins.left, y: design.logoY ?? margins.top }
       : blockPos(key);
@@ -245,9 +255,10 @@ export function PageDesigner({
                 style={{
                   left: pos.x * scale, top: pos.y * scale,
                   width: pos.w * scale, height: pos.h * scale,
+                  cursor: flow ? "default" : undefined,
                 }}
                 onPointerDown={onPointerDown(key)}
-                title={t("settings.pd.dragHint")}
+                title={flow ? undefined : t("settings.pd.dragHint")}
               >
                 <span className="pd-block-label">{blockLabel(key)}</span>
               </div>
@@ -272,7 +283,7 @@ export function PageDesigner({
 
         {/* ── Controls ── */}
         <div className="pd-controls">
-          <div className="pd-hint">{t("settings.pd.hint")}</div>
+          <div className="pd-hint">{t(flow ? "settings.pd.flowHint" : "settings.pd.hint")}</div>
 
           {/* Paper size */}
           <div className="pd-ctl-title">{t("settings.pd.paperSize")}</div>
@@ -339,7 +350,7 @@ export function PageDesigner({
           </div>
 
           {/* Selected block numeric position */}
-          {selected && selected !== "__logo" && (
+          {selected && selected !== "__logo" && !flow && (
             <div className="pd-pos-row">
               <span className="pd-pos-label">{blockLabel(selected)}</span>
               <label>X <input className="form-input" type="number" step="0.5"

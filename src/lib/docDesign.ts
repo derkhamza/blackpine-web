@@ -23,6 +23,7 @@ export const DOC_DEFAULT_MARGINS: Record<DocKind, PageMargins> = {
   certificate: { top: 14, right: 16, bottom: 14, left: 16 },
   examRequest: { top: 13, right: 15, bottom: 13, left: 15 },
   receipt:     { top: 12, right: 14, bottom: 12, left: 14 },
+  report:      { top: 14, right: 16, bottom: 14, left: 16 },
 };
 
 export const DOC_DEFAULT_SIZE: Record<DocKind, PaperSize> = {
@@ -31,6 +32,7 @@ export const DOC_DEFAULT_SIZE: Record<DocKind, PaperSize> = {
   certificate: "A5",
   examRequest: "A5",
   receipt:     "A5",
+  report:      "A4",
 };
 
 export const DOC_BLOCKS: Record<DocKind, readonly string[]> = {
@@ -39,7 +41,16 @@ export const DOC_BLOCKS: Record<DocKind, readonly string[]> = {
   certificate: ["header", "body", "signature", "footer"],
   examRequest: ["header", "date", "patient", "indication", "body", "signature", "footer"],
   receipt:     ["header", "title", "info", "amount", "signature", "footer"],
+  report:      ["header", "footer"],
 };
+
+// "Flow" documents span multiple pages and reflow, so their sections can only be
+// shown/hidden — never absolutely positioned (that would break pagination). The
+// designer offers margins/paper/logo/background + show-hide, but no dragging.
+export const FLOW_DOC_KINDS: readonly DocKind[] = ["report"];
+export function isFlowDoc(kind: DocKind): boolean {
+  return FLOW_DOC_KINDS.includes(kind);
+}
 
 /**
  * Resolve the effective PageDesign for a document kind. Prefers the generic

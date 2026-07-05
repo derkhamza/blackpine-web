@@ -1039,6 +1039,8 @@
       "kind_certificate": "Certificat (A5)",
       "kind_examRequest": "Demande d'examens (A5)",
       "kind_receipt": "Reçu (A5)",
+      "kind_report": "Dossier patient (A4)",
+      "flowHint": "Ce document s'étend sur plusieurs pages : réglez les marges, le logo et le modèle de fond, et masquez l'en-tête ou le pied de page si votre papier les contient déjà. Le positionnement libre des blocs n'est pas disponible ici.",
       "reset": "Réinitialiser la mise en page",
       "resetConfirm": "Réinitialiser la mise en page de ce document ?",
       "hint": "Glissez un bloc pour le positionner (mm depuis le bord de la page). Décochez un bloc pour ne pas l'imprimer — utile si votre papier pré-imprimé contient déjà l'en-tête. ⟲ remet un bloc en position automatique.",
