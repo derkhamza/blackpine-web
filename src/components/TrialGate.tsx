@@ -3,21 +3,27 @@ import { useTranslation } from "react-i18next";
 import { useApp } from "../context/AppContext";
 import { BlackpineLogo } from "./Logo";
 
+// Product owner / operators are never trial-gated (mirrors the backend + the
+// admin nav gate). Keep in sync with ADMIN_EMAILS in Layout.tsx.
+const OWNER_EMAILS = ["derkhamza@gmail.com"];
+
 // Free-trial surface: a countdown banner in the second half of the trial and a
 // blocking subscribe overlay once it (or a paid plan) runs out. Conversion is
 // card-free — the doctor redeems an activation code (issued after a bank
 // transfer / sale) or contacts us. Rendered once from Layout.
 export function TrialGate() {
   const { t } = useTranslation();
-  const { trial, applyActivation, isAuthenticated, isSecretary } = useApp();
+  const { trial, applyActivation, isAuthenticated, isSecretary, user } = useApp();
   const [modalOpen, setModalOpen] = useState(false);
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
-  // Secretaries don't own the subscription; nothing to show when logged out.
+  // Secretaries don't own the subscription; nothing to show when logged out;
+  // owner/admin accounts are never gated.
   if (!isAuthenticated || isSecretary) return null;
+  if (user && OWNER_EMAILS.includes(user.email.toLowerCase())) return null;
 
   const expired = trial.expired;
   const showBanner = !expired && trial.active && trial.daysLeft != null &&
