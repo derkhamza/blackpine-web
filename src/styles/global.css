@@ -7989,6 +7989,45 @@ html { scroll-behavior: smooth; }
 .admin-risk-note { flex: 0 0 auto; font-size: 12px; font-weight: 700; }
 [dir="rtl"] .admin-risk-head { text-align: right; }
 
+/* ── Free-trial banner + subscribe gate ─────────────────────────────────── */
+.trial-banner {
+  display: flex; align-items: center; gap: 10px;
+  margin: 0 0 16px; padding: 10px 14px;
+  background: var(--blue-soft); border: 1px solid var(--blue);
+  border-radius: var(--r); color: var(--navy);
+}
+.trial-banner.urgent { background: var(--coral-soft); border-color: var(--coral); color: var(--coral); }
+.trial-banner-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+.trial-banner-txt { flex: 1; font-size: 13px; font-weight: 600; }
+.trial-banner-btn {
+  flex-shrink: 0; border: none; cursor: pointer;
+  background: var(--navy); color: #fff; font-weight: 700; font-size: 12.5px;
+  padding: 6px 14px; border-radius: var(--r-pill);
+}
+.trial-banner.urgent .trial-banner-btn { background: var(--coral); }
+.trial-banner-btn:hover { opacity: .9; }
+
+.trial-overlay {
+  position: fixed; inset: 0; z-index: 3000;
+  background: rgba(10, 30, 50, 0.55);
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.trial-card {
+  background: var(--surface); border-radius: 18px; padding: 28px 26px;
+  width: 100%; max-width: 400px; box-shadow: 0 20px 60px rgba(0,0,0,0.28);
+  display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px;
+}
+.trial-title { font-size: 19px; font-weight: 800; margin: 8px 0 0; color: var(--text); }
+.trial-msg { font-size: 13.5px; color: var(--muted); line-height: 1.5; margin: 0 0 8px; }
+.trial-input { width: 100%; text-align: center; letter-spacing: 1px; font-weight: 700; text-transform: uppercase; }
+.trial-err { color: var(--coral); font-size: 12.5px; font-weight: 600; margin-top: 2px; }
+.trial-submit { width: 100%; margin-top: 6px; }
+.trial-ok { color: var(--green); font-weight: 800; font-size: 16px; padding: 16px 0; }
+.trial-contact { font-size: 12.5px; color: var(--blue); text-decoration: none; margin-top: 8px; }
+.trial-contact:hover { text-decoration: underline; }
+.trial-later { background: none; border: none; color: var(--muted); font-size: 12.5px; cursor: pointer; margin-top: 2px; }
+.trial-later:hover { color: var(--text); }
+
 /* Accessibility — honour the OS "reduce motion" setting */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

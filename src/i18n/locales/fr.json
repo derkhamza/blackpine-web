@@ -25,6 +25,23 @@
     "doctor": "Cabinet médical",
     "poweredBy": "Propulsé par Blackpine"
   },
+  "trial": {
+    "bannerTrial": "Essai gratuit — {{n}} j restants",
+    "bannerPaid": "Abonnement — {{n}} j restants",
+    "activate": "Activer",
+    "subscribeTitle": "Passer à un abonnement",
+    "subscribeMsg": "Saisissez votre code d'activation pour continuer sans interruption. Aucune carte bancaire requise.",
+    "expiredTitle": "Votre essai gratuit est terminé",
+    "expiredMsg": "Merci d'avoir essayé Blackpine. Saisissez un code d'activation pour continuer — ou contactez-nous pour vous abonner (virement bancaire, sans carte).",
+    "codePlaceholder": "BP-XXXXXXXX",
+    "activateBtn": "Activer mon compte",
+    "checking": "Vérification…",
+    "activated": "Compte activé",
+    "contact": "Nous contacter : {{email}}",
+    "mailSubject": "Abonnement Blackpine",
+    "later": "Plus tard",
+    "supportEmail": "contact@blackpinecap.com"
+  },
   "common": {
     "cancel": "Annuler",
     "save": "Enregistrer",

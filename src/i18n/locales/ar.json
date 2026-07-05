@@ -25,6 +25,23 @@
     "doctor": "العيادة",
     "poweredBy": "مُشغَّل بواسطة Blackpine"
   },
+  "trial": {
+    "bannerTrial": "فترة تجريبية مجانية — {{n}} يوم متبقٍّ",
+    "bannerPaid": "الاشتراك — {{n}} يوم متبقٍّ",
+    "activate": "تفعيل",
+    "subscribeTitle": "اشترك للمتابعة",
+    "subscribeMsg": "أدخل رمز التفعيل للمتابعة دون انقطاع. لا حاجة لبطاقة بنكية.",
+    "expiredTitle": "انتهت فترتك التجريبية المجانية",
+    "expiredMsg": "شكرًا لتجربتك Blackpine. أدخل رمز التفعيل للمتابعة — أو تواصل معنا للاشتراك (تحويل بنكي، دون بطاقة).",
+    "codePlaceholder": "BP-XXXXXXXX",
+    "activateBtn": "تفعيل حسابي",
+    "checking": "جارٍ التحقق…",
+    "activated": "تم تفعيل الحساب",
+    "contact": "تواصل معنا: {{email}}",
+    "mailSubject": "اشتراك Blackpine",
+    "later": "لاحقًا",
+    "supportEmail": "contact@blackpinecap.com"
+  },
   "common": {
     "cancel": "إلغاء",
     "save": "حفظ",

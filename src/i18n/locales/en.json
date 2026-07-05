@@ -25,6 +25,23 @@
     "doctor": "Medical practice",
     "poweredBy": "Powered by Blackpine"
   },
+  "trial": {
+    "bannerTrial": "Free trial — {{n}} days left",
+    "bannerPaid": "Subscription — {{n}} days left",
+    "activate": "Activate",
+    "subscribeTitle": "Subscribe to continue",
+    "subscribeMsg": "Enter your activation code to keep working without interruption. No card required.",
+    "expiredTitle": "Your free trial has ended",
+    "expiredMsg": "Thanks for trying Blackpine. Enter an activation code to continue — or contact us to subscribe (bank transfer, no card).",
+    "codePlaceholder": "BP-XXXXXXXX",
+    "activateBtn": "Activate my account",
+    "checking": "Checking…",
+    "activated": "Account activated",
+    "contact": "Contact us: {{email}}",
+    "mailSubject": "Blackpine subscription",
+    "later": "Later",
+    "supportEmail": "contact@blackpinecap.com"
+  },
   "common": {
     "cancel": "Cancel",
     "save": "Save",

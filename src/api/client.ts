@@ -264,6 +264,23 @@ export async function pushData(
   }
 }
 
+// ── Subscription / trial ─────────────────────────────────────────────────────
+
+export interface ActivationResult { plan: string; expiresAt: string | null; durationDays: number | null; }
+
+/** Redeem a no-card activation code (issued after a bank transfer / sale). On
+ *  success the server moves the account onto the paid plan; we return the new
+ *  plan so the client can drop the trial gate immediately. */
+export async function validateActivationCode(code: string): Promise<ActivationResult> {
+  const res  = await request("/subscription/validate-code", {
+    method: "POST",
+    body: JSON.stringify({ code: code.trim() }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error((data as { error?: string }).error || "Code invalide ou déjà utilisé");
+  return { plan: data.plan, expiresAt: data.expiresAt ?? null, durationDays: data.durationDays ?? null };
+}
+
 // ── Cabinet sync ───────────────────────────────────────────────────────────────
 
 export interface CabinetSnapshot {

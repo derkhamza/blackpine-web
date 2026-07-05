@@ -11,7 +11,7 @@ import {
   getStoredUser, isLoggedIn, login as apiLogin, logout as apiLogout,
   pullData, pushData, signup as apiSignup, type AuthUser,
   getSecretaryToken, getSecretaryOwner, clearSecretarySession,
-  secretaryLogin, warmup, type SecretaryOwner,
+  secretaryLogin, warmup, validateActivationCode, type SecretaryOwner,
 } from "../api/client";
 import { generateRecurringTransactions, type RecurringRule } from "../lib/recurringTransactions";
 import { todayIso } from "../lib/format";
@@ -34,6 +34,38 @@ const DEFAULT_PROFILE: DoctorProfile = {
 };
 
 export type SyncStatus = "idle" | "syncing" | "synced" | "error" | "offline";
+
+// ── Subscription / free trial ──────────────────────────────────────────────
+// No-card 30-day trial: signup starts the clock server-side; the app reads the
+// status from the sync pull and shows a countdown, then a subscribe gate.
+export const TRIAL_DAYS = 30;
+export interface ServerSubscription { trialStart: string | null; plan: string; expiresAt: string | null }
+export interface TrialStatus {
+  plan: string;
+  isTrial: boolean;      // on the free trial (whether or not still running)
+  active: boolean;       // may use the app right now
+  expired: boolean;      // trial or paid plan has run out → show the gate
+  daysLeft: number | null; // days remaining (null = lifetime / not yet known)
+  known: boolean;        // we've actually received a status from the server
+}
+
+/** Derive the trial/subscription state. When the status is unknown (offline,
+ *  first boot before the pull lands) we default to ACTIVE — a failed sync must
+ *  never lock a doctor out of patient data. */
+export function computeTrial(sub: ServerSubscription | null): TrialStatus {
+  if (!sub) return { plan: "free_trial", isTrial: true, active: true, expired: false, daysLeft: null, known: false };
+  const plan = sub.plan || "free_trial";
+  if (plan === "lifetime") return { plan, isTrial: false, active: true, expired: false, daysLeft: null, known: true };
+  if (plan !== "free_trial") {
+    const exp = sub.expiresAt ? new Date(sub.expiresAt).getTime() : null;
+    if (exp && exp > Date.now()) return { plan, isTrial: false, active: true, expired: false, daysLeft: Math.ceil((exp - Date.now()) / 86400000), known: true };
+    return { plan, isTrial: false, active: false, expired: true, daysLeft: 0, known: true };
+  }
+  if (!sub.trialStart) return { plan, isTrial: true, active: true, expired: false, daysLeft: TRIAL_DAYS, known: true };
+  const elapsed  = Math.floor((Date.now() - new Date(sub.trialStart).getTime()) / 86400000);
+  const daysLeft = Math.max(0, TRIAL_DAYS - elapsed);
+  return { plan, isTrial: true, active: daysLeft > 0, expired: daysLeft <= 0, daysLeft, known: true };
+}
 
 // ── Context shape ──────────────────────────────────────────────────────────
 interface AppCtx {
@@ -72,6 +104,10 @@ interface AppCtx {
   FISCAL_MIN: number;
   FISCAL_MAX: number;
 
+  // subscription / free trial
+  trial: TrialStatus;
+  applyActivation: (code: string) => Promise<void>;
+
   // sync
   syncStatus: SyncStatus;
   lastSyncedAt: string | null;
@@ -106,6 +142,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const fiscalYear    = Math.max(FISCAL_MIN, Math.min(FISCAL_MAX, fiscalYearRaw));
   const setFiscalYear = (y: number) => setFiscalYearRaw(Math.max(FISCAL_MIN, Math.min(FISCAL_MAX, y)));
 
+  const [subscription, setSubscription] = useState<ServerSubscription | null>(null);
+  const trial = useMemo(() => computeTrial(subscription), [subscription]);
+
   // ── Boot: restore session ──────────────────────────────────────────────
   useEffect(() => {
     if (!isLoggedIn()) return;
@@ -122,6 +161,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (d.transactions.length) setTx(d.transactions);
         if (d.assets.length)       setAssets(d.assets);
         if (d.recurringRules.length) setRules(d.recurringRules);
+        if (d.serverSubscription) setSubscription(d.serverSubscription);
         hydratedRef.current = true;
         setSyncStatus("synced");
         setLastSyncedAt(new Date().toISOString());
@@ -190,6 +230,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (d.transactions.length)  setTx(d.transactions);
       if (d.assets.length)        setAssets(d.assets);
       if (d.recurringRules.length) setRules(d.recurringRules);
+      if (d.serverSubscription) setSubscription(d.serverSubscription);
       hydratedRef.current = true;
       setSyncStatus("synced");
       setLastSyncedAt(new Date().toISOString());
@@ -205,6 +246,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setUser(u); setIsAuth(true);
     // Brand-new account: nothing on the server to clobber, so allow pushes.
     hydratedRef.current = true;
+    // Start the 30-day free trial immediately (server set trial_start at signup).
+    setSubscription({ trialStart: new Date().toISOString(), plan: "free_trial", expiresAt: null });
     setSyncStatus("synced");
   }, []);
 
@@ -214,7 +257,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setUser(null); setIsAuth(false);
     setProfileState(DEFAULT_PROFILE);
     setTx([]); setAssets([]); setRules([]);
+    setSubscription(null);
     setSyncStatus("idle");
+  }, []);
+
+  // ── Subscription: redeem a no-card activation code ─────────────────────────
+  const applyActivation = useCallback(async (code: string) => {
+    const r = await validateActivationCode(code);
+    setSubscription({ trialStart: null, plan: r.plan, expiresAt: r.expiresAt });
   }, []);
 
   // ── Secretary session ────────────────────────────────────────────────────
@@ -312,6 +362,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     assets, addAsset, updateAsset, deleteAsset,
     recurringRules, addRecurringRule, deleteRecurringRule,
     result, fiscalYear, setFiscalYear, FISCAL_MIN, FISCAL_MAX,
+    trial, applyActivation,
     syncStatus, lastSyncedAt, retrySync,
     exportFinancesJSON, importFinancesJSON,
   };

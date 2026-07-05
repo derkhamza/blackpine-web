@@ -4,6 +4,7 @@ import { useApp } from "../context/AppContext";
 import { useCabinet } from "../context/CabinetContext";
 import { BlackpineLogo } from "./Logo";
 import { CommandPalette }  from "./CommandPalette";
+import { TrialGate }       from "./TrialGate";
 import { ShortcutsModal } from "./ShortcutsModal";
 import { PinModal }       from "./PinModal";
 import { todayIso } from "../lib/format";
@@ -798,6 +799,7 @@ export function Layout({ title, subtitle, actions, children }: Props) {
             </button>
           </div>
         )}
+        <TrialGate />
         <div className="page-body" key={pathname}>{children}</div>
       </main>
 
