@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { CabinetDoctorProfile, ExamRequestLine, ExamRequestCategory } from "../lib/cabinetTypes";
 import { printExamRequest } from "../lib/examRequestPrinter";
 import { PatientPicker, type PickerPatient } from "./PatientPicker";
+import { ModalPortal } from "./ModalPortal";
 import {
   EXAM_CATALOG, EXAM_REQ_CATEGORIES, EXAM_REQ_CATEGORY_COLORS,
 } from "../lib/examCatalog";
@@ -73,6 +74,7 @@ export function ExamRequestModal({
   };
 
   return (
+    <ModalPortal>
     <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modal exr-modal" style={{ maxWidth: 640, maxHeight: "92vh", overflowY: "auto" }}>
         <div className="modal-header">
@@ -177,5 +179,6 @@ export function ExamRequestModal({
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 }

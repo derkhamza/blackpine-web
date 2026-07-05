@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { ModalPortal } from "./ModalPortal";
 import type { OrdonnanceLine, CabinetDoctorProfile } from "../lib/cabinetTypes";
 import {
   printOrdonnance,
@@ -296,6 +297,7 @@ export function OrdonnanceModal({
   )];
 
   return (
+    <ModalPortal>
     <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modal ord-modal" style={{ maxWidth: 640, maxHeight: "92vh", overflowY: "auto" }}>
         <div className="modal-header">
@@ -539,5 +541,6 @@ export function OrdonnanceModal({
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 }
