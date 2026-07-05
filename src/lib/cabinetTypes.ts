@@ -103,7 +103,8 @@ export type DocKind =
   | "certificate"
   | "examRequest"
   | "receipt"
-  | "report";
+  | "report"
+  | "payroll";
 
 export interface PageDesign {
   pageSize?:     PaperSize; // paper size (defaults: ordonnance=A5, facture=A4)

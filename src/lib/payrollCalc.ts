@@ -2,6 +2,10 @@
 
 import type { CabinetDoctorProfile, ContractType, Employee } from "./cabinetTypes";
 import { personName } from "./nameFormat";
+import {
+  DOC_DEFAULT_MARGINS, designForKind, resolveMargins, resolvePageSize,
+  pageRule, backgroundHtml, blockStyle, logoHtml,
+} from "./docDesign";
 
 export interface PayrollResult {
   grossSalary: number;
@@ -100,15 +104,20 @@ export function printBulletin(
   const monthLabel = `${MONTH_NAMES_FR[month - 1]} ${year}`;
   const coutTotal  = p.grossSalary + p.cnssEmployer;
 
+  // Doctor-defined page design (margins / block positions / logo / letterhead).
+  const design  = designForKind(doctorProfile.documentSettings, "payroll");
+  const margins = resolveMargins(design, DOC_DEFAULT_MARGINS.payroll);
+  const bs = (key: string) => blockStyle(design, key, margins);
+
   const html = `<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8"/>
   <title>Bulletin de paie — ${personName(employee.firstName, employee.lastName)} — ${monthLabel}</title>
   <style>
-    @page { size: A4 portrait; margin: 14mm 16mm; }
+    ${pageRule(resolvePageSize(design, "A4").css, margins)}
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: Arial, sans-serif; font-size: 10pt; color: #111; background: #fff; }
+    body { font-family: Arial, sans-serif; font-size: 10pt; color: #111; background: #fff; position: relative; }
     .hdr { display: flex; justify-content: space-between; padding-bottom: 10px;
            border-bottom: 2px solid #0A4E7E; margin-bottom: 14px; }
     .doc-name  { font-size: 14pt; font-weight: bold; color: #0A4E7E; margin-bottom: 4px; }
@@ -162,7 +171,9 @@ export function printBulletin(
   </style>
 </head>
 <body>
-  <div class="hdr">
+  ${backgroundHtml(design)}
+  ${logoHtml(design, margins)}
+  <div class="hdr" style="${bs("header")}">
     <div>
       <div class="doc-name">${doctorProfile.fullName || "Cabinet médical"}</div>
       <div class="doc-meta">
@@ -182,12 +193,12 @@ export function printBulletin(
     </div>
   </div>
 
-  <div class="title-band">
+  <div class="title-band" style="${bs("title")}">
     <div class="title-main">BULLETIN DE PAIE</div>
     <div class="title-sub">${monthLabel}</div>
   </div>
 
-  <div class="info-grid">
+  <div class="info-grid" style="${bs("info")}">
     <div class="info-box">
       <div class="info-lbl">Employé(e)</div>
       <div class="info-val">${personName(employee.firstName, employee.lastName)}</div>
@@ -206,7 +217,7 @@ export function printBulletin(
     </div>
   </div>
 
-  <table>
+  <table style="${bs("body")}">
     <thead>
       <tr>
         <th>Rubrique</th>
@@ -240,17 +251,19 @@ export function printBulletin(
     </tfoot>
   </table>
 
-  <div class="net-block">
-    <div class="net-lbl">Net à payer au salarié</div>
-    <div class="net-val">${fmtN(p.netSalary)} <span class="net-unit">MAD</span></div>
+  <div style="${bs("amount")}">
+    <div class="net-block">
+      <div class="net-lbl">Net à payer au salarié</div>
+      <div class="net-val">${fmtN(p.netSalary)} <span class="net-unit">MAD</span></div>
+    </div>
+
+    <div class="cost-row">
+      <span>Charges patronales (CNSS 21,09 %) : <strong>${fmtN(p.cnssEmployer)} MAD</strong></span>
+      <span>Coût total cabinet : <strong>${fmtN(coutTotal)} MAD</strong></span>
+    </div>
   </div>
 
-  <div class="cost-row">
-    <span>Charges patronales (CNSS 21,09 %) : <strong>${fmtN(p.cnssEmployer)} MAD</strong></span>
-    <span>Coût total cabinet : <strong>${fmtN(coutTotal)} MAD</strong></span>
-  </div>
-
-  <div class="sig">
+  <div class="sig" style="${bs("signature")}">
     <div class="sig-col">
       <div class="sig-lbl">Signature de l'employé(e) :</div>
       <div class="sig-line">Lu et approuvé</div>
@@ -261,7 +274,7 @@ export function printBulletin(
     </div>
   </div>
 
-  <div class="footer">
+  <div class="footer" style="${bs("footer")}">
     Bulletin établi le ${new Date().toLocaleDateString("fr-FR")} · Généré par Blackpine
   </div>
 

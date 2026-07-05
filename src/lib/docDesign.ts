@@ -24,6 +24,7 @@ export const DOC_DEFAULT_MARGINS: Record<DocKind, PageMargins> = {
   examRequest: { top: 13, right: 15, bottom: 13, left: 15 },
   receipt:     { top: 12, right: 14, bottom: 12, left: 14 },
   report:      { top: 14, right: 16, bottom: 14, left: 16 },
+  payroll:     { top: 14, right: 16, bottom: 14, left: 16 },
 };
 
 export const DOC_DEFAULT_SIZE: Record<DocKind, PaperSize> = {
@@ -33,6 +34,7 @@ export const DOC_DEFAULT_SIZE: Record<DocKind, PaperSize> = {
   examRequest: "A5",
   receipt:     "A5",
   report:      "A4",
+  payroll:     "A4",
 };
 
 export const DOC_BLOCKS: Record<DocKind, readonly string[]> = {
@@ -42,6 +44,7 @@ export const DOC_BLOCKS: Record<DocKind, readonly string[]> = {
   examRequest: ["header", "date", "patient", "indication", "body", "signature", "footer"],
   receipt:     ["header", "title", "info", "amount", "signature", "footer"],
   report:      ["header", "footer"],
+  payroll:     ["header", "title", "info", "body", "amount", "signature", "footer"],
 };
 
 // "Flow" documents span multiple pages and reflow, so their sections can only be

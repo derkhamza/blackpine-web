@@ -13,7 +13,7 @@ import {
 // page edge), optional logo. Everything is stored in doctorProfile.
 // documentSettings.designs[kind] and applied by the print functions.
 
-const DOC_KINDS: DocKind[] = ["ordonnance", "facture", "certificate", "examRequest", "receipt", "report"];
+const DOC_KINDS: DocKind[] = ["ordonnance", "facture", "certificate", "examRequest", "receipt", "report", "payroll"];
 const PAPER_OPTS: PaperSize[] = ["A5", "A4", "Letter"];
 
 // Natural (flow) positions used only to draw un-pinned blocks on the preview.
@@ -60,6 +60,15 @@ const FLOW_Y: Record<DocKind, Record<string, { y: number; h: number }>> = {
   report: {
     header:    { y: 14,  h: 26 },
     footer:    { y: 279, h: 10 },
+  },
+  payroll: {
+    header:    { y: 14,  h: 30 },
+    title:     { y: 50,  h: 20 },
+    info:      { y: 76,  h: 34 },
+    body:      { y: 116, h: 90 },
+    amount:    { y: 210, h: 40 },
+    signature: { y: 256, h: 26 },
+    footer:    { y: 282, h: 8  },
   },
 };
 

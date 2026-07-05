@@ -1040,6 +1040,7 @@
       "kind_examRequest": "Exam request (A5)",
       "kind_receipt": "Receipt (A5)",
       "kind_report": "Patient report (A4)",
+      "kind_payroll": "Payslip (A4)",
       "flowHint": "This document spans several pages: set the margins, logo and background model, and hide the header or footer if your paper already carries them. Free block positioning isn't available here.",
       "reset": "Reset layout",
       "resetConfirm": "Reset this document's layout?",

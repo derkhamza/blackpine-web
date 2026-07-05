@@ -1040,6 +1040,7 @@
       "kind_examRequest": "Demande d'examens (A5)",
       "kind_receipt": "Reçu (A5)",
       "kind_report": "Dossier patient (A4)",
+      "kind_payroll": "Bulletin de paie (A4)",
       "flowHint": "Ce document s'étend sur plusieurs pages : réglez les marges, le logo et le modèle de fond, et masquez l'en-tête ou le pied de page si votre papier les contient déjà. Le positionnement libre des blocs n'est pas disponible ici.",
       "reset": "Réinitialiser la mise en page",
       "resetConfirm": "Réinitialiser la mise en page de ce document ?",
