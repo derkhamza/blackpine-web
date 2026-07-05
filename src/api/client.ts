@@ -27,6 +27,14 @@ function clearToken() {
   localStorage.removeItem(USER_KEY);
 }
 
+// Broadcast when the server rejects a write because the trial / plan lapsed, so
+// the app can raise the subscribe gate even if the lapse happened mid-session
+// (any gated endpoint — finance or cabinet — funnels through here).
+export const SUBSCRIPTION_EXPIRED_EVENT = "bp:subscription-expired";
+function notifySubscriptionExpired() {
+  try { window.dispatchEvent(new Event(SUBSCRIPTION_EXPIRED_EVENT)); } catch { /* non-browser */ }
+}
+
 // ── Secretary token helpers ──────────────────────────────────────────────────
 
 export interface SecretaryOwner {
@@ -259,6 +267,7 @@ export async function pushData(
     const err: any = new Error((d as any).error || "Sync failed");
     if (res.status === 403 && (d as any).error === "subscription_expired") {
       err.code = "subscription_expired";
+      notifySubscriptionExpired();
     }
     throw err;
   }
@@ -340,7 +349,13 @@ export async function pushCabinet(
   }
   if (!res.ok) {
     const d = await res.json().catch(() => ({}));
-    throw new Error((d as any).error || "Cabinet push failed");
+    const err: any = new Error((d as any).error || "Cabinet push failed");
+    // Subscription lapsed mid-session — surface it (never a logout).
+    if (res.status === 403 && (d as any).error === "subscription_expired") {
+      err.code = "subscription_expired";
+      notifySubscriptionExpired();
+    }
+    throw err;
   }
   const data = await res.json().catch(() => ({}));
   return (data as any).updatedAt as string | undefined;

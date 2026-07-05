@@ -11,7 +11,8 @@ import {
   getStoredUser, isLoggedIn, login as apiLogin, logout as apiLogout,
   pullData, pushData, signup as apiSignup, type AuthUser,
   getSecretaryToken, getSecretaryOwner, clearSecretarySession,
-  secretaryLogin, warmup, validateActivationCode, type SecretaryOwner,
+  secretaryLogin, warmup, validateActivationCode,
+  SUBSCRIPTION_EXPIRED_EVENT, type SecretaryOwner,
 } from "../api/client";
 import { generateRecurringTransactions, type RecurringRule } from "../lib/recurringTransactions";
 import { todayIso } from "../lib/format";
@@ -144,6 +145,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const [subscription, setSubscription] = useState<ServerSubscription | null>(null);
   const trial = useMemo(() => computeTrial(subscription), [subscription]);
+
+  // If the server rejects a write as subscription_expired (e.g. the trial lapsed
+  // while the app was open), raise the gate immediately instead of waiting for
+  // the next boot pull. The stamped past date makes computeTrial return expired.
+  useEffect(() => {
+    const onExpired = () => setSubscription(prev =>
+      (prev && (prev.plan === "lifetime")) ? prev
+        : { trialStart: "2000-01-01T00:00:00.000Z", plan: prev?.plan ?? "free_trial", expiresAt: "2000-01-01T00:00:00.000Z" });
+    window.addEventListener(SUBSCRIPTION_EXPIRED_EVENT, onExpired);
+    return () => window.removeEventListener(SUBSCRIPTION_EXPIRED_EVENT, onExpired);
+  }, []);
 
   // ── Boot: restore session ──────────────────────────────────────────────
   useEffect(() => {
