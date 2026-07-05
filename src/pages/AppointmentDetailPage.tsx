@@ -949,12 +949,36 @@ export function AppointmentDetailPage() {
 
   const specialtyGroups = getSpecialtyGroups(doctorProfile.specialtyLabel);
 
+  // Bilan groups offered for ENTRY in the Mesures & bilan tab: biology +
+  // radiology are always available, then any extra the doctor enabled.
+  const entryBilans = [
+    ...([bioBilan, radioBilan].filter(Boolean) as typeof BILAN_CATALOG),
+    ...enabledBilans.filter(b => b.key !== "biologique" && b.key !== "radiologique"),
+  ];
+
   // Flatten every bilan/specialty field, then keep only the ones that hold a
   // value — this is the compact "results" list the doctor reads at a glance.
-  const bilanFieldList = [...specialtyGroups, ...enabledBilans].flatMap(g =>
+  const bilanFieldList = [...specialtyGroups, ...entryBilans].flatMap(g =>
     g.fields.map(f => ({ field: f, groupTitle: g.title })),
   );
   const filledBilan = bilanFieldList.filter(x => (extraFields[x.field.key] ?? "").trim() !== "");
+
+  // Read-only summaries shown in the Notes flow (entry lives in Mesures & bilan).
+  const vitalsChips: { label: string; value: string }[] = (() => {
+    const vs = appt.vitalSigns; const out: { label: string; value: string }[] = [];
+    if (!vs) return out;
+    if (vs.bpSys != null && vs.bpDia != null) out.push({ label: t("apptDetail.bpGroup"),     value: `${vs.bpSys}/${vs.bpDia} mmHg` });
+    if (vs.hr     != null) out.push({ label: t("apptDetail.hrLabel"),     value: `${vs.hr} bpm` });
+    if (vs.temp   != null) out.push({ label: t("apptDetail.tempLabel"),   value: `${vs.temp} °C` });
+    if (vs.spo2   != null) out.push({ label: t("apptDetail.spo2Label"),   value: `${vs.spo2} %` });
+    if (vs.weight != null) out.push({ label: t("apptDetail.weightLabel"), value: `${vs.weight} kg` });
+    if (vs.height != null) out.push({ label: t("apptDetail.heightLabel"), value: `${vs.height} cm` });
+    if (bmi != null)       out.push({ label: "IMC", value: bmi.toFixed(1) + (bmiLabel ? ` · ${bmiLabel}` : "") });
+    return out;
+  })();
+  const bioRadioFilled = [...(bioBilan?.fields ?? []), ...(radioBilan?.fields ?? [])]
+    .filter(f => (extraFields[f.key] ?? "").trim() !== "");
+  const customFilled = customLocal.filter(m => m.label.trim() || m.value.trim());
   // Who keys the measurements in: a secretary (the data-enterer) always gets the
   // input grid; the doctor gets the compact results and an explicit "edit" toggle
   // — unless nothing has been entered yet, in which case show the inputs so the
@@ -1319,7 +1343,7 @@ export function AppointmentDetailPage() {
             )}
           </div>
 
-          {/* 4 · Examen clinique + mesures (recorded in-flow) */}
+          {/* 4 · Examen clinique + mesures (displayed — entered in Mesures & bilan) */}
           <div className="form-group appt-note-block">
             <div className="appt-note-label-row">
               <label className="form-label" style={{ margin: 0 }}>{t("apptDetail.examination")}</label>
@@ -1335,95 +1359,61 @@ export function AppointmentDetailPage() {
               readOnly={readOnly}
             />
             <div className="appt-measures-inline" style={{ marginTop: 12 }}>
-              <div className="specialty-group-title">{t("apptDetail.vitalSigns")}</div>
-              <div className="vs-grid">
-                <div className="vs-bp-group">
-                  <div className="vs-group-label">{t("apptDetail.bpGroup")}</div>
-                  <div className="vs-bp-row">
-                    <VsInput label={t("apptDetail.bpSysLabel")} unit="mmHg" value={bpSys} onChange={setBpSys} onBlur={saveVitals} vsKey="bpSys" readOnly={vitalsReadOnly} />
-                    <span className="vs-bp-slash">/</span>
-                    <VsInput label={t("apptDetail.bpDiaLabel")} unit="mmHg" value={bpDia} onChange={setBpDia} onBlur={saveVitals} vsKey="bpDia" readOnly={vitalsReadOnly} />
-                  </div>
-                </div>
-                <VsInput label={t("apptDetail.hrLabel")}     unit="bpm"  value={hr}     onChange={setHr}     onBlur={saveVitals} vsKey="hr"   readOnly={vitalsReadOnly} />
-                <VsInput label={t("apptDetail.tempLabel")}   unit="°C"   value={temp}   onChange={setTemp}   onBlur={saveVitals} vsKey="temp" readOnly={vitalsReadOnly} />
-                <VsInput label={t("apptDetail.spo2Label")}   unit="%"    value={spo2}   onChange={setSpo2}   onBlur={saveVitals} vsKey="spo2" readOnly={vitalsReadOnly} />
-                <VsInput label={t("apptDetail.weightLabel")} unit="kg"   value={weight} onChange={setWeight} onBlur={saveVitals} readOnly={vitalsReadOnly} />
-                <VsInput label={t("apptDetail.heightLabel")} unit="cm"   value={height} onChange={setHeight} onBlur={saveVitals} readOnly={vitalsReadOnly} />
+              <div className="specialty-group-title" style={{ display: "flex", alignItems: "center" }}>
+                {t("apptDetail.vitalSigns")}
+                {!readOnly && (
+                  <button type="button" className="bilan-edit-toggle" style={{ marginLeft: "auto" }} onClick={() => setTab("vitals")}>
+                    {t("apptDetail.openMeasuresTab")}
+                  </button>
+                )}
               </div>
-              {bmi !== null && (
-                <div className="vs-bmi-card">
-                  <div className="vs-bmi-value">{t("apptDetail.bmiLabel", { val: bmi.toFixed(1) })}</div>
-                  <div className="vs-bmi-label" style={{ color: bmiClass?.color ?? "var(--text)" }}>{bmiLabel}</div>
+              {vitalsChips.length > 0 ? (
+                <div className="bilan-summary">
+                  {vitalsChips.map((c, i) => (
+                    <div key={i} className="bilan-summary-item">
+                      <span className="bilan-summary-label">{c.label}</span>
+                      <span className="bilan-summary-value">{c.value}</span>
+                    </div>
+                  ))}
                 </div>
+              ) : (
+                <div className="bilan-empty-hint">{t("apptDetail.noMeasuresYet")}</div>
               )}
             </div>
           </div>
 
-          {/* 5 · Bilans biologique & radiologique (+ radiology attachments) */}
+          {/* 5 · Bilans biologique & radiologique (displayed — entered in Mesures & bilan) */}
           <div className="appt-note-block">
-            <label className="form-label" style={{ marginBottom: 6, display: "block" }}>{t("apptDetail.bilansBioRadio")}</label>
-            {bioBilan && (
-              <div className="specialty-group">
-                <div className="specialty-group-title">{bioBilan.title}</div>
-                <div className="specialty-fields-grid">
-                  {bioBilan.fields.map((field: SpecialtyField) => (
-                    <SpecialtyFieldInput
-                      key={field.key}
-                      field={field}
-                      value={extraFields[field.key] ?? ""}
-                      onChange={(v) => setExtraField(field.key, v)}
-                      onBlur={(v) => saveExtraField(field.key, v)}
-                      readOnly={bilanReadOnly}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-            {radioBilan && (
-              <div className="specialty-group">
-                <div className="specialty-group-title">{radioBilan.title}</div>
-                <div className="specialty-fields-grid">
-                  {radioBilan.fields.map((field: SpecialtyField) => (
-                    <SpecialtyFieldInput
-                      key={field.key}
-                      field={field}
-                      value={extraFields[field.key] ?? ""}
-                      onChange={(v) => setExtraField(field.key, v)}
-                      onBlur={(v) => saveExtraField(field.key, v)}
-                      readOnly={bilanReadOnly}
-                    />
-                  ))}
-                </div>
-                {/* Radiology films / reports */}
-                <div className="appt-radio-attach" style={{ marginTop: 8 }}>
-                  <div className="appt-note-label-row">
-                    <span className="specialty-group-title" style={{ margin: 0 }}>
-                      {t("apptDetail.radioFiles")}
-                      {radioDocs.length > 0 && <span className="appt-docs-count">{radioDocs.length}</span>}
-                    </span>
-                    {!bilanReadOnly && (
-                      <button
-                        className="btn btn-ghost btn-sm"
-                        type="button"
-                        onClick={() => { setDocSizeWarn(false); radioFileRef.current?.click(); }}
-                      >
-                        {t("apptDetail.addRadioFile")}
-                      </button>
-                    )}
-                    <input
-                      ref={radioFileRef}
-                      type="file"
-                      accept="image/*,.pdf"
-                      multiple
-                      style={{ display: "none" }}
-                      onChange={handleDocUpload("radiologie")}
-                    />
+            <div className="appt-note-label-row">
+              <label className="form-label" style={{ margin: 0 }}>{t("apptDetail.bilansBioRadio")}</label>
+              {!readOnly && (
+                <button type="button" className="bilan-edit-toggle" style={{ marginLeft: "auto" }} onClick={() => setTab("vitals")}>
+                  {t("apptDetail.openMeasuresTab")}
+                </button>
+              )}
+            </div>
+            {(bioRadioFilled.length > 0 || customFilled.length > 0) ? (
+              <div className="bilan-summary">
+                {bioRadioFilled.map((f) => (
+                  <div key={f.key} className="bilan-summary-item">
+                    <span className="bilan-summary-label">{f.label}</span>
+                    <span className="bilan-summary-value">{extraFields[f.key]}{f.unit ? ` ${f.unit}` : ""}</span>
                   </div>
-                  {radioDocs.length > 0 && (
-                    <div className="appt-docs-list">{radioDocs.map(renderDocRow)}</div>
-                  )}
-                </div>
+                ))}
+                {customFilled.map((m) => (
+                  <div key={m.id} className="bilan-summary-item">
+                    <span className="bilan-summary-label">{m.label}</span>
+                    <span className="bilan-summary-value">{m.value}{m.unit ? ` ${m.unit}` : ""}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="bilan-empty-hint">{t("apptDetail.noMeasuresYet")}</div>
+            )}
+            {radioDocs.length > 0 && (
+              <div style={{ marginTop: 8 }}>
+                <div className="specialty-group-title" style={{ margin: "0 0 4px" }}>{t("apptDetail.radioFiles")}</div>
+                <div className="appt-docs-list">{radioDocs.map(renderDocRow)}</div>
               </div>
             )}
           </div>
@@ -1627,7 +1617,7 @@ export function AppointmentDetailPage() {
               )}
 
               {showBilanInputs && (["office", "external"] as const).map((src) => {
-                const groups     = enabledBilans.filter(g => bilanSourceFor(g.key) === src);
+                const groups     = entryBilans.filter(g => bilanSourceFor(g.key) === src);
                 const specForSrc = src === "office" ? specialtyGroups : [];
                 const customForSrc = customLocal.filter(m => m.source === src);
                 return (
@@ -1716,6 +1706,26 @@ export function AppointmentDetailPage() {
                   </div>
                 );
               })}
+
+              {/* Radiology films / reports — entered here, viewed in Notes */}
+              {(!bilanReadOnly || radioDocs.length > 0) && (
+                <div className="appt-radio-attach" style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--border)" }}>
+                  <div className="appt-note-label-row">
+                    <span className="specialty-group-title" style={{ margin: 0 }}>
+                      {t("apptDetail.radioFiles")}
+                      {radioDocs.length > 0 && <span className="appt-docs-count">{radioDocs.length}</span>}
+                    </span>
+                    {!bilanReadOnly && (
+                      <button className="btn btn-ghost btn-sm" type="button"
+                        onClick={() => { setDocSizeWarn(false); radioFileRef.current?.click(); }}>
+                        {t("apptDetail.addRadioFile")}
+                      </button>
+                    )}
+                    <input ref={radioFileRef} type="file" accept="image/*,.pdf" multiple style={{ display: "none" }} onChange={handleDocUpload("radiologie")} />
+                  </div>
+                  {radioDocs.length > 0 && <div className="appt-docs-list">{radioDocs.map(renderDocRow)}</div>}
+                </div>
+              )}
             </div>
           )}
         </div>

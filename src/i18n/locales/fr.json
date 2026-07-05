@@ -609,6 +609,7 @@
     "measureLabel": "Mesure",
     "measureValue": "Valeur",
     "measureUnit": "Unité",
+    "noMeasuresYet": "Aucune mesure saisie — à renseigner dans l'onglet « Mesures & bilan ».",
     "examPlaceholder": "Résultats de l'examen clinique…",
     "diagPlaceholder": "Diagnostic retenu… (ou choisir un code CIM-10)",
     "treatPlaceholder": "Prescriptions, conseils, suivi…",

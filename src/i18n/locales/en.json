@@ -609,6 +609,7 @@
     "measureLabel": "Measure",
     "measureValue": "Value",
     "measureUnit": "Unit",
+    "noMeasuresYet": "No measurements yet — enter them in the “Measurements & workup” tab.",
     "examPlaceholder": "Results of physical examination…",
     "diagPlaceholder": "Working diagnosis… (or choose an ICD-10 code)",
     "treatPlaceholder": "Prescriptions, advice, follow-up…",

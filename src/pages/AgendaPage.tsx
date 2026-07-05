@@ -1710,14 +1710,22 @@ export function AgendaPage() {
 
       {/* ── Colour legend ── */}
       <div className="agenda-legend">
-        {TYPE_OPTS
-          .filter(tp => !(doctorProfile?.hiddenConsultationTypes ?? []).includes(tp))
-          .map(tp => (
+        {(() => {
+          // The legend is a colour key. A type is hidden only from the *new-RDV
+          // selector*; existing RDVs of that type (e.g. online bookings default
+          // to "consultation") still need their colour explained. So show a type
+          // when it is not hidden OR it appears in the current appointments.
+          const hidden  = new Set(doctorProfile?.hiddenConsultationTypes ?? []);
+          const present = new Set(appointments.map(a => a.type));
+          const types   = [...new Set([...TYPE_OPTS, ...appointments.map(a => a.type)])]
+            .filter(tp => !hidden.has(tp) || present.has(tp));
+          return types.map(tp => (
             <span key={tp} className="agenda-legend-item">
               <span className="agenda-legend-dot" style={{ background: APPT_TYPE_COLORS[tp] }} />
               {t(`apptType.${tp}`)}
             </span>
-          ))}
+          ));
+        })()}
       </div>
 
       {/* ── Month view ── */}

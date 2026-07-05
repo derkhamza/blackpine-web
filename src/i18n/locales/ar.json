@@ -609,6 +609,7 @@
     "measureLabel": "القياس",
     "measureValue": "القيمة",
     "measureUnit": "الوحدة",
+    "noMeasuresYet": "لا توجد قياسات — أدخلها في تبويب « القياسات والفحوصات ».",
     "examPlaceholder": "نتائج الفحص السريري…",
     "diagPlaceholder": "التشخيص المحتمل… (أو اختر رمز ICD-10)",
     "treatPlaceholder": "الوصفات، النصائح، المتابعة…",
