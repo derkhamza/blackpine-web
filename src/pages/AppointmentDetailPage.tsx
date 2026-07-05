@@ -35,10 +35,9 @@ const STATUS_OPTS: AppointmentStatus[] = [
   "scheduled", "arrived", "in_consultation", "completed", "cancelled", "no_show",
 ];
 // Only these three types are offered for new appointments; legacy types
-// (suivi, procédure, urgence) remain displayable on existing records.
-const TYPE_OPTS: AppointmentType[] = [
-  "consultation", "controle", "autre",
-];
+// (suivi, procédure, urgence) remain displayable on existing records and are
+// preserved per-appointment via seenTypes.
+const STANDARD_TYPES: AppointmentType[] = ["consultation", "controle", "autre"];
 
 function fmtDate(iso: string, locale = "fr-FR") {
   return new Date(iso + "T12:00:00").toLocaleDateString(locale, {
@@ -300,6 +299,12 @@ export function AppointmentDetailPage() {
   // ── Tabs ──────────────────────────────────────────────────────────────────
   const [tab, setTab] = useState<"notes" | "vitals" | "suivi">("notes");
 
+  // Keep every type this RDV has had during the session selectable, so
+  // reclassifying (e.g. Suivi → Consultation) never drops the previous type's
+  // pill — the doctor can always switch back. Without this, a non-standard type
+  // (suivi/procédure/urgence on older records), once left, cannot be reselected.
+  const [seenTypes, setSeenTypes] = useState<AppointmentType[]>([]);
+
   // ── Clinical notes (local → auto-save on blur) ────────────────────────────
   const [motif,       setMotif]       = useState("");
   const [exam,        setExam]        = useState("");
@@ -507,6 +512,12 @@ export function AppointmentDetailPage() {
     setHeight(vs.height != null ? String(vs.height) : "");
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appt?.id]);
+
+  // Remember every type this appointment takes on while open (see seenTypes).
+  useEffect(() => {
+    if (!appt) return;
+    setSeenTypes((prev) => (prev.includes(appt.type) ? prev : [...prev, appt.type]));
+  }, [appt?.type]);
 
   if (!appt) {
     return (
@@ -808,9 +819,11 @@ export function AppointmentDetailPage() {
   };
 
   const hiddenTypes = doctorProfile.hiddenConsultationTypes ?? [];
-  const visibleTypes = (["consultation", "controle", "autre"] as AppointmentType[])
-    .concat(TYPE_OPTS.includes(appt.type) ? [] : [appt.type])   // legacy types stay selectable on old records
-    .filter(t => !hiddenTypes.includes(t) || t === appt.type);
+  const visibleTypes = Array.from(new Set<AppointmentType>([
+    ...STANDARD_TYPES,
+    ...seenTypes,          // every type this RDV has had this session stays selectable
+    appt.type,
+  ])).filter(t => !hiddenTypes.includes(t) || t === appt.type || seenTypes.includes(t));
 
   const specialtyGroups = getSpecialtyGroups(doctorProfile.specialtyLabel);
 
