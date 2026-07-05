@@ -777,6 +777,7 @@
     "ordEmptySub": "Prescriptions created during consultations will appear here.",
     "ordEdited": "Edited on {{date}}",
     "ordViewAppt": "View appt →",
+    "ordStandalone": "Prescription",
     "ordReprint": "Reprint",
     "editGenderNone": "— Not specified —",
     "cityLabel": "City",

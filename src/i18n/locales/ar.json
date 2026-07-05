@@ -777,6 +777,7 @@
     "ordEmptySub": "الوصفات المنشأة خلال الاستشارات ستظهر هنا.",
     "ordEdited": "تم التعديل في {{date}}",
     "ordViewAppt": "عرض الموعد ←",
+    "ordStandalone": "وصفة طبية",
     "ordReprint": "إعادة طباعة",
     "editGenderNone": "— غير محدد —",
     "cityLabel": "المدينة",

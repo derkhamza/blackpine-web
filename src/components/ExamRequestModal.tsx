@@ -63,7 +63,7 @@ export function ExamRequestModal({
     if (!c.length || !pName.trim()) return;
     printExamRequest({ lines: c, indication: indication.trim() || undefined, patientName: pName.trim(), date, doctorProfile });
     onSave({ lines: c, indication: indication.trim() || undefined, patientName: pName.trim(), patientId: pId });
-    onClose();
+    // Keep the modal open after printing so the doctor isn't bounced back.
   };
   const handleSaveOnly = () => {
     const c = clean();

@@ -255,6 +255,28 @@ export function PatientDetailPage() {
   const belongsHere = (it: { patientId?: string; patientName?: string }) =>
     it.patientId === patientId || (!it.patientId && it.patientName === fullName);
 
+  // Unified ordonnance history: prescriptions saved on an appointment
+  // (appt.savedOrdonnance) AND standalone ones created from Documents. Before,
+  // the patient screen only showed the former, so standalone ordonnances never
+  // appeared here.
+  const ordHistory = useMemo(() => {
+    const fromAppts = ordAppts.map((a) => ({
+      key: `appt-${a.id}`, date: a.date, stamp: a.savedOrdonnance!.printedAt,
+      lines: a.savedOrdonnance!.lines as OrdonnanceLine[],
+      apptId: a.id as string | null, typeLabel: APPT_TYPE_LABELS[a.type], patientName: a.patientName,
+    }));
+    const fromStandalone = prescriptions
+      .filter((p) => p.source === "standalone" && belongsHere(p) && p.lines.length > 0)
+      .map((p) => ({
+        key: `rx-${p.id}`, date: p.date, stamp: p.createdAt,
+        lines: p.lines as OrdonnanceLine[],
+        apptId: null as string | null, typeLabel: t("patientDetail.ordStandalone"), patientName: p.patientName,
+      }));
+    return [...fromAppts, ...fromStandalone]
+      .sort((a, b) => b.date.localeCompare(a.date) || b.stamp.localeCompare(a.stamp));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ordAppts, prescriptions, patientId, fullName, i18n.language]);
+
   const patientRevenue = useMemo(() => {
     if (!fullName) return 0;
     return transactions
@@ -661,7 +683,7 @@ export function PatientDetailPage() {
           { key: "dossier",     label: t("patientDetail.tabDossier"),                                 dot: false },
           { key: "consultations", label: t("patientDetail.tabConsultations", { n: patientAppts.length }), dot: patientAppts.length > 0 },
           { key: "vitals",      label: t("patientDetail.tabVitals"),                                  dot: hasTrends },
-          { key: "ordonnances", label: t("patientDetail.tabOrdonnances", { n: ordAppts.length }),     dot: ordAppts.length > 0 },
+          { key: "ordonnances", label: t("patientDetail.tabOrdonnances", { n: ordHistory.length }),     dot: ordHistory.length > 0 },
         ] as const).map(({ key, label, dot }) => (
           <button
             key={key}
@@ -1082,11 +1104,11 @@ export function PatientDetailPage() {
           <div className="appt-section-header">
             <div className="appt-section-title">{t("patientDetail.ordTitle")}</div>
             <span style={{ fontSize: 11, color: "var(--tertiary)" }}>
-              {t("patientDetail.ordCount", { n: ordAppts.length, s: ordAppts.length !== 1 ? "s" : "" })}
+              {t("patientDetail.ordCount", { n: ordHistory.length, s: ordHistory.length !== 1 ? "s" : "" })}
             </span>
           </div>
 
-          {ordAppts.length === 0 ? (
+          {ordHistory.length === 0 ? (
             <div className="tx-empty" style={{ padding: "32px 0" }}>
               <div style={{ fontSize: 32, marginBottom: 8 }}>℞</div>
               <div style={{ fontWeight: 700, marginBottom: 4 }}>{t("patientDetail.ordEmpty")}</div>
@@ -1096,31 +1118,33 @@ export function PatientDetailPage() {
             </div>
           ) : (
             <div className="ord-history-list">
-              {ordAppts.map(appt => (
-                <div key={appt.id} className="ord-history-card">
+              {ordHistory.map(item => (
+                <div key={item.key} className="ord-history-card">
                   <div className="ord-history-header">
                     <div>
                       <div className="ord-history-date">
-                        {fmtDate(appt.date)} · {APPT_TYPE_LABELS[appt.type]}
+                        {fmtDate(item.date)} · {item.typeLabel}
                       </div>
                       <div style={{ fontSize: 11, color: "var(--muted)" }}>
-                        {t("patientDetail.ordEdited", { date: new Date(appt.savedOrdonnance!.printedAt).toLocaleDateString(locale) })}
+                        {t("patientDetail.ordEdited", { date: new Date(item.stamp).toLocaleDateString(locale) })}
                       </div>
                     </div>
                     <div style={{ display: "flex", gap: 8 }}>
-                      <Link
-                        to={`/agenda/${appt.id}`}
-                        className="payroll-print-btn"
-                        style={{ textDecoration: "none" }}
-                      >
-                        {t("patientDetail.ordViewAppt")}
-                      </Link>
+                      {item.apptId && (
+                        <Link
+                          to={`/agenda/${item.apptId}`}
+                          className="payroll-print-btn"
+                          style={{ textDecoration: "none" }}
+                        >
+                          {t("patientDetail.ordViewAppt")}
+                        </Link>
+                      )}
                       <button
                         className="payroll-print-btn"
                         onClick={() => printOrdonnance({
-                          lines:        appt.savedOrdonnance!.lines as OrdonnanceLine[],
-                          patientName:  appt.patientName,
-                          date:         appt.date,
+                          lines:        item.lines,
+                          patientName:  item.patientName,
+                          date:         item.date,
                           doctorProfile,
                         })}
                       >
@@ -1134,7 +1158,7 @@ export function PatientDetailPage() {
                     </div>
                   </div>
                   <ol className="ord-history-lines">
-                    {appt.savedOrdonnance!.lines.map((l, i) => (
+                    {item.lines.map((l, i) => (
                       <li key={i} className="ord-history-line">
                         <span className="ord-history-drug">{l.drug}</span>
                         {l.dosage && <span className="ord-history-meta"> — {l.dosage}</span>}

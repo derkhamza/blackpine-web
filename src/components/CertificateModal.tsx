@@ -145,7 +145,7 @@ export function CertificateModal({ appt, patientName, doctorProfile, onSave, onC
     if (!cert) return;
     doPrint(cert);
     onSave(cert);
-    onClose();
+    // Keep the modal open after printing so the doctor isn't bounced back.
   }
 
   function handleSaveOnly() {

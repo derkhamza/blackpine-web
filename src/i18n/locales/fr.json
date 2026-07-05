@@ -777,6 +777,7 @@
     "ordEmptySub": "Les prescriptions créées lors des consultations apparaissent ici.",
     "ordEdited": "Éditée le {{date}}",
     "ordViewAppt": "Voir le RDV →",
+    "ordStandalone": "Ordonnance",
     "ordReprint": "Réimprimer",
     "editGenderNone": "— Non précisé —",
     "cityLabel": "Ville",

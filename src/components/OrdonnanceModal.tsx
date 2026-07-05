@@ -274,7 +274,8 @@ export function OrdonnanceModal({
     track("action:print_ordonnance");
     printOrdonnance({ lines: clean, patientName, date, doctorProfile });
     onSave(clean);
-    onClose();
+    // Keep the modal open after printing (the print opens in a separate window);
+    // the doctor closes it manually instead of being bounced to the prior screen.
   };
 
   const handleSaveOnly = () => {
