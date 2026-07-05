@@ -459,6 +459,21 @@ export interface Appointment {
   // Stored per-appointment so a secretary — who cannot sync the doctor profile —
   // can still add a bilan and fill in the measurements at the desk.
   extraBilans?:    string[];
+  // Which of the two bilan sections each group sits in (keyed by BILAN_CATALOG
+  // key). Lets the doctor split the work-up into two groups.
+  bilanSource?:    Record<string, "office" | "external">;
+  // Free-form measurements the doctor adds ad-hoc (label + value + unit).
+  customMeasures?: CustomMeasure[];
+}
+
+// A one-off measurement the doctor types in (not in any catalog): a name, its
+// value and an optional unit, placed in one of the two bilan sections.
+export interface CustomMeasure {
+  id:     string;
+  label:  string;
+  value:  string;
+  unit?:  string;
+  source: "office" | "external";
 }
 
 export type PatientGender = "M" | "F";
