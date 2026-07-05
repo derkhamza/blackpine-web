@@ -833,5 +833,6 @@ export interface ApptDocument {
   sizeBytes:     number;
   data:          string;   // base64 data URL ("data:image/jpeg;base64,…")
   label?:        string;   // optional user label (e.g. "Radio pulmonaire")
+  category?:     string;   // e.g. "radiologie" — groups the file under a bilan
   uploadedAt:    string;   // ISO
 }

@@ -9,7 +9,7 @@ import { useToast } from "../components/Toast";
 import { findOrphanAppts } from "../lib/orphanAppts";
 import { fullName as fmtFullName } from "../lib/nameFormat";
 import type {
-  Appointment, AppointmentStatus, AppointmentType,
+  Appointment, AppointmentStatus, AppointmentType, Patient,
   ConsultationNote, VitalSigns, OrdonnanceLine, SavedCertificate, BillingLine, PaymentMethod,
 } from "../lib/cabinetTypes";
 import { paymentSummary } from "../lib/billing";
@@ -251,7 +251,7 @@ export function AppointmentDetailPage() {
   const navigate    = useNavigate();
   const {
     appointments, patients, updateAppointment, deleteAppointment, addInvoice,
-    addPatient, doctorProfile, setDoctorProfile, role,
+    addPatient, updatePatient, addAppointment, doctorProfile, setDoctorProfile, role,
     examRequests, addExamRequest, updateExamRequest,
     apptDocuments, addApptDocument, deleteApptDocument,
   } = useCabinet();
@@ -383,8 +383,23 @@ export function AppointmentDetailPage() {
     () => apptDocuments.filter(d => d.appointmentId === apptId),
     [apptDocuments, apptId],
   );
+  // Radiology films/reports are attached under the "bilan radiologique" section
+  // (see the notes flow); everything else stays in the generic attachments list.
+  const radioDocs   = useMemo(() => apptDocs.filter(d => d.category === "radiologie"), [apptDocs]);
+  const generalDocs = useMemo(() => apptDocs.filter(d => d.category !== "radiologie"), [apptDocs]);
+  const radioFileRef = useRef<HTMLInputElement>(null);
 
-  const handleDocUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Patient history edited in-flow (antécédents, médicaments en cours) — saved
+  // back to the patient record so the doctor never leaves the appointment screen.
+  const [antecedents, setAntecedents] = useState("");
+  const [currentMeds, setCurrentMeds] = useState("");
+
+  // "Fixer le prochain rendez-vous" — schedule the follow-up RDV in-flow.
+  const [nextDate, setNextDate] = useState("");
+  const [nextTime, setNextTime] = useState("09:00");
+  const [nextType, setNextType] = useState<AppointmentType>("controle");
+
+  const handleDocUpload = (category?: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
     e.target.value = "";
     files.forEach(file => {
@@ -398,6 +413,7 @@ export function AppointmentDetailPage() {
           mimeType,
           sizeBytes,
           data,
+          category,
           uploadedAt:    new Date().toISOString(),
         });
       };
@@ -465,6 +481,32 @@ export function AppointmentDetailPage() {
     return "📎";
   }
 
+  const renderDocRow = (doc: (typeof apptDocuments)[number]) => (
+    <div key={doc.id} className="appt-doc-row">
+      <span className="appt-doc-icon">{docIcon(doc.mimeType)}</span>
+      <div className="appt-doc-info">
+        <div className="appt-doc-name">
+          {doc.mimeType.startsWith("image/") ? (
+            <a href={doc.data} target="_blank" rel="noopener noreferrer" className="appt-doc-link">{doc.filename}</a>
+          ) : (
+            <a href={doc.data} download={doc.filename} className="appt-doc-link">{doc.filename}</a>
+          )}
+        </div>
+        <div className="appt-doc-meta">
+          {fmtBytes(doc.sizeBytes)} · {new Date(doc.uploadedAt).toLocaleDateString(locale)}
+          {doc.label && <span className="appt-doc-label"> · {doc.label}</span>}
+        </div>
+      </div>
+      <button
+        className="appt-doc-delete"
+        title={t("common.delete")}
+        onClick={() => { if (confirm(t("apptDetail.deleteFileConfirm", { name: doc.filename }))) deleteApptDocument(doc.id); }}
+      >
+        ×
+      </button>
+    </div>
+  );
+
   // ── Consultation timer ────────────────────────────────────────────────────
   const [timerRunning, setTimerRunning]   = useState(false);
   const [timerSeconds, setTimerSeconds]   = useState(0);
@@ -519,6 +561,13 @@ export function AppointmentDetailPage() {
     setSeenTypes((prev) => (prev.includes(appt.type) ? prev : [...prev, appt.type]));
   }, [appt?.type]);
 
+  // Load the patient's history fields into the in-flow editors.
+  useEffect(() => {
+    setAntecedents(patient?.antecedents ?? "");
+    setCurrentMeds(patient?.currentMedications ?? "");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [patient?.id]);
+
   if (!appt) {
     return (
       <Layout title={t("apptDetail.notFound")} subtitle="">
@@ -548,6 +597,33 @@ export function AppointmentDetailPage() {
       extraFields:  Object.keys(nonEmptyExtra).length ? nonEmptyExtra : undefined,
     };
     updateAppointment({ ...appt, consultationNote: note });
+  };
+
+  // Persist a patient-history field (antécédents / médicaments en cours) back to
+  // the patient record, so it carries across every visit.
+  const savePatientField = (patch: Partial<Patient>) => {
+    if (patient) updatePatient({ ...patient, ...patch });
+  };
+
+  // Schedule the next appointment straight from the consultation, without
+  // leaving the screen. Defaults to a 30-minute slot of the chosen type.
+  const scheduleNextAppt = () => {
+    if (!nextDate) return;
+    const [hh, mm] = nextTime.split(":").map((n) => parseInt(n, 10) || 0);
+    const endTotal = hh * 60 + mm + 30;
+    const endTime = `${String(Math.floor(endTotal / 60) % 24).padStart(2, "0")}:${String(endTotal % 60).padStart(2, "0")}`;
+    addAppointment({
+      patientId:   appt.patientId,
+      patientName: appt.patientName,
+      date:        nextDate,
+      startTime:   nextTime,
+      endTime,
+      type:        nextType,
+      status:      "scheduled",
+    });
+    updateAppointment({ ...appt, followUpDate: nextDate });
+    setNextDate("");
+    toast(t("apptDetail.nextApptCreated"));
   };
 
   // Append a dictated phrase to a clinical-note field and persist immediately
@@ -647,6 +723,9 @@ export function AppointmentDetailPage() {
   const enabledBilanKeys  = [...new Set([...profileBilanKeys, ...apptBilanKeys])];
   const enabledBilans   = BILAN_CATALOG.filter(b => enabledBilanKeys.includes(b.key));
   const availableBilans = BILAN_CATALOG.filter(b => !enabledBilanKeys.includes(b.key));
+  // Section 5 of the consultation always offers biology + radiology bilans.
+  const bioBilan   = BILAN_CATALOG.find(b => b.key === "biologique");
+  const radioBilan = BILAN_CATALOG.find(b => b.key === "radiologique");
 
   const addBilan = (key: string) => {
     if (!key || enabledBilanKeys.includes(key)) return;
@@ -1139,117 +1218,217 @@ export function AppointmentDetailPage() {
             </div>
           )}
 
-          {/* Chronology of a consultation: motif → examen → bilans → diagnostic → traitement */}
-          <div className="appt-notes-grid">
-            <div className="form-group">
-              <div className="appt-note-label-row">
-                <label className="form-label" style={{ margin: 0 }}>{t("apptDetail.motif")}</label>
-                {!motifReadOnly && <DictationButton lang={locale} onText={dictateInto("motif", setMotif, motif)} />}
-              </div>
+          {/* Structured consultation flow — everything in one screen, in order:
+              1 motif · 2 antécédents · 3 médicaments · 4 examen (+ mesures)
+              · 5 bilans bio/radio · 6 diagnostic · 7 traitement · prochain RDV */}
+
+          {/* 1 · Motif */}
+          <div className="form-group appt-note-block">
+            <div className="appt-note-label-row">
+              <label className="form-label" style={{ margin: 0 }}>{t("apptDetail.motif")}</label>
+              {!motifReadOnly && <DictationButton lang={locale} onText={dictateInto("motif", setMotif, motif)} />}
+            </div>
+            <textarea
+              className="form-input appt-textarea"
+              rows={2}
+              placeholder={t("apptDetail.motifPlaceholder")}
+              value={motif}
+              onChange={(e) => setMotif(e.target.value)}
+              onBlur={() => saveNotes()}
+              readOnly={motifReadOnly}
+            />
+          </div>
+
+          {/* 2 · Antécédents (from the patient record, saved back to it) */}
+          <div className="form-group appt-note-block">
+            <label className="form-label" style={{ marginBottom: 4, display: "block" }}>{t("apptDetail.antecedents")}</label>
+            {patient ? (
               <textarea
                 className="form-input appt-textarea"
                 rows={2}
-                placeholder={t("apptDetail.motifPlaceholder")}
-                value={motif}
-                onChange={(e) => setMotif(e.target.value)}
-                onBlur={() => saveNotes()}
-                readOnly={motifReadOnly}
-              />
-            </div>
-            <div className="form-group">
-              <div className="appt-note-label-row">
-                <label className="form-label" style={{ margin: 0 }}>{t("apptDetail.examination")}</label>
-                {!readOnly && <DictationButton lang={locale} onText={dictateInto("examination", setExam, exam)} />}
-              </div>
-              <textarea
-                className="form-input appt-textarea"
-                rows={4}
-                placeholder={t("apptDetail.examPlaceholder")}
-                value={exam}
-                onChange={(e) => setExam(e.target.value)}
-                onBlur={() => saveNotes()}
+                placeholder={t("apptDetail.antecedentsPlaceholder")}
+                value={antecedents}
+                onChange={(e) => setAntecedents(e.target.value)}
+                onBlur={() => savePatientField({ antecedents: antecedents.trim() || undefined })}
                 readOnly={readOnly}
               />
+            ) : (
+              <div className="appt-note-nolink">{t("apptDetail.historyNeedsPatient")}</div>
+            )}
+          </div>
+
+          {/* 3 · Médicaments en cours (patient record) */}
+          <div className="form-group appt-note-block">
+            <label className="form-label" style={{ marginBottom: 4, display: "block" }}>{t("apptDetail.currentMeds")}</label>
+            {patient ? (
+              <textarea
+                className="form-input appt-textarea"
+                rows={2}
+                placeholder={t("apptDetail.currentMedsPlaceholder")}
+                value={currentMeds}
+                onChange={(e) => setCurrentMeds(e.target.value)}
+                onBlur={() => savePatientField({ currentMedications: currentMeds.trim() || undefined })}
+                readOnly={readOnly}
+              />
+            ) : (
+              <div className="appt-note-nolink">{t("apptDetail.historyNeedsPatient")}</div>
+            )}
+          </div>
+
+          {/* 4 · Examen clinique + mesures (recorded in-flow) */}
+          <div className="form-group appt-note-block">
+            <div className="appt-note-label-row">
+              <label className="form-label" style={{ margin: 0 }}>{t("apptDetail.examination")}</label>
+              {!readOnly && <DictationButton lang={locale} onText={dictateInto("examination", setExam, exam)} />}
+            </div>
+            <textarea
+              className="form-input appt-textarea"
+              rows={4}
+              placeholder={t("apptDetail.examPlaceholder")}
+              value={exam}
+              onChange={(e) => setExam(e.target.value)}
+              onBlur={() => saveNotes()}
+              readOnly={readOnly}
+            />
+            <div className="appt-measures-inline" style={{ marginTop: 12 }}>
+              <div className="specialty-group-title">{t("apptDetail.vitalSigns")}</div>
+              <div className="vs-grid">
+                <div className="vs-bp-group">
+                  <div className="vs-group-label">{t("apptDetail.bpGroup")}</div>
+                  <div className="vs-bp-row">
+                    <VsInput label={t("apptDetail.bpSysLabel")} unit="mmHg" value={bpSys} onChange={setBpSys} onBlur={saveVitals} vsKey="bpSys" readOnly={vitalsReadOnly} />
+                    <span className="vs-bp-slash">/</span>
+                    <VsInput label={t("apptDetail.bpDiaLabel")} unit="mmHg" value={bpDia} onChange={setBpDia} onBlur={saveVitals} vsKey="bpDia" readOnly={vitalsReadOnly} />
+                  </div>
+                </div>
+                <VsInput label={t("apptDetail.hrLabel")}     unit="bpm"  value={hr}     onChange={setHr}     onBlur={saveVitals} vsKey="hr"   readOnly={vitalsReadOnly} />
+                <VsInput label={t("apptDetail.tempLabel")}   unit="°C"   value={temp}   onChange={setTemp}   onBlur={saveVitals} vsKey="temp" readOnly={vitalsReadOnly} />
+                <VsInput label={t("apptDetail.spo2Label")}   unit="%"    value={spo2}   onChange={setSpo2}   onBlur={saveVitals} vsKey="spo2" readOnly={vitalsReadOnly} />
+                <VsInput label={t("apptDetail.weightLabel")} unit="kg"   value={weight} onChange={setWeight} onBlur={saveVitals} readOnly={vitalsReadOnly} />
+                <VsInput label={t("apptDetail.heightLabel")} unit="cm"   value={height} onChange={setHeight} onBlur={saveVitals} readOnly={vitalsReadOnly} />
+              </div>
+              {bmi !== null && (
+                <div className="vs-bmi-card">
+                  <div className="vs-bmi-value">{t("apptDetail.bmiLabel", { val: bmi.toFixed(1) })}</div>
+                  <div className="vs-bmi-label" style={{ color: bmiClass?.color ?? "var(--text)" }}>{bmiLabel}</div>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Measurements at a glance — read-only. All entry/editing of vital
-              signs + bilan clinique lives in the dedicated "Mesures & bilan" tab. */}
-          {filledBilan.length > 0 && (
-            <div className="specialty-fields-section">
-              <div className="specialty-fields-title">
-                <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
-                  <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.5"/>
-                  <path d="M8 5v3.5l2 1.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
-                </svg>
-                {t("apptDetail.measuresGlance")}
-                <button
-                  type="button"
-                  className="bilan-edit-toggle"
-                  style={{ marginLeft: "auto" }}
-                  onClick={() => setTab("vitals")}
-                >
-                  {t("apptDetail.openMeasuresTab")}
-                </button>
+          {/* 5 · Bilans biologique & radiologique (+ radiology attachments) */}
+          <div className="appt-note-block">
+            <label className="form-label" style={{ marginBottom: 6, display: "block" }}>{t("apptDetail.bilansBioRadio")}</label>
+            {bioBilan && (
+              <div className="specialty-group">
+                <div className="specialty-group-title">{bioBilan.title}</div>
+                <div className="specialty-fields-grid">
+                  {bioBilan.fields.map((field: SpecialtyField) => (
+                    <SpecialtyFieldInput
+                      key={field.key}
+                      field={field}
+                      value={extraFields[field.key] ?? ""}
+                      onChange={(v) => setExtraField(field.key, v)}
+                      onBlur={(v) => saveExtraField(field.key, v)}
+                      readOnly={bilanReadOnly}
+                    />
+                  ))}
+                </div>
               </div>
-              <div className="bilan-summary">
-                {filledBilan.map(({ field }) => (
-                  <div key={field.key} className="bilan-summary-item">
-                    <span className="bilan-summary-label">{field.label}</span>
-                    <span className="bilan-summary-value">
-                      {extraFields[field.key]}{field.unit ? ` ${field.unit}` : ""}
+            )}
+            {radioBilan && (
+              <div className="specialty-group">
+                <div className="specialty-group-title">{radioBilan.title}</div>
+                <div className="specialty-fields-grid">
+                  {radioBilan.fields.map((field: SpecialtyField) => (
+                    <SpecialtyFieldInput
+                      key={field.key}
+                      field={field}
+                      value={extraFields[field.key] ?? ""}
+                      onChange={(v) => setExtraField(field.key, v)}
+                      onBlur={(v) => saveExtraField(field.key, v)}
+                      readOnly={bilanReadOnly}
+                    />
+                  ))}
+                </div>
+                {/* Radiology films / reports */}
+                <div className="appt-radio-attach" style={{ marginTop: 8 }}>
+                  <div className="appt-note-label-row">
+                    <span className="specialty-group-title" style={{ margin: 0 }}>
+                      {t("apptDetail.radioFiles")}
+                      {radioDocs.length > 0 && <span className="appt-docs-count">{radioDocs.length}</span>}
                     </span>
+                    {!bilanReadOnly && (
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        type="button"
+                        onClick={() => { setDocSizeWarn(false); radioFileRef.current?.click(); }}
+                      >
+                        {t("apptDetail.addRadioFile")}
+                      </button>
+                    )}
+                    <input
+                      ref={radioFileRef}
+                      type="file"
+                      accept="image/*,.pdf"
+                      multiple
+                      style={{ display: "none" }}
+                      onChange={handleDocUpload("radiologie")}
+                    />
                   </div>
-                ))}
+                  {radioDocs.length > 0 && (
+                    <div className="appt-docs-list">{radioDocs.map(renderDocRow)}</div>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
-          {/* Diagnostic & traitement come last — they conclude the consultation. */}
-          <div className="appt-notes-grid" style={{ marginTop: 14 }}>
-            <div className="form-group">
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-                <label className="form-label" style={{ margin: 0 }}>{t("apptDetail.diagnosis")}</label>
-                {!readOnly && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <DictationButton lang={locale} onText={dictateInto("diagnosis", setDiag, diag)} />
-                    <button
-                      className="btn btn-ghost"
-                      style={{ fontSize: 11, padding: "2px 8px", gap: 4 }}
-                      onClick={() => setShowIcd10(true)}
-                      title={t("apptDetail.icd10Title")}
-                      type="button"
-                    >
-                      🔬 {t("apptDetail.icd10")}
-                    </button>
-                  </div>
-                )}
-              </div>
-              <textarea
-                className="form-input appt-textarea"
-                rows={2}
-                placeholder={t("apptDetail.diagPlaceholder")}
-                value={diag}
-                onChange={(e) => setDiag(e.target.value)}
-                onBlur={() => saveNotes()}
-                readOnly={readOnly}
-              />
+          {/* 6 · Diagnostic */}
+          <div className="form-group appt-note-block">
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+              <label className="form-label" style={{ margin: 0 }}>{t("apptDetail.diagnosis")}</label>
+              {!readOnly && (
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <DictationButton lang={locale} onText={dictateInto("diagnosis", setDiag, diag)} />
+                  <button
+                    className="btn btn-ghost"
+                    style={{ fontSize: 11, padding: "2px 8px", gap: 4 }}
+                    onClick={() => setShowIcd10(true)}
+                    title={t("apptDetail.icd10Title")}
+                    type="button"
+                  >
+                    🔬 {t("apptDetail.icd10")}
+                  </button>
+                </div>
+              )}
             </div>
-            <div className="form-group">
-              <div className="appt-note-label-row">
-                <label className="form-label" style={{ margin: 0 }}>{t("apptDetail.treatment")}</label>
-                {!readOnly && <DictationButton lang={locale} onText={dictateInto("treatment", setTreatment, treatment)} />}
-              </div>
-              <textarea
-                className="form-input appt-textarea"
-                rows={4}
-                placeholder={t("apptDetail.treatPlaceholder")}
-                value={treatment}
-                onChange={(e) => setTreatment(e.target.value)}
-                onBlur={() => saveNotes()}
-                readOnly={readOnly}
-              />
+            <textarea
+              className="form-input appt-textarea"
+              rows={2}
+              placeholder={t("apptDetail.diagPlaceholder")}
+              value={diag}
+              onChange={(e) => setDiag(e.target.value)}
+              onBlur={() => saveNotes()}
+              readOnly={readOnly}
+            />
+          </div>
+
+          {/* 7 · Traitement */}
+          <div className="form-group appt-note-block">
+            <div className="appt-note-label-row">
+              <label className="form-label" style={{ margin: 0 }}>{t("apptDetail.treatment")}</label>
+              {!readOnly && <DictationButton lang={locale} onText={dictateInto("treatment", setTreatment, treatment)} />}
             </div>
+            <textarea
+              className="form-input appt-textarea"
+              rows={4}
+              placeholder={t("apptDetail.treatPlaceholder")}
+              value={treatment}
+              onChange={(e) => setTreatment(e.target.value)}
+              onBlur={() => saveNotes()}
+              readOnly={readOnly}
+            />
           </div>
 
           {/* Ordonnance shortcut */}
@@ -1274,6 +1453,31 @@ export function AppointmentDetailPage() {
                 <span style={{ fontSize: 11, color: "var(--tertiary)" }}>
                   {t("apptDetail.autoSaved")}
                 </span>
+              )}
+            </div>
+          )}
+
+          {/* Prochain rendez-vous — schedule the follow-up without leaving */}
+          {!readOnly && (
+            <div className="appt-note-block" style={{ marginTop: 18, paddingTop: 14, borderTop: "1px solid var(--border)" }}>
+              <label className="form-label" style={{ marginBottom: 6, display: "block" }}>{t("apptDetail.nextApptTitle")}</label>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
+                <input className="form-input" type="date" style={{ maxWidth: 170 }} min={todayIso()} value={nextDate} onChange={(e) => setNextDate(e.target.value)} />
+                <input className="form-input" type="time" style={{ maxWidth: 120 }} value={nextTime} onChange={(e) => setNextTime(e.target.value)} />
+                <select className="form-select" style={{ maxWidth: 160 }} value={nextType} onChange={(e) => setNextType(e.target.value as AppointmentType)}>
+                  {STANDARD_TYPES.map((tp) => <option key={tp} value={tp}>{t(`apptType.${tp}`)}</option>)}
+                </select>
+                <button className="btn btn-primary" type="button" disabled={!nextDate || !appt.patientId} onClick={scheduleNextAppt}>
+                  {t("apptDetail.nextApptCreate")}
+                </button>
+              </div>
+              {!appt.patientId && (
+                <div className="appt-note-nolink" style={{ marginTop: 6 }}>{t("apptDetail.historyNeedsPatient")}</div>
+              )}
+              {appt.followUpDate && (
+                <div style={{ marginTop: 8, fontSize: 12, color: "var(--green)" }}>
+                  ✓ {t("apptDetail.nextApptSet", { date: formatDateShort(appt.followUpDate) })}
+                </div>
               )}
             </div>
           )}
@@ -1638,8 +1842,8 @@ export function AppointmentDetailPage() {
         <div className="appt-section-header">
           <div className="appt-section-title">
             {t("apptDetail.attachments")}
-            {apptDocs.length > 0 && (
-              <span className="appt-docs-count">{apptDocs.length}</span>
+            {generalDocs.length > 0 && (
+              <span className="appt-docs-count">{generalDocs.length}</span>
             )}
           </div>
           {/* Secretaries attach documents at the desk too (analyses, mutuelle
@@ -1656,7 +1860,7 @@ export function AppointmentDetailPage() {
             accept="image/*,.pdf,.doc,.docx"
             multiple
             style={{ display: "none" }}
-            onChange={handleDocUpload}
+            onChange={handleDocUpload()}
           />
         </div>
 
@@ -1667,50 +1871,13 @@ export function AppointmentDetailPage() {
           </div>
         )}
 
-        {apptDocs.length === 0 ? (
+        {generalDocs.length === 0 ? (
           <div className="appt-docs-empty">
             {t("apptDetail.noFiles")}
           </div>
         ) : (
           <div className="appt-docs-list">
-            {apptDocs.map(doc => (
-              <div key={doc.id} className="appt-doc-row">
-                <span className="appt-doc-icon">{docIcon(doc.mimeType)}</span>
-                <div className="appt-doc-info">
-                  <div className="appt-doc-name">
-                    {doc.mimeType.startsWith("image/") ? (
-                      <a
-                        href={doc.data}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="appt-doc-link"
-                      >
-                        {doc.filename}
-                      </a>
-                    ) : (
-                      <a
-                        href={doc.data}
-                        download={doc.filename}
-                        className="appt-doc-link"
-                      >
-                        {doc.filename}
-                      </a>
-                    )}
-                  </div>
-                  <div className="appt-doc-meta">
-                    {fmtBytes(doc.sizeBytes)} · {new Date(doc.uploadedAt).toLocaleDateString(locale)}
-                    {doc.label && <span className="appt-doc-label"> · {doc.label}</span>}
-                  </div>
-                </div>
-                <button
-                  className="appt-doc-delete"
-                  title={t("common.delete")}
-                  onClick={() => { if (confirm(t("apptDetail.deleteFileConfirm", { name: doc.filename }))) deleteApptDocument(doc.id); }}
-                >
-                  ×
-                </button>
-              </div>
-            ))}
+            {generalDocs.map(renderDocRow)}
           </div>
         )}
       </div>
