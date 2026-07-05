@@ -1,4 +1,4 @@
-import type { PageDesign, PaperSize } from "./cabinetTypes";
+import type { PageDesign, PaperSize, DocKind, DocumentSettings } from "./cabinetTypes";
 
 // ── Shared helpers to apply a PageDesign inside the print HTML ────────────────
 //
@@ -14,6 +14,45 @@ export const FACTURE_DEFAULT_MARGINS:    PageMargins = { top: 16, right: 18, bot
 // Block keys per document (labels live in the designer component's i18n).
 export const ORDONNANCE_BLOCKS = ["header", "date", "patient", "body", "signature", "footer"] as const;
 export const FACTURE_BLOCKS    = ["header", "invoice", "parties", "items", "signature", "footer"] as const;
+
+// ── Per-kind layout tables (drive the designer + printers) ────────────────────
+
+export const DOC_DEFAULT_MARGINS: Record<DocKind, PageMargins> = {
+  ordonnance:  ORDONNANCE_DEFAULT_MARGINS,
+  facture:     FACTURE_DEFAULT_MARGINS,
+  certificate: { top: 14, right: 16, bottom: 14, left: 16 },
+  examRequest: { top: 13, right: 15, bottom: 13, left: 15 },
+  receipt:     { top: 12, right: 14, bottom: 12, left: 14 },
+};
+
+export const DOC_DEFAULT_SIZE: Record<DocKind, PaperSize> = {
+  ordonnance:  "A5",
+  facture:     "A4",
+  certificate: "A5",
+  examRequest: "A5",
+  receipt:     "A5",
+};
+
+export const DOC_BLOCKS: Record<DocKind, readonly string[]> = {
+  ordonnance:  ORDONNANCE_BLOCKS,
+  facture:     FACTURE_BLOCKS,
+  certificate: ["header", "body", "signature", "footer"],
+  examRequest: ["header", "date", "patient", "indication", "body", "signature", "footer"],
+  receipt:     ["header", "title", "info", "amount", "signature", "footer"],
+};
+
+/**
+ * Resolve the effective PageDesign for a document kind. Prefers the generic
+ * `designs` map; falls back to the legacy ordonnance/facture fields so paper
+ * customised before this map existed keeps applying until it is re-edited.
+ */
+export function designForKind(ds: DocumentSettings | undefined, kind: DocKind): PageDesign | undefined {
+  const fromMap = ds?.designs?.[kind];
+  if (fromMap) return fromMap;
+  if (kind === "ordonnance") return ds?.ordonnanceDesign;
+  if (kind === "facture")    return ds?.factureDesign;
+  return undefined;
+}
 
 export function resolveMargins(d: PageDesign | undefined, dflt: PageMargins): PageMargins {
   return {

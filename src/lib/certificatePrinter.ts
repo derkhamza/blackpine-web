@@ -1,4 +1,8 @@
 import type { CabinetDoctorProfile } from "./cabinetTypes";
+import {
+  DOC_DEFAULT_MARGINS, designForKind, resolveMargins, resolvePageSize,
+  pageRule, backgroundHtml, blockStyle, logoHtml,
+} from "./docDesign";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -22,9 +26,8 @@ function popup(html: string): void {
 // ── Shared CSS ────────────────────────────────────────────────────────────────
 
 const BASE_CSS = `
-  @page { size: A5 portrait; margin: 14mm 16mm; }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: Arial, sans-serif; font-size: 10.5pt; color: #111; line-height: 1.65; }
+  body { font-family: Arial, sans-serif; font-size: 10.5pt; color: #111; line-height: 1.65; position: relative; }
 
   /* Header */
   .cert-hdr {
@@ -127,18 +130,24 @@ function footer(doc: CabinetDoctorProfile): string {
 }
 
 function wrap(title: string, body: string, legalNote: string, doc: CabinetDoctorProfile): string {
+  // Doctor-defined page design (margins / block positions / logo / letterhead).
+  const design  = designForKind(doc.documentSettings, "certificate");
+  const margins = resolveMargins(design, DOC_DEFAULT_MARGINS.certificate);
+  const bs = (key: string) => blockStyle(design, key, margins);
   return `<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8"/>
   <title>${esc(title)}</title>
-  <style>${BASE_CSS}</style>
+  <style>${pageRule(resolvePageSize(design, "A5").css, margins)}${BASE_CSS}</style>
 </head>
 <body>
-  ${hdr(doc)}
-  ${body}
-  ${footer(doc)}
-  <div class="cert-legal">${esc(legalNote)}</div>
+  ${backgroundHtml(design)}
+  ${logoHtml(design, margins)}
+  <div style="${bs("header")}">${hdr(doc)}</div>
+  <div class="cert-content" style="${bs("body")}">${body}</div>
+  <div style="${bs("signature")}">${footer(doc)}</div>
+  <div class="cert-legal" style="${bs("footer")}">${esc(legalNote)}</div>
   <script>window.onload=function(){window.print();};<\/script>
 </body>
 </html>`;

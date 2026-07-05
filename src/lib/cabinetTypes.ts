@@ -96,6 +96,14 @@ export interface DocBlockDesign {
 // Custom page design for a printed document (facture / ordonnance).
 export type PaperSize = "A4" | "A5" | "Letter";
 
+// Every single-page letterhead document the page designer can customise.
+export type DocKind =
+  | "ordonnance"
+  | "facture"
+  | "certificate"
+  | "examRequest"
+  | "receipt";
+
 export interface PageDesign {
   pageSize?:     PaperSize; // paper size (defaults: ordonnance=A5, facture=A4)
   marginTop?:    number;  // mm
@@ -119,8 +127,14 @@ export interface DocumentSettings {
   headerNote?: string;   // extra line under the doctor's identity
   footerNote?: string;   // custom footer text
   // Advanced per-document page designs (margins, block positions, logo).
+  // ordonnance/facture keep their legacy fields for backward compatibility;
+  // every document (including these two) is also read through `designs` below.
   ordonnanceDesign?: PageDesign;
   factureDesign?:    PageDesign;
+  // Full page designs keyed by document kind — the generic store used by the
+  // page designer for all letterhead documents (certificate, exam request,
+  // receipt, plus ordonnance/facture once re-edited).
+  designs?: Partial<Record<DocKind, PageDesign>>;
 }
 
 export const DEFAULT_DOCUMENT_SETTINGS: DocumentSettings = {

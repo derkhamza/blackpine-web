@@ -1,4 +1,8 @@
 import type { CabinetDoctorProfile, BillingLine } from "./cabinetTypes";
+import {
+  DOC_DEFAULT_MARGINS, designForKind, resolveMargins, resolvePageSize,
+  pageRule, backgroundHtml, blockStyle, logoHtml,
+} from "./docDesign";
 
 // ── French number-to-words ─────────────────────────────────────────────────────
 
@@ -113,17 +117,22 @@ export function printReceipt(opts: ReceiptOptions): void {
 
   const amtWords = amountInWords(amount);
 
+  // Doctor-defined page design (margins / block positions / logo / letterhead).
+  const design  = designForKind(doctorProfile.documentSettings, "receipt");
+  const margins = resolveMargins(design, DOC_DEFAULT_MARGINS.receipt);
+  const bs = (key: string) => blockStyle(design, key, margins);
+
   const html = `<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8"/>
   <title>Reçu ${receiptNo}</title>
   <style>
-    @page { size: A5 portrait; margin: 12mm 14mm; }
+    ${pageRule(resolvePageSize(design, "A5").css, margins)}
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: "Arial", sans-serif; font-size: 10.5pt;
-      color: #111; background: #fff;
+      color: #111; background: #fff; position: relative;
     }
 
     /* Header */
@@ -189,8 +198,10 @@ export function printReceipt(opts: ReceiptOptions): void {
   </style>
 </head>
 <body>
+  ${backgroundHtml(design)}
+  ${logoHtml(design, margins)}
   <!-- Header -->
-  <div class="header">
+  <div class="header" style="${bs("header")}">
     <div class="doc-left">
       <div class="doc-name">${doctorProfile.fullName || "Dr."}</div>
       <div class="doc-meta">
@@ -204,49 +215,50 @@ export function printReceipt(opts: ReceiptOptions): void {
   </div>
 
   <!-- Receipt title -->
-  <div class="title-block">
+  <div class="title-block" style="${bs("title")}">
     <div class="title-main">REÇU DE PAIEMENT</div>
     <div class="title-sub">N° ${receiptNo} &nbsp;·&nbsp; ${cityPart}, le ${dateLabel}</div>
   </div>
 
-  <!-- Info table -->
-  <table class="info-table">
-    <tr>
-      <td class="info-label">Reçu de :</td>
-      <td>${patientName}</td>
-    </tr>
-    <tr>
-      <td class="info-label">Pour :</td>
-      <td>${consultationType}</td>
-    </tr>
-    <tr>
-      <td class="info-label">Date du RDV :</td>
-      <td>${dateLabel}${appointmentTime ? " à " + appointmentTime : ""}</td>
-    </tr>
-  </table>
-
-  ${breakdownRows ? `<!-- Breakdown -->
-  <table class="info-table" style="margin-bottom:12px;">
-    <tbody>${breakdownRows}</tbody>
-  </table>` : ""}
-
-  <!-- Amount -->
-  <div class="amount-block">
-    <div class="amount-lbl">Montant réglé</div>
-    <div class="amount-val">
-      ${amount.toLocaleString("fr-MA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-      <span class="amount-unit"> MAD</span>
-    </div>
-    <div class="amount-words">En lettres : ${amtWords}</div>
+  <!-- Info -->
+  <div style="${bs("info")}">
+    <table class="info-table">
+      <tr>
+        <td class="info-label">Reçu de :</td>
+        <td>${patientName}</td>
+      </tr>
+      <tr>
+        <td class="info-label">Pour :</td>
+        <td>${consultationType}</td>
+      </tr>
+      <tr>
+        <td class="info-label">Date du RDV :</td>
+        <td>${dateLabel}${appointmentTime ? " à " + appointmentTime : ""}</td>
+      </tr>
+    </table>
+    ${breakdownRows ? `<table class="info-table" style="margin-bottom:12px;">
+      <tbody>${breakdownRows}</tbody>
+    </table>` : ""}
   </div>
 
-  ${opts.balance && opts.balance > 0 ? `<table class="info-table" style="margin-bottom:12px;">
-    <tr><td class="info-label">Total facturé :</td><td style="text-align:right;">${fmtMAD(opts.total ?? amount)}</td></tr>
-    <tr><td class="info-label" style="color:#C0392B;">Reste à payer :</td><td style="text-align:right;color:#C0392B;font-weight:700;">${fmtMAD(opts.balance)}</td></tr>
-  </table>` : ""}
+  <!-- Amount -->
+  <div style="${bs("amount")}">
+    <div class="amount-block">
+      <div class="amount-lbl">Montant réglé</div>
+      <div class="amount-val">
+        ${amount.toLocaleString("fr-MA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        <span class="amount-unit"> MAD</span>
+      </div>
+      <div class="amount-words">En lettres : ${amtWords}</div>
+    </div>
+    ${opts.balance && opts.balance > 0 ? `<table class="info-table" style="margin-top:12px;margin-bottom:12px;">
+      <tr><td class="info-label">Total facturé :</td><td style="text-align:right;">${fmtMAD(opts.total ?? amount)}</td></tr>
+      <tr><td class="info-label" style="color:#C0392B;">Reste à payer :</td><td style="text-align:right;color:#C0392B;font-weight:700;">${fmtMAD(opts.balance)}</td></tr>
+    </table>` : ""}
+  </div>
 
   <!-- Signature -->
-  <div class="signature-block">
+  <div class="signature-block" style="${bs("signature")}">
     <div class="sig-col">
       <div class="sig-label">Signature du patient :</div>
       <div class="sig-line">Lu et approuvé</div>
@@ -258,7 +270,7 @@ export function printReceipt(opts: ReceiptOptions): void {
   </div>
 
   <!-- Footer -->
-  <div class="footer">
+  <div class="footer" style="${bs("footer")}">
     Ce reçu tient lieu de quittance de paiement · N° ${receiptNo}
   </div>
 

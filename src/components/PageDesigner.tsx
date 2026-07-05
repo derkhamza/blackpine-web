@@ -1,9 +1,9 @@
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { DocumentSettings, PageDesign, DocBlockDesign, PaperSize } from "../lib/cabinetTypes";
+import type { DocumentSettings, PageDesign, DocBlockDesign, PaperSize, DocKind } from "../lib/cabinetTypes";
 import {
-  ORDONNANCE_DEFAULT_MARGINS, FACTURE_DEFAULT_MARGINS,
-  ORDONNANCE_BLOCKS, FACTURE_BLOCKS, resolveMargins, resolvePageSize,
+  DOC_DEFAULT_MARGINS, DOC_DEFAULT_SIZE, DOC_BLOCKS,
+  designForKind, resolveMargins, resolvePageSize,
 } from "../lib/docDesign";
 
 // ── Visual page designer for pre-printed paper ────────────────────────────────
@@ -11,12 +11,9 @@ import {
 // The doctor drags each printed block on a scaled A5/A4 preview to line the
 // output up with their letterhead paper: margins, block positions (mm from the
 // page edge), optional logo. Everything is stored in doctorProfile.
-// documentSettings.{ordonnanceDesign,factureDesign} and applied by the print
-// functions.
+// documentSettings.designs[kind] and applied by the print functions.
 
-type DocKind = "ordonnance" | "facture";
-
-const DEFAULT_SIZE: Record<DocKind, PaperSize> = { ordonnance: "A5", facture: "A4" };
+const DOC_KINDS: DocKind[] = ["ordonnance", "facture", "certificate", "examRequest", "receipt"];
 const PAPER_OPTS: PaperSize[] = ["A5", "A4", "Letter"];
 
 // Natural (flow) positions used only to draw un-pinned blocks on the preview.
@@ -36,6 +33,29 @@ const FLOW_Y: Record<DocKind, Record<string, { y: number; h: number }>> = {
     items:     { y: 98,  h: 110 },
     signature: { y: 218, h: 28 },
     footer:    { y: 280, h: 8  },
+  },
+  certificate: {
+    header:    { y: 14,  h: 30 },
+    body:      { y: 58,  h: 100 },
+    signature: { y: 168, h: 28 },
+    footer:    { y: 200, h: 8  },
+  },
+  examRequest: {
+    header:     { y: 13,  h: 28 },
+    date:       { y: 13,  h: 10 },
+    patient:    { y: 46,  h: 9  },
+    indication: { y: 58,  h: 16 },
+    body:       { y: 80,  h: 92 },
+    signature:  { y: 178, h: 20 },
+    footer:     { y: 200, h: 8  },
+  },
+  receipt: {
+    header:    { y: 12,  h: 28 },
+    title:     { y: 46,  h: 18 },
+    info:      { y: 70,  h: 30 },
+    amount:    { y: 106, h: 32 },
+    signature: { y: 150, h: 30 },
+    footer:    { y: 192, h: 8  },
   },
 };
 
@@ -84,19 +104,18 @@ export function PageDesigner({
   const bgFileRef = useRef<HTMLInputElement>(null);
   const dragRef = useRef<{ key: string; startX: number; startY: number; origX: number; origY: number } | null>(null);
 
-  const designKey = kind === "ordonnance" ? "ordonnanceDesign" : "factureDesign";
-  const design: PageDesign = settings[designKey] ?? {};
-  const defaults = kind === "ordonnance" ? ORDONNANCE_DEFAULT_MARGINS : FACTURE_DEFAULT_MARGINS;
+  const design: PageDesign = designForKind(settings, kind) ?? {};
+  const defaults = DOC_DEFAULT_MARGINS[kind];
   const margins = resolveMargins(design, defaults);
-  const blocks = kind === "ordonnance" ? ORDONNANCE_BLOCKS : FACTURE_BLOCKS;
-  const page = resolvePageSize(design, DEFAULT_SIZE[kind]);
+  const blocks = DOC_BLOCKS[kind];
+  const page = resolvePageSize(design, DOC_DEFAULT_SIZE[kind]);
 
   // Preview scale: fixed width, px per mm.
   const PREVIEW_W = 300;
   const scale = PREVIEW_W / page.w;
 
   const setDesign = (patch: Partial<PageDesign>) =>
-    onChange({ ...settings, [designKey]: { ...design, ...patch } });
+    onChange({ ...settings, designs: { ...settings.designs, [kind]: { ...design, ...patch } } });
 
   const setBlock = (key: string, patch: Partial<DocBlockDesign>) =>
     setDesign({ blocks: { ...(design.blocks ?? {}), [key]: { ...(design.blocks?.[key] ?? {}), ...patch } } });
@@ -153,13 +172,14 @@ export function PageDesigner({
   };
 
   const selBlock: DocBlockDesign | undefined = selected && selected !== "__logo" ? design.blocks?.[selected] : undefined;
-  const hasCustom = !!settings[designKey] && Object.keys(settings[designKey]!).length > 0;
+  const cur = designForKind(settings, kind);
+  const hasCustom = !!cur && Object.keys(cur).length > 0;
 
   return (
     <div className="pd-wrap">
       {/* Doc selector */}
       <div className="pd-tabs">
-        {(["ordonnance", "facture"] as DocKind[]).map(k => (
+        {DOC_KINDS.map(k => (
           <button
             key={k}
             type="button"
@@ -176,8 +196,11 @@ export function PageDesigner({
             style={{ marginLeft: "auto", fontSize: 11, color: "var(--coral)" }}
             onClick={() => {
               if (!window.confirm(t("settings.pd.resetConfirm"))) return;
-              const next = { ...settings };
-              delete next[designKey];
+              const nextDesigns = { ...settings.designs };
+              delete nextDesigns[kind];
+              const next: DocumentSettings = { ...settings, designs: nextDesigns };
+              if (kind === "ordonnance") delete next.ordonnanceDesign;
+              if (kind === "facture")    delete next.factureDesign;
               onChange(next);
               setSelected(null);
             }}
@@ -258,7 +281,7 @@ export function PageDesigner({
               <button
                 key={sz}
                 type="button"
-                className={`tx-cat-chip${(design.pageSize ?? DEFAULT_SIZE[kind]) === sz ? " active" : ""}`}
+                className={`tx-cat-chip${(design.pageSize ?? DOC_DEFAULT_SIZE[kind]) === sz ? " active" : ""}`}
                 onClick={() => setDesign({ pageSize: sz })}
               >
                 {sz}
