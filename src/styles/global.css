@@ -3011,9 +3011,10 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   padding: 28px 24px; text-align: center; color: var(--muted);
 }
 .cmd-shortcuts {
-  display: flex; justify-content: center; gap: 24px; margin-bottom: 14px;
+  display: flex; flex-wrap: wrap; justify-content: center;
+  gap: 10px 18px; margin-bottom: 14px;
 }
-.cmd-shortcut-item { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+.cmd-shortcut-item { display: flex; align-items: center; gap: 6px; font-size: 13px; white-space: nowrap; }
 .cmd-shortcut-icon { font-size: 16px; }
 .cmd-hint-text { font-size: 13px; color: var(--tertiary); }
 
