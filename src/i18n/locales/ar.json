@@ -1440,14 +1440,20 @@
     "createFirst": "إنشاء أول نموذج",
     "varPatientLabel": "اسم المريض",
     "varPatientDesc": "الاسم الكامل للمريض",
+    "varPatientArLabel": "اسم المريض (بالعربية)",
+    "varPatientArDesc": "اسم المريض بالعربية، حتى في رسالة بالفرنسية أو الإنجليزية",
     "varDateLabel": "تاريخ الموعد",
     "varDateDesc": "تاريخ الموعد",
     "varHeureLabel": "وقت الموعد",
     "varHeureDesc": "وقت الموعد",
     "varDocteurLabel": "د. الاسم",
     "varDocteurDesc": "اسم الطبيب",
+    "varDocteurArLabel": "د. الاسم (بالعربية)",
+    "varDocteurArDesc": "اسم الطبيب بالعربية",
     "varCabinetLabel": "اسم العيادة",
-    "varCabinetDesc": "اسم العيادة"
+    "varCabinetDesc": "اسم العيادة",
+    "varCabinetArLabel": "اسم العيادة (بالعربية)",
+    "varCabinetArDesc": "اسم العيادة بالعربية"
   },
   "stats": {
     "title": "نشاط العيادة",

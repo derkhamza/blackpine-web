@@ -1440,14 +1440,20 @@
     "createFirst": "Créer un premier modèle",
     "varPatientLabel": "Nom patient",
     "varPatientDesc": "Nom complet du patient",
+    "varPatientArLabel": "Nom patient (ar)",
+    "varPatientArDesc": "Nom du patient en arabe, même dans un message FR/EN",
     "varDateLabel": "Date RDV",
     "varDateDesc": "Date du rendez-vous",
     "varHeureLabel": "Heure RDV",
     "varHeureDesc": "Heure du rendez-vous",
     "varDocteurLabel": "Dr. Nom",
     "varDocteurDesc": "Nom du médecin",
+    "varDocteurArLabel": "Dr. Nom (ar)",
+    "varDocteurArDesc": "Nom du médecin en arabe",
     "varCabinetLabel": "Nom cabinet",
-    "varCabinetDesc": "Nom du cabinet"
+    "varCabinetDesc": "Nom du cabinet",
+    "varCabinetArLabel": "Nom cabinet (ar)",
+    "varCabinetArDesc": "Nom du cabinet en arabe"
   },
   "stats": {
     "title": "Activité du cabinet",

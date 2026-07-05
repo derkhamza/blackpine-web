@@ -233,7 +233,16 @@ function renderWaBody(
     ? opts.patientArabicName.trim() : appt.patientName;
   const docName = (lang === "ar" && opts?.doctorArabicName?.trim())
     ? opts.doctorArabicName.trim() : doctorFullName?.trim();
+  // Arabic-name variables ({patient_ar}, {docteur_ar}, {cabinet_ar}) always
+  // render in Arabic no matter the message language, so a French/English
+  // message can still address the patient by their Arabic name. They fall back
+  // to the Latin name when no Arabic spelling was entered.
+  const patientAr = opts?.patientArabicName?.trim() || appt.patientName;
+  const docAr     = opts?.doctorArabicName?.trim()  || doctorFullName?.trim();
   return body
+    .replace(/\{patient_ar\}/g, patientAr)
+    .replace(/\{docteur_ar\}/g, docAr ? `${WA_DOCTOR_PREFIX.ar} ${docAr}`  : WA_DOCTOR_FALLBACK.ar)
+    .replace(/\{cabinet_ar\}/g, docAr ? `${WA_CABINET_PREFIX.ar} ${docAr}` : WA_CABINET_FALLBACK.ar)
     .replace(/\{patient\}/g, patientName)
     .replace(/\{date\}/g,    d)
     .replace(/\{heure\}/g,   appt.startTime)

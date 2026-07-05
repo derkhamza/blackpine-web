@@ -38,11 +38,14 @@ function TplForm({ initial, onSave, onCancel }: TplFormProps) {
   const [ta,   setTa]   = useState<HTMLTextAreaElement | null>(null);
 
   const VARS = [
-    { key: "{patient}", label: t("messages.varPatientLabel"), desc: t("messages.varPatientDesc") },
-    { key: "{date}",    label: t("messages.varDateLabel"),    desc: t("messages.varDateDesc")    },
-    { key: "{heure}",   label: t("messages.varHeureLabel"),   desc: t("messages.varHeureDesc")   },
-    { key: "{docteur}", label: t("messages.varDocteurLabel"), desc: t("messages.varDocteurDesc") },
-    { key: "{cabinet}", label: t("messages.varCabinetLabel"), desc: t("messages.varCabinetDesc") },
+    { key: "{patient}",    label: t("messages.varPatientLabel"),    desc: t("messages.varPatientDesc")    },
+    { key: "{patient_ar}", label: t("messages.varPatientArLabel"), desc: t("messages.varPatientArDesc") },
+    { key: "{date}",       label: t("messages.varDateLabel"),       desc: t("messages.varDateDesc")       },
+    { key: "{heure}",      label: t("messages.varHeureLabel"),      desc: t("messages.varHeureDesc")      },
+    { key: "{docteur}",    label: t("messages.varDocteurLabel"),    desc: t("messages.varDocteurDesc")    },
+    { key: "{docteur_ar}", label: t("messages.varDocteurArLabel"), desc: t("messages.varDocteurArDesc") },
+    { key: "{cabinet}",    label: t("messages.varCabinetLabel"),    desc: t("messages.varCabinetDesc")    },
+    { key: "{cabinet_ar}", label: t("messages.varCabinetArLabel"), desc: t("messages.varCabinetArDesc") },
   ];
 
   const handleSubmit = (e: FormEvent) => {
@@ -322,6 +325,7 @@ export function MessagesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
               <div className="msg-editor-empty-sub">
                 {t("messages.emptyEditorSub")}<br/>
                 <code className="msg-var-code">{"{patient}"}</code>&nbsp;
+                <code className="msg-var-code">{"{patient_ar}"}</code>&nbsp;
                 <code className="msg-var-code">{"{date}"}</code>&nbsp;
                 <code className="msg-var-code">{"{heure}"}</code>&nbsp;
                 <code className="msg-var-code">{"{docteur}"}</code>&nbsp;

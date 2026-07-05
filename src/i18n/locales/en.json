@@ -1440,14 +1440,20 @@
     "createFirst": "Create first template",
     "varPatientLabel": "Patient name",
     "varPatientDesc": "Patient's full name",
+    "varPatientArLabel": "Patient name (ar)",
+    "varPatientArDesc": "Patient's Arabic name, even in an FR/EN message",
     "varDateLabel": "Appt. date",
     "varDateDesc": "Appointment date",
     "varHeureLabel": "Appt. time",
     "varHeureDesc": "Appointment time",
     "varDocteurLabel": "Dr. Name",
     "varDocteurDesc": "Doctor's name",
+    "varDocteurArLabel": "Dr. Name (ar)",
+    "varDocteurArDesc": "Doctor's name in Arabic",
     "varCabinetLabel": "Practice name",
-    "varCabinetDesc": "Name of the practice"
+    "varCabinetDesc": "Name of the practice",
+    "varCabinetArLabel": "Practice name (ar)",
+    "varCabinetArDesc": "Practice name in Arabic"
   },
   "stats": {
     "title": "Practice Activity",
