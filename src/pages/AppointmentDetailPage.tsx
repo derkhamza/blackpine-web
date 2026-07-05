@@ -254,6 +254,7 @@ export function AppointmentDetailPage() {
     addPatient, updatePatient, addAppointment, doctorProfile, setDoctorProfile, role,
     examRequests, addExamRequest, updateExamRequest,
     apptDocuments, addApptDocument, deleteApptDocument,
+    examResults, prescriptions,
   } = useCabinet();
   const { addTransaction } = useApp();
   const toast = useToast();
@@ -297,7 +298,7 @@ export function AppointmentDetailPage() {
   );
 
   // ── Tabs ──────────────────────────────────────────────────────────────────
-  const [tab, setTab] = useState<"notes" | "vitals" | "suivi">("notes");
+  const [tab, setTab] = useState<"notes" | "vitals" | "history" | "suivi">("notes");
 
   // Keep every type this RDV has had during the session selectable, so
   // reclassifying (e.g. Suivi → Consultation) never drops the previous type's
@@ -727,6 +728,23 @@ export function AppointmentDetailPage() {
   const bioBilan   = BILAN_CATALOG.find(b => b.key === "biologique");
   const radioBilan = BILAN_CATALOG.find(b => b.key === "radiologique");
 
+  // ── Patient history, surfaced in-screen so the doctor never opens the patient
+  // file mid-consultation. Plain consts (not hooks) — computed after the appt
+  // guard above, so they must stay out of the hook list. ──────────────────────
+  const pid = appt.patientId;
+  const historyAppts = pid
+    ? appointments
+        .filter(a => a.patientId === pid && a.id !== appt.id)
+        .sort((a, b) => b.date.localeCompare(a.date) || (b.startTime || "").localeCompare(a.startTime || ""))
+    : [];
+  const historyExams = pid
+    ? examResults.filter(e => e.patientId === pid).sort((a, b) => b.date.localeCompare(a.date))
+    : [];
+  const historyRx = pid
+    ? prescriptions.filter(p => p.patientId === pid).sort((a, b) => b.date.localeCompare(a.date))
+    : [];
+  const historyCount = historyAppts.length + historyExams.length + historyRx.length;
+
   const addBilan = (key: string) => {
     if (!key || enabledBilanKeys.includes(key)) return;
     if (readOnly) {
@@ -1115,6 +1133,7 @@ export function AppointmentDetailPage() {
         {([
           { key: "notes",  label: t("apptDetail.clinicalNotes"), dot: hasNotes },
           { key: "vitals", label: t("apptDetail.measuresTab"),   dot: !!appt.vitalSigns || filledBilan.length > 0 },
+          { key: "history", label: t("apptDetail.historyTab"),   dot: historyCount > 0 },
           // The follow-up / AMO tab is financial — hidden from secretaries.
           ...(readOnly ? [] : [{ key: "suivi" as const, label: t("apptDetail.followup"), dot: !!appt.mutuellePapersFilled || !!appt.followUpDate }]),
         ] as const).map(({ key, label, dot }) => (
@@ -1632,6 +1651,102 @@ export function AppointmentDetailPage() {
               ))}
               </>}
             </div>
+          )}
+        </div>
+      )}
+
+      {/* ─────────────── TAB: HISTORIQUE PATIENT ─────────────── */}
+      {tab === "history" && (
+        <div className="appt-tab-panel">
+          {!patient ? (
+            <div className="appt-note-nolink">{t("apptDetail.historyNeedsPatient")}</div>
+          ) : (
+            <>
+              {patient.allergies && (
+                <div style={{ display: "flex", gap: 8, alignItems: "flex-start", background: "var(--coral-soft, #FDECEC)", color: "var(--coral, #C0392B)", border: "1px solid var(--coral, #C0392B)", borderRadius: 8, padding: "8px 12px", marginBottom: 14, fontSize: 13 }}>
+                  <span>⚠</span><span><b>{t("apptDetail.allergiesLabel")} :</b> {patient.allergies}</span>
+                </div>
+              )}
+
+              <div className="appt-section-header">
+                <div className="appt-section-title">
+                  {t("apptDetail.pastVisits")}
+                  {historyAppts.length > 0 && <span className="appt-docs-count">{historyAppts.length}</span>}
+                </div>
+              </div>
+              {historyAppts.length === 0 ? (
+                <div className="appt-docs-empty">{t("apptDetail.noHistory")}</div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {historyAppts.slice(0, 40).map(a => {
+                    const n = a.consultationNote; const vs = a.vitalSigns;
+                    const vitalsStr = vs ? [
+                      vs.bpSys != null && vs.bpDia != null ? `TA ${vs.bpSys}/${vs.bpDia}` : "",
+                      vs.hr != null ? `FC ${vs.hr}` : "",
+                      vs.temp != null ? `T° ${vs.temp}` : "",
+                      vs.weight != null ? `${vs.weight} kg` : "",
+                    ].filter(Boolean).join(" · ") : "";
+                    return (
+                      <div key={a.id} style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "8px 12px" }}>
+                        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4 }}>
+                          <Link to={`/agenda/${a.id}`} className="appt-doc-link" style={{ fontWeight: 700 }}>{formatDateShort(a.date)}</Link>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: APPT_TYPE_COLORS[a.type] }}>{t(`apptType.${a.type}`)}</span>
+                        </div>
+                        {n?.motif && <div style={{ fontSize: 12.5 }}><b>{t("apptDetail.motif")} :</b> {n.motif}</div>}
+                        {n?.diagnosis && <div style={{ fontSize: 12.5 }}><b>{t("apptDetail.diagnosis")} :</b> {n.diagnosis}</div>}
+                        {n?.treatment && <div style={{ fontSize: 12.5 }}><b>{t("apptDetail.treatment")} :</b> {n.treatment}</div>}
+                        {vitalsStr && <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>{vitalsStr}</div>}
+                        {a.savedOrdonnance && a.savedOrdonnance.lines.length > 0 && (
+                          <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>℞ {a.savedOrdonnance.lines.map(l => l.drug).join(", ")}</div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {historyExams.length > 0 && (
+                <>
+                  <div className="appt-section-header" style={{ marginTop: 16 }}>
+                    <div className="appt-section-title">{t("apptDetail.examResultsHistory")}<span className="appt-docs-count">{historyExams.length}</span></div>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {historyExams.slice(0, 20).map(e => (
+                      <div key={e.id} style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "8px 12px" }}>
+                        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4 }}>
+                          <span style={{ fontWeight: 700 }}>{formatDateShort(e.date)}</span>
+                          <span style={{ fontSize: 12 }}>{e.title}</span>
+                          {e.labName && <span style={{ fontSize: 11, color: "var(--muted)" }}>· {e.labName}</span>}
+                        </div>
+                        {e.values.length > 0 && (
+                          <div style={{ fontSize: 12.5 }}>
+                            {e.values.slice(0, 6).map(v => `${v.label}: ${v.value}${v.unit ? ` ${v.unit}` : ""}`).join(" · ")}
+                          </div>
+                        )}
+                        {e.notes && <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>{e.notes}</div>}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {historyRx.length > 0 && (
+                <>
+                  <div className="appt-section-header" style={{ marginTop: 16 }}>
+                    <div className="appt-section-title">{t("apptDetail.rxHistory")}<span className="appt-docs-count">{historyRx.length}</span></div>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {historyRx.slice(0, 20).map(p => (
+                      <div key={p.id} style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "8px 12px" }}>
+                        <div style={{ fontWeight: 700, fontSize: 12.5, marginBottom: 2 }}>{formatDateShort(p.date)}</div>
+                        <div style={{ fontSize: 12.5 }}>℞ {p.lines.map(l => l.drug).join(", ")}</div>
+                        {p.notes && <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>{p.notes}</div>}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </>
           )}
         </div>
       )}
