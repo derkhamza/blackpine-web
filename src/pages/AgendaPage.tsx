@@ -19,6 +19,7 @@ import {
   WA_DOCTOR_PREFIX, WA_CABINET_PREFIX, WA_DOCTOR_FALLBACK, WA_CABINET_FALLBACK,
 } from "../lib/waMessages";
 import { printReceipt } from "../lib/receiptPrinter";
+import { printFacture, nextInvoiceNumber } from "../lib/facturePrinter";
 import { exportAgendaIcal } from "../lib/icalExport";
 import { parseAgendaIcal, icalEventsToAppointments } from "../lib/icalImport";
 import { useTranslation } from "react-i18next";
@@ -1503,8 +1504,9 @@ export function AgendaPage() {
   };
 
   // Single bill handler — 0 MAD is allowed (free consultation): the visit is
-  // marked billed but nothing enters the ledger.
-  const handleBill = () => {
+  // marked billed but nothing enters the ledger. When `emit` is true the facture
+  // is issued (invoice number + print) so the secretary hands it to the patient.
+  const handleBill = (emit = false) => {
     if (!billModal) return;
     const raw = parseFloat(billAmt);
     if (isNaN(raw) || raw < 0) return;
@@ -1527,21 +1529,46 @@ export function AgendaPage() {
       });
     }
     const now = new Date().toISOString();
+    // Issue the facture (invoice number) when the secretary chooses to emit it.
+    const invoiceNumber = emit ? nextInvoiceNumber() : undefined;
+    const billedItems = net != null ? appt.preparedItems! : undefined;
+    const billedAmount = net != null ? net : collected;
+    const billedReduction = net != null && remiseN > 0 ? remiseN : undefined;
     if (net != null) {
       // Keep the doctor's items + remise on the facture.
       updateAppointment({
         ...appt,
         billedAt: now,
-        billedAmount: net,
-        billedItems: appt.preparedItems!,
-        billedReduction: remiseN > 0 ? remiseN : undefined,
+        billedAmount,
+        billedItems,
+        billedReduction,
         paidAmount: collected,
         payments: collected > 0 ? [{ amount: collected, date: now, method: "cash" }] : [],
         preparedItems: null,
         preparedReduction: null,
+        ...(invoiceNumber ? { invoiceNumber, invoiceIssuedAt: now } : {}),
       });
     } else {
-      updateAppointment({ ...appt, billedAt: now, billedAmount: collected });
+      updateAppointment({
+        ...appt, billedAt: now, billedAmount: collected,
+        ...(invoiceNumber ? { invoiceNumber, invoiceIssuedAt: now } : {}),
+      });
+    }
+    // Print the facture for the patient.
+    if (emit) {
+      const patient = appt.patientId ? patients.find(p => p.id === appt.patientId) : undefined;
+      printFacture({
+        invoiceNumber: invoiceNumber!,
+        invoiceDate:   now.slice(0, 10),
+        patientName:   appt.patientName,
+        patientCnops:  patient?.cnopsNumber,
+        serviceLabel:  APPT_TYPE_LABELS[appt.type] + " médicale",
+        serviceDate:   appt.date,
+        amount:        billedAmount,
+        items:         billedItems,
+        reduction:     billedReduction,
+        doctorProfile,
+      });
     }
     setBillModal(null);
     showToast(t("agenda.addRevenueToast", { amt: collected.toLocaleString(locale) }));
@@ -2134,27 +2161,18 @@ export function AgendaPage() {
                       </span>
                     </div>
                   ))}
-                  {/* Remise — editable at the desk so the discount is deducted
-                      from the total instead of showing up as a balance due. */}
-                  <div className="bill-prepared-row bill-prepared-reduction" style={{ alignItems: "center" }}>
-                    <span className="bill-prepared-label">{t("apptDetail.billReduction")}</span>
-                    <input
-                      className="form-input" type="number" min="0" step="0.01" placeholder="0"
-                      value={billRemise}
-                      onChange={e => {
-                        const v = e.target.value;
-                        setBillRemise(v);
-                        // Keep the collected amount in step with the new net
-                        // (full payment by default; the secretary can still lower it).
-                        const subtotal = preparedSubtotal(billModal.appt) ?? 0;
-                        const r = Math.max(0, parseFloat(v.replace(",", ".")) || 0);
-                        setBillAmt(String(Math.max(0, subtotal - r)));
-                      }}
-                      style={{ width: 110, textAlign: "right", padding: "4px 8px" }}
-                    />
-                  </div>
+                  {/* Remise — the DOCTOR's decision, shown read-only. The
+                      secretary only reads the sum due and collects. */}
+                  {(billModal.appt.preparedReduction ?? 0) > 0 && (
+                    <div className="bill-prepared-row bill-prepared-reduction">
+                      <span className="bill-prepared-label">{t("apptDetail.billReduction")}</span>
+                      <span className="bill-prepared-price">
+                        − {(billModal.appt.preparedReduction ?? 0).toLocaleString("fr-MA")} MAD
+                      </span>
+                    </div>
+                  )}
                   <div className="bill-prepared-row bill-prepared-total">
-                    <span className="bill-prepared-label">{t("apptDetail.billTotal")}</span>
+                    <span className="bill-prepared-label">{t("agenda.sumDue")}</span>
                     <span className="bill-prepared-price">
                       {(preparedNetLive(billModal.appt) ?? 0).toLocaleString("fr-MA")} MAD
                     </span>
@@ -2165,7 +2183,7 @@ export function AgendaPage() {
               <div className="form-group">
                 <label className="form-label">
                   {(billModal.appt.preparedItems?.length ?? 0) > 0
-                    ? t("agenda.collectedMAD")
+                    ? t("agenda.sumPaid")
                     : t("agenda.amountMAD")}
                 </label>
                 <input
@@ -2179,11 +2197,17 @@ export function AgendaPage() {
             <div className="modal-footer">
               <button className="btn btn-ghost" onClick={() => setBillModal(null)}>{t("common.cancel")}</button>
               <button
-                className="btn btn-primary"
-                style={{ background: "var(--green)" }}
-                onClick={handleBill}
+                className="btn btn-ghost"
+                onClick={() => handleBill(false)}
               >
                 {t("agenda.addRevenue")}
+              </button>
+              <button
+                className="btn btn-primary"
+                style={{ background: "var(--green)" }}
+                onClick={() => handleBill(true)}
+              >
+                {t("agenda.billEmit")}
               </button>
             </div>
           </div>

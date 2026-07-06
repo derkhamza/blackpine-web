@@ -478,7 +478,10 @@
     "bulkWaHint": "Click a patient to open WhatsApp with a pre-filled message.",
     "waMsgLang": "Message language",
     "billPreparedTitle": "Bill prepared by the doctor",
-    "collectedMAD": "Amount collected (MAD)"
+    "collectedMAD": "Amount collected (MAD)",
+    "sumDue": "Sum due",
+    "sumPaid": "Sum paid (MAD)",
+    "billEmit": "Collect + Issue invoice"
   },
   "apptDetail": {
     "clinicalNotes": "Clinical notes",

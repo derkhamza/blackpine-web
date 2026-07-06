@@ -1373,7 +1373,9 @@ export function AppointmentDetailPage() {
             )}
           </div>
 
-          {/* 3 · Médicaments en cours (patient record) */}
+          {/* 3 · Médicaments en cours (patient record). Editable by the secretary
+              too — she often records the patient's current treatment at check-in
+              (the server whitelists currentMedications for secretary writes). */}
           <div className="form-group appt-note-block">
             <label className="form-label" style={{ marginBottom: 4, display: "block" }}>{t("apptDetail.currentMeds")}</label>
             {patient ? (
@@ -1384,7 +1386,6 @@ export function AppointmentDetailPage() {
                 value={currentMeds}
                 onChange={(e) => setCurrentMeds(e.target.value)}
                 onBlur={() => savePatientField({ currentMedications: currentMeds.trim() || undefined })}
-                readOnly={readOnly}
               />
             ) : (
               <div className="appt-note-nolink">{t("apptDetail.historyNeedsPatient")}</div>
@@ -2247,9 +2248,9 @@ export function AppointmentDetailPage() {
               </div>
               )}
 
-              {/* Reduction — the doctor's decision, but the secretary keys it in
-                  at the desk (she encaisse). Editable in both roles so the remise
-                  is deducted from the total instead of lingering as a balance due. */}
+              {/* Reduction — the DOCTOR's decision. The secretary sees it applied
+                  in the totals below (sum due) but does not edit it. */}
+              {!readOnly && (
               <div className="form-group" style={{ marginTop: 12 }}>
                 <label className="form-label">{t("apptDetail.billReduction")}</label>
                 <input
@@ -2260,6 +2261,7 @@ export function AppointmentDetailPage() {
                   onChange={(e) => setBillReduction(e.target.value)}
                 />
               </div>
+              )}
 
               {/* Totals */}
               <div className="bill-totals">
