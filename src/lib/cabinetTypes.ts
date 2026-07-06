@@ -36,6 +36,7 @@ export interface CabinetDoctorProfile {
   documentSettings?: DocumentSettings; // facture / ordonnance customisation
   noteTemplates?:  CustomNoteTemplate[]; // doctor-saved clinical-note templates
   extraBilans?:    string[];          // extra bilan groups (keys of BILAN_CATALOG) shown on every note
+  hiddenSpecialtyGroups?: string[];   // specialty measurement groups (by title) the doctor removed from the note
 }
 
 // A clinical-note template the doctor saved themselves (in addition to the

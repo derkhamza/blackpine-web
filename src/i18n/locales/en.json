@@ -662,6 +662,7 @@
     "addBilan": "Add a bilan",
     "addBilanTitle": "Add a bilan type to your notes",
     "removeBilan": "Remove",
+    "restoreBilanTitle": "Restore this work-up to the note",
     "bilanEditInputs": "Enter / edit measurements",
     "bilanHideInputs": "Hide entry",
     "bilanNoMeasures": "No measurements entered yet.",

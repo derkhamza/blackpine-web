@@ -1185,6 +1185,9 @@ export function AgendaPage() {
   const [waPickerTarget, setWaPickerTarget] = useState<{ appt: Appointment; phone: string } | null>(null);
   const [showBulkWa, setShowBulkWa] = useState(false);
   const [billAmt,   setBillAmt]   = useState("200");
+  // Remise the secretary keys in at the desk (defaults to the doctor's prepared
+  // remise). Deducted from the subtotal so it never lingers as a balance due.
+  const [billRemise, setBillRemise] = useState("");
   const [bulkItems, setBulkItems] = useState<BulkBillItem[]>([]);
   const [showBulk,  setShowBulk]  = useState(false);
   const [seriesDeleteTarget, setSeriesDeleteTarget] = useState<Appointment | null>(null);
@@ -1483,12 +1486,20 @@ export function AgendaPage() {
     window.addEventListener("pointerup", up);
   };
 
-  // Net total of the bill the doctor prepared on the appointment page
-  // (acts + prices − remise), or null when nothing was prepared.
-  const preparedNet = (appt: Appointment): number | null => {
+  // Subtotal of the acts the doctor prepared (before any remise), or null when
+  // nothing was prepared.
+  const preparedSubtotal = (appt: Appointment): number | null => {
     if (!appt.preparedItems || appt.preparedItems.length === 0) return null;
-    const subtotal = appt.preparedItems.reduce((s, l) => s + l.qty * l.unitPrice, 0);
-    return Math.max(0, subtotal - (appt.preparedReduction ?? 0));
+    return appt.preparedItems.reduce((s, l) => s + l.qty * l.unitPrice, 0);
+  };
+  // Net total of the prepared bill (acts − remise). The remise is the one the
+  // secretary is currently keying in the modal (defaults to the doctor's), so a
+  // discount is deducted from the total instead of lingering as a balance due.
+  const preparedNetLive = (appt: Appointment): number | null => {
+    const subtotal = preparedSubtotal(appt);
+    if (subtotal == null) return null;
+    const remiseN = Math.max(0, parseFloat(billRemise.replace(",", ".")) || 0);
+    return Math.max(0, subtotal - remiseN);
   };
 
   // Single bill handler — 0 MAD is allowed (free consultation): the visit is
@@ -1498,7 +1509,8 @@ export function AgendaPage() {
     const raw = parseFloat(billAmt);
     if (isNaN(raw) || raw < 0) return;
     const appt = billModal.appt;
-    const net = preparedNet(appt);
+    const net = preparedNetLive(appt);
+    const remiseN = Math.max(0, parseFloat(billRemise.replace(",", ".")) || 0);
     // With a doctor-prepared bill the entered amount is what was COLLECTED,
     // clamped to the net total (rest stays as balance due).
     const collected = net != null ? Math.min(net, raw) : raw;
@@ -1522,7 +1534,7 @@ export function AgendaPage() {
         billedAt: now,
         billedAmount: net,
         billedItems: appt.preparedItems!,
-        billedReduction: appt.preparedReduction && appt.preparedReduction > 0 ? appt.preparedReduction : undefined,
+        billedReduction: remiseN > 0 ? remiseN : undefined,
         paidAmount: collected,
         payments: collected > 0 ? [{ amount: collected, date: now, method: "cash" }] : [],
         preparedItems: null,
@@ -2038,7 +2050,12 @@ export function AgendaPage() {
                   })}
                   onBill={() => {
                     setBillModal({ appt });
-                    const net = preparedNet(appt);
+                    // Seed the remise with the doctor's prepared value so the
+                    // secretary can keep or adjust it; the net (and collected
+                    // default) follow it.
+                    setBillRemise(appt.preparedReduction ? String(appt.preparedReduction) : "");
+                    const subtotal = preparedSubtotal(appt);
+                    const net = subtotal != null ? Math.max(0, subtotal - (appt.preparedReduction ?? 0)) : null;
                     const tp = doctorProfile?.appointmentPrices?.[appt.type];
                     setBillAmt(
                       appt.billedAmount != null ? String(appt.billedAmount)
@@ -2117,18 +2134,29 @@ export function AgendaPage() {
                       </span>
                     </div>
                   ))}
-                  {(billModal.appt.preparedReduction ?? 0) > 0 && (
-                    <div className="bill-prepared-row bill-prepared-reduction">
-                      <span className="bill-prepared-label">{t("apptDetail.billReduction")}</span>
-                      <span className="bill-prepared-price">
-                        − {billModal.appt.preparedReduction!.toLocaleString("fr-MA")} MAD
-                      </span>
-                    </div>
-                  )}
+                  {/* Remise — editable at the desk so the discount is deducted
+                      from the total instead of showing up as a balance due. */}
+                  <div className="bill-prepared-row bill-prepared-reduction" style={{ alignItems: "center" }}>
+                    <span className="bill-prepared-label">{t("apptDetail.billReduction")}</span>
+                    <input
+                      className="form-input" type="number" min="0" step="0.01" placeholder="0"
+                      value={billRemise}
+                      onChange={e => {
+                        const v = e.target.value;
+                        setBillRemise(v);
+                        // Keep the collected amount in step with the new net
+                        // (full payment by default; the secretary can still lower it).
+                        const subtotal = preparedSubtotal(billModal.appt) ?? 0;
+                        const r = Math.max(0, parseFloat(v.replace(",", ".")) || 0);
+                        setBillAmt(String(Math.max(0, subtotal - r)));
+                      }}
+                      style={{ width: 110, textAlign: "right", padding: "4px 8px" }}
+                    />
+                  </div>
                   <div className="bill-prepared-row bill-prepared-total">
                     <span className="bill-prepared-label">{t("apptDetail.billTotal")}</span>
                     <span className="bill-prepared-price">
-                      {(preparedNet(billModal.appt) ?? 0).toLocaleString("fr-MA")} MAD
+                      {(preparedNetLive(billModal.appt) ?? 0).toLocaleString("fr-MA")} MAD
                     </span>
                   </div>
                 </div>

@@ -662,6 +662,7 @@
     "addBilan": "Ajouter un bilan",
     "addBilanTitle": "Ajouter un type de bilan à vos notes",
     "removeBilan": "Retirer",
+    "restoreBilanTitle": "Rétablir ce bilan dans la note",
     "bilanEditInputs": "Saisir / modifier les mesures",
     "bilanHideInputs": "Masquer la saisie",
     "bilanNoMeasures": "Aucune mesure saisie pour le moment.",

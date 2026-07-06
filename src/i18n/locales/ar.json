@@ -662,6 +662,7 @@
     "addBilan": "إضافة فحص",
     "addBilanTitle": "إضافة نوع فحص إلى ملاحظاتك",
     "removeBilan": "إزالة",
+    "restoreBilanTitle": "إعادة هذا الفحص إلى الملاحظة",
     "bilanEditInputs": "إدخال / تعديل القياسات",
     "bilanHideInputs": "إخفاء الإدخال",
     "bilanNoMeasures": "لم تُدخل أي قياسات بعد.",

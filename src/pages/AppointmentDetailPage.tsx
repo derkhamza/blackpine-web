@@ -989,7 +989,22 @@ export function AppointmentDetailPage() {
     appt.type,
   ]));
 
-  const specialtyGroups = getSpecialtyGroups(doctorProfile.specialtyLabel);
+  // Specialty measurement groups for this doctor's specialty, minus any the
+  // doctor removed from the note (hiddenSpecialtyGroups). `allSpecialtyGroups`
+  // keeps the full list so removed ones can be offered back for re-adding.
+  const allSpecialtyGroups = getSpecialtyGroups(doctorProfile.specialtyLabel);
+  const hiddenSpecGroups   = doctorProfile.hiddenSpecialtyGroups ?? [];
+  const specialtyGroups    = allSpecialtyGroups.filter(g => !hiddenSpecGroups.includes(g.title));
+  const removedSpecGroups  = allSpecialtyGroups.filter(g => hiddenSpecGroups.includes(g.title));
+
+  const removeSpecialtyGroup = (title: string) => {
+    if (readOnly || hiddenSpecGroups.includes(title)) return;
+    setDoctorProfile({ ...doctorProfile, hiddenSpecialtyGroups: [...hiddenSpecGroups, title] });
+  };
+  const restoreSpecialtyGroup = (title: string) => {
+    if (readOnly) return;
+    setDoctorProfile({ ...doctorProfile, hiddenSpecialtyGroups: hiddenSpecGroups.filter(t => t !== title) });
+  };
 
   // Bilan groups offered for ENTRY in the Mesures & bilan tab = the doctor's
   // preferred set (or the specialty default). Biology + radiology are part of
@@ -1586,6 +1601,19 @@ export function AppointmentDetailPage() {
                   </select>
                 )}
               </div>
+              {/* Restore any specialty measurement group the doctor removed. */}
+              {!bilanReadOnly && removedSpecGroups.length > 0 && (
+                <div className="bilan-restore-row" style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+                  {removedSpecGroups.map(g => (
+                    <button key={g.title} type="button" className="btn btn-ghost"
+                      style={{ fontSize: 12, padding: "2px 8px" }}
+                      onClick={() => restoreSpecialtyGroup(g.title)}
+                      title={t("apptDetail.restoreBilanTitle")}>
+                      + {g.title}
+                    </button>
+                  ))}
+                </div>
+              )}
               {/* Read-only viewers (secretary without recordVitals) get a compact
                   summary; anyone who can record sees the two entry sections. */}
               {bilanReadOnly && (vitalsChips.length > 0 || filledBilan.length > 0 || customFilled.length > 0) && (
@@ -1659,10 +1687,17 @@ export function AppointmentDetailPage() {
                       const open = isGroupOpen(gk, hasVal);
                       return (
                         <div key={group.title} className="specialty-group">
-                          <div className="specialty-group-title" style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}
-                            onClick={() => toggleGroup(gk, hasVal)}>
-                            <span style={{ width: 12, display: "inline-block", fontSize: 10 }}>{open ? "▾" : "▸"}</span>
-                            {group.title}
+                          <div className="specialty-group-title" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                            <span onClick={() => toggleGroup(gk, hasVal)} style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+                              <span style={{ width: 12, display: "inline-block", fontSize: 10 }}>{open ? "▾" : "▸"}</span>
+                              {group.title}
+                            </span>
+                            {!bilanReadOnly && (
+                              <button type="button" className="appt-detail-unlink-btn" style={{ marginLeft: "auto" }}
+                                onClick={() => removeSpecialtyGroup(group.title)} title={t("apptDetail.removeBilan")}>
+                                {t("apptDetail.removeBilan")}
+                              </button>
+                            )}
                           </div>
                           {open && (
                             <>
@@ -2212,8 +2247,9 @@ export function AppointmentDetailPage() {
               </div>
               )}
 
-              {/* Reduction — doctor's decision */}
-              {!readOnly && (
+              {/* Reduction — the doctor's decision, but the secretary keys it in
+                  at the desk (she encaisse). Editable in both roles so the remise
+                  is deducted from the total instead of lingering as a balance due. */}
               <div className="form-group" style={{ marginTop: 12 }}>
                 <label className="form-label">{t("apptDetail.billReduction")}</label>
                 <input
@@ -2224,7 +2260,6 @@ export function AppointmentDetailPage() {
                   onChange={(e) => setBillReduction(e.target.value)}
                 />
               </div>
-              )}
 
               {/* Totals */}
               <div className="bill-totals">
