@@ -474,6 +474,7 @@ export interface CustomMeasure {
   value:  string;
   unit?:  string;
   source: "office" | "external";
+  groupKey?: string;   // bilan group this measure was added under ("__vitals" for vitals)
 }
 
 export type PatientGender = "M" | "F";

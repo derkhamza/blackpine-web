@@ -758,12 +758,56 @@ export function AppointmentDetailPage() {
 
   const persistCustom = (list: CustomMeasure[]) =>
     updateAppointment({ ...appt, customMeasures: list.filter(m => m.label.trim() || m.value.trim()) });
-  const addCustomMeasure = (source: "office" | "external") =>
-    setCustomLocal(prev => [...prev, { id: Math.random().toString(36).slice(2, 9), label: "", value: "", unit: "", source }]);
+  const addCustomMeasure = (source: "office" | "external", groupKey?: string) =>
+    setCustomLocal(prev => [...prev, { id: Math.random().toString(36).slice(2, 9), label: "", value: "", unit: "", source, groupKey }]);
   const editCustomMeasure = (id: string, patch: Partial<CustomMeasure>) =>
     setCustomLocal(prev => prev.map(m => (m.id === id ? { ...m, ...patch } : m)));
   const removeCustomMeasure = (id: string) =>
     setCustomLocal(prev => { const next = prev.filter(m => m.id !== id); persistCustom(next); return next; });
+
+  // Collapse bilan/specialty groups to keep the screen manageable — a group is
+  // open when it has values, or the user expanded it; empty groups start closed.
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  const groupHasValue = (fields: SpecialtyField[], groupKey: string) =>
+    fields.some(f => (extraFields[f.key] ?? "").trim() !== "") ||
+    customLocal.some(m => m.groupKey === groupKey && (m.label.trim() !== "" || m.value.trim() !== ""));
+  const isGroupOpen = (groupKey: string, hasValue: boolean) => openGroups[groupKey] ?? hasValue;
+  const toggleGroup = (groupKey: string, hasValue: boolean) =>
+    setOpenGroups(prev => ({ ...prev, [groupKey]: !(prev[groupKey] ?? hasValue) }));
+
+  // Custom measures attached to a specific group ("add a measure in each bilan").
+  const renderCustomMeasures = (groupKey: string, source: "office" | "external") => {
+    const rows = customLocal.filter(m => m.groupKey === groupKey);
+    return (
+      <>
+        {rows.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
+            {rows.map((m) => (
+              <div key={m.id} style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <input className="form-input" style={{ flex: 2 }} placeholder={t("apptDetail.measureLabel")}
+                  value={m.label} readOnly={bilanReadOnly}
+                  onChange={(e) => editCustomMeasure(m.id, { label: e.target.value })} onBlur={() => persistCustom(customLocal)} />
+                <input className="form-input" style={{ flex: 1, minWidth: 60 }} placeholder={t("apptDetail.measureValue")}
+                  value={m.value} readOnly={bilanReadOnly}
+                  onChange={(e) => editCustomMeasure(m.id, { value: e.target.value })} onBlur={() => persistCustom(customLocal)} />
+                <input className="form-input" style={{ width: 70 }} placeholder={t("apptDetail.measureUnit")}
+                  value={m.unit ?? ""} readOnly={bilanReadOnly}
+                  onChange={(e) => editCustomMeasure(m.id, { unit: e.target.value })} onBlur={() => persistCustom(customLocal)} />
+                {!bilanReadOnly && (
+                  <button type="button" className="appt-doc-delete" title={t("common.delete")} onClick={() => removeCustomMeasure(m.id)}>×</button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+        {!bilanReadOnly && (
+          <button type="button" className="ord-add-btn" style={{ marginTop: 6, fontSize: 12 }} onClick={() => addCustomMeasure(source, groupKey)}>
+            + {t("apptDetail.addMeasure")}
+          </button>
+        )}
+      </>
+    );
+  };
 
   const addBilan = (key: string) => {
     if (!key || enabledBilanKeys.includes(key)) return;
@@ -1605,58 +1649,87 @@ export function AppointmentDetailPage() {
                             <div className="vs-bmi-label" style={{ color: bmiClass?.color ?? "var(--text)" }}>{bmiLabel}</div>
                           </div>
                         )}
+                        {renderCustomMeasures("__vitals", "office")}
                       </div>
                     )}
 
-                    {specForSrc.map((group) => (
-                      <div key={group.title} className="specialty-group">
-                        <div className="specialty-group-title">{group.title}</div>
-                        <div className="specialty-fields-grid">
-                          {group.fields.map((field: SpecialtyField) => (
-                            <SpecialtyFieldInput key={field.key} field={field}
-                              value={extraFields[field.key] ?? ""}
-                              onChange={(v) => setExtraField(field.key, v)}
-                              onBlur={(v) => saveExtraField(field.key, v)}
-                              readOnly={bilanReadOnly} />
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-
-                    {groups.map((group) => (
-                      <div key={group.key} className="specialty-group">
-                        <div className="specialty-group-title" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                          {group.title}
-                          {!bilanReadOnly && (
-                            <button type="button" className="bilan-edit-toggle" style={{ marginLeft: "auto" }}
-                              onClick={() => setBilanSource(group.key, src === "office" ? "external" : "office")}
-                              title={t("apptDetail.bilanMove")}>
-                              ⇄ {src === "office" ? t("apptDetail.bilanExternal") : t("apptDetail.bilanOffice")}
-                            </button>
-                          )}
-                          {!bilanReadOnly && canRemoveBilan(group.key) && (
-                            <button type="button" className="appt-detail-unlink-btn"
-                              onClick={() => removeBilan(group.key)} title={t("apptDetail.removeBilan")}>
-                              {t("apptDetail.removeBilan")}
-                            </button>
+                    {specForSrc.map((group) => {
+                      const gk = `spec:${group.title}`;
+                      const hasVal = groupHasValue(group.fields, gk);
+                      const open = isGroupOpen(gk, hasVal);
+                      return (
+                        <div key={group.title} className="specialty-group">
+                          <div className="specialty-group-title" style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}
+                            onClick={() => toggleGroup(gk, hasVal)}>
+                            <span style={{ width: 12, display: "inline-block", fontSize: 10 }}>{open ? "▾" : "▸"}</span>
+                            {group.title}
+                          </div>
+                          {open && (
+                            <>
+                              <div className="specialty-fields-grid">
+                                {group.fields.map((field: SpecialtyField) => (
+                                  <SpecialtyFieldInput key={field.key} field={field}
+                                    value={extraFields[field.key] ?? ""}
+                                    onChange={(v) => setExtraField(field.key, v)}
+                                    onBlur={(v) => saveExtraField(field.key, v)}
+                                    readOnly={bilanReadOnly} />
+                                ))}
+                              </div>
+                              {renderCustomMeasures(gk, src)}
+                            </>
                           )}
                         </div>
-                        <div className="specialty-fields-grid">
-                          {group.fields.map((field: SpecialtyField) => (
-                            <SpecialtyFieldInput key={field.key} field={field}
-                              value={extraFields[field.key] ?? ""}
-                              onChange={(v) => setExtraField(field.key, v)}
-                              onBlur={(v) => saveExtraField(field.key, v)}
-                              readOnly={bilanReadOnly} />
-                          ))}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
 
-                    {customForSrc.length > 0 && (
+                    {groups.map((group) => {
+                      const gk = group.key;
+                      const hasVal = groupHasValue(group.fields, gk);
+                      const open = isGroupOpen(gk, hasVal);
+                      return (
+                        <div key={group.key} className="specialty-group">
+                          <div className="specialty-group-title" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                            <span onClick={() => toggleGroup(gk, hasVal)} style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+                              <span style={{ width: 12, display: "inline-block", fontSize: 10 }}>{open ? "▾" : "▸"}</span>
+                              {group.title}
+                            </span>
+                            {!bilanReadOnly && (
+                              <button type="button" className="bilan-edit-toggle" style={{ marginLeft: "auto" }}
+                                onClick={() => setBilanSource(group.key, src === "office" ? "external" : "office")}
+                                title={t("apptDetail.bilanMove")}>
+                                ⇄ {src === "office" ? t("apptDetail.bilanExternal") : t("apptDetail.bilanOffice")}
+                              </button>
+                            )}
+                            {!bilanReadOnly && canRemoveBilan(group.key) && (
+                              <button type="button" className="appt-detail-unlink-btn"
+                                onClick={() => removeBilan(group.key)} title={t("apptDetail.removeBilan")}>
+                                {t("apptDetail.removeBilan")}
+                              </button>
+                            )}
+                          </div>
+                          {open && (
+                            <>
+                              <div className="specialty-fields-grid">
+                                {group.fields.map((field: SpecialtyField) => (
+                                  <SpecialtyFieldInput key={field.key} field={field}
+                                    value={extraFields[field.key] ?? ""}
+                                    onChange={(v) => setExtraField(field.key, v)}
+                                    onBlur={(v) => saveExtraField(field.key, v)}
+                                    readOnly={bilanReadOnly} />
+                                ))}
+                              </div>
+                              {renderCustomMeasures(gk, src)}
+                            </>
+                          )}
+                        </div>
+                      );
+                    })}
+
+                    {/* Custom measures added before per-bilan grouping (no groupKey). */}
+                    {customForSrc.filter(m => !m.groupKey).length > 0 && (
                       <div className="specialty-group">
                         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                          {customForSrc.map((m) => (
+                          {customForSrc.filter(m => !m.groupKey).map((m) => (
                             <div key={m.id} style={{ display: "flex", gap: 6, alignItems: "center" }}>
                               <input className="form-input" style={{ flex: 2 }} placeholder={t("apptDetail.measureLabel")}
                                 value={m.label} readOnly={bilanReadOnly}
@@ -1678,12 +1751,6 @@ export function AppointmentDetailPage() {
                           ))}
                         </div>
                       </div>
-                    )}
-
-                    {!bilanReadOnly && (
-                      <button type="button" className="ord-add-btn" style={{ marginTop: 6 }} onClick={() => addCustomMeasure(src)}>
-                        + {t("apptDetail.addMeasure")}
-                      </button>
                     )}
                   </div>
                 );
