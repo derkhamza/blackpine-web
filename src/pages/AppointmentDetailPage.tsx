@@ -511,10 +511,6 @@ export function AppointmentDetailPage() {
   // ── Consultation timer ────────────────────────────────────────────────────
   const [timerRunning, setTimerRunning]   = useState(false);
   const [timerSeconds, setTimerSeconds]   = useState(0);
-  // Bilan measurements are usually keyed in by the secretary; the doctor mostly
-  // reads them. So the doctor sees a compact results summary and only reveals
-  // the input grid on demand. (The secretary/data-enterer always sees inputs.)
-  const [showBilanEdit, setShowBilanEdit] = useState(false);
   // Custom (free-form) measures — edited locally, persisted on blur/add/remove.
   const [customLocal, setCustomLocal] = useState<CustomMeasure[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -980,11 +976,6 @@ export function AppointmentDetailPage() {
     return out;
   })();
   const customFilled = customLocal.filter(m => m.label.trim() || m.value.trim());
-  // Who keys the measurements in: a secretary (the data-enterer) always gets the
-  // input grid; the doctor gets the compact results and an explicit "edit" toggle
-  // — unless nothing has been entered yet, in which case show the inputs so the
-  // measurements can be captured directly.
-  const showBilanInputs = !bilanReadOnly && (readOnly || showBilanEdit || filledBilan.length === 0);
 
   return (
     <Layout
@@ -1523,45 +1514,11 @@ export function AppointmentDetailPage() {
       {tab === "vitals" && (
         <div className="appt-tab-panel">
           <div className="appt-section-header">
-            <div className="appt-section-title">{t("apptDetail.vitalSigns")}</div>
+            <div className="appt-section-title">{t("apptDetail.measuresTab")}</div>
           </div>
 
-          <div className="vs-grid">
-            {/* Blood pressure */}
-            <div className="vs-bp-group">
-              <div className="vs-group-label">{t("apptDetail.bpGroup")}</div>
-              <div className="vs-bp-row">
-                <VsInput label={t("apptDetail.bpSysLabel")} unit="mmHg" value={bpSys} onChange={setBpSys} onBlur={saveVitals} vsKey="bpSys" readOnly={vitalsReadOnly} />
-                <span className="vs-bp-slash">/</span>
-                <VsInput label={t("apptDetail.bpDiaLabel")} unit="mmHg" value={bpDia} onChange={setBpDia} onBlur={saveVitals} vsKey="bpDia" readOnly={vitalsReadOnly} />
-              </div>
-            </div>
-
-            <VsInput label={t("apptDetail.hrLabel")}     unit="bpm"  value={hr}     onChange={setHr}     onBlur={saveVitals} vsKey="hr"   readOnly={vitalsReadOnly} />
-            <VsInput label={t("apptDetail.tempLabel")}   unit="°C"   value={temp}   onChange={setTemp}   onBlur={saveVitals} vsKey="temp" readOnly={vitalsReadOnly} />
-            <VsInput label={t("apptDetail.spo2Label")}   unit="%"    value={spo2}   onChange={setSpo2}   onBlur={saveVitals} vsKey="spo2" readOnly={vitalsReadOnly} />
-            <VsInput label={t("apptDetail.weightLabel")} unit="kg"   value={weight} onChange={setWeight} onBlur={saveVitals} readOnly={vitalsReadOnly} />
-            <VsInput label={t("apptDetail.heightLabel")} unit="cm"   value={height} onChange={setHeight} onBlur={saveVitals} readOnly={vitalsReadOnly} />
-          </div>
-
-          {bmi !== null && (
-            <div className="vs-bmi-card">
-              <div className="vs-bmi-value">{t("apptDetail.bmiLabel", { val: bmi.toFixed(1) })}</div>
-              <div className="vs-bmi-label" style={{ color: bmiClass?.color ?? "var(--text)" }}>
-                {bmiLabel}
-              </div>
-            </div>
-          )}
-
-          <div className="vs-legend">
-            <span className="vs-legend-item" style={{ color: "var(--green)" }}>● {t("apptDetail.vsNormal")}</span>
-            <span className="vs-legend-item" style={{ color: "var(--gold)" }}>● {t("apptDetail.vsLimit")}</span>
-            <span className="vs-legend-item" style={{ color: "var(--coral)" }}>● {t("apptDetail.vsAbnormal")}</span>
-            <span className="vs-legend-hint">{t("apptDetail.vsHint")}</span>
-          </div>
-
-          {/* ── Bilan clinique / specialty measurements — entered here (usually by
-              the secretary), shown compactly in Notes cliniques for the doctor. ── */}
+          {/* ── Mesures & bilan — ENTERED here; displayed read-only in Notes.
+              Two sections: vital signs live inside the first. ── */}
           {(specialtyGroups.length > 0 || enabledBilans.length > 0 || !bilanReadOnly) && (
             <div className="specialty-fields-section" style={{ marginTop: 18 }}>
               <div className="specialty-fields-title">
@@ -1588,36 +1545,36 @@ export function AppointmentDetailPage() {
                   </select>
                 )}
               </div>
-              {/* Compact results — read at a glance */}
-              {filledBilan.length > 0 && (
+              {/* Read-only viewers (secretary without recordVitals) get a compact
+                  summary; anyone who can record sees the two entry sections. */}
+              {bilanReadOnly && (vitalsChips.length > 0 || filledBilan.length > 0 || customFilled.length > 0) && (
                 <div className="bilan-summary">
+                  {vitalsChips.map((c, i) => (
+                    <div key={`v${i}`} className="bilan-summary-item">
+                      <span className="bilan-summary-label">{c.label}</span>
+                      <span className="bilan-summary-value">{c.value}</span>
+                    </div>
+                  ))}
                   {filledBilan.map(({ field }) => (
                     <div key={field.key} className="bilan-summary-item">
                       <span className="bilan-summary-label">{field.label}</span>
-                      <span className="bilan-summary-value">
-                        {extraFields[field.key]}{field.unit ? ` ${field.unit}` : ""}
-                      </span>
+                      <span className="bilan-summary-value">{extraFields[field.key]}{field.unit ? ` ${field.unit}` : ""}</span>
+                    </div>
+                  ))}
+                  {customFilled.map((m) => (
+                    <div key={m.id} className="bilan-summary-item">
+                      <span className="bilan-summary-label">{m.label}</span>
+                      <span className="bilan-summary-value">{m.value}{m.unit ? ` ${m.unit}` : ""}</span>
                     </div>
                   ))}
                 </div>
               )}
 
-              {/* Doctor toggles the input grid on demand; the secretary always sees it */}
-              {!bilanReadOnly && !readOnly && filledBilan.length > 0 && (
-                <button
-                  type="button"
-                  className="bilan-edit-toggle"
-                  onClick={() => setShowBilanEdit(v => !v)}
-                >
-                  {showBilanInputs ? t("apptDetail.bilanHideInputs") : t("apptDetail.bilanEditInputs")}
-                </button>
-              )}
-
-              {bilanReadOnly && filledBilan.length === 0 && (
+              {bilanReadOnly && vitalsChips.length === 0 && filledBilan.length === 0 && customFilled.length === 0 && (
                 <div className="bilan-empty-hint">{t("apptDetail.bilanNoMeasures")}</div>
               )}
 
-              {showBilanInputs && (["office", "external"] as const).map((src) => {
+              {!bilanReadOnly && (["office", "external"] as const).map((src) => {
                 const groups     = entryBilans.filter(g => bilanSourceFor(g.key) === src);
                 const specForSrc = src === "office" ? specialtyGroups : [];
                 const customForSrc = customLocal.filter(m => m.source === src);
@@ -1626,6 +1583,33 @@ export function AppointmentDetailPage() {
                     <div className="specialty-group-title" style={{ fontWeight: 800, color: "var(--primary, #0A4E7E)" }}>
                       {src === "office" ? t("apptDetail.bilanOffice") : t("apptDetail.bilanExternal")}
                     </div>
+
+                    {src === "office" && (
+                      <div className="specialty-group">
+                        <div className="specialty-group-title">{t("apptDetail.vitalSigns")}</div>
+                        <div className="vs-grid">
+                          <div className="vs-bp-group">
+                            <div className="vs-group-label">{t("apptDetail.bpGroup")}</div>
+                            <div className="vs-bp-row">
+                              <VsInput label={t("apptDetail.bpSysLabel")} unit="mmHg" value={bpSys} onChange={setBpSys} onBlur={saveVitals} vsKey="bpSys" readOnly={vitalsReadOnly} />
+                              <span className="vs-bp-slash">/</span>
+                              <VsInput label={t("apptDetail.bpDiaLabel")} unit="mmHg" value={bpDia} onChange={setBpDia} onBlur={saveVitals} vsKey="bpDia" readOnly={vitalsReadOnly} />
+                            </div>
+                          </div>
+                          <VsInput label={t("apptDetail.hrLabel")}     unit="bpm"  value={hr}     onChange={setHr}     onBlur={saveVitals} vsKey="hr"   readOnly={vitalsReadOnly} />
+                          <VsInput label={t("apptDetail.tempLabel")}   unit="°C"   value={temp}   onChange={setTemp}   onBlur={saveVitals} vsKey="temp" readOnly={vitalsReadOnly} />
+                          <VsInput label={t("apptDetail.spo2Label")}   unit="%"    value={spo2}   onChange={setSpo2}   onBlur={saveVitals} vsKey="spo2" readOnly={vitalsReadOnly} />
+                          <VsInput label={t("apptDetail.weightLabel")} unit="kg"   value={weight} onChange={setWeight} onBlur={saveVitals} readOnly={vitalsReadOnly} />
+                          <VsInput label={t("apptDetail.heightLabel")} unit="cm"   value={height} onChange={setHeight} onBlur={saveVitals} readOnly={vitalsReadOnly} />
+                        </div>
+                        {bmi !== null && (
+                          <div className="vs-bmi-card">
+                            <div className="vs-bmi-value">{t("apptDetail.bmiLabel", { val: bmi.toFixed(1) })}</div>
+                            <div className="vs-bmi-label" style={{ color: bmiClass?.color ?? "var(--text)" }}>{bmiLabel}</div>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {specForSrc.map((group) => (
                       <div key={group.title} className="specialty-group">
