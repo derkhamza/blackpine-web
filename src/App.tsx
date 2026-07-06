@@ -85,10 +85,39 @@ function RouteTracker() {
   return null;
 }
 
+// Global guard against "modal drag-close": if a press STARTS inside a dialog and
+// the release lands on the backdrop, the browser fires the click on the overlay
+// and the modal closes — cancelling whatever the user was doing (selecting text,
+// dragging a slider, a slightly-off button click). We only let an overlay click
+// dismiss when the press also began on the overlay. One listener protects every
+// modal in the app.
+function ModalDragGuard() {
+  useEffect(() => {
+    let downOnOverlay = false;
+    const isOverlay = (el: EventTarget | null) =>
+      el instanceof HTMLElement && el.classList.contains("modal-overlay");
+    const onDown = (e: MouseEvent) => { downOnOverlay = isOverlay(e.target); };
+    const onClick = (e: MouseEvent) => {
+      if (isOverlay(e.target) && !downOnOverlay) {
+        e.stopImmediatePropagation();
+        e.preventDefault();
+      }
+    };
+    document.addEventListener("mousedown", onDown, true);
+    document.addEventListener("click", onClick, true);
+    return () => {
+      document.removeEventListener("mousedown", onDown, true);
+      document.removeEventListener("click", onClick, true);
+    };
+  }, []);
+  return null;
+}
+
 export function App() {
   return (
     <>
     <RouteTracker />
+    <ModalDragGuard />
     <OnboardingGate />
     <Routes>
       <Route path="/login" element={<AuthPage />} />
