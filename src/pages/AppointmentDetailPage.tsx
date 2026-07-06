@@ -25,7 +25,7 @@ import { CertificateModal } from "../components/CertificateModal";
 import { ExamRequestModal } from "../components/ExamRequestModal";
 import { Icd10Picker }      from "../components/Icd10Picker";
 import type { Icd10Entry }  from "../lib/icd10";
-import { getSpecialtyGroups, getSpecialtyBilans, BILAN_CATALOG } from "../lib/specialtyFields";
+import { getSpecialtyGroups, getSpecialtyBilans, DEFAULT_BILANS, BILAN_CATALOG } from "../lib/specialtyFields";
 import type { SpecialtyField } from "../lib/specialtyFields";
 import type { CustomNoteTemplate } from "../lib/cabinetTypes";
 
@@ -720,11 +720,21 @@ export function AppointmentDetailPage() {
   // secretary can add a bilan and fill in the measurements at the desk).
   // Until the doctor saves a preferred set, default to the bilans relevant to
   // their specialty (keeps the screen focused instead of showing all 18).
-  const profileBilanKeys = doctorProfile.extraBilans ?? getSpecialtyBilans(doctorProfile.specialtyLabel);
+  // Show FEW bilans by default (biologie + radiologie) — the rest wait behind the
+  // "+ ajouter" menu so the screen isn't overwhelming. The doctor's saved set
+  // (extraBilans) overrides this once they curate their own.
+  const specialtyRelevant = getSpecialtyBilans(doctorProfile.specialtyLabel);
+  const profileBilanKeys = doctorProfile.extraBilans ?? DEFAULT_BILANS;
   const apptBilanKeys     = appt.extraBilans ?? [];
   const enabledBilanKeys  = [...new Set([...profileBilanKeys, ...apptBilanKeys])];
   const enabledBilans   = BILAN_CATALOG.filter(b => enabledBilanKeys.includes(b.key));
-  const availableBilans = BILAN_CATALOG.filter(b => !enabledBilanKeys.includes(b.key));
+  // Offer the specialty-relevant bilans first in the add menu, then the rest.
+  const availableBilans = BILAN_CATALOG
+    .filter(b => !enabledBilanKeys.includes(b.key))
+    .sort((a, b) => {
+      const ai = specialtyRelevant.indexOf(a.key), bi = specialtyRelevant.indexOf(b.key);
+      return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+    });
 
   // ── Patient history, surfaced in-screen so the doctor never opens the patient
   // file mid-consultation. Plain consts (not hooks) — computed after the appt
@@ -744,15 +754,11 @@ export function AppointmentDetailPage() {
   const historyCount = historyAppts.length + historyExams.length + historyRx.length;
 
   // ── Two-section split (bilanSource) + custom measures ───────────────────────
-  // Lab / imaging work-ups default to the second section; point-of-care and
-  // clinical exam stay in the first. The doctor moves any group between the two.
-  const EXTERNAL_BY_DEFAULT = new Set([
-    "biologique", "radiologique", "metabolique", "lipidique", "hepatique", "renal",
-    "thyroidien", "inflammatoire", "hemostase", "martial", "hemogramme", "urinaire",
-    "gazometrie", "vitaminique", "preop", "specialise",
-  ]);
+  // Every bilan (lab / imaging work-up) is a RESULT, so it defaults to the second
+  // section ("Résultats"); only vital signs and the specialty exam measurements
+  // live in the first ("Mesures du jour"). The doctor can ⇄ move any group.
   const bilanSourceFor = (key: string): "office" | "external" =>
-    appt.bilanSource?.[key] ?? (EXTERNAL_BY_DEFAULT.has(key) ? "external" : "office");
+    appt.bilanSource?.[key] ?? "external";
   const setBilanSource = (key: string, src: "office" | "external") =>
     updateAppointment({ ...appt, bilanSource: { ...(appt.bilanSource ?? {}), [key]: src } });
 
@@ -765,15 +771,16 @@ export function AppointmentDetailPage() {
   const removeCustomMeasure = (id: string) =>
     setCustomLocal(prev => { const next = prev.filter(m => m.id !== id); persistCustom(next); return next; });
 
-  // Collapse bilan/specialty groups to keep the screen manageable — a group is
-  // open when it has values, or the user expanded it; empty groups start closed.
+  // Collapse bilan/specialty groups to keep the screen short — every group starts
+  // CLOSED (only vital signs are shown expanded); the doctor opens what they need.
+  // A green dot on a closed group flags that it already holds values.
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const groupHasValue = (fields: SpecialtyField[], groupKey: string) =>
     fields.some(f => (extraFields[f.key] ?? "").trim() !== "") ||
     customLocal.some(m => m.groupKey === groupKey && (m.label.trim() !== "" || m.value.trim() !== ""));
-  const isGroupOpen = (groupKey: string, hasValue: boolean) => openGroups[groupKey] ?? hasValue;
-  const toggleGroup = (groupKey: string, hasValue: boolean) =>
-    setOpenGroups(prev => ({ ...prev, [groupKey]: !(prev[groupKey] ?? hasValue) }));
+  const isGroupOpen = (groupKey: string) => openGroups[groupKey] ?? false;
+  const toggleGroup = (groupKey: string) =>
+    setOpenGroups(prev => ({ ...prev, [groupKey]: !(prev[groupKey] ?? false) }));
 
   // Custom measures attached to a specific group ("add a measure in each bilan").
   const renderCustomMeasures = (groupKey: string, source: "office" | "external") => {
@@ -1648,6 +1655,9 @@ export function AppointmentDetailPage() {
                 const groups     = entryBilans.filter(g => bilanSourceFor(g.key) === src);
                 const specForSrc = src === "office" ? specialtyGroups : [];
                 const customForSrc = customLocal.filter(m => m.source === src);
+                // Hide the "Résultats" section entirely until it holds something —
+                // no empty duplicate header. ("Mesures du jour" always has vitals.)
+                if (src === "external" && groups.length === 0 && customForSrc.length === 0) return null;
                 return (
                   <div key={src} className="bilan-split-section" style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--border)" }}>
                     <div className="specialty-group-title" style={{ fontWeight: 800, color: "var(--primary, #0A4E7E)" }}>
@@ -1685,13 +1695,14 @@ export function AppointmentDetailPage() {
                     {specForSrc.map((group) => {
                       const gk = `spec:${group.title}`;
                       const hasVal = groupHasValue(group.fields, gk);
-                      const open = isGroupOpen(gk, hasVal);
+                      const open = isGroupOpen(gk);
                       return (
                         <div key={group.title} className="specialty-group">
                           <div className="specialty-group-title" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                            <span onClick={() => toggleGroup(gk, hasVal)} style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+                            <span onClick={() => toggleGroup(gk)} style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
                               <span style={{ width: 12, display: "inline-block", fontSize: 10 }}>{open ? "▾" : "▸"}</span>
                               {group.title}
+                              {!open && hasVal && <span className="bilan-filled-dot" title={t("apptDetail.bilanHasValues")} />}
                             </span>
                             {!bilanReadOnly && (
                               <button type="button" className="appt-detail-unlink-btn" style={{ marginLeft: "auto" }}
@@ -1721,13 +1732,14 @@ export function AppointmentDetailPage() {
                     {groups.map((group) => {
                       const gk = group.key;
                       const hasVal = groupHasValue(group.fields, gk);
-                      const open = isGroupOpen(gk, hasVal);
+                      const open = isGroupOpen(gk);
                       return (
                         <div key={group.key} className="specialty-group">
                           <div className="specialty-group-title" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                            <span onClick={() => toggleGroup(gk, hasVal)} style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+                            <span onClick={() => toggleGroup(gk)} style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
                               <span style={{ width: 12, display: "inline-block", fontSize: 10 }}>{open ? "▾" : "▸"}</span>
                               {group.title}
+                              {!open && hasVal && <span className="bilan-filled-dot" title={t("apptDetail.bilanHasValues")} />}
                             </span>
                             {!bilanReadOnly && (
                               <button type="button" className="bilan-edit-toggle" style={{ marginLeft: "auto" }}
