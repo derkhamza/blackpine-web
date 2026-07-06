@@ -940,12 +940,15 @@ export function AppointmentDetailPage() {
     updateAppointment({ ...appt, type: newType });
   };
 
-  const hiddenTypes = doctorProfile.hiddenConsultationTypes ?? [];
+  // The reclassify pills always offer the three core types (so any RDV can be
+  // set to Consultation/Contrôle/Autre), plus any legacy/other type this RDV has
+  // carried this session. `hiddenConsultationTypes` only trims the *new-RDV*
+  // form — it must not remove a target you may need to reclassify to.
   const visibleTypes = Array.from(new Set<AppointmentType>([
     ...STANDARD_TYPES,
-    ...seenTypes,          // every type this RDV has had this session stays selectable
+    ...seenTypes,
     appt.type,
-  ])).filter(t => !hiddenTypes.includes(t) || t === appt.type || seenTypes.includes(t));
+  ]));
 
   const specialtyGroups = getSpecialtyGroups(doctorProfile.specialtyLabel);
 
