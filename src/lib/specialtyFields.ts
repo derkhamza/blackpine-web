@@ -604,10 +604,9 @@ SPECIALTY_FIELD_MAP["medecine_urgence"] = SPECIALTY_FIELD_MAP["medecin_generalis
 SPECIALTY_FIELD_MAP["geriatrie"]        = SPECIALTY_FIELD_MAP["medecin_generaliste"];
 SPECIALTY_FIELD_MAP["chirurgie_generale"] = SPECIALTY_FIELD_MAP["medecin_generaliste"];
 
-/** Look up the specialty ID from a label string */
-export function getSpecialtyGroups(specialtyLabel?: string): SpecialtyGroup[] {
-  if (!specialtyLabel) return [];
-  // Try exact match by substring of the label → id
+/** Resolve the internal specialty id from a free-text label. */
+export function specialtyIdFromLabel(specialtyLabel?: string): string | null {
+  if (!specialtyLabel) return null;
   const LABEL_TO_ID: Record<string, string> = {
     "généraliste":     "medecin_generaliste",
     "interne":         "medecine_interne",
@@ -634,9 +633,50 @@ export function getSpecialtyGroups(specialtyLabel?: string): SpecialtyGroup[] {
     "Chirurgie générale": "chirurgie_generale",
   };
   for (const [keyword, id] of Object.entries(LABEL_TO_ID)) {
-    if (specialtyLabel.includes(keyword)) {
-      return SPECIALTY_FIELD_MAP[id] ?? [];
-    }
+    if (specialtyLabel.includes(keyword)) return id;
   }
-  return [];
+  return null;
+}
+
+/** Look up the specialty exam-field groups from a label string. */
+export function getSpecialtyGroups(specialtyLabel?: string): SpecialtyGroup[] {
+  const id = specialtyIdFromLabel(specialtyLabel);
+  return (id && SPECIALTY_FIELD_MAP[id]) || [];
+}
+
+// ── Default bilans per specialty ──────────────────────────────────────────────
+// The bilans a doctor of each specialty most commonly orders. Shown by default
+// (until the doctor saves their own preferred set). Biology + radiology are in
+// every list so the "bilans biologique et radiologique" section is never empty.
+export const DEFAULT_BILANS = ["biologique", "radiologique"];
+
+export const SPECIALTY_BILANS: Record<string, string[]> = {
+  medecin_generaliste: ["biologique", "radiologique", "hemogramme", "inflammatoire"],
+  medecine_interne:    ["biologique", "radiologique", "hemogramme", "inflammatoire", "hepatique", "renal"],
+  medecine_urgence:    ["biologique", "radiologique", "hemogramme", "gazometrie", "inflammatoire"],
+  geriatrie:           ["biologique", "radiologique", "hemogramme", "renal", "vitaminique"],
+  cardiologie:         ["biologique", "radiologique", "cardiaque", "lipidique"],
+  endocrinologie:      ["biologique", "radiologique", "metabolique", "thyroidien", "lipidique", "capillaire_urinaire"],
+  nephrologie:         ["biologique", "radiologique", "renal", "hemogramme", "urinaire"],
+  gastroenterologie:   ["biologique", "radiologique", "hepatique", "inflammatoire"],
+  pneumologie:         ["biologique", "radiologique", "gazometrie", "inflammatoire"],
+  infectiologie:       ["biologique", "radiologique", "inflammatoire", "hemogramme", "urinaire"],
+  rhumatologie:        ["biologique", "radiologique", "inflammatoire", "hemogramme"],
+  gynecologie:         ["biologique", "radiologique", "hemogramme", "martial"],
+  gynecologie_med:     ["biologique", "radiologique", "hemogramme", "martial"],
+  pediatrie:           ["biologique", "radiologique", "hemogramme", "capillaire_urinaire"],
+  neurologie:          ["biologique", "radiologique"],
+  dermatologie:        ["biologique", "radiologique"],
+  orl:                 ["biologique", "radiologique"],
+  ophtalmologie:       ["biologique", "radiologique"],
+  psychiatrie:         ["biologique", "thyroidien"],
+  dentiste:            ["radiologique"],
+  kinesitherapeute:    ["radiologique"],
+  chirurgie_generale:  ["biologique", "radiologique", "hemogramme", "hemostase", "preop"],
+};
+
+/** The default set of bilan keys for a doctor's specialty. */
+export function getSpecialtyBilans(specialtyLabel?: string): string[] {
+  const id = specialtyIdFromLabel(specialtyLabel);
+  return (id && SPECIALTY_BILANS[id]) || DEFAULT_BILANS;
 }

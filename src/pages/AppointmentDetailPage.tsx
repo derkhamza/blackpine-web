@@ -25,7 +25,7 @@ import { CertificateModal } from "../components/CertificateModal";
 import { ExamRequestModal } from "../components/ExamRequestModal";
 import { Icd10Picker }      from "../components/Icd10Picker";
 import type { Icd10Entry }  from "../lib/icd10";
-import { getSpecialtyGroups, BILAN_CATALOG } from "../lib/specialtyFields";
+import { getSpecialtyGroups, getSpecialtyBilans, BILAN_CATALOG } from "../lib/specialtyFields";
 import type { SpecialtyField } from "../lib/specialtyFields";
 import type { CustomNoteTemplate } from "../lib/cabinetTypes";
 
@@ -718,14 +718,13 @@ export function AppointmentDetailPage() {
   // every appointment, editable only by the doctor since it needs the profile
   // sync) and per-appointment additions (ride the appointment sync, so a
   // secretary can add a bilan and fill in the measurements at the desk).
-  const profileBilanKeys = doctorProfile.extraBilans ?? [];
+  // Until the doctor saves a preferred set, default to the bilans relevant to
+  // their specialty (keeps the screen focused instead of showing all 18).
+  const profileBilanKeys = doctorProfile.extraBilans ?? getSpecialtyBilans(doctorProfile.specialtyLabel);
   const apptBilanKeys     = appt.extraBilans ?? [];
   const enabledBilanKeys  = [...new Set([...profileBilanKeys, ...apptBilanKeys])];
   const enabledBilans   = BILAN_CATALOG.filter(b => enabledBilanKeys.includes(b.key));
   const availableBilans = BILAN_CATALOG.filter(b => !enabledBilanKeys.includes(b.key));
-  // Section 5 of the consultation always offers biology + radiology bilans.
-  const bioBilan   = BILAN_CATALOG.find(b => b.key === "biologique");
-  const radioBilan = BILAN_CATALOG.find(b => b.key === "radiologique");
 
   // ── Patient history, surfaced in-screen so the doctor never opens the patient
   // file mid-consultation. Plain consts (not hooks) — computed after the appt
@@ -948,12 +947,10 @@ export function AppointmentDetailPage() {
 
   const specialtyGroups = getSpecialtyGroups(doctorProfile.specialtyLabel);
 
-  // Bilan groups offered for ENTRY in the Mesures & bilan tab: biology +
-  // radiology are always available, then any extra the doctor enabled.
-  const entryBilans = [
-    ...([bioBilan, radioBilan].filter(Boolean) as typeof BILAN_CATALOG),
-    ...enabledBilans.filter(b => b.key !== "biologique" && b.key !== "radiologique"),
-  ];
+  // Bilan groups offered for ENTRY in the Mesures & bilan tab = the doctor's
+  // preferred set (or the specialty default). Biology + radiology are part of
+  // every specialty default, so the bilans section is never empty.
+  const entryBilans = enabledBilans;
 
   // Flatten every bilan/specialty field, then keep only the ones that hold a
   // value — this is the compact "results" list the doctor reads at a glance.
