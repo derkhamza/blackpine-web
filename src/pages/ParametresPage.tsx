@@ -15,6 +15,7 @@ import { COMMON_DRUGS } from "../lib/ordonnancePrinter";
 import { ActeCatalogModal } from "../components/ActeCatalogModal";
 import { BlackpineLogo } from "../components/Logo";
 import { PageDesigner } from "../components/PageDesigner";
+import QRCode from "qrcode";
 import {
   type CabinetBackup,
   secretaryAccountList, secretaryAccountCreate, secretaryAccountRevoke, type SecretaryAccount,
@@ -336,6 +337,7 @@ function OnlineBookingSection({
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
   const [slugDraft, setSlugDraft] = useState("");
+  const [qrUrl, setQrUrl] = useState("");
 
   useEffect(() => {
     bookingGetMe().then(setCfg).catch(() => setCfg({ slug: null })).finally(() => setLoaded(true));
@@ -343,6 +345,59 @@ function OnlineBookingSection({
 
   const link = cfg?.slug ? `${window.location.origin}/book/${cfg.slug}` : "";
   const enabled = !!cfg?.enabled && !!cfg?.slug;
+
+  // Build a QR code (PNG data URL) for the booking link the doctor shares.
+  useEffect(() => {
+    if (!enabled || !link) { setQrUrl(""); return; }
+    let alive = true;
+    QRCode.toDataURL(link, { width: 512, margin: 2, errorCorrectionLevel: "M" })
+      .then(url => { if (alive) setQrUrl(url); })
+      .catch(() => { if (alive) setQrUrl(""); });
+    return () => { alive = false; };
+  }, [enabled, link]);
+
+  // Downloadable QR image the doctor can share on WhatsApp, print, etc.
+  const downloadQr = () => {
+    if (!qrUrl) return;
+    const a = document.createElement("a");
+    a.href = qrUrl;
+    a.download = `qr-reservation-${cfg?.slug ?? "cabinet"}.png`;
+    a.click();
+  };
+
+  // Printable poster for the waiting room: title, doctor identity, big QR, link.
+  const printPoster = () => {
+    if (!qrUrl) return;
+    const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const win = window.open("", "_blank", "width=720,height=980");
+    if (!win) return;
+    win.document.write(`<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"/>
+      <title>${esc(t("settings.bookingQrPosterTitle"))}</title>
+      <style>
+        @page { size: A4 portrait; margin: 18mm; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: Arial, Helvetica, sans-serif; color: #0A2540; text-align: center; }
+        .poster { display: flex; flex-direction: column; align-items: center; gap: 18px; padding-top: 10mm; }
+        .kicker { font-size: 15pt; letter-spacing: 2px; text-transform: uppercase; color: #4A6FA5; }
+        .title { font-size: 30pt; font-weight: 800; color: #0A4E7E; line-height: 1.15; }
+        .doc { font-size: 15pt; color: #333; }
+        .qr { width: 260px; height: 260px; border: 1px solid #E2E8F0; border-radius: 14px; padding: 10px; }
+        .link { font-size: 12pt; color: #4A6FA5; word-break: break-all; }
+        .foot { margin-top: 8px; font-size: 10pt; color: #94A3B8; }
+      </style></head>
+      <body>
+        <div class="poster">
+          <div class="kicker">${esc(t("settings.bookingQrPosterKicker"))}</div>
+          <div class="title">${esc(t("settings.bookingQrPosterHeadline"))}</div>
+          <div class="doc">${esc(doctorProfile.fullName || "")}${doctorProfile.specialtyLabel ? " · " + esc(doctorProfile.specialtyLabel) : ""}</div>
+          <img class="qr" src="${qrUrl}" alt="QR"/>
+          <div class="link">${esc(link)}</div>
+          <div class="foot">${esc(t("settings.bookingQrPosterFoot"))}</div>
+        </div>
+        <script>window.onload = function(){ window.print(); };<\/script>
+      </body></html>`);
+    win.document.close();
+  };
 
   const persist = async (patch: Partial<BookingConfig>) => {
     const base: BookingConfig = {
@@ -394,6 +449,31 @@ function OnlineBookingSection({
             </div>
             <div className="invite-code-hint">{t("settings.bookingShareHint")}</div>
           </div>
+
+          {/* ── QR code — share or display for patients ── */}
+          {qrUrl && (
+            <div className="booking-qr-box" style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap", marginBottom: 14, padding: 14, border: "1px solid var(--border)", borderRadius: 12 }}>
+              <img
+                src={qrUrl}
+                alt={t("settings.bookingQrAlt")}
+                width={128}
+                height={128}
+                style={{ width: 128, height: 128, borderRadius: 8, border: "1px solid var(--border)", background: "#fff", flexShrink: 0 }}
+              />
+              <div style={{ flex: "1 1 200px", minWidth: 0 }}>
+                <div style={{ fontWeight: 700, marginBottom: 4 }}>{t("settings.bookingQrTitle")}</div>
+                <div className="invite-code-hint" style={{ marginBottom: 10 }}>{t("settings.bookingQrHint")}</div>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <button className="btn btn-ghost" style={{ fontSize: 13 }} onClick={downloadQr}>
+                    ⬇ {t("settings.bookingQrDownload")}
+                  </button>
+                  <button className="btn btn-ghost" style={{ fontSize: 13 }} onClick={printPoster}>
+                    🖨 {t("settings.bookingQrPoster")}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* ── Custom link name (slug) ── */}
           <div className="form-group" style={{ marginBottom: 14 }}>
