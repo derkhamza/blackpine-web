@@ -59,6 +59,22 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
     [appointments],
   );
 
+  // Factures the doctor PREPARED but nobody has cashed yet (awaiting
+  // encaissement at the desk). These have preparedItems and no billedAt — they
+  // never had a billedAt, so they don't show in the billed table. Surfaced here
+  // so the secretary can find and cash them (walk-ins with no patient record
+  // included). Newest first.
+  const prepared = useMemo(
+    () => appointments
+      .filter(a => !a.billedAt && (a.preparedItems?.length ?? 0) > 0)
+      .sort((a, b) => (b.date + b.startTime).localeCompare(a.date + a.startTime)),
+    [appointments],
+  );
+  const preparedNet = (a: typeof appointments[number]) => {
+    const sub = (a.preparedItems ?? []).reduce((s, l) => s + l.qty * l.unitPrice, 0);
+    return Math.max(0, sub - (a.preparedReduction ?? 0));
+  };
+
   const years = useMemo(() => {
     const ys = new Set(billed.map(a => yearOf(a.billedAt!)));
     ys.add(currentYear);
@@ -143,6 +159,31 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
 
   const body = (
     <>
+      {/* À encaisser — factures the doctor prepared, awaiting payment at the desk.
+          Visible to the secretary; walk-ins with no patient record included. */}
+      {prepared.length > 0 && (
+        <div className="fac-toemit-box">
+          <div className="fac-toemit-head">
+            <span className="fac-toemit-title">{t("factures.toCollectTitle")}</span>
+            <span className="fac-toemit-count">{prepared.length}</span>
+          </div>
+          <div className="fac-toemit-list">
+            {prepared.map(a => (
+              <div key={a.id} className="fac-toemit-row">
+                <div className="fac-toemit-main">
+                  {a.patientId
+                    ? <Link to={`/patients/${a.patientId}`} className="fac-patient-link">{a.patientName}</Link>
+                    : <span className="fac-toemit-name">{a.patientName || t("factures.walkIn")}</span>}
+                  <span className="fac-toemit-meta">{APPT_TYPE_LABELS[a.type]} · {fmtDate(a.date)}</span>
+                </div>
+                <span className="fac-toemit-amount">{formatMAD(preparedNet(a))}</span>
+                <Link to={`/agenda/${a.id}`} className="fac-emit-btn">{t("factures.collect")}</Link>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* KPI strip */}
       <div className="fac-kpi-strip">
         <div className="fac-kpi" style={{ borderTopColor: "var(--blue)" }}>

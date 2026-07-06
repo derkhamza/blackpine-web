@@ -1339,6 +1339,9 @@
   "factures": {
     "title": "Factures",
     "subtitle": "{{n}} consultation{{s}} facturée{{s}} · {{year}}",
+    "toCollectTitle": "À encaisser",
+    "collect": "Encaisser →",
+    "walkIn": "Sans dossier",
     "kpiBilled": "Consultations facturées",
     "kpiEmitted": "Factures émises",
     "kpiWithout": "Sans facture",

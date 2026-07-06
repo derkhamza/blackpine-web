@@ -1339,6 +1339,9 @@
   "factures": {
     "title": "Invoices",
     "subtitle": "{{n}} billed consultation{{s}} · {{year}}",
+    "toCollectTitle": "To collect",
+    "collect": "Collect →",
+    "walkIn": "No record",
     "kpiBilled": "Billed consultations",
     "kpiEmitted": "Invoices issued",
     "kpiWithout": "Without invoice",

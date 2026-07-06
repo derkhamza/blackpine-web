@@ -1339,6 +1339,9 @@
   "factures": {
     "title": "الفواتير",
     "subtitle": "{{n}} استشارة مُفوترة · {{year}}",
+    "toCollectTitle": "بانتظار التحصيل",
+    "collect": "تحصيل →",
+    "walkIn": "بدون ملف",
     "kpiBilled": "الاستشارات المُفوترة",
     "kpiEmitted": "الفواتير الصادرة",
     "kpiWithout": "بدون فاتورة",
