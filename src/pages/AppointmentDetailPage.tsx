@@ -976,8 +976,6 @@ export function AppointmentDetailPage() {
     if (bmi != null)       out.push({ label: "IMC", value: bmi.toFixed(1) + (bmiLabel ? ` · ${bmiLabel}` : "") });
     return out;
   })();
-  const bioRadioFilled = [...(bioBilan?.fields ?? []), ...(radioBilan?.fields ?? [])]
-    .filter(f => (extraFields[f.key] ?? "").trim() !== "");
   const customFilled = customLocal.filter(m => m.label.trim() || m.value.trim());
   // Who keys the measurements in: a secretary (the data-enterer) always gets the
   // input grid; the doctor gets the compact results and an explicit "edit" toggle
@@ -1392,12 +1390,12 @@ export function AppointmentDetailPage() {
                 </button>
               )}
             </div>
-            {(bioRadioFilled.length > 0 || customFilled.length > 0) ? (
+            {(filledBilan.length > 0 || customFilled.length > 0) ? (
               <div className="bilan-summary">
-                {bioRadioFilled.map((f) => (
-                  <div key={f.key} className="bilan-summary-item">
-                    <span className="bilan-summary-label">{f.label}</span>
-                    <span className="bilan-summary-value">{extraFields[f.key]}{f.unit ? ` ${f.unit}` : ""}</span>
+                {filledBilan.map(({ field }) => (
+                  <div key={field.key} className="bilan-summary-item">
+                    <span className="bilan-summary-label">{field.label}</span>
+                    <span className="bilan-summary-value">{extraFields[field.key]}{field.unit ? ` ${field.unit}` : ""}</span>
                   </div>
                 ))}
                 {customFilled.map((m) => (
