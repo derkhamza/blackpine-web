@@ -20,6 +20,7 @@ import {
 } from "../lib/waMessages";
 import { printReceipt } from "../lib/receiptPrinter";
 import { printFacture, nextInvoiceNumber } from "../lib/facturePrinter";
+import { useContextMenu, type CtxItem } from "../components/ContextMenu";
 import { exportAgendaIcal } from "../lib/icalExport";
 import { parseAgendaIcal, icalEventsToAppointments } from "../lib/icalImport";
 import { useTranslation } from "react-i18next";
@@ -859,7 +860,7 @@ function FollowUpStrip({ followUps, onNavigate, onProgram }: FollowUpStripProps)
 // ── Appointment card ───────────────────────────────────────────────────────────
 
 function ApptCard({
-  appt, onDetail, onEdit, onToggle, onBill, onPrintReceipt, onDelete, onWaClick,
+  appt, onDetail, onEdit, onToggle, onBill, onPrintReceipt, onDelete, onWaClick, onContextMenu,
 }: {
   appt: Appointment;
   onDetail:       () => void;
@@ -869,6 +870,7 @@ function ApptCard({
   onPrintReceipt: () => void;
   onDelete:       () => void;
   onWaClick?:     () => void;
+  onContextMenu?: (e: React.MouseEvent) => void;
 }) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language?.slice(0, 2) === "ar" ? "ar-MA"
@@ -882,7 +884,7 @@ function ApptCard({
     : undefined;
 
   return (
-    <div className="appt-card rv-press" style={{ opacity: isDone ? 0.75 : 1 }} onClick={onDetail}>
+    <div className="appt-card rv-press" style={{ opacity: isDone ? 0.75 : 1 }} onClick={onDetail} onContextMenu={onContextMenu}>
       <div className="appt-accent" style={{ background: isDone ? "var(--border)" : color }} />
       <div className="appt-body">
         <div className="appt-time">{appt.startTime} – {appt.endTime}</div>
@@ -1176,6 +1178,7 @@ export function AgendaPage() {
     waTemplates, role,
   } = useCabinet();
   const { addTransaction } = useApp();
+  const apptCtx = useContextMenu();
 
   const [selDate,   setSelDate]   = useState(today);
   const [view,      setView]      = useState<AgendaView>("week");
@@ -2060,53 +2063,72 @@ export function AgendaPage() {
             </div>
           ) : (
             <div className="agenda-list">
-              {dayAppts.map(appt => (
-                <ApptCard
-                  key={appt.id}
-                  appt={appt}
-                  onDetail={() => navigate(`/agenda/${appt.id}`)}
-                  onWaClick={(() => {
-                    const phone = appt.patientId ? patientPhoneMap.get(appt.patientId) : undefined;
-                    if (!phone) return undefined;
-                    return () => setWaPickerTarget({ appt, phone });
-                  })()}
-                  onEdit={() => setModal({ appt })}
-                  onToggle={() => updateAppointment({
-                    ...appt,
-                    status: appt.status === "completed" ? "scheduled" : "completed",
-                  })}
-                  onBill={() => {
-                    setBillModal({ appt });
-                    // Seed the remise with the doctor's prepared value so the
-                    // secretary can keep or adjust it; the net (and collected
-                    // default) follow it.
-                    setBillRemise(appt.preparedReduction ? String(appt.preparedReduction) : "");
-                    const subtotal = preparedSubtotal(appt);
-                    const net = subtotal != null ? Math.max(0, subtotal - (appt.preparedReduction ?? 0)) : null;
-                    const tp = doctorProfile?.appointmentPrices?.[appt.type];
-                    setBillAmt(
-                      appt.billedAmount != null ? String(appt.billedAmount)
-                      : net != null ? String(net)
-                      : tp != null ? String(tp) : "200");
-                  }}
-                  onPrintReceipt={() => printReceipt({
-                    patientName:      appt.patientName,
-                    consultationType: APPT_TYPE_LABELS[appt.type],
-                    appointmentDate:  appt.date,
-                    appointmentTime:  appt.startTime,
-                    amount:           appt.billedAmount ?? 0,
-                    doctorProfile,
-                  })}
-                  onDelete={() => {
-                    if (appt.recurringRuleId) {
-                      setSeriesDeleteTarget(appt);
-                    } else if (confirm(t("agenda.deleteAppt"))) {
-                      deleteAppointment(appt.id);
-                      showToast(t("agenda.apptDeleted"));
-                    }
-                  }}
-                />
-              ))}
+              {dayAppts.map(appt => {
+                const phone = appt.patientId ? patientPhoneMap.get(appt.patientId) : undefined;
+                const openDetail = () => navigate(`/agenda/${appt.id}`);
+                const openBill = () => {
+                  setBillModal({ appt });
+                  // Seed the remise with the doctor's prepared value.
+                  setBillRemise(appt.preparedReduction ? String(appt.preparedReduction) : "");
+                  const subtotal = preparedSubtotal(appt);
+                  const net = subtotal != null ? Math.max(0, subtotal - (appt.preparedReduction ?? 0)) : null;
+                  const tp = doctorProfile?.appointmentPrices?.[appt.type];
+                  setBillAmt(
+                    appt.billedAmount != null ? String(appt.billedAmount)
+                    : net != null ? String(net)
+                    : tp != null ? String(tp) : "200");
+                };
+                const doReceipt = () => printReceipt({
+                  patientName:      appt.patientName,
+                  consultationType: APPT_TYPE_LABELS[appt.type],
+                  appointmentDate:  appt.date,
+                  appointmentTime:  appt.startTime,
+                  amount:           appt.billedAmount ?? 0,
+                  doctorProfile,
+                });
+                const toggleDone = () => updateAppointment({
+                  ...appt,
+                  status: appt.status === "completed" ? "scheduled" : "completed",
+                });
+                const doEdit = () => setModal({ appt });
+                const doWa = phone ? () => setWaPickerTarget({ appt, phone }) : undefined;
+                const doDelete = () => {
+                  if (appt.recurringRuleId) {
+                    setSeriesDeleteTarget(appt);
+                  } else if (confirm(t("agenda.deleteAppt"))) {
+                    deleteAppointment(appt.id);
+                    showToast(t("agenda.apptDeleted"));
+                  }
+                };
+                const isDone = appt.status === "completed";
+                const menu: CtxItem[] = [
+                  { label: t("ctx.openConsult"), icon: "📋", onClick: openDetail },
+                  ...(isDone && !appt.billedAt
+                    ? [{ label: t("ctx.bill"), icon: "💰", onClick: openBill }] : []),
+                  ...(appt.billedAt
+                    ? [{ label: t("ctx.receipt"), icon: "🧾", onClick: doReceipt }] : []),
+                  { label: isDone ? t("ctx.markUndone") : t("ctx.markDone"), icon: "✓", onClick: toggleDone },
+                  { label: t("ctx.edit"), icon: "✏️", onClick: doEdit },
+                  ...(doWa ? [{ label: t("ctx.whatsapp"), icon: "💬", onClick: doWa }] : []),
+                  ...(appt.patientId
+                    ? [{ label: t("ctx.patientFile"), icon: "👤", onClick: () => navigate(`/patients/${appt.patientId}`) }] : []),
+                  { label: t("ctx.delete"), icon: "🗑", onClick: doDelete, danger: true, divider: true },
+                ];
+                return (
+                  <ApptCard
+                    key={appt.id}
+                    appt={appt}
+                    onDetail={openDetail}
+                    onWaClick={doWa}
+                    onEdit={doEdit}
+                    onToggle={toggleDone}
+                    onBill={openBill}
+                    onPrintReceipt={doReceipt}
+                    onDelete={doDelete}
+                    onContextMenu={e => apptCtx.open(e, menu)}
+                  />
+                );
+              })}
             </div>
           )}
         </div>
@@ -2213,6 +2235,8 @@ export function AgendaPage() {
           </div>
         </div>
       )}
+
+      {apptCtx.menu}
 
       {/* ── Bulk billing modal ── */}
       {showBulk && (

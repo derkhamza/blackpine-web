@@ -2,6 +2,7 @@ import { FormEvent, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import { useToast } from "../components/Toast";
+import { useContextMenu, type CtxItem } from "../components/ContextMenu";
 import { useCabinet } from "../context/CabinetContext";
 import { CsvImportModal } from "../components/CsvImportModal";
 import { exportPatientsCsv } from "../lib/csvExport";
@@ -223,17 +224,18 @@ function PatientModal({ initial, existingPatients = [], onSave, onClose }: Patie
 // ── Patient card ──────────────────────────────────────────────────────────────
 
 function PatientCard({
-  patient, apptCount, onDetail, onEdit, onDelete,
+  patient, apptCount, onDetail, onEdit, onDelete, onContextMenu,
 }: {
   patient: Patient; apptCount: number;
   onDetail: () => void; onEdit: () => void; onDelete: () => void;
+  onContextMenu?: (e: React.MouseEvent) => void;
 }) {
   const { t } = useTranslation();
   const age   = calcAge(patient.dateOfBirth);
   const color = avatarColor(patient.firstName + patient.lastName);
 
   return (
-    <div className="patient-card rv-press rv-lift" onClick={onDetail}>
+    <div className="patient-card rv-press rv-lift" onClick={onDetail} onContextMenu={onContextMenu}>
       <div className="patient-avatar" style={{ background: color + "22", color }}>
         {initials(patient)}
       </div>
@@ -285,6 +287,7 @@ function PatientCard({
 export function PatientsPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const patientCtx = useContextMenu();
   const { patients, appointments, addPatient, updatePatient, deletePatient, updateAppointment } = useCabinet();
   const [search,    setSearch]    = useState("");
   const [modal,     setModal]     = useState<{ patient?: Patient } | null>(null);
@@ -398,21 +401,35 @@ export function PatientsPage() {
           {sections.map(([letter, group]) => (
             <div key={letter} className="patients-section">
               <div className="patients-section-hdr">{letter}</div>
-              {group.map(p => (
-                <PatientCard
-                  key={p.id}
-                  patient={p}
-                  apptCount={apptCountMap[p.id] ?? 0}
-                  onDetail={() => navigate(`/patients/${p.id}`)}
-                  onEdit={() => setModal({ patient: p })}
-                  onDelete={() => {
-                    if (confirm(t("patients.deleteConfirmName", { name: fullName(p) }))) {
-                      deletePatient(p.id);
-                      showToast(t("patients.deleted"));
-                    }
-                  }}
-                />
-              ))}
+              {group.map(p => {
+                const openFile = () => navigate(`/patients/${p.id}`);
+                const doEdit = () => setModal({ patient: p });
+                const doDelete = () => {
+                  if (confirm(t("patients.deleteConfirmName", { name: fullName(p) }))) {
+                    deletePatient(p.id);
+                    showToast(t("patients.deleted"));
+                  }
+                };
+                const menu: CtxItem[] = [
+                  { label: t("ctx.openFile"), icon: "📂", onClick: openFile },
+                  { label: t("ctx.newAppt"), icon: "📅", onClick: () => navigate(`/agenda?newAppt=${p.id}`) },
+                  { label: t("ctx.edit"), icon: "✏️", onClick: doEdit },
+                  ...(p.phone
+                    ? [{ label: t("ctx.call"), icon: "📞", onClick: () => { window.location.href = `tel:${p.phone}`; } }] : []),
+                  { label: t("ctx.deletePatient"), icon: "🗑", onClick: doDelete, danger: true, divider: true },
+                ];
+                return (
+                  <PatientCard
+                    key={p.id}
+                    patient={p}
+                    apptCount={apptCountMap[p.id] ?? 0}
+                    onDetail={openFile}
+                    onEdit={doEdit}
+                    onDelete={doDelete}
+                    onContextMenu={e => patientCtx.open(e, menu)}
+                  />
+                );
+              })}
             </div>
           ))}
         </div>
@@ -454,6 +471,7 @@ export function PatientsPage() {
         />
       )}
 
+      {patientCtx.menu}
     </Layout>
   );
 }

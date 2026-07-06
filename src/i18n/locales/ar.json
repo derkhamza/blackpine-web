@@ -42,6 +42,24 @@
     "later": "لاحقًا",
     "supportEmail": "contact@blackpinecap.com"
   },
+  "ctx": {
+    "openConsult": "فتح الاستشارة",
+    "bill": "تحصيل",
+    "receipt": "طباعة الإيصال",
+    "markDone": "تحديد كمنجز",
+    "markUndone": "تحديد كغير منجز",
+    "edit": "تعديل الموعد",
+    "whatsapp": "إرسال واتساب",
+    "patientFile": "ملف المريض",
+    "delete": "حذف",
+    "openFile": "فتح الملف",
+    "newAppt": "موعد جديد",
+    "call": "اتصال",
+    "deletePatient": "حذف المريض",
+    "emitInvoice": "إصدار الفاتورة",
+    "reprintInvoice": "إعادة طباعة الفاتورة",
+    "openAppt": "فتح الموعد"
+  },
   "common": {
     "cancel": "إلغاء",
     "save": "حفظ",

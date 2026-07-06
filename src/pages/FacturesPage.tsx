@@ -1,7 +1,8 @@
 import { Fragment, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Layout } from "../components/Layout";
+import { useContextMenu, type CtxItem } from "../components/ContextMenu";
 import { useCabinet } from "../context/CabinetContext";
 import { APPT_TYPE_LABELS } from "../lib/cabinetTypes";
 import { nextInvoiceNumber, printFacture } from "../lib/facturePrinter";
@@ -22,6 +23,8 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
                : i18n.language?.slice(0, 2) === "en" ? "en-US" : "fr-FR";
 
   const { appointments, patients, updateAppointment, doctorProfile } = useCabinet();
+  const facCtx = useContextMenu();
+  const navigate = useNavigate();
 
   const today = todayIso();
   const currentYear = today.slice(0, 4);
@@ -304,9 +307,17 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
                   ? a.billedItems
                   : [{ label: APPT_TYPE_LABELS[a.type], qty: 1, unitPrice: a.billedAmount ?? 0 }];
                 const isOpen = expanded.has(a.id);
+                const menu: CtxItem[] = [
+                  a.invoiceNumber
+                    ? { label: t("ctx.reprintInvoice"), icon: "🖨", onClick: () => reprintInvoice(a.id) }
+                    : { label: t("ctx.emitInvoice"), icon: "📄", onClick: () => emitInvoice(a.id) },
+                  { label: t("ctx.openAppt"), icon: "📋", onClick: () => navigate(`/agenda/${a.id}`) },
+                  ...(a.patientId
+                    ? [{ label: t("ctx.patientFile"), icon: "👤", onClick: () => navigate(`/patients/${a.patientId}`) }] : []),
+                ];
                 return (
                 <Fragment key={a.id}>
-                <tr className={isOpen ? "fac-row-open" : undefined}>
+                <tr className={isOpen ? "fac-row-open" : undefined} onContextMenu={e => facCtx.open(e, menu)}>
                   <td className="fac-expand-col">
                     <button
                       className={`fac-expand-btn${isOpen ? " open" : ""}`}
@@ -417,6 +428,7 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
           </table>
         </div>
       )}
+      {facCtx.menu}
     </>
   );
   if (noLayout) return body;
