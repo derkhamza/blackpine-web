@@ -1,4 +1,5 @@
 import type { CabinetDoctorProfile, BillingLine } from "./cabinetTypes";
+import { printHtmlDocument } from "./printDoc";
 import {
   DOC_DEFAULT_MARGINS, designForKind, resolveMargins, resolvePageSize,
   pageRule, backgroundHtml, blockStyle, logoHtml,
@@ -278,8 +279,5 @@ export function printReceipt(opts: ReceiptOptions): void {
 </body>
 </html>`;
 
-  const win = window.open("", "_blank", "width=600,height=800");
-  if (!win) { alert("Veuillez autoriser les fenêtres pop-up pour imprimer."); return; }
-  win.document.write(html);
-  win.document.close();
+  printHtmlDocument(html);
 }
