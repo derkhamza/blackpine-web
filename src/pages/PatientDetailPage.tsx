@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Layout } from "../components/Layout";
@@ -13,6 +13,7 @@ import {
   MUTUELLES, MOROCCAN_CITIES,
 } from "../lib/cabinetTypes";
 import { getSpecialtyGroups, BILAN_CATALOG } from "../lib/specialtyFields";
+import { fileToDocPayload } from "../lib/fileToDoc";
 import { formatMAD, formatDateShort, todayIso, calcAge } from "../lib/format";
 import { fullName as fmtFullName, initials as fmtInitials, avatarColor } from "../lib/nameFormat";
 import { outstandingTotal } from "../lib/billing";
@@ -28,6 +29,12 @@ function fmtDate(iso: string, locale = "fr-FR") {
 }
 
 const BLOOD_TYPES = ["A+","A-","B+","B-","AB+","AB-","O+","O-"] as const;
+
+function fmtBytesLocal(n: number): string {
+  if (n < 1024)          return n + " o";
+  if (n < 1024 * 1024)   return (n / 1024).toFixed(0) + " Ko";
+  return (n / (1024 * 1024)).toFixed(1) + " Mo";
+}
 
 // ── Vitals trend chart ────────────────────────────────────────────────────────
 
@@ -130,6 +137,7 @@ export function PatientDetailPage() {
   const {
     patients, appointments,
     examResults, prescriptions, teleSessions, certificates, examRequests,
+    apptDocuments, addApptDocument, deleteApptDocument,
     updatePatient, deletePatient, doctorProfile, role, syncState,
   } = useCabinet();
   const { transactions } = useApp();
@@ -138,7 +146,13 @@ export function PatientDetailPage() {
   const patient = useMemo(() => patients.find((p) => p.id === patientId), [patients, patientId]);
 
   // ── Tabs ──────────────────────────────────────────────────────────────────
-  const [tab, setTab] = useState<"timeline" | "dossier" | "consultations" | "vitals" | "ordonnances">("timeline");
+  const [tab, setTab] = useState<"timeline" | "dossier" | "consultations" | "vitals" | "ordonnances" | "documents">("timeline");
+
+  // ── Documents / bulk import (files from before the app) ────────────────────
+  const importFileRef = useRef<HTMLInputElement>(null);
+  const [importLinkAppt, setImportLinkAppt] = useState<string>("");   // "" = dossier-level
+  const [importing, setImporting] = useState(false);
+  const [importWarn, setImportWarn] = useState<string | null>(null);
 
   // Timeline: which appointment entry is expanded inline (compact view of the
   // consultation without leaving the patient page).
@@ -245,6 +259,57 @@ export function PatientDetailPage() {
   const billedAppts    = patientAppts.filter((a) => !!a.billedAt);
   const patientOutstanding = useMemo(() => outstandingTotal(patientAppts), [patientAppts]);
   const ordAppts       = patientAppts.filter((a) => !!a.savedOrdonnance && a.savedOrdonnance.lines.length > 0);
+
+  // Every document that belongs to this patient: those imported at the dossier
+  // level (patientId set) plus those uploaded to one of the patient's
+  // appointments. Newest first.
+  const patientDocs = useMemo(() => {
+    const apptIds = new Set(patientAppts.map((a) => a.id));
+    return apptDocuments
+      .filter((d) => d.patientId === patientId || (d.appointmentId && apptIds.has(d.appointmentId)))
+      .sort((a, b) => (b.uploadedAt || "").localeCompare(a.uploadedAt || ""));
+  }, [apptDocuments, patientAppts, patientId]);
+
+  const handleImportFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    if (!files.length || !patientId) return;
+    setImporting(true);
+    setImportWarn(null);
+    let skipped = 0;
+    for (const file of files) {
+      const payload = await fileToDocPayload(file);
+      if (!payload) { skipped++; continue; }
+      addApptDocument({
+        appointmentId: importLinkAppt || "",
+        patientId,
+        filename:   file.name,
+        mimeType:   payload.mimeType,
+        sizeBytes:  payload.sizeBytes,
+        data:       payload.data,
+        category:   "anterieur",
+        uploadedAt: new Date().toISOString(),
+      });
+    }
+    setImporting(false);
+    if (skipped > 0) setImportWarn(t("patientDetail.docImportSkipped", { n: skipped }));
+  };
+
+  const openDoc = (d: { data: string; filename: string }) => {
+    // data-URL → Blob so the browser opens/downloads without a giant href.
+    try {
+      const [meta, b64] = d.data.split(",");
+      const mime = /data:(.*?);/.exec(meta)?.[1] || "application/octet-stream";
+      const bin = atob(b64);
+      const arr = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+      const url = URL.createObjectURL(new Blob([arr], { type: mime }));
+      window.open(url, "_blank", "noopener");
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch {
+      window.open(d.data, "_blank", "noopener");
+    }
+  };
 
   const fullName = patient ? fmtFullName(patient) : "";
 
@@ -684,6 +749,7 @@ export function PatientDetailPage() {
           { key: "consultations", label: t("patientDetail.tabConsultations", { n: patientAppts.length }), dot: patientAppts.length > 0 },
           { key: "vitals",      label: t("patientDetail.tabVitals"),                                  dot: hasTrends },
           { key: "ordonnances", label: t("patientDetail.tabOrdonnances", { n: ordHistory.length }),     dot: ordHistory.length > 0 },
+          { key: "documents",   label: t("patientDetail.tabDocuments", { n: patientDocs.length }),      dot: patientDocs.length > 0 },
         ] as const).map(({ key, label, dot }) => (
           <button
             key={key}
@@ -1169,6 +1235,101 @@ export function PatientDetailPage() {
                   </ol>
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── DOCUMENTS (imported / pre-app files) ── */}
+      {tab === "documents" && (
+        <div className="appt-tab-panel">
+          <div className="appt-section-header">
+            <div className="appt-section-title">{t("patientDetail.docTitle")}</div>
+            <span style={{ fontSize: 11, color: "var(--tertiary)" }}>
+              {t("patientDetail.docCount", { n: patientDocs.length })}
+            </span>
+          </div>
+
+          {/* Import controls */}
+          <div className="doc-import-bar">
+            <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 8 }}>
+              {t("patientDetail.docImportHint")}
+            </div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+              <select
+                className="form-select"
+                style={{ maxWidth: 260 }}
+                value={importLinkAppt}
+                onChange={(e) => setImportLinkAppt(e.target.value)}
+                title={t("patientDetail.docLinkTo")}
+              >
+                <option value="">{t("patientDetail.docLinkDossier")}</option>
+                {patientAppts.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {fmtDate(a.date)} · {APPT_TYPE_LABELS[a.type]}
+                  </option>
+                ))}
+              </select>
+              <button
+                className="btn-primary"
+                disabled={importing}
+                onClick={() => importFileRef.current?.click()}
+              >
+                {importing ? t("patientDetail.docImporting") : t("patientDetail.docImportBtn")}
+              </button>
+              <input
+                ref={importFileRef}
+                type="file"
+                accept="image/*,.pdf,.doc,.docx"
+                multiple
+                style={{ display: "none" }}
+                onChange={handleImportFiles}
+              />
+            </div>
+            {importWarn && (
+              <div style={{ fontSize: 12, color: "var(--danger)", marginTop: 8 }}>{importWarn}</div>
+            )}
+          </div>
+
+          {patientDocs.length === 0 ? (
+            <div className="tx-empty" style={{ padding: "32px 0" }}>
+              <div style={{ fontSize: 32, marginBottom: 8 }}>📎</div>
+              <div style={{ fontWeight: 700, marginBottom: 4 }}>{t("patientDetail.docEmpty")}</div>
+              <div style={{ fontSize: 13, color: "var(--muted)" }}>{t("patientDetail.docEmptySub")}</div>
+            </div>
+          ) : (
+            <div className="doc-list">
+              {patientDocs.map((d) => {
+                const linkedAppt = d.appointmentId
+                  ? patientAppts.find((a) => a.id === d.appointmentId)
+                  : null;
+                return (
+                  <div key={d.id} className="doc-row">
+                    <div className="doc-row-icon">{d.mimeType.startsWith("image/") ? "🖼️" : "📄"}</div>
+                    <div className="doc-row-main">
+                      <div className="doc-row-name">{d.filename}</div>
+                      <div className="doc-row-meta">
+                        {fmtBytesLocal(d.sizeBytes)}
+                        {" · "}
+                        {new Date(d.uploadedAt).toLocaleDateString(locale)}
+                        {linkedAppt
+                          ? ` · ${t("patientDetail.docLinkedAppt", { date: fmtDate(linkedAppt.date) })}`
+                          : ` · ${t("patientDetail.docDossierBadge")}`}
+                      </div>
+                    </div>
+                    <div className="doc-row-actions">
+                      <button className="payroll-print-btn" onClick={() => openDoc(d)}>
+                        {t("patientDetail.docOpen")}
+                      </button>
+                      <button
+                        className="doc-row-del"
+                        title={t("common.delete")}
+                        onClick={() => { if (confirm(t("patientDetail.docDeleteConfirm", { name: d.filename }))) deleteApptDocument(d.id); }}
+                      >×</button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

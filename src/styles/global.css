@@ -593,12 +593,51 @@ img { max-width: 100%; display: block; }
 /* ── Modal ──────────────────────────────────────────────────────────────── */
 .modal-overlay {
   position: fixed; inset: 0;
-  background: rgba(18,43,66,0.35);
-  backdrop-filter: blur(2px);
+  background: rgba(18,43,66,0.55);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
   z-index: 200;
   display: flex; align-items: center; justify-content: center;
   padding: 20px;
+  /* Tall modals scroll WITHIN the overlay, never revealing the page behind. */
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
+/* Freeze the underlying page while a modal is open (set by ModalDragGuard). */
+body.modal-open { overflow: hidden; }
+
+/* ── Patient documents (imported / pre-app files) ───────────────────────── */
+.doc-import-bar {
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 14px;
+  margin-bottom: 14px;
+}
+.doc-list { display: flex; flex-direction: column; gap: 8px; }
+.doc-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+}
+.doc-row-icon { font-size: 20px; flex: 0 0 auto; }
+.doc-row-main { flex: 1; min-width: 0; }
+.doc-row-name {
+  font-size: 13px; font-weight: 600; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.doc-row-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.doc-row-actions { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+.doc-row-del {
+  width: 26px; height: 26px; border-radius: var(--r);
+  border: none; background: var(--surface-alt); color: var(--muted);
+  font-size: 16px; line-height: 1; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background var(--trans), color var(--trans);
+}
+.doc-row-del:hover { background: var(--danger-bg, #fde8e8); color: var(--danger); }
 .modal {
   background: var(--surface);
   border-radius: var(--r-lg);

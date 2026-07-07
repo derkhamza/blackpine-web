@@ -105,9 +105,22 @@ function ModalDragGuard() {
     };
     document.addEventListener("mousedown", onDown, true);
     document.addEventListener("click", onClick, true);
+
+    // Lock body scroll while any modal is open, so the page underneath can't
+    // scroll behind the (fixed) overlay and reveal un-obscured content.
+    const sync = () => {
+      const open = document.querySelector(".modal-overlay") !== null;
+      document.body.classList.toggle("modal-open", open);
+    };
+    const observer = new MutationObserver(sync);
+    observer.observe(document.body, { childList: true, subtree: true });
+    sync();
+
     return () => {
       document.removeEventListener("mousedown", onDown, true);
       document.removeEventListener("click", onClick, true);
+      observer.disconnect();
+      document.body.classList.remove("modal-open");
     };
   }, []);
   return null;

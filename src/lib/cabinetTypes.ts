@@ -845,7 +845,13 @@ export interface InvoiceRecord {
 
 export interface ApptDocument {
   id:            string;
+  // Empty for patient-level documents (e.g. files imported from before the
+  // practice used the app); otherwise the appointment the file was uploaded to.
   appointmentId: string;
+  // Set for patient-level / imported documents so they attach to the dossier
+  // even when there is no appointment. Appointment-linked files may also carry
+  // it for convenience.
+  patientId?:    string;
   filename:      string;
   mimeType:      string;   // "image/jpeg", "application/pdf" …
   sizeBytes:     number;
