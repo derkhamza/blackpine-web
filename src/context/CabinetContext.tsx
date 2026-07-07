@@ -549,6 +549,10 @@ export function CabinetProvider({
   const applyingRemote = useRef(false);
   // True when there are local edits not yet confirmed on the server.
   const dirtyRef = useRef(false);
+  // Bumped on every genuine local edit. A push captures it at start; if it has
+  // moved by the time the response lands, an edit happened DURING the push, so
+  // adopting the server's merged arrays would revert it — we skip instead.
+  const editSeqRef = useRef(0);
   // Ids deleted/edited locally since the last successful sync — consumed by the
   // conflict merge so a 409 never resurrects deletions nor drops local edits.
   const tombstonesRef = useRef({ appts: new Set<string>(), patients: new Set<string>(), apptDocs: new Set<string>() });
@@ -703,9 +707,11 @@ export function CabinetProvider({
       return;
     }
     dirtyRef.current = true;
+    editSeqRef.current++;
     if (pushTimer.current) clearTimeout(pushTimer.current);
     pushTimer.current = setTimeout(() => {
       setSyncState("syncing");
+      const seqAtPush = editSeqRef.current;
 
       // ── Secretary: push only the appointments + patients slices ──
       if (secretarySession) {
@@ -717,6 +723,15 @@ export function CabinetProvider({
           secretaryPushApptDocuments(apptDocuments, [...tombstonesRef.current.apptDocs]),
         ])
           .then(([mergedAppts, mergedPatients, mergedDocs]) => {
+            // If the secretary edited WHILE this push was in flight, the merged
+            // arrays predate that edit — adopting them would revert it. Skip; the
+            // edit's own pending push adopts a fresh merge. (Same race the pull
+            // guard fixes, on the push side.)
+            if (editSeqRef.current !== seqAtPush) {
+              setSyncState("synced");
+              setLastSynced(new Date().toISOString());
+              return;
+            }
             // Adopt the server's merged arrays (clinical fields preserved).
             applyingRemote.current = true;
             if (Array.isArray(mergedAppts))    setAppts(mergedAppts as Appointment[]);
@@ -743,8 +758,13 @@ export function CabinetProvider({
       }, baseUpdatedAt.current)
         .then((newUpdatedAt) => {
           if (newUpdatedAt) baseUpdatedAt.current = newUpdatedAt;
-          dirtyRef.current = false;
-          clearMergeMarks();
+          // Only declare the tree clean if nothing was edited during the push.
+          // Otherwise keep dirtyRef true so pulls stay blocked and the pending
+          // edit's push still fires — the just-pushed edit can't be clobbered.
+          if (editSeqRef.current === seqAtPush) {
+            dirtyRef.current = false;
+            clearMergeMarks();
+          }
           setSyncState("synced");
           setLastSynced(new Date().toISOString());
         })
