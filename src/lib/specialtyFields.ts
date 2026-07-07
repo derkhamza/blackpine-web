@@ -415,6 +415,22 @@ export const BILAN_CATALOG: BilanGroup[] = [
     ],
   },
   {
+    // Screening for end-organ damage in diabetes (bilan de retentissement /
+    // dégénératif). Ordered periodically to detect micro- and macro-vascular
+    // complications.
+    key: "degeneratif_diabete",
+    title: "Bilan dégénératif du diabète",
+    fields: [
+      { key: "bl_diab_cardio",      label: "Évaluation cardiaque",                          type: "text", placeholder: "ECG, épreuve d'effort, échocardiographie…" },
+      { key: "bl_diab_fo",          label: "Fond d'œil",                                    type: "text", placeholder: "Pas de rétinopathie / rétinopathie non proliférante…" },
+      { key: "bl_diab_microalb",    label: "Microalbuminurie / Créatininurie (échantillon)", type: "text", placeholder: "Rapport A/C mg/g" },
+      { key: "bl_diab_prot24",      label: "Protéinurie de 24h",                            type: "number", unit: "g/24h", placeholder: "0.1" },
+      { key: "bl_diab_doppler_tsa", label: "Écho-Doppler des troncs supra-aortiques",       type: "text", placeholder: "Compte rendu" },
+      { key: "bl_diab_doppler_mi",  label: "Écho-Doppler des membres inférieurs",           type: "text", placeholder: "Compte rendu" },
+      { key: "bl_diab_monofilament", label: "Test au monofilament — score DN4",             type: "text", placeholder: "Monofilament perçu / DN4 __ /10" },
+    ],
+  },
+  {
     key: "biologique",
     title: "Bilan biologique",
     fields: [
@@ -661,7 +677,7 @@ export const SPECIALTY_BILANS: Record<string, string[]> = {
   medecine_urgence:    ["biologique", "radiologique", "hemogramme", "gazometrie", "inflammatoire"],
   geriatrie:           ["biologique", "radiologique", "hemogramme", "renal", "vitaminique"],
   cardiologie:         ["biologique", "radiologique", "cardiaque", "lipidique"],
-  endocrinologie:      ["biologique", "radiologique", "metabolique", "thyroidien", "lipidique", "capillaire_urinaire"],
+  endocrinologie:      ["biologique", "radiologique", "metabolique", "thyroidien", "lipidique", "capillaire_urinaire", "degeneratif_diabete"],
   nephrologie:         ["biologique", "radiologique", "renal", "hemogramme", "urinaire"],
   gastroenterologie:   ["biologique", "radiologique", "hepatique", "inflammatoire"],
   pneumologie:         ["biologique", "radiologique", "gazometrie", "inflammatoire"],
