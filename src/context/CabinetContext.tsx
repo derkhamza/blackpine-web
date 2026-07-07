@@ -618,7 +618,9 @@ export function CabinetProvider({
         // secretary stays logged in across tab reopens. A genuine revoke is
         // honoured on the next live refocus pull (boot=false).
         const snap = await secretaryPull(!boot);
-        applySnapshot({
+        // Don't clobber an edit the secretary made while this pull was in flight
+        // (see the doctor branch below for the full rationale).
+        if (boot || !dirtyRef.current) applySnapshot({
           appointments:  snap.appointments,
           patients:      snap.patients,
           doctorProfile: snap.doctorProfile,
@@ -637,7 +639,13 @@ export function CabinetProvider({
     setSyncState("syncing");
     try {
       const snapshot = await pullCabinet();
-      if (snapshot) applySnapshot(snapshot);
+      // The dirty check at the call site only covers edits made BEFORE the pull
+      // started. If the user edited WHILE this ~1-2s network round-trip was in
+      // flight, their change is newer — applying the snapshot now would revert it
+      // ("action cancelled after a second"). Skip: the pending push carries the
+      // edit up, and the next idle pull brings server changes down. (Boot always
+      // applies — it's the initial hydration and sets baseUpdatedAt.)
+      if (snapshot && (boot || !dirtyRef.current)) applySnapshot(snapshot);
       hydrated.current = true;
       setSyncState("synced");
       setLastSynced(new Date().toISOString());
