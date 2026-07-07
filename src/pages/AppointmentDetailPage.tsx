@@ -720,17 +720,23 @@ export function AppointmentDetailPage() {
   // secretary can add a bilan and fill in the measurements at the desk).
   // Until the doctor saves a preferred set, default to the bilans relevant to
   // their specialty (keeps the screen focused instead of showing all 18).
-  // Show FEW bilans by default (biologie + radiologie) — the rest wait behind the
-  // "+ ajouter" menu so the screen isn't overwhelming. The doctor's saved set
-  // (extraBilans) overrides this once they curate their own.
+  // Every measure group — the specialty EXAM groups AND the lab/imaging bilans —
+  // is one addable, keyed group. Specialty groups carry a "spec:" key. Nothing
+  // specialty-specific shows by default; the doctor/secretary adds what they need
+  // into either section, and the doctor can save the arrangement as their default.
+  const specGroupDefs = getSpecialtyGroups(doctorProfile.specialtyLabel)
+    .map(g => ({ key: `spec:${g.title}`, title: g.title, fields: g.fields }));
+  const bilanGroupDefs = BILAN_CATALOG.map(b => ({ key: b.key, title: b.title, fields: b.fields }));
+  const allGroupDefs = [...bilanGroupDefs, ...specGroupDefs];
+
   const specialtyRelevant = getSpecialtyBilans(doctorProfile.specialtyLabel);
-  const profileBilanKeys = doctorProfile.extraBilans ?? DEFAULT_BILANS;
-  const apptBilanKeys     = appt.extraBilans ?? [];
-  const enabledBilanKeys  = [...new Set([...profileBilanKeys, ...apptBilanKeys])];
-  const enabledBilans   = BILAN_CATALOG.filter(b => enabledBilanKeys.includes(b.key));
-  // Offer the specialty-relevant bilans first in the add menu, then the rest.
-  const availableBilans = BILAN_CATALOG
-    .filter(b => !enabledBilanKeys.includes(b.key))
+  const profileGroupKeys = doctorProfile.extraBilans ?? DEFAULT_BILANS;
+  const apptGroupKeys    = appt.extraBilans ?? [];
+  const enabledKeys      = new Set([...profileGroupKeys, ...apptGroupKeys]);
+  const enabledGroups    = allGroupDefs.filter(g => enabledKeys.has(g.key));
+  // Groups not yet shown — offered in the "+ ajouter" menu, specialty-relevant first.
+  const availableGroups  = allGroupDefs
+    .filter(g => !enabledKeys.has(g.key))
     .sort((a, b) => {
       const ai = specialtyRelevant.indexOf(a.key), bi = specialtyRelevant.indexOf(b.key);
       return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
@@ -754,11 +760,12 @@ export function AppointmentDetailPage() {
   const historyCount = historyAppts.length + historyExams.length + historyRx.length;
 
   // ── Two-section split (bilanSource) + custom measures ───────────────────────
-  // Every bilan (lab / imaging work-up) is a RESULT, so it defaults to the second
-  // section ("Résultats"); only vital signs and the specialty exam measurements
-  // live in the first ("Mesures du jour"). The doctor can ⇄ move any group.
+  // Which section a group sits in: this appointment's choice, else the doctor's
+  // saved preference, else a sensible default (specialty exam → "Mesures du jour",
+  // lab/imaging bilan → "Résultats"). Either can be moved with the ⇄ toggle.
   const bilanSourceFor = (key: string): "office" | "external" =>
-    appt.bilanSource?.[key] ?? "external";
+    appt.bilanSource?.[key] ?? doctorProfile.bilanSourcePrefs?.[key]
+      ?? (key.startsWith("spec:") ? "office" : "external");
   const setBilanSource = (key: string, src: "office" | "external") =>
     updateAppointment({ ...appt, bilanSource: { ...(appt.bilanSource ?? {}), [key]: src } });
 
@@ -816,30 +823,36 @@ export function AppointmentDetailPage() {
     );
   };
 
-  const addBilan = (key: string) => {
-    if (!key || enabledBilanKeys.includes(key)) return;
-    if (readOnly) {
-      // Secretary: store on the appointment (cannot write the doctor profile).
-      updateAppointment({ ...appt, extraBilans: [...apptBilanKeys, key] });
-    } else {
-      // Doctor: add to the profile default so it appears on future visits too.
-      setDoctorProfile({ ...doctorProfile, extraBilans: [...profileBilanKeys, key] });
+  // Add a group (bilan or specialty exam) to a chosen section. Both roles add at
+  // the appointment level; a secretary can't write the doctor profile, and the
+  // doctor promotes the arrangement to their default via "save preferred".
+  const addGroup = (key: string, source: "office" | "external") => {
+    if (!key || enabledKeys.has(key)) return;
+    updateAppointment({
+      ...appt,
+      extraBilans: [...apptGroupKeys, key],
+      bilanSource: { ...(appt.bilanSource ?? {}), [key]: source },
+    });
+  };
+  const removeGroup = (key: string) => {
+    if (apptGroupKeys.includes(key)) {
+      updateAppointment({ ...appt, extraBilans: apptGroupKeys.filter(k => k !== key) });
+    }
+    if (!readOnly && profileGroupKeys.includes(key)) {
+      setDoctorProfile({ ...doctorProfile, extraBilans: profileGroupKeys.filter(k => k !== key) });
     }
   };
-  const removeBilan = (key: string) => {
-    // Remove from whichever source(s) hold it. A secretary can only clear the
-    // appointment-level copy; the doctor's profile default stays put for them.
-    if (apptBilanKeys.includes(key)) {
-      updateAppointment({ ...appt, extraBilans: apptBilanKeys.filter(k => k !== key) });
-    }
-    if (!readOnly && profileBilanKeys.includes(key)) {
-      setDoctorProfile({ ...doctorProfile, extraBilans: profileBilanKeys.filter(k => k !== key) });
-    }
+  const canRemoveGroup = (key: string) =>
+    apptGroupKeys.includes(key) || (!readOnly && profileGroupKeys.includes(key));
+  // Save the current groups + their sections as the doctor's default for every
+  // future visit (doctor only — it writes the profile).
+  const savePreferred = () => {
+    if (readOnly) return;
+    const prefs: Record<string, "office" | "external"> = {};
+    enabledGroups.forEach(g => { prefs[g.key] = bilanSourceFor(g.key); });
+    setDoctorProfile({ ...doctorProfile, extraBilans: [...enabledKeys], bilanSourcePrefs: prefs });
+    toast(t("apptDetail.preferredSaved"), "success");
   };
-  // A bilan can be removed by this session when it lives on the appointment
-  // (either role) or on the profile (doctor only).
-  const canRemoveBilan = (key: string) =>
-    apptBilanKeys.includes(key) || (!readOnly && profileBilanKeys.includes(key));
 
   const handleStatusChange = (s: AppointmentStatus) => {
     updateAppointment({ ...appt, status: s });
@@ -996,31 +1009,9 @@ export function AppointmentDetailPage() {
     appt.type,
   ]));
 
-  // Specialty measurement groups for this doctor's specialty, minus any the
-  // doctor removed from the note (hiddenSpecialtyGroups). `allSpecialtyGroups`
-  // keeps the full list so removed ones can be offered back for re-adding.
-  const allSpecialtyGroups = getSpecialtyGroups(doctorProfile.specialtyLabel);
-  const hiddenSpecGroups   = doctorProfile.hiddenSpecialtyGroups ?? [];
-  const specialtyGroups    = allSpecialtyGroups.filter(g => !hiddenSpecGroups.includes(g.title));
-  const removedSpecGroups  = allSpecialtyGroups.filter(g => hiddenSpecGroups.includes(g.title));
-
-  const removeSpecialtyGroup = (title: string) => {
-    if (readOnly || hiddenSpecGroups.includes(title)) return;
-    setDoctorProfile({ ...doctorProfile, hiddenSpecialtyGroups: [...hiddenSpecGroups, title] });
-  };
-  const restoreSpecialtyGroup = (title: string) => {
-    if (readOnly) return;
-    setDoctorProfile({ ...doctorProfile, hiddenSpecialtyGroups: hiddenSpecGroups.filter(t => t !== title) });
-  };
-
-  // Bilan groups offered for ENTRY in the Mesures & bilan tab = the doctor's
-  // preferred set (or the specialty default). Biology + radiology are part of
-  // every specialty default, so the bilans section is never empty.
-  const entryBilans = enabledBilans;
-
-  // Flatten every bilan/specialty field, then keep only the ones that hold a
+  // Flatten every enabled group's fields, then keep only the ones that hold a
   // value — this is the compact "results" list the doctor reads at a glance.
-  const bilanFieldList = [...specialtyGroups, ...entryBilans].flatMap(g =>
+  const bilanFieldList = enabledGroups.flatMap(g =>
     g.fields.map(f => ({ field: f, groupTitle: g.title })),
   );
   const filledBilan = bilanFieldList.filter(x => (extraFields[x.field.key] ?? "").trim() !== "");
@@ -1583,7 +1574,7 @@ export function AppointmentDetailPage() {
 
           {/* ── Mesures & bilan — ENTERED here; displayed read-only in Notes.
               Two sections: vital signs live inside the first. ── */}
-          {(specialtyGroups.length > 0 || enabledBilans.length > 0 || !bilanReadOnly) && (
+          {(enabledGroups.length > 0 || !bilanReadOnly) && (
             <div className="specialty-fields-section" style={{ marginTop: 18 }}>
               <div className="specialty-fields-title">
                 <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
@@ -1594,34 +1585,15 @@ export function AppointmentDetailPage() {
                 {doctorProfile.specialtyLabel && (
                   <span className="specialty-fields-badge">{doctorProfile.specialtyLabel}</span>
                 )}
-                {!bilanReadOnly && availableBilans.length > 0 && (
-                  <select
-                    className="form-select"
-                    style={{ marginLeft: "auto", fontSize: 12, padding: "3px 8px", maxWidth: 210 }}
-                    value=""
-                    onChange={(e) => addBilan(e.target.value)}
-                    title={t("apptDetail.addBilanTitle")}
-                  >
-                    <option value="">+ {t("apptDetail.addBilan")}</option>
-                    {availableBilans.map(b => (
-                      <option key={b.key} value={b.key}>{b.title}</option>
-                    ))}
-                  </select>
+                {/* Doctor promotes this appointment's arrangement to their default. */}
+                {!readOnly && (
+                  <button type="button" className="btn btn-ghost"
+                    style={{ marginLeft: "auto", fontSize: 12, padding: "3px 10px" }}
+                    onClick={savePreferred} title={t("apptDetail.savePreferredTitle")}>
+                    ★ {t("apptDetail.savePreferred")}
+                  </button>
                 )}
               </div>
-              {/* Restore any specialty measurement group the doctor removed. */}
-              {!bilanReadOnly && removedSpecGroups.length > 0 && (
-                <div className="bilan-restore-row" style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
-                  {removedSpecGroups.map(g => (
-                    <button key={g.title} type="button" className="btn btn-ghost"
-                      style={{ fontSize: 12, padding: "2px 8px" }}
-                      onClick={() => restoreSpecialtyGroup(g.title)}
-                      title={t("apptDetail.restoreBilanTitle")}>
-                      + {g.title}
-                    </button>
-                  ))}
-                </div>
-              )}
               {/* Read-only viewers (secretary without recordVitals) get a compact
                   summary; anyone who can record sees the two entry sections. */}
               {bilanReadOnly && (vitalsChips.length > 0 || filledBilan.length > 0 || customFilled.length > 0) && (
@@ -1652,12 +1624,8 @@ export function AppointmentDetailPage() {
               )}
 
               {!bilanReadOnly && (["office", "external"] as const).map((src) => {
-                const groups     = entryBilans.filter(g => bilanSourceFor(g.key) === src);
-                const specForSrc = src === "office" ? specialtyGroups : [];
+                const groups     = enabledGroups.filter(g => bilanSourceFor(g.key) === src);
                 const customForSrc = customLocal.filter(m => m.source === src);
-                // Hide the "Résultats" section entirely until it holds something —
-                // no empty duplicate header. ("Mesures du jour" always has vitals.)
-                if (src === "external" && groups.length === 0 && customForSrc.length === 0) return null;
                 return (
                   <div key={src} className="bilan-split-section" style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--border)" }}>
                     <div className="specialty-group-title" style={{ fontWeight: 800, color: "var(--primary, #0A4E7E)" }}>
@@ -1692,43 +1660,6 @@ export function AppointmentDetailPage() {
                       </div>
                     )}
 
-                    {specForSrc.map((group) => {
-                      const gk = `spec:${group.title}`;
-                      const hasVal = groupHasValue(group.fields, gk);
-                      const open = isGroupOpen(gk);
-                      return (
-                        <div key={group.title} className="specialty-group">
-                          <div className="specialty-group-title" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                            <span onClick={() => toggleGroup(gk)} style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
-                              <span style={{ width: 12, display: "inline-block", fontSize: 10 }}>{open ? "▾" : "▸"}</span>
-                              {group.title}
-                              {!open && hasVal && <span className="bilan-filled-dot" title={t("apptDetail.bilanHasValues")} />}
-                            </span>
-                            {!bilanReadOnly && (
-                              <button type="button" className="appt-detail-unlink-btn" style={{ marginLeft: "auto" }}
-                                onClick={() => removeSpecialtyGroup(group.title)} title={t("apptDetail.removeBilan")}>
-                                {t("apptDetail.removeBilan")}
-                              </button>
-                            )}
-                          </div>
-                          {open && (
-                            <>
-                              <div className="specialty-fields-grid">
-                                {group.fields.map((field: SpecialtyField) => (
-                                  <SpecialtyFieldInput key={field.key} field={field}
-                                    value={extraFields[field.key] ?? ""}
-                                    onChange={(v) => setExtraField(field.key, v)}
-                                    onBlur={(v) => saveExtraField(field.key, v)}
-                                    readOnly={bilanReadOnly} />
-                                ))}
-                              </div>
-                              {renderCustomMeasures(gk, src)}
-                            </>
-                          )}
-                        </div>
-                      );
-                    })}
-
                     {groups.map((group) => {
                       const gk = group.key;
                       const hasVal = groupHasValue(group.fields, gk);
@@ -1748,9 +1679,9 @@ export function AppointmentDetailPage() {
                                 ⇄ {src === "office" ? t("apptDetail.bilanExternal") : t("apptDetail.bilanOffice")}
                               </button>
                             )}
-                            {!bilanReadOnly && canRemoveBilan(group.key) && (
+                            {!bilanReadOnly && canRemoveGroup(group.key) && (
                               <button type="button" className="appt-detail-unlink-btn"
-                                onClick={() => removeBilan(group.key)} title={t("apptDetail.removeBilan")}>
+                                onClick={() => removeGroup(group.key)} title={t("apptDetail.removeBilan")}>
                                 {t("apptDetail.removeBilan")}
                               </button>
                             )}
@@ -1799,6 +1730,22 @@ export function AppointmentDetailPage() {
                           ))}
                         </div>
                       </div>
+                    )}
+
+                    {/* Add a bilan / measure group directly into THIS section. */}
+                    {availableGroups.length > 0 && (
+                      <select
+                        className="form-select"
+                        style={{ marginTop: 8, fontSize: 12, padding: "4px 8px", maxWidth: 240 }}
+                        value=""
+                        onChange={(e) => { if (e.target.value) addGroup(e.target.value, src); e.target.value = ""; }}
+                        title={t("apptDetail.addBilanTitle")}
+                      >
+                        <option value="">+ {src === "office" ? t("apptDetail.addToOffice") : t("apptDetail.addToExternal")}</option>
+                        {availableGroups.map(g => (
+                          <option key={g.key} value={g.key}>{g.title}</option>
+                        ))}
+                      </select>
                     )}
                   </div>
                 );

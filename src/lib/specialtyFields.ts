@@ -493,6 +493,11 @@ export const BILAN_CATALOG: BilanGroup[] = [
       { key: "bl_thy_t4l",  label: "T4 libre", type: "number", unit: "pmol/L", placeholder: "16" },
       { key: "bl_thy_t3l",  label: "T3 libre", type: "number", unit: "pmol/L", placeholder: "5" },
       { key: "bl_thy_tpo",  label: "Anticorps anti-TPO", type: "text", placeholder: "Négatif / titre" },
+      { key: "bl_thy_trak", label: "Ac anti récepteurs de la TSH (TRAK)", type: "text", placeholder: "Négatif / titre" },
+      { key: "bl_thy_tg",   label: "Ac Anti Thyroglobuline (Ac anti Tg)", type: "text", placeholder: "Négatif / titre" },
+      { key: "bl_thy_calcitonine", label: "Calcitonine", type: "number", unit: "pg/mL", placeholder: "" },
+      { key: "bl_thy_echo", label: "Échographie cervicale", type: "text", placeholder: "Compte rendu" },
+      { key: "bl_thy_scinti", label: "Scintigraphie", type: "text", placeholder: "Compte rendu" },
     ],
   },
   {

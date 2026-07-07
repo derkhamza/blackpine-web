@@ -35,8 +35,9 @@ export interface CabinetDoctorProfile {
   acteCodes?:      ActeCode[];        // doctor-maintained list of medical act codes
   documentSettings?: DocumentSettings; // facture / ordonnance customisation
   noteTemplates?:  CustomNoteTemplate[]; // doctor-saved clinical-note templates
-  extraBilans?:    string[];          // extra bilan groups (keys of BILAN_CATALOG) shown on every note
-  hiddenSpecialtyGroups?: string[];   // specialty measurement groups (by title) the doctor removed from the note
+  extraBilans?:    string[];          // preferred measure groups shown by default (bilan keys or "spec:<title>")
+  bilanSourcePrefs?: Record<string, "office" | "external">; // preferred section per group in the preferred set
+  hiddenSpecialtyGroups?: string[];   // legacy — specialty groups the doctor removed (superseded by opt-in extraBilans)
 }
 
 // A clinical-note template the doctor saved themselves (in addition to the
