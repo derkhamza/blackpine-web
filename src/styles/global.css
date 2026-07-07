@@ -700,6 +700,8 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
 .btn-ghost:hover { border-color: var(--border-strong); color: var(--text); opacity: 1; background: var(--surface-alt); }
 .btn-navy { background: var(--navy); color: #fff; }
+.btn-green { background: var(--green); color: #fff; }
+.btn-green:hover:not(:disabled) { opacity: 1; filter: brightness(0.94); }
 .btn-secondary { background: var(--navy); color: #fff; }
 .btn-secondary:hover { background: var(--navy-mid); opacity: 1; }
 .btn-secondary:disabled { opacity: 0.45; cursor: default; }
@@ -759,6 +761,48 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 .auth-switch { text-align: center; margin-top: 14px; font-size: 12px; color: var(--muted); }
 .auth-switch button { background: none; border: none; color: var(--blue); font-weight: 600; font-size: 12px; padding: 0; }
 .auth-switch button:hover { text-decoration: underline; }
+
+/* ── Auth: sign-in / create-account segmented switcher ──────────────────── */
+.auth-seg {
+  display: flex; gap: 4px;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 4px;
+  margin-bottom: 20px;
+}
+.auth-seg-btn {
+  flex: 1;
+  padding: 9px 10px;
+  border: none; background: transparent;
+  border-radius: calc(var(--r-lg) - 4px);
+  font-size: 13px; font-weight: 600;
+  color: var(--muted); cursor: pointer;
+  transition: background var(--trans), color var(--trans), box-shadow var(--trans);
+}
+.auth-seg-btn:hover { color: var(--text); }
+.auth-seg-btn.active {
+  background: var(--surface);
+  color: var(--navy);
+  box-shadow: 0 1px 3px rgba(18,43,66,0.12);
+}
+/* When the "create account" tab is active, tint it green to match the CTA. */
+.auth-card-signup .auth-seg-btn.active { color: var(--green); }
+
+/* Signup-only trial banner */
+.auth-signup-callout {
+  display: flex; align-items: center; gap: 7px;
+  background: #e6f4ee;
+  border: 1px solid var(--green);
+  color: #0d6e3f;
+  border-radius: var(--r);
+  padding: 9px 11px;
+  font-size: 12px; font-weight: 600;
+  margin-bottom: 16px;
+}
+/* Green accent bar on the create-account card so it never reads as the login.
+   Needs to out-specify `.auth-form-panel .auth-card`, which sets the border. */
+.auth-form-panel .auth-card.auth-card-signup { border-top: 3px solid var(--green); }
 
 /* ── Profile form ───────────────────────────────────────────────────────── */
 .profile-section {

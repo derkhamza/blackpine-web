@@ -146,6 +146,9 @@ export function AuthPage() {
   const [error, setError]       = useState<string | null>(null);
   const [success, setSuccess]   = useState<string | null>(null);
 
+  // Both signup steps share the "create account" identity (tab, callout, CTA).
+  const isSignup = mode === "signup" || mode === "signup-verify";
+
   // Pre-warm the serverless backend the moment the login screen appears, so the
   // user's first submit hits an already-booted function (no "first login fails").
   useEffect(() => { void warmup(); }, []);
@@ -230,7 +233,7 @@ export function AuthPage() {
 
       {/* ── Right form panel ── */}
       <div className="auth-form-panel">
-        <div className="auth-card">
+        <div className={`auth-card${isSignup ? " auth-card-signup" : ""}`}>
 
           {/* Logo — visible on mobile only */}
           <div className="auth-logo auth-logo-mobile">
@@ -238,8 +241,40 @@ export function AuthPage() {
             <span className="auth-logo-text">Blackpine</span>
           </div>
 
+          {/* Segmented switcher — makes "sign in" vs "create account" unmistakable.
+              Hidden for the ancillary flows (secretary, password reset). */}
+          {(mode === "login" || isSignup) && (
+            <div className="auth-seg" role="tablist" aria-label={t("auth.segAria")}>
+              <button
+                type="button" role="tab" aria-selected={mode === "login"}
+                className={`auth-seg-btn${mode === "login" ? " active" : ""}`}
+                onClick={() => switchMode("login")}
+              >
+                {t("auth.segLogin")}
+              </button>
+              <button
+                type="button" role="tab" aria-selected={isSignup}
+                className={`auth-seg-btn${isSignup ? " active" : ""}`}
+                onClick={() => switchMode("signup")}
+              >
+                {t("auth.segSignup")}
+              </button>
+            </div>
+          )}
+
           <h1 className="auth-title">{titles[mode]}</h1>
           <p className="auth-sub">{subs[mode]}</p>
+
+          {/* Signup-only trial banner — a distinct cue so the create-account
+              flow never reads like the sign-in form. */}
+          {isSignup && (
+            <div className="auth-signup-callout">
+              <svg width="13" height="13" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                <path d="M6 1l1.5 3 3.3.3-2.5 2.2.8 3.2L6 8.3 2.9 10l.8-3.2L1.2 4.6 4.5 4.3 6 1Z" fill="currentColor"/>
+              </svg>
+              <span>{t("auth.signupCallout")}</span>
+            </div>
+          )}
 
           <form className="auth-form" onSubmit={handleSubmit}>
             {error   && <div className="auth-error">{error}</div>}
@@ -325,7 +360,7 @@ export function AuthPage() {
 
             <button
               type="submit"
-              className="btn btn-navy auth-submit-btn"
+              className={`btn auth-submit-btn ${isSignup ? "btn-green" : "btn-navy"}`}
               disabled={loading}
             >
               {loading
@@ -350,15 +385,7 @@ export function AuthPage() {
                   {t("auth.forgotLink")}
                 </button>
                 <span className="auth-switch-sep">·</span>
-                {t("auth.noAccount")}{" "}
-                <button className="auth-link" onClick={() => switchMode("signup")}>{t("auth.signupLink")}</button>
-                <span className="auth-switch-sep">·</span>
                 <button className="auth-link" onClick={() => switchMode("secretary")}>{t("auth.secretaryLink")}</button>
-              </>
-            )}
-            {mode === "signup" && (
-              <>{t("auth.hasAccount")}{" "}
-                <button className="auth-link" onClick={() => switchMode("login")}>{t("auth.loginLink")}</button>
               </>
             )}
             {mode === "secretary" && (
