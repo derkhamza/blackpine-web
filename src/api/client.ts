@@ -310,6 +310,10 @@ export interface CabinetSnapshot {
   examResults?:           unknown[];
   invoices?:              unknown[];
   apptDocuments?:         unknown[];
+  // Content version of apptDocuments. When it's unchanged the server omits the
+  // (heavy) attachments from the pull, so `apptDocuments` will be absent — the
+  // client keeps its current copy.
+  apptDocumentsVersion?:  string;
   updatedAt?:             string;
 }
 
@@ -322,10 +326,15 @@ export const NOT_MODIFIED = Symbol("cabinet-not-modified");
 // `cache: "no-store"` keeps the browser's own HTTP cache out of the way so our
 // manual conditional request is what actually drives the 304.
 const pullEtags: Record<string, string> = {};
+// Last attachment-set version seen per endpoint. Sent as ?docsVersion so the
+// server can omit the heavy base64 blobs when they haven't changed — even when
+// other data has (the residual attachment re-transfer during a consultation).
+const docsVersions: Record<string, string> = {};
 
 export async function pullCabinet(): Promise<CabinetSnapshot | null | typeof NOT_MODIFIED> {
   const prev = pullEtags["/cabinet/my"];
-  const res = await request("/cabinet/my", {
+  const dv   = docsVersions["/cabinet/my"];
+  const res = await request(`/cabinet/my${dv ? `?docsVersion=${encodeURIComponent(dv)}` : ""}`, {
     cache: "no-store",
     headers: prev ? { "If-None-Match": prev } : {},
   });
@@ -337,7 +346,11 @@ export async function pullCabinet(): Promise<CabinetSnapshot | null | typeof NOT
   }
   const etag = res.headers.get("ETag");
   if (etag) pullEtags["/cabinet/my"] = etag;
-  return res.json();
+  const snap = await res.json();
+  if (snap && typeof (snap as any).apptDocumentsVersion === "string") {
+    docsVersions["/cabinet/my"] = (snap as any).apptDocumentsVersion;
+  }
+  return snap;
 }
 
 /** Thrown when the server has newer data than the version we based our push on. */
@@ -674,12 +687,14 @@ export interface SecretaryCabinet {
   appointments:  unknown[];
   patients:      unknown[];
   doctorProfile: unknown;
-  apptDocuments: unknown[];
+  // Absent when the server omitted unchanged attachments — caller keeps its copy.
+  apptDocuments?: unknown[];
 }
 
 export async function secretaryPull(clearOn401 = true): Promise<SecretaryCabinet | typeof NOT_MODIFIED> {
   const prev = pullEtags["/cabinet/pull"];
-  const res = await secretaryRequest("/cabinet/pull", {
+  const dv   = docsVersions["/cabinet/pull"];
+  const res = await secretaryRequest(`/cabinet/pull${dv ? `?docsVersion=${encodeURIComponent(dv)}` : ""}`, {
     cache: "no-store",
     headers: prev ? { "If-None-Match": prev } : {},
   });
@@ -691,11 +706,16 @@ export async function secretaryPull(clearOn401 = true): Promise<SecretaryCabinet
   if (!res.ok) throw new Error((data as any).error || "Secretary pull failed");
   const etag = res.headers.get("ETag");
   if (etag) pullEtags["/cabinet/pull"] = etag;
+  if (typeof (data as any).apptDocumentsVersion === "string") {
+    docsVersions["/cabinet/pull"] = (data as any).apptDocumentsVersion;
+  }
   return {
     appointments:  (data as any).appointments  ?? [],
     patients:      (data as any).patients       ?? [],
     doctorProfile: (data as any).doctorProfile  ?? {},
-    apptDocuments: (data as any).apptDocuments  ?? [],
+    // Keep undefined (not []) when omitted — the caller must NOT wipe the local
+    // attachments; absence means "unchanged, keep what you have".
+    apptDocuments: (data as any).apptDocuments,
   };
 }
 
