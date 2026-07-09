@@ -547,6 +547,8 @@ export function CabinetProvider({
   // True while applying a server snapshot, so the push effect can tell a
   // remote apply apart from a local user edit and not echo it back.
   const applyingRemote = useRef(false);
+  // Consecutive unchanged (304) polls — drives adaptive poll back-off when idle.
+  const pollMissRef = useRef(0);
   // True when there are local edits not yet confirmed on the server.
   const dirtyRef = useRef(false);
   // Bumped on every genuine local edit. A push captures it at start; if it has
@@ -613,9 +615,11 @@ export function CabinetProvider({
   }, [applySnapshot]);
 
   // Pull the latest snapshot from the server (used on mount and on refocus).
-  const pullFromServer = useCallback(async (boot = false) => {
+  // Returns true when the server had changes (or on boot), false on a 304 / no
+  // session / error — the adaptive poller uses this to back off when idle.
+  const pullFromServer = useCallback(async (boot = false): Promise<boolean> => {
     if (secretarySession) {
-      if (!getSecretaryToken()) return;
+      if (!getSecretaryToken()) return false;
       setSyncState("syncing");
       try {
         // On boot a cold-start 401 is transient — keep the session so a valid
@@ -634,13 +638,14 @@ export function CabinetProvider({
         hydrated.current = true;
         setSyncState("synced");
         setLastSynced(new Date().toISOString());
+        return snap !== NOT_MODIFIED;
       } catch (err) {
         if (!boot && (err as Error).message === "SECRETARY_REVOKED") onSecretaryRevoked?.();
         setSyncState("error");
+        return false;
       }
-      return;
     }
-    if (!userId || !getToken()) return;
+    if (!userId || !getToken()) return false;
     setSyncState("syncing");
     try {
       const snapshot = await pullCabinet();
@@ -655,10 +660,12 @@ export function CabinetProvider({
       hydrated.current = true;
       setSyncState("synced");
       setLastSynced(new Date().toISOString());
+      return snapshot !== NOT_MODIFIED;
     } catch {
       // Leave hydrated=false on the first failure so we never push (and risk
       // clobbering the server) until a successful pull. Local data is saved.
       setSyncState("error");
+      return false;
     }
   }, [userId, secretarySession, applySnapshot, onSecretaryRevoked]);
 
@@ -676,6 +683,7 @@ export function CabinetProvider({
     const onFocus = () => {
       if (document.visibilityState === "hidden") return;
       if (!hydrated.current || dirtyRef.current) return;
+      pollMissRef.current = 0; // user is back → return to fast polling
       pullFromServer();
     };
     window.addEventListener("focus", onFocus);
@@ -686,20 +694,30 @@ export function CabinetProvider({
     };
   }, [userId, secretarySession, pullFromServer]);
 
-  // Poll while the tab is visible so a change made on one side (doctor or
-  // secretary) shows up on the other within ~30s without needing to refocus.
-  // Conditional pulls (If-None-Match → 304) make an unchanged poll almost free,
-  // so this is about invocation count, not payload: 30s halves the calls vs the
-  // old 12s while staying near-real-time. Skipped when there are unsynced local
-  // edits (dirtyRef) so a pull can never clobber work in progress.
+  // Adaptive poll while the tab is visible. Conditional pulls (304) make an
+  // unchanged poll almost free on bytes, but each still costs a request +
+  // function invocation, so we back off when nothing is happening: 30s while
+  // active, stepping to 45/60/90s after consecutive unchanged polls. Any change
+  // (or a refocus — see the focus effect) resets to 30s, so co-editing stays
+  // near-real-time while an idle tab goes quiet. Skipped when there are unsynced
+  // local edits (dirtyRef) so a pull can never clobber work in progress.
   useEffect(() => {
     if (!userId && !secretarySession) return;
-    const id = setInterval(() => {
-      if (document.visibilityState !== "visible") return;
-      if (!hydrated.current || dirtyRef.current) return;
-      pullFromServer();
-    }, 30000);
-    return () => clearInterval(id);
+    const STEPS = [30000, 45000, 60000, 90000];
+    let timer: ReturnType<typeof setTimeout>;
+    const schedule = () => {
+      const delay = STEPS[Math.min(pollMissRef.current, STEPS.length - 1)];
+      timer = setTimeout(tick, delay);
+    };
+    const tick = async () => {
+      if (document.visibilityState === "visible" && hydrated.current && !dirtyRef.current) {
+        const changed = await pullFromServer();
+        pollMissRef.current = changed ? 0 : pollMissRef.current + 1;
+      }
+      schedule();
+    };
+    schedule();
+    return () => clearTimeout(timer);
   }, [userId, secretarySession, pullFromServer]);
 
   // Debounced push — fires 3s after the last mutation while a session is active
