@@ -313,13 +313,30 @@ export interface CabinetSnapshot {
   updatedAt?:             string;
 }
 
-export async function pullCabinet(): Promise<CabinetSnapshot | null> {
-  const res = await request("/cabinet/my");
+// Sentinel returned by a pull when the server answered 304 Not Modified — the
+// caller keeps its current state instead of re-applying an identical snapshot.
+export const NOT_MODIFIED = Symbol("cabinet-not-modified");
+
+// Last ETag seen per pull endpoint. Sent back as If-None-Match so an unchanged
+// snapshot comes back as a bodyless 304 — the core Fast Origin Transfer saving.
+// `cache: "no-store"` keeps the browser's own HTTP cache out of the way so our
+// manual conditional request is what actually drives the 304.
+const pullEtags: Record<string, string> = {};
+
+export async function pullCabinet(): Promise<CabinetSnapshot | null | typeof NOT_MODIFIED> {
+  const prev = pullEtags["/cabinet/my"];
+  const res = await request("/cabinet/my", {
+    cache: "no-store",
+    headers: prev ? { "If-None-Match": prev } : {},
+  });
   if (res.status === 401) { clearToken(); throw new Error("TOKEN_EXPIRED"); }
+  if (res.status === 304) return NOT_MODIFIED;
   if (!res.ok) {
     const d = await res.json().catch(() => ({}));
     throw new Error((d as any).error || "Cabinet pull failed");
   }
+  const etag = res.headers.get("ETag");
+  if (etag) pullEtags["/cabinet/my"] = etag;
   return res.json();
 }
 
@@ -660,13 +677,20 @@ export interface SecretaryCabinet {
   apptDocuments: unknown[];
 }
 
-export async function secretaryPull(clearOn401 = true): Promise<SecretaryCabinet> {
-  const res = await secretaryRequest("/cabinet/pull");
+export async function secretaryPull(clearOn401 = true): Promise<SecretaryCabinet | typeof NOT_MODIFIED> {
+  const prev = pullEtags["/cabinet/pull"];
+  const res = await secretaryRequest("/cabinet/pull", {
+    cache: "no-store",
+    headers: prev ? { "If-None-Match": prev } : {},
+  });
   // Boot passes clearOn401=false so a transient cold-start 401 doesn't end the
   // session on every reopen; a genuine revoke is caught on the next live sync.
   if (res.status === 401) { if (clearOn401) clearSecretarySession(); throw new Error("SECRETARY_REVOKED"); }
+  if (res.status === 304) return NOT_MODIFIED;
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error((data as any).error || "Secretary pull failed");
+  const etag = res.headers.get("ETag");
+  if (etag) pullEtags["/cabinet/pull"] = etag;
   return {
     appointments:  (data as any).appointments  ?? [],
     patients:      (data as any).patients       ?? [],

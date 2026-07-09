@@ -8,7 +8,7 @@ import { fullName } from "../lib/nameFormat";
 import {
   getToken, pullCabinet, pushCabinet, CabinetConflictError, type CabinetSnapshot,
   getSecretaryToken, secretaryPull, secretaryPushAppointments, secretaryPushPatients,
-  secretaryPushApptDocuments,
+  secretaryPushApptDocuments, NOT_MODIFIED,
   listBackups, restoreBackup, type CabinetBackup,
 } from "../api/client";
 
@@ -623,8 +623,9 @@ export function CabinetProvider({
         // honoured on the next live refocus pull (boot=false).
         const snap = await secretaryPull(!boot);
         // Don't clobber an edit the secretary made while this pull was in flight
-        // (see the doctor branch below for the full rationale).
-        if (boot || !dirtyRef.current) applySnapshot({
+        // (see the doctor branch below for the full rationale). NOT_MODIFIED =
+        // the server's 304, i.e. nothing changed — keep local state as-is.
+        if (snap !== NOT_MODIFIED && (boot || !dirtyRef.current)) applySnapshot({
           appointments:  snap.appointments,
           patients:      snap.patients,
           doctorProfile: snap.doctorProfile,
@@ -649,7 +650,8 @@ export function CabinetProvider({
       // ("action cancelled after a second"). Skip: the pending push carries the
       // edit up, and the next idle pull brings server changes down. (Boot always
       // applies — it's the initial hydration and sets baseUpdatedAt.)
-      if (snapshot && (boot || !dirtyRef.current)) applySnapshot(snapshot);
+      // NOT_MODIFIED = the server's 304, i.e. unchanged — keep local state as-is.
+      if (snapshot && snapshot !== NOT_MODIFIED && (boot || !dirtyRef.current)) applySnapshot(snapshot);
       hydrated.current = true;
       setSyncState("synced");
       setLastSynced(new Date().toISOString());
@@ -685,16 +687,18 @@ export function CabinetProvider({
   }, [userId, secretarySession, pullFromServer]);
 
   // Poll while the tab is visible so a change made on one side (doctor or
-  // secretary) shows up on the other within ~12s without needing to refocus —
-  // near-real-time two-way sync. Skipped when there are unsynced local edits
-  // (dirtyRef) so a pull can never clobber work in progress.
+  // secretary) shows up on the other within ~30s without needing to refocus.
+  // Conditional pulls (If-None-Match → 304) make an unchanged poll almost free,
+  // so this is about invocation count, not payload: 30s halves the calls vs the
+  // old 12s while staying near-real-time. Skipped when there are unsynced local
+  // edits (dirtyRef) so a pull can never clobber work in progress.
   useEffect(() => {
     if (!userId && !secretarySession) return;
     const id = setInterval(() => {
       if (document.visibilityState !== "visible") return;
       if (!hydrated.current || dirtyRef.current) return;
       pullFromServer();
-    }, 12000);
+    }, 30000);
     return () => clearInterval(id);
   }, [userId, secretarySession, pullFromServer]);
 
