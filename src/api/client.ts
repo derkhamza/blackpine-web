@@ -12,7 +12,11 @@ const TOKEN_KEY      = "bp.token";
 const USER_KEY       = "bp.user";
 const SEC_TOKEN_KEY  = "bp.sec.token";
 const SEC_OWNER_KEY  = "bp.sec.owner";
-const TIMEOUT_MS = 15_000;
+// 20s: a rare serverless cold start (esp. the first boot after a deploy, which
+// runs the one-time schema setup) can take >15s; the old limit aborted it and
+// surfaced as reset/sync "not working". Warm requests are ~1s, so this only
+// affects the cold case, and fetchWithRetry still retries on a genuine timeout.
+const TIMEOUT_MS = 20_000;
 
 // ── Token helpers ──────────────────────────────────────────────────────────
 
