@@ -131,6 +131,16 @@
       }
     }
   },
+  "growth": {
+    "title": "Growth curve",
+    "subtitle": "By age",
+    "ageAxis": "Age (years)",
+    "target": "Target",
+    "needDob": "Add the patient's date of birth to display the growth curve.",
+    "noData": "No growth measurement (height, weight…) recorded yet.",
+    "bandsPending": "Reference percentile bands (GFA/WHO) are not loaded yet — the curve shows the child's actual measurements and the target height.",
+    "metric": { "height": "Height", "weight": "Weight", "bmi": "BMI", "headCirc": "Head circumference" }
+  },
   "ctx": {
     "openConsult": "Open consultation",
     "bill": "Collect payment",

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Layout } from "../components/Layout";
+import { GrowthCurve } from "../components/GrowthCurve";
 import { useCabinet } from "../context/CabinetContext";
 import { useApp } from "../context/AppContext";
 import type { Patient, PatientGender, VitalSigns, OrdonnanceLine } from "../lib/cabinetTypes";
@@ -462,6 +463,15 @@ export function PatientDetailPage() {
 
   const hasTrends = hasVitals || labSeries.length > 0 || bilanSeries.length > 0;
 
+  // Pediatric growth curve: shown for children (≤ 18 y). Age from date of birth.
+  const isChild = useMemo(() => {
+    if (!patient?.dateOfBirth) return false;
+    const dob = new Date(patient.dateOfBirth + "T00:00:00");
+    if (Number.isNaN(dob.getTime())) return false;
+    const age = (Date.now() - dob.getTime()) / (365.25 * 86_400_000);
+    return age >= 0 && age <= 18;
+  }, [patient?.dateOfBirth]);
+
   // ── Unified timeline ──────────────────────────────────────────────────────
   const EXAM_ICONS: Record<string, string> = { biologie: "🔬", imagerie: "🩻", ecg: "💗", autre: "📋" };
 
@@ -747,7 +757,7 @@ export function PatientDetailPage() {
           { key: "timeline",    label: t("patientDetail.tabTimeline", { n: tlEntries.length }),       dot: tlEntries.length > 0 },
           { key: "dossier",     label: t("patientDetail.tabDossier"),                                 dot: false },
           { key: "consultations", label: t("patientDetail.tabConsultations", { n: patientAppts.length }), dot: patientAppts.length > 0 },
-          { key: "vitals",      label: t("patientDetail.tabVitals"),                                  dot: hasTrends },
+          { key: "vitals",      label: t("patientDetail.tabVitals"),                                  dot: hasTrends || isChild },
           { key: "ordonnances", label: t("patientDetail.tabOrdonnances", { n: ordHistory.length }),     dot: ordHistory.length > 0 },
           { key: "documents",   label: t("patientDetail.tabDocuments", { n: patientDocs.length }),      dot: patientDocs.length > 0 },
         ] as const).map(({ key, label, dot }) => (
@@ -1066,7 +1076,17 @@ export function PatientDetailPage() {
       {/* ── SUIVI VITAUX ── */}
       {tab === "vitals" && (
         <div className="appt-tab-panel">
+          {isChild && patient && (
+            <div style={{ marginBottom: hasTrends ? 22 : 0 }}>
+              <div className="appt-section-header">
+                <div className="appt-section-title">{t("growth.title")}</div>
+                <span style={{ fontSize: 11, color: "var(--tertiary)" }}>{t("growth.subtitle")}</span>
+              </div>
+              <GrowthCurve patient={patient} appointments={appointments} />
+            </div>
+          )}
           {!hasTrends ? (
+            !isChild && (
             <>
               <div className="appt-section-header">
                 <div className="appt-section-title">{t("patientDetail.vitalsTitle")}</div>
@@ -1079,6 +1099,7 @@ export function PatientDetailPage() {
                 </div>
               </div>
             </>
+            )
           ) : (
             <>
               {hasVitals && (

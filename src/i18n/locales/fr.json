@@ -131,6 +131,16 @@
       }
     }
   },
+  "growth": {
+    "title": "Courbe de croissance",
+    "subtitle": "Selon l'âge",
+    "ageAxis": "Âge (ans)",
+    "target": "Cible",
+    "needDob": "Renseignez la date de naissance du patient pour afficher la courbe de croissance.",
+    "noData": "Aucune mesure de croissance (taille, poids…) enregistrée pour l'instant.",
+    "bandsPending": "Les couloirs de percentiles de référence (GFA/OMS) ne sont pas encore chargés — la courbe affiche les mesures réelles de l'enfant et la taille cible.",
+    "metric": { "height": "Taille", "weight": "Poids", "bmi": "IMC", "headCirc": "Périmètre crânien" }
+  },
   "ctx": {
     "openConsult": "Ouvrir la consultation",
     "bill": "Encaisser",
