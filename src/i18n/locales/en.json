@@ -67,7 +67,21 @@
     "secretaryTitle": "Secretary access",
     "secretaryBody": "Delegate the front desk to your secretary while staying in control: you decide exactly what they can access (billing, vitals, stock…) in Settings.",
     "helpTitle": "Help whenever you need it",
-    "helpBody": "Got a question? Open Help from the menu (book icon at the bottom) to replay this guide, browse help topics or contact us. Enjoy!"
+    "helpBody": "Got a question? Open Help from the menu (book icon at the bottom) to replay this guide, browse help topics or contact us. Enjoy!",
+    "sec": {
+      "welcomeTitle": "Welcome — front desk",
+      "welcomeBody": "You run the practice's front desk: appointments, patient arrivals, contact details and payments. Here are the essentials in a few screens.",
+      "agendaTitle": "Agenda & appointments",
+      "agendaBody": "Book and move appointments, record the reason for visit and the patient's contact details. Patients' online bookings show up here too.",
+      "waitingTitle": "Waiting room",
+      "waitingBody": "When a patient arrives, mark them \"arrived\": they move to the waiting room and the doctor sees them. You track wait times in real time.",
+      "patientsTitle": "Patient records",
+      "patientsBody": "Create and update records: identity, phone, insurance, and — depending on the access granted — vitals and AMO paperwork.",
+      "billingTitle": "Payments",
+      "billingBody": "If the doctor allows it, take payment for consultations, record payments (full, partial or deferred) and print invoices and receipts.",
+      "helpTitle": "Help whenever you need it",
+      "helpBody": "Open Help from the menu (book icon) to replay this guide or contact us. The doctor sets your access in Settings."
+    }
   },
   "help": {
     "title": "Help centre",

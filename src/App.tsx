@@ -66,15 +66,22 @@ function RequireAuth({ children, secretaryOk = false, perm }: {
 }
 
 function OnboardingGate() {
-  const { isAuthenticated } = useApp();
-  const { doctorProfile } = useCabinet();
+  const { isAuthenticated, isSecretary } = useApp();
+  const { doctorProfile, lastSynced } = useCabinet();
   const [dismissed, setDismissed] = useState(false);
 
   const alreadyDone = !!localStorage.getItem("bp.onboarded");
+  // Only decide AFTER the initial sync has landed (lastSynced set): before that,
+  // an existing user's profile hasn't loaded yet and doctorProfile.fullName is
+  // transiently empty — showing onboarding then makes it flash for returning
+  // users on a fresh device. A genuinely new account syncs an empty snapshot,
+  // so fullName stays empty and onboarding still appears for them.
   const needsOnboarding =
     isAuthenticated &&
+    !isSecretary &&
     !alreadyDone &&
     !dismissed &&
+    lastSynced != null &&
     !doctorProfile.fullName;
 
   if (!needsOnboarding) return null;
@@ -89,6 +96,7 @@ function TourGate() {
   const { doctorProfile } = useCabinet();
   const [open, setOpen] = useState(false);
   const [forced, setForced] = useState(false);
+  const variant = isSecretary ? "secretary" : "doctor";
 
   useEffect(() => {
     const reopen = () => { setForced(true); setOpen(true); };
@@ -98,12 +106,13 @@ function TourGate() {
 
   useEffect(() => {
     if (forced) return;
-    if (isAuthenticated && !isSecretary && !!doctorProfile.fullName && !hasSeenTour()) {
-      setOpen(true);
-    }
-  }, [isAuthenticated, isSecretary, doctorProfile.fullName, forced]);
+    if (!isAuthenticated || hasSeenTour(variant)) return;
+    // Doctor: wait until the profile is set up (so it follows the profile
+    // wizard). Secretary: show right away — they don't own a profile.
+    if (isSecretary || !!doctorProfile.fullName) setOpen(true);
+  }, [isAuthenticated, isSecretary, variant, doctorProfile.fullName, forced]);
 
-  return <WelcomeTour open={open} onClose={() => { setOpen(false); setForced(false); }} />;
+  return <WelcomeTour open={open} variant={variant} onClose={() => { setOpen(false); setForced(false); }} />;
 }
 
 function RouteTracker() {

@@ -511,15 +511,13 @@ export function CabinetProvider({
     }, []);
   const deletePatient = useCallback(
     (id: string) => {
-      // Removing a patient also clears their calendar entries so the agenda
-      // never shows orphaned appointments pointing at a deleted record.
+      // Remove the patient record but KEEP their appointments — those hold the
+      // medical history (consultations, ordonnances, bilans, billing) which must
+      // survive. Each appointment already carries a denormalised patientName, so
+      // the agenda still shows who it was for. We keep patientId too so the file
+      // re-links if the patient is ever recreated with the same id.
       tombstonesRef.current.patients.add(id);
       setPatients(prev => prev.filter(x => x.id !== id));
-      setAppts(prev => prev.filter(x => {
-        const gone = x.patientId === id;
-        if (gone) tombstonesRef.current.appts.add(x.id);
-        return !gone;
-      }));
     }, []);
 
   // ── Employees ─────────────────────────────────────────────────────────────

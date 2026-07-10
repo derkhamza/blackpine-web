@@ -7052,7 +7052,19 @@ a.ana-top-name:hover { color: var(--blue); text-decoration: underline; }
   border-radius: 8px; padding: 4px 9px; white-space: nowrap;
 }
 .auth-brand-footer { font-size: 11px; color: rgba(255,255,255,0.28); padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.08); }
-.auth-form-panel { flex: 1; display: flex; align-items: center; justify-content: center; padding: 40px 28px; background: var(--bg); overflow-y: auto; }
+.auth-form-panel { position: relative; flex: 1; display: flex; align-items: center; justify-content: center; padding: 40px 28px; background: var(--bg); overflow-y: auto; }
+.auth-lang-switcher {
+  position: absolute; top: 16px; inset-inline-end: 20px; z-index: 2;
+  display: flex; gap: 2px; padding: 4px 6px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r);
+}
+.auth-lang-btn {
+  background: none; border: none; padding: 4px 9px; border-radius: 5px;
+  font-size: 12px; font-weight: 600; color: var(--muted); cursor: pointer;
+  transition: background var(--trans), color var(--trans); white-space: nowrap;
+}
+.auth-lang-btn:hover { background: var(--hover); color: var(--text); }
+.auth-lang-btn.active { background: var(--navy); color: #fff; }
 .auth-form-panel .auth-card { max-width: 400px; border: 1px solid var(--border); box-shadow: 0 4px 24px rgba(18,43,66,0.09); }
 .auth-logo-mobile { display: none !important; }
 

@@ -67,7 +67,21 @@
     "secretaryTitle": "Accès secrétaire",
     "secretaryBody": "Déléguez l'accueil à votre secrétaire tout en gardant le contrôle : vous décidez précisément à quoi elle accède (facturation, mesures, stock…) dans les Paramètres.",
     "helpTitle": "Aide à tout moment",
-    "helpBody": "Une question ? Ouvrez l'Aide depuis le menu (icône livre en bas) pour revoir ce guide, consulter les rubriques d'aide ou nous contacter. Bon travail !"
+    "helpBody": "Une question ? Ouvrez l'Aide depuis le menu (icône livre en bas) pour revoir ce guide, consulter les rubriques d'aide ou nous contacter. Bon travail !",
+    "sec": {
+      "welcomeTitle": "Bienvenue — espace secrétaire",
+      "welcomeBody": "Vous gérez l'accueil du cabinet : rendez-vous, arrivée des patients, coordonnées et encaissement. Voici l'essentiel en quelques écrans.",
+      "agendaTitle": "Agenda & rendez-vous",
+      "agendaBody": "Planifiez et déplacez les rendez-vous, renseignez le motif et les coordonnées du patient. Les réservations en ligne des patients apparaissent aussi ici.",
+      "waitingTitle": "Salle d'attente",
+      "waitingBody": "À l'arrivée d'un patient, marquez-le « arrivé » : il passe en salle d'attente et le médecin le voit. Vous suivez les temps d'attente en temps réel.",
+      "patientsTitle": "Fiches patients",
+      "patientsBody": "Créez et mettez à jour les fiches : identité, téléphone, mutuelle, et — selon les accès accordés — mesures et paperasse AMO.",
+      "billingTitle": "Encaissement",
+      "billingBody": "Si le médecin vous y autorise, encaissez les consultations, enregistrez les paiements (total, partiel ou différé) et imprimez factures et reçus.",
+      "helpTitle": "Aide à tout moment",
+      "helpBody": "Ouvrez l'Aide depuis le menu (icône livre) pour revoir ce guide ou nous contacter. Le médecin définit vos accès dans les Paramètres."
+    }
   },
   "help": {
     "title": "Centre d'aide",

@@ -4,6 +4,35 @@ import { useApp } from "../context/AppContext";
 import { requestPasswordReset, verifyPasswordReset, sendSignupCode, warmup } from "../api/client";
 import { BlackpineLogo } from "../components/Logo";
 import { useTranslation } from "react-i18next";
+import i18n from "../i18n";
+
+const AUTH_LANGS = [
+  { code: "fr", flag: "🇫🇷", label: "FR" },
+  { code: "en", flag: "🇬🇧", label: "EN" },
+  { code: "ar", flag: "🇲🇦", label: "ع" },
+] as const;
+
+// Language switcher shown on the auth screens so a user can pick their language
+// before signing in / up (the in-app switcher lives in the sidebar afterwards).
+function AuthLangSwitcher() {
+  const { i18n: i } = useTranslation();
+  const current = i.language?.slice(0, 2) ?? "fr";
+  return (
+    <div className="auth-lang-switcher">
+      {AUTH_LANGS.map(l => (
+        <button
+          key={l.code}
+          type="button"
+          className={`auth-lang-btn${current === l.code ? " active" : ""}`}
+          onClick={() => i18n.changeLanguage(l.code)}
+          title={l.label}
+        >
+          {l.flag} {l.label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 type AuthMode = "login" | "signup" | "signup-verify" | "forgot" | "reset-verify" | "secretary";
 
@@ -239,6 +268,7 @@ export function AuthPage() {
 
       {/* ── Right form panel ── */}
       <div className="auth-form-panel">
+        <AuthLangSwitcher />
         <div className={`auth-card${isSignup ? " auth-card-signup" : ""}`}>
 
           {/* Logo — visible on mobile only */}

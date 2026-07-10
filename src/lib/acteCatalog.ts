@@ -171,6 +171,7 @@ export const ACTE_CATALOG: ActeCatalogGroup[] = [
       { code: "K", label: "Test au monofilament (pied diabétique)" },
       { code: "K", label: "Glycémie capillaire" },
       { code: "K", label: "Pose / lecture de capteur de glycémie (CGM)" },
+      { code: "K", label: "Impédancemétrie (composition corporelle)" },
       { code: "K", label: "Bilan podologique du diabétique" },
       { code: "Z", label: "Échographie thyroïdienne" },
       { code: "KC", label: "Cytoponction thyroïdienne (échoguidée)" },
