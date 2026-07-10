@@ -260,6 +260,7 @@
     "passReset": "Mot de passe réinitialisé. Vous pouvez vous connecter.",
     "passMismatch": "Les mots de passe ne correspondent pas.",
     "genericError": "Une erreur s'est produite",
+    "networkError": "Connexion trop lente ou interrompue. Vérifiez votre réseau et réessayez.",
     "secretaryTitle": "Connexion secrétaire",
     "secretarySub": "Entrez le code d'invitation fourni par le médecin.",
     "secretaryCodeLabel": "Code d'invitation",

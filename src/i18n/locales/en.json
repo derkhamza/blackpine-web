@@ -260,6 +260,7 @@
     "passReset": "Password reset successfully. You can now sign in.",
     "passMismatch": "Passwords do not match.",
     "genericError": "An error occurred",
+    "networkError": "Connection too slow or interrupted. Check your network and try again.",
     "secretaryTitle": "Secretary login",
     "secretarySub": "Enter the invitation code provided by the doctor.",
     "secretaryCodeLabel": "Invitation code",

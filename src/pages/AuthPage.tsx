@@ -203,7 +203,13 @@ export function AuthPage() {
         switchMode("login");
       }
     } catch (err: unknown) {
-      setError((err as Error).message || t("auth.genericError"));
+      // A dropped/slow request aborts on timeout ("The operation was aborted",
+      // "Failed to fetch"…) — surface an actionable message instead of the raw
+      // browser text. The backend is fine; retrying usually succeeds.
+      const e = err as Error;
+      const isNet = e?.name === "AbortError"
+        || /abort|failed to fetch|networkerror|load failed|timeout/i.test(e?.message || "");
+      setError(isNet ? t("auth.networkError") : (e.message || t("auth.genericError")));
     } finally {
       setLoading(false);
     }
