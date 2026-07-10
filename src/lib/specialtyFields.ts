@@ -751,6 +751,30 @@ export const BILAN_CATALOG: BilanGroup[] = [
     ],
   },
   {
+    // Pediatric growth work-up — feeds the growth curve in Suivi & analyses.
+    key: "croissance",
+    title: "Croissance & développement",
+    fields: [
+      { key: "bl_cr_taille",   label: "Taille",                  type: "number", unit: "cm",  placeholder: "120" },
+      { key: "bl_cr_poids",    label: "Poids",                   type: "number", unit: "kg",  placeholder: "23" },
+      { key: "bl_cr_imc",      label: "IMC",                     type: "number", unit: "kg/m²", placeholder: "16" },
+      { key: "bl_cr_pc",       label: "Périmètre crânien",       type: "number", unit: "cm",  placeholder: "50" },
+      { key: "bl_cr_vitesse",  label: "Vitesse de croissance",   type: "number", unit: "cm/an", placeholder: "6" },
+      { key: "bl_cr_age_osseux", label: "Âge osseux",            type: "text",   placeholder: "Ex. 8 ans (Greulich & Pyle)" },
+      { key: "bl_cr_tanner",   label: "Stade de Tanner",         type: "select", options: ["I", "II", "III", "IV", "V"] },
+    ],
+  },
+  {
+    // Parental heights → target (mid-parental) height, for the growth curve.
+    key: "croissance_parents",
+    title: "Taille parentale (taille cible)",
+    fields: [
+      { key: "bl_crp_pere",  label: "Taille du père",   type: "number", unit: "cm", placeholder: "175" },
+      { key: "bl_crp_mere",  label: "Taille de la mère", type: "number", unit: "cm", placeholder: "162" },
+      { key: "bl_crp_cible", label: "Taille cible",     type: "number", unit: "cm", placeholder: "Calculée : (père + mère ± 13) / 2" },
+    ],
+  },
+  {
     key: "specialise",
     title: "Bilan spécialisé",
     fields: [
@@ -827,7 +851,7 @@ export const SPECIALTY_BILANS: Record<string, string[]> = {
   rhumatologie:        ["biologique", "radiologique", "inflammatoire", "hemogramme", "auto_immun", "phosphocalcique"],
   gynecologie:         ["biologique", "radiologique", "hemogramme", "martial", "gonadotrope", "grossesse", "tumoraux"],
   gynecologie_med:     ["biologique", "radiologique", "hemogramme", "martial", "gonadotrope", "grossesse"],
-  pediatrie:           ["biologique", "radiologique", "hemogramme", "capillaire_urinaire", "allergologique", "serologique"],
+  pediatrie:           ["croissance", "croissance_parents", "biologique", "radiologique", "hemogramme", "capillaire_urinaire", "allergologique", "serologique"],
   neurologie:          ["biologique", "radiologique", "auto_immun"],
   dermatologie:        ["biologique", "radiologique", "allergologique", "serologique", "auto_immun"],
   orl:                 ["biologique", "radiologique", "allergologique"],
