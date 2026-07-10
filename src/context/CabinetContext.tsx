@@ -717,7 +717,11 @@ export function CabinetProvider({
   // local edits (dirtyRef) so a pull can never clobber work in progress.
   useEffect(() => {
     if (!userId && !secretarySession) return;
-    const STEPS = [30000, 45000, 60000, 90000];
+    // Floor is 12 s so a co-editing doctor/secretary sees each other's changes
+    // within ~12 s; conditional 304s keep an unchanged poll cheap on bytes. Backs
+    // off to 90 s once the tab has been idle (no changes) for a while. Any change
+    // or a refocus resets to the 12 s floor (see pollMissRef handling).
+    const STEPS = [12000, 20000, 45000, 90000];
     let timer: ReturnType<typeof setTimeout>;
     const schedule = () => {
       const delay = STEPS[Math.min(pollMissRef.current, STEPS.length - 1)];
@@ -745,6 +749,9 @@ export function CabinetProvider({
     dirtyRef.current = true;
     editSeqRef.current++;
     if (pushTimer.current) clearTimeout(pushTimer.current);
+    // 1.2 s debounce (was 3 s): pushes a change up quickly so the other side
+    // (polling at the 12 s floor) reflects it soon, while still coalescing a
+    // burst of keystrokes into one push.
     pushTimer.current = setTimeout(() => {
       setSyncState("syncing");
       const seqAtPush = editSeqRef.current;
@@ -831,7 +838,7 @@ export function CabinetProvider({
             setSyncState("error"); // keep dirty; will retry on next change
           }
         });
-    }, 3000);
+    }, 1200);
     return () => { if (pushTimer.current) clearTimeout(pushTimer.current); };
   }, [ // eslint-disable-line react-hooks/exhaustive-deps
     userId, secretarySession,

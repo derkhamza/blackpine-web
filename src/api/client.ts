@@ -60,10 +60,16 @@ export function getSecretaryOwner(): SecretaryOwner | null {
   return raw ? (JSON.parse(raw) as SecretaryOwner) : null;
 }
 function setSecretarySession(token: string, owner: SecretaryOwner) {
+  // Drop any ETag/docsVersion left over from a previous session — otherwise the
+  // first pull can send a stale If-None-Match, get a spurious 304, and never
+  // apply the snapshot, leaving the desk showing an empty/old cabinet until the
+  // server changes and busts the tag ("appointments come back after a few syncs").
+  resetConditionalCaches();
   localStorage.setItem(SEC_TOKEN_KEY, token);
   localStorage.setItem(SEC_OWNER_KEY, JSON.stringify(owner));
 }
 export function clearSecretarySession() {
+  resetConditionalCaches();
   localStorage.removeItem(SEC_TOKEN_KEY);
   localStorage.removeItem(SEC_OWNER_KEY);
 }
