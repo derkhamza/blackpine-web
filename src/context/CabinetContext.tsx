@@ -656,7 +656,18 @@ export function CabinetProvider({
       // edit up, and the next idle pull brings server changes down. (Boot always
       // applies — it's the initial hydration and sets baseUpdatedAt.)
       // NOT_MODIFIED = the server's 304, i.e. unchanged — keep local state as-is.
-      if (snapshot && snapshot !== NOT_MODIFIED && (boot || !dirtyRef.current)) applySnapshot(snapshot);
+      if (snapshot && snapshot !== NOT_MODIFIED && (boot || !dirtyRef.current)) {
+        // Monotonic guard: never apply a snapshot OLDER than the base we already
+        // hold. A stale/out-of-order read (e.g. a lagged DB replica) would drag
+        // baseUpdatedAt backwards, and then every optimistic push conflicts
+        // forever — the "sync failing all the time" loop — besides reverting
+        // data. Boot (base null) always applies to hydrate.
+        const incoming = (snapshot as CabinetSnapshot).updatedAt;
+        const base = baseUpdatedAt.current;
+        if (boot || !base || !incoming || incoming >= base) {
+          applySnapshot(snapshot);
+        }
+      }
       hydrated.current = true;
       setSyncState("synced");
       setLastSynced(new Date().toISOString());
