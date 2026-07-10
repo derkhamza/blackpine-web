@@ -213,9 +213,10 @@ function layoutDayAppts(appts: Appointment[]): Map<string, { col: number; cols: 
   return result;
 }
 const DAY_HEADERS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
-// Only these three types are offered for new appointments; legacy types
-// (suivi, procédure, urgence) remain displayable on existing records.
-const TYPE_OPTS: AppointmentType[] = ["consultation", "controle", "autre"];
+// Full set of appointment types offered when creating/editing, so appointments
+// are differentiated by colour in the agenda (urgence = red, suivi, procédure…).
+// The doctor can hide the ones they don't use in Settings → Consultation types.
+const TYPE_OPTS: AppointmentType[] = ["consultation", "controle", "suivi", "procedure", "urgence", "autre"];
 const STATUS_OPTS: AppointmentStatus[] = ["scheduled", "arrived", "in_consultation", "completed", "cancelled", "no_show"];
 
 // ── WhatsApp helpers ───────────────────────────────────────────────────────────

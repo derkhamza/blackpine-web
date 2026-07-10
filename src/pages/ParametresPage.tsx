@@ -628,7 +628,7 @@ function SmsRemindersSection({
 
 // ── Consultation types manager ────────────────────────────────────────────────
 
-const ALL_TYPES: AppointmentType[] = ["consultation", "controle", "autre"];
+const ALL_TYPES: AppointmentType[] = ["consultation", "controle", "suivi", "procedure", "urgence", "autre"];
 
 // ── Subscription & pricing ──────────────────────────────────────────────────────
 // Always-available view of the plan status and prices, so the doctor is never
