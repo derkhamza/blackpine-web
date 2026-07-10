@@ -641,7 +641,10 @@ export function CabinetProvider({
         return snap !== NOT_MODIFIED;
       } catch (err) {
         if (!boot && (err as Error).message === "SECRETARY_REVOKED") onSecretaryRevoked?.();
-        setSyncState("error");
+        // A failed IDLE poll with nothing pending isn't a real sync failure —
+        // nothing is at risk — so don't alarm the user. Only flag "error" when
+        // there are unsynced edits (or on boot, where data genuinely didn't load).
+        setSyncState(boot || dirtyRef.current ? "error" : "synced");
         return false;
       }
     }
@@ -675,7 +678,9 @@ export function CabinetProvider({
     } catch {
       // Leave hydrated=false on the first failure so we never push (and risk
       // clobbering the server) until a successful pull. Local data is saved.
-      setSyncState("error");
+      // Only surface "sync failed" when there's something at risk (unsynced
+      // edits) or on boot; a transient idle-poll failure shouldn't alarm.
+      setSyncState(boot || dirtyRef.current ? "error" : "synced");
       return false;
     }
   }, [userId, secretarySession, applySnapshot, onSecretaryRevoked]);

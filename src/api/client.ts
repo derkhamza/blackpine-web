@@ -24,9 +24,11 @@ export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
 }
 function setToken(t: string) {
+  resetConditionalCaches(); // fresh account → drop the previous account's ETags
   localStorage.setItem(TOKEN_KEY, t);
 }
 function clearToken() {
+  resetConditionalCaches();
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
 }
@@ -334,6 +336,15 @@ const pullEtags: Record<string, string> = {};
 // server can omit the heavy base64 blobs when they haven't changed — even when
 // other data has (the residual attachment re-transfer during a consultation).
 const docsVersions: Record<string, string> = {};
+
+// Drop all per-account conditional state. Called whenever the token changes
+// (login/logout) so one account can never send another's If-None-Match /
+// docsVersion — which could otherwise yield a 304 and hide the new account's
+// data behind a stale one. (Hoisted; runs at call time when these exist.)
+export function resetConditionalCaches(): void {
+  for (const k of Object.keys(pullEtags))    delete pullEtags[k];
+  for (const k of Object.keys(docsVersions)) delete docsVersions[k];
+}
 
 export async function pullCabinet(): Promise<CabinetSnapshot | null | typeof NOT_MODIFIED> {
   const prev = pullEtags["/cabinet/my"];
