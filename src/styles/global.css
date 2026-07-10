@@ -2393,6 +2393,22 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 }
 .bill-line-remove:hover:not(:disabled) { color: var(--coral); border-color: var(--coral); }
 .bill-line-remove:disabled { opacity: .35; cursor: not-allowed; }
+
+/* Per-act discount row (under each editable bill line) */
+.bill-line-editable { display: flex; flex-direction: column; gap: 5px; padding: 6px 0; }
+.bill-line-editable + .bill-line-editable { border-top: 1px solid var(--border); }
+.bill-line-main { display: flex; gap: 6px; align-items: center; }
+.bill-line-remise-row { display: flex; gap: 6px; align-items: center; padding-left: 2px; }
+.bill-line-remise-lbl { font-size: 11px; color: var(--muted); flex: 0 0 auto; }
+.bill-line-remise-input { width: 72px; flex: 0 0 auto; text-align: right; padding: 4px 8px; font-size: 12px; }
+.bill-line-remise-toggle {
+  flex: 0 0 auto; min-width: 44px; height: 28px; border-radius: 7px;
+  border: 1px solid var(--border); background: var(--surface-alt);
+  color: var(--text); font-size: 11px; font-weight: 700; cursor: pointer;
+}
+.bill-line-remise-toggle:hover { border-color: var(--blue); color: var(--blue); }
+.bill-line-remise-net { font-size: 11px; color: var(--green); font-weight: 600; margin-left: auto; }
+.bill-line-ro-remise { flex: 0 0 auto; font-size: 11.5px; color: var(--green); font-weight: 600; }
 .bill-add-row { display: flex; gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
 .bill-act-select { flex: 1 1 auto; min-width: 160px; }
 .bill-add-custom { flex: 0 0 auto; font-size: 12.5px; padding: 6px 10px; }
@@ -7681,6 +7697,9 @@ a.ana-top-name:hover { color: var(--blue); text-decoration: underline; }
   display: flex; flex-wrap: wrap; gap: 8px;
   margin: 10px 0 6px;
 }
+/* Notes summary: one labelled block per bilan/exam type. */
+.bilan-summary-groups { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+.bilan-summary-group .bilan-summary { margin: 4px 0 0; }
 .bilan-summary-item {
   display: inline-flex; align-items: baseline; gap: 6px;
   padding: 5px 11px; border-radius: 999px;

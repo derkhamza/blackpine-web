@@ -13,6 +13,7 @@ import {
   WA_TEMPLATE_CATEGORY_LABELS, WA_TEMPLATE_CATEGORY_COLORS,
 } from "../lib/cabinetTypes";
 import { todayIso, calcAge } from "../lib/format";
+import { billSubtotal as calcSubtotal, billNet, lineDiscount, lineNet } from "../lib/billing";
 import { fullName as fmtFullName } from "../lib/nameFormat";
 import {
   WA_MSG_LANGS, WA_MSG_LOCALE, BUILTIN_WA_MESSAGES, type WaMsgLang,
@@ -1494,16 +1495,16 @@ export function AgendaPage() {
   // nothing was prepared.
   const preparedSubtotal = (appt: Appointment): number | null => {
     if (!appt.preparedItems || appt.preparedItems.length === 0) return null;
-    return appt.preparedItems.reduce((s, l) => s + l.qty * l.unitPrice, 0);
+    return calcSubtotal(appt.preparedItems);
   };
-  // Net total of the prepared bill (acts − remise). The remise is the one the
-  // secretary is currently keying in the modal (defaults to the doctor's), so a
-  // discount is deducted from the total instead of lingering as a balance due.
+  // Net total of the prepared bill (acts − per-act remises − global remise). The
+  // global remise is the one the secretary is currently keying in the modal
+  // (defaults to the doctor's), deducted from the total rather than left as a
+  // balance due.
   const preparedNetLive = (appt: Appointment): number | null => {
-    const subtotal = preparedSubtotal(appt);
-    if (subtotal == null) return null;
+    if (!appt.preparedItems || appt.preparedItems.length === 0) return null;
     const remiseN = Math.max(0, parseFloat(billRemise.replace(",", ".")) || 0);
-    return Math.max(0, subtotal - remiseN);
+    return billNet(appt.preparedItems, remiseN);
   };
 
   // Single bill handler — 0 MAD is allowed (free consultation): the visit is
@@ -1511,9 +1512,13 @@ export function AgendaPage() {
   // is issued (invoice number + print) so the secretary hands it to the patient.
   const handleBill = (emit = false) => {
     if (!billModal) return;
+    const appt = billModal.appt;
+    // Guard against double-billing the same visit (re-adds a RECETTE + resets
+    // the payment record). An already-billed appointment is collected via the
+    // payment flow, not re-billed here.
+    if (appt.billedAt) { setBillModal(null); return; }
     const raw = parseFloat(billAmt);
     if (isNaN(raw) || raw < 0) return;
-    const appt = billModal.appt;
     const net = preparedNetLive(appt);
     const remiseN = Math.max(0, parseFloat(billRemise.replace(",", ".")) || 0);
     // With a doctor-prepared bill the entered amount is what was COLLECTED,
@@ -2176,10 +2181,17 @@ export function AgendaPage() {
                   <div className="bill-prepared-title">{t("agenda.billPreparedTitle")}</div>
                   {billModal.appt.preparedItems!.map((l, i) => (
                     <div className="bill-prepared-row" key={i}>
-                      <span className="bill-prepared-label">{l.label}</span>
+                      <span className="bill-prepared-label">
+                        {l.label}
+                        {lineDiscount(l) > 0 && (
+                          <span className="bill-prepared-linedisc">
+                            {" "}(− {l.remiseType === "pct" ? `${l.remise}%` : `${(l.remise ?? 0).toLocaleString("fr-MA")} MAD`})
+                          </span>
+                        )}
+                      </span>
                       <span className="bill-prepared-qty">{l.qty > 1 ? `${l.qty} × ` : ""}</span>
                       <span className="bill-prepared-price">
-                        {(l.qty * l.unitPrice).toLocaleString("fr-MA")} MAD
+                        {lineNet(l).toLocaleString("fr-MA")} MAD
                       </span>
                     </div>
                   ))}

@@ -12,7 +12,7 @@ import type {
   Appointment, AppointmentStatus, AppointmentType, Patient, CustomMeasure,
   ConsultationNote, VitalSigns, OrdonnanceLine, SavedCertificate, BillingLine, PaymentMethod,
 } from "../lib/cabinetTypes";
-import { paymentSummary } from "../lib/billing";
+import { paymentSummary, billSubtotal as calcSubtotal, billLineDiscounts, billNet, lineDiscount, lineNet } from "../lib/billing";
 import {
   APPT_TYPE_LABELS, APPT_TYPE_COLORS, APPT_STATUS_LABELS, DEFAULT_SECRETARY_PERMISSIONS,
 } from "../lib/cabinetTypes";
@@ -879,9 +879,10 @@ export function AppointmentDetailPage() {
   };
 
   // ── Itemized billing ──────────────────────────────────────────────────────
-  const billSubtotal  = billItems.reduce((s, l) => s + (l.qty || 0) * (l.unitPrice || 0), 0);
+  const billSubtotal   = calcSubtotal(billItems);              // gross (before discounts)
+  const billLineDisc   = billLineDiscounts(billItems);         // sum of per-act discounts
   const billReductionN = Math.max(0, parseFloat(billReduction.replace(",", ".")) || 0);
-  const billTotal     = Math.max(0, billSubtotal - billReductionN);
+  const billTotal      = billNet(billItems, billReductionN);   // net: lines − discounts − global
   const billCollectedN = Math.min(billTotal, Math.max(0, parseFloat(billCollected.replace(",", ".")) || 0));
   const billRemaining  = Math.max(0, billTotal - billCollectedN);
   const pay = paymentSummary(appt);
@@ -891,12 +892,12 @@ export function AppointmentDetailPage() {
     if (appt.billedItems && appt.billedItems.length) {
       setBillItems(appt.billedItems.map(l => ({ ...l })));
       setBillReduction(appt.billedReduction ? String(appt.billedReduction) : "");
-      total = appt.billedItems.reduce((s, l) => s + l.qty * l.unitPrice, 0) - (appt.billedReduction ?? 0);
+      total = billNet(appt.billedItems, appt.billedReduction ?? 0);
     } else if (appt.preparedItems && appt.preparedItems.length) {
       // The doctor already composed the bill — the secretary only collects.
       setBillItems(appt.preparedItems.map(l => ({ ...l })));
       setBillReduction(appt.preparedReduction ? String(appt.preparedReduction) : "");
-      total = appt.preparedItems.reduce((s, l) => s + l.qty * l.unitPrice, 0) - (appt.preparedReduction ?? 0);
+      total = billNet(appt.preparedItems, appt.preparedReduction ?? 0);
     } else {
       const base = doctorProfile.appointmentPrices?.[appt.type] ?? appt.billedAmount ?? 200;
       setBillItems([{ label: APPT_TYPE_LABELS[appt.type], qty: 1, unitPrice: Number(base) || 0 }]);
@@ -911,10 +912,19 @@ export function AppointmentDetailPage() {
 
   // Doctor saves the composed bill WITHOUT collecting — the secretary handles
   // encaissement (payment / partial / deferred) at the front desk.
+  // Normalize a bill line for persistence, preserving the optional per-act remise.
+  const cleanLine = (l: BillingLine): BillingLine => {
+    const out: BillingLine = {
+      label: l.label.trim(),
+      qty: Math.max(1, Math.round(l.qty) || 1),
+      unitPrice: Number(l.unitPrice) || 0,
+    };
+    if (l.remise && l.remise > 0) { out.remise = l.remise; out.remiseType = l.remiseType ?? "mad"; }
+    return out;
+  };
+
   const handlePrepareBill = () => {
-    const items = billItems
-      .map(l => ({ label: l.label.trim(), qty: Math.max(1, Math.round(l.qty) || 1), unitPrice: Number(l.unitPrice) || 0 }))
-      .filter(l => l.label.length > 0);
+    const items = billItems.map(cleanLine).filter(l => l.label.length > 0);
     if (items.length === 0) return;
     updateAppointment({
       ...appt,
@@ -931,13 +941,14 @@ export function AppointmentDetailPage() {
   const removeBillLine = (i: number) => setBillItems(prev => prev.filter((_, idx) => idx !== i));
 
   const handleBill = () => {
-    const items = billItems
-      .map(l => ({ label: l.label.trim(), qty: Math.max(1, Math.round(l.qty) || 1), unitPrice: Number(l.unitPrice) || 0 }))
-      .filter(l => l.label.length > 0);
+    // Guard against double-billing: an already-billed appointment must go through
+    // "Encaisser" (instalments) or be removed first — re-running the full bill
+    // would add a second RECETTE to the ledger and reset the payment history.
+    if (appt.billedAt) { setShowBill(false); return; }
+    const items = billItems.map(cleanLine).filter(l => l.label.length > 0);
     if (items.length === 0) return;
-    const subtotal = items.reduce((s, l) => s + l.qty * l.unitPrice, 0);
     // 0 MAD is a valid bill (free consultation): stamped billed, no ledger entry.
-    const total    = Math.max(0, subtotal - billReductionN);
+    const total = billNet(items, billReductionN);
     // The patient may pay all, part, or none of it now — the rest is deferred.
     const collected = Math.min(total, Math.max(0, parseFloat(billCollected.replace(",", ".")) || 0));
     const now = new Date().toISOString();
@@ -1035,6 +1046,19 @@ export function AppointmentDetailPage() {
     g.fields.map(f => ({ field: f, groupTitle: g.title })),
   );
   const filledBilan = bilanFieldList.filter(x => (extraFields[x.field.key] ?? "").trim() !== "");
+
+  // Group the filled measures by their actual bilan/exam type, so the Notes
+  // summary labels each block (e.g. "Bilan rénal", "Bilan thyroïdien") instead
+  // of lumping everything under one "biologique & radiologique" heading.
+  const groupedBilan = (() => {
+    const map = new Map<string, typeof filledBilan>();
+    for (const item of filledBilan) {
+      const arr = map.get(item.groupTitle) ?? [];
+      arr.push(item);
+      map.set(item.groupTitle, arr);
+    }
+    return Array.from(map, ([title, items]) => ({ title, items }));
+  })();
 
   // Read-only summaries shown in the Notes flow (entry lives in Mesures & bilan).
   const vitalsChips: { label: string; value: string }[] = (() => {
@@ -1450,10 +1474,10 @@ export function AppointmentDetailPage() {
             </div>
           </div>
 
-          {/* 5 · Bilans biologique & radiologique (displayed — entered in Mesures & bilan) */}
+          {/* 5 · Mesures & bilans (displayed — entered in Mesures & bilan), grouped by type */}
           <div className="appt-note-block">
             <div className="appt-note-label-row">
-              <label className="form-label" style={{ margin: 0 }}>{t("apptDetail.bilansBioRadio")}</label>
+              <label className="form-label" style={{ margin: 0 }}>{t("apptDetail.notesMeasuresTitle")}</label>
               {!readOnly && (
                 <button type="button" className="bilan-edit-toggle" style={{ marginLeft: "auto" }} onClick={() => setTab("vitals")}>
                   {t("apptDetail.openMeasuresTab")}
@@ -1461,19 +1485,33 @@ export function AppointmentDetailPage() {
               )}
             </div>
             {(filledBilan.length > 0 || customFilled.length > 0) ? (
-              <div className="bilan-summary">
-                {filledBilan.map(({ field }) => (
-                  <div key={field.key} className="bilan-summary-item">
-                    <span className="bilan-summary-label">{field.label}</span>
-                    <span className="bilan-summary-value">{extraFields[field.key]}{field.unit ? ` ${field.unit}` : ""}</span>
+              <div className="bilan-summary-groups">
+                {groupedBilan.map(({ title, items }) => (
+                  <div key={title} className="bilan-summary-group">
+                    <div className="specialty-group-title" style={{ margin: "0 0 4px" }}>{title}</div>
+                    <div className="bilan-summary">
+                      {items.map(({ field }) => (
+                        <div key={field.key} className="bilan-summary-item">
+                          <span className="bilan-summary-label">{field.label}</span>
+                          <span className="bilan-summary-value">{extraFields[field.key]}{field.unit ? ` ${field.unit}` : ""}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 ))}
-                {customFilled.map((m) => (
-                  <div key={m.id} className="bilan-summary-item">
-                    <span className="bilan-summary-label">{m.label}</span>
-                    <span className="bilan-summary-value">{m.value}{m.unit ? ` ${m.unit}` : ""}</span>
+                {customFilled.length > 0 && (
+                  <div className="bilan-summary-group">
+                    <div className="specialty-group-title" style={{ margin: "0 0 4px" }}>{t("apptDetail.customMeasuresTitle")}</div>
+                    <div className="bilan-summary">
+                      {customFilled.map((m) => (
+                        <div key={m.id} className="bilan-summary-item">
+                          <span className="bilan-summary-label">{m.label}</span>
+                          <span className="bilan-summary-value">{m.value}{m.unit ? ` ${m.unit}` : ""}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                ))}
+                )}
               </div>
             ) : (
               <div className="bilan-empty-hint">{t("apptDetail.noMeasuresYet")}</div>
@@ -2171,36 +2209,63 @@ export function AppointmentDetailPage() {
                     <span className="bill-line-ro-label">{l.label || "—"}</span>
                     <span className="bill-line-ro-qty">{l.qty} ×</span>
                     <span className="bill-line-ro-price">{formatMAD(l.unitPrice)}</span>
+                    {lineDiscount(l) > 0 && (
+                      <span className="bill-line-ro-remise" title={t("apptDetail.billActRemise")}>
+                        − {l.remiseType === "pct" ? `${l.remise}%` : formatMAD(l.remise || 0)} → {formatMAD(lineNet(l))}
+                      </span>
+                    )}
                   </div>
                 ) : (
-                  <div className="bill-line" key={i}>
-                    <input
-                      className="form-input bill-line-label"
-                      placeholder={t("apptDetail.billItemLabel")}
-                      value={l.label}
-                      onChange={(e) => updateBillLine(i, { label: e.target.value })}
-                    />
-                    <input
-                      className="form-input bill-line-qty"
-                      type="number" min="1" step="1"
-                      value={l.qty || ""}
-                      onChange={(e) => updateBillLine(i, { qty: Math.max(0, parseInt(e.target.value, 10) || 0) })}
-                      title={t("apptDetail.billQty")}
-                    />
-                    <input
-                      className="form-input bill-line-price"
-                      type="number" min="0" step="0.01"
-                      value={l.unitPrice || ""}
-                      onChange={(e) => updateBillLine(i, { unitPrice: parseFloat(e.target.value.replace(",", ".")) || 0 })}
-                      title={t("apptDetail.billUnitPrice")}
-                    />
-                    <button
-                      type="button"
-                      className="bill-line-remove"
-                      onClick={() => removeBillLine(i)}
-                      disabled={billItems.length <= 1}
-                      title={t("common.delete")}
-                    >×</button>
+                  <div className="bill-line bill-line-editable" key={i}>
+                    <div className="bill-line-main">
+                      <input
+                        className="form-input bill-line-label"
+                        placeholder={t("apptDetail.billItemLabel")}
+                        value={l.label}
+                        onChange={(e) => updateBillLine(i, { label: e.target.value })}
+                      />
+                      <input
+                        className="form-input bill-line-qty"
+                        type="number" min="1" step="1"
+                        value={l.qty || ""}
+                        onChange={(e) => updateBillLine(i, { qty: Math.max(0, parseInt(e.target.value, 10) || 0) })}
+                        title={t("apptDetail.billQty")}
+                      />
+                      <input
+                        className="form-input bill-line-price"
+                        type="number" min="0" step="0.01"
+                        value={l.unitPrice || ""}
+                        onChange={(e) => updateBillLine(i, { unitPrice: parseFloat(e.target.value.replace(",", ".")) || 0 })}
+                        title={t("apptDetail.billUnitPrice")}
+                      />
+                      <button
+                        type="button"
+                        className="bill-line-remove"
+                        onClick={() => removeBillLine(i)}
+                        disabled={billItems.length <= 1}
+                        title={t("common.delete")}
+                      >×</button>
+                    </div>
+                    {/* Optional per-act discount: value + %/MAD toggle. */}
+                    <div className="bill-line-remise-row">
+                      <span className="bill-line-remise-lbl">{t("apptDetail.billActRemise")}</span>
+                      <input
+                        className="form-input bill-line-remise-input"
+                        type="number" min="0" step="0.01"
+                        placeholder="0"
+                        value={l.remise || ""}
+                        onChange={(e) => updateBillLine(i, { remise: parseFloat(e.target.value.replace(",", ".")) || 0, remiseType: l.remiseType ?? "mad" })}
+                      />
+                      <button
+                        type="button"
+                        className="bill-line-remise-toggle"
+                        onClick={() => updateBillLine(i, { remiseType: l.remiseType === "pct" ? "mad" : "pct" })}
+                        title={t("apptDetail.billActRemiseToggle")}
+                      >{l.remiseType === "pct" ? "%" : "MAD"}</button>
+                      {lineDiscount(l) > 0 && (
+                        <span className="bill-line-remise-net">− {formatMAD(lineDiscount(l))} → {formatMAD(lineNet(l))}</span>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -2257,6 +2322,12 @@ export function AppointmentDetailPage() {
                   <span>{t("apptDetail.billSubtotal")}</span>
                   <span>{formatMAD(billSubtotal)}</span>
                 </div>
+                {billLineDisc > 0 && (
+                  <div className="bill-total-row bill-total-reduction">
+                    <span>{t("apptDetail.billActRemises")}</span>
+                    <span>− {formatMAD(billLineDisc)}</span>
+                  </div>
+                )}
                 {billReductionN > 0 && (
                   <div className="bill-total-row bill-total-reduction">
                     <span>{t("apptDetail.billReduction")}</span>

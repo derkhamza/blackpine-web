@@ -65,6 +65,10 @@ export interface BillingLine {
   label:     string;   // "Consultation", "Petite chirurgie"…
   qty:       number;   // usually 1
   unitPrice: number;   // MAD per unit
+  // Optional per-act discount decided by the doctor: a percentage of the line
+  // ("pct") or a fixed MAD amount ("mad"). Applied before the global reduction.
+  remise?:     number;
+  remiseType?: "pct" | "mad";
 }
 
 export type PaymentMethod = "cash" | "card" | "cheque" | "transfer";

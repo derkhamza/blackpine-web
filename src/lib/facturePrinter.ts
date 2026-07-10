@@ -1,5 +1,6 @@
 import type { CabinetDoctorProfile, BillingLine } from "./cabinetTypes";
 import { DEFAULT_DOCUMENT_SETTINGS } from "./cabinetTypes";
+import { billSubtotal as calcSubtotal, billLineDiscounts, billNet } from "./billing";
 import { amountInWords } from "./receiptPrinter";
 import { printHtmlDocument } from "./printDoc";
 import {
@@ -62,24 +63,34 @@ export function printFacture(opts: FactureOptions): void {
   const lines: BillingLine[] = (opts.items && opts.items.length)
     ? opts.items
     : [{ label: serviceLabel, qty: 1, unitPrice: amount }];
-  const subtotal  = lines.reduce((s, l) => s + l.qty * l.unitPrice, 0);
+  const subtotal  = calcSubtotal(lines);                               // gross (before discounts)
+  const lineDisc  = billLineDiscounts(lines);                          // sum of per-act discounts
   const reduction = opts.reduction && opts.reduction > 0 ? opts.reduction : 0;
-  const net       = opts.items && opts.items.length ? Math.max(0, subtotal - reduction) : amount;
+  const net       = opts.items && opts.items.length ? billNet(lines, reduction) : amount;
+
+  const remiseLabel = (l: BillingLine): string =>
+    l.remiseType === "pct" ? `remise ${l.remise}%` : `remise ${fmtMAD(l.remise || 0)}`;
 
   const itemRows = lines.map((l, i) => `
       <tr>
         <td>${i + 1}</td>
-        <td>${esc(l.label)}</td>
+        <td>${esc(l.label)}${(l.remise && l.remise > 0) ? ` <span style="color:#777;font-size:8.5pt;">(${remiseLabel(l)})</span>` : ""}</td>
         <td>${fmtDateLong(serviceDate)}</td>
         <td class="r">${l.qty}</td>
         <td class="r">${fmtMAD(l.unitPrice)}</td>
         <td class="r">${fmtMAD(l.qty * l.unitPrice)}</td>
       </tr>`).join("");
 
+  const lineDiscRow = lineDisc > 0 ? `
+      <tr>
+        <td colspan="4"></td>
+        <td class="lbl">Remises sur actes</td>
+        <td class="val">− ${fmtMAD(lineDisc)}</td>
+      </tr>` : "";
   const reductionRow = reduction > 0 ? `
       <tr>
         <td colspan="4"></td>
-        <td class="lbl">Remise</td>
+        <td class="lbl">Remise globale</td>
         <td class="val">− ${fmtMAD(reduction)}</td>
       </tr>` : "";
 
@@ -241,7 +252,7 @@ export function printFacture(opts: FactureOptions): void {
         <td colspan="4"></td>
         <td class="lbl">Total HT</td>
         <td class="val sep">${fmtMAD(subtotal)}</td>
-      </tr>${reductionRow}
+      </tr>${lineDiscRow}${reductionRow}
       <tr>
         <td colspan="4"></td>
         <td class="lbl">TVA</td>
