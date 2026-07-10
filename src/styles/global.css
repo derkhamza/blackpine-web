@@ -8151,6 +8151,24 @@ html { scroll-behavior: smooth; }
 }
 .trial-title { font-size: 19px; font-weight: 800; margin: 8px 0 0; color: var(--text); }
 .trial-msg { font-size: 13.5px; color: var(--muted); line-height: 1.5; margin: 0 0 8px; }
+.trial-plans { display: flex; gap: 10px; width: 100%; margin: 2px 0 4px; }
+.trial-plan {
+  position: relative; flex: 1; border: 1.5px solid var(--border); border-radius: 14px;
+  padding: 14px 10px 12px; display: flex; flex-direction: column; align-items: center; gap: 3px;
+  background: var(--surface);
+}
+.trial-plan-best { border-color: var(--green); background: color-mix(in srgb, var(--green) 7%, var(--surface)); }
+.trial-plan-badge {
+  position: absolute; top: -9px; left: 50%; transform: translateX(-50%);
+  background: var(--green); color: #fff; font-size: 10px; font-weight: 800;
+  padding: 2px 8px; border-radius: 999px; white-space: nowrap; letter-spacing: .2px;
+}
+.trial-plan-name { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; }
+.trial-plan-price { font-size: 13px; color: var(--muted); display: flex; align-items: baseline; gap: 3px; }
+.trial-plan-price b { font-size: 26px; font-weight: 800; color: var(--text); line-height: 1; }
+.trial-plan-price small { font-size: 12px; }
+.trial-plan-note { font-size: 10.5px; color: var(--green); font-weight: 600; line-height: 1.3; margin-top: 2px; }
+.trial-plans-foot { font-size: 11.5px; color: var(--muted); margin: 0 0 6px; line-height: 1.4; }
 .trial-input { width: 100%; text-align: center; letter-spacing: 1px; font-weight: 700; text-transform: uppercase; }
 .trial-err { color: var(--coral); font-size: 12.5px; font-weight: 600; margin-top: 2px; }
 .trial-submit { width: 100%; margin-top: 6px; }
@@ -8159,6 +8177,72 @@ html { scroll-behavior: smooth; }
 .trial-contact:hover { text-decoration: underline; }
 .trial-later { background: none; border: none; color: var(--muted); font-size: 12.5px; cursor: pointer; margin-top: 2px; }
 .trial-later:hover { color: var(--text); }
+
+/* ── First-time walkthrough (WelcomeTour) ─────────────────────────────────── */
+.tour-overlay {
+  position: fixed; inset: 0; z-index: 3200;
+  background: rgba(10, 30, 50, 0.6);
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+  animation: fade-in .2s ease;
+}
+.tour-card {
+  position: relative; background: var(--surface); border-radius: 20px;
+  padding: 34px 28px 24px; width: 100%; max-width: 420px;
+  box-shadow: 0 24px 70px rgba(0,0,0,0.32);
+  display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px;
+}
+.tour-skip {
+  position: absolute; top: 14px; inset-inline-end: 16px;
+  background: none; border: none; color: var(--muted); font-size: 12.5px; cursor: pointer;
+}
+.tour-skip:hover { color: var(--text); }
+.tour-emoji { font-size: 46px; line-height: 1; height: 56px; display: flex; align-items: center; justify-content: center; }
+.tour-title { font-size: 20px; font-weight: 800; margin: 2px 0 0; color: var(--text); }
+.tour-body { font-size: 14px; color: var(--muted); line-height: 1.55; margin: 0; min-height: 88px; }
+.tour-dots { display: flex; gap: 7px; margin: 4px 0 6px; }
+.tour-dot {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--border);
+  cursor: pointer; transition: background .15s, transform .15s;
+}
+.tour-dot.active { background: var(--green); transform: scale(1.25); }
+.tour-actions { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 10px; }
+.tour-back { background: none; border: none; color: var(--muted); font-size: 13.5px; font-weight: 600; cursor: pointer; }
+.tour-back:hover { color: var(--text); }
+.tour-next { min-width: 120px; }
+
+/* ── Help centre ──────────────────────────────────────────────────────────── */
+.help-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.help-action-card {
+  flex: 1; min-width: 200px; display: flex; align-items: center; gap: 12px; text-align: start;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+  padding: 14px 16px; cursor: pointer; text-decoration: none; color: inherit;
+  transition: border-color .15s, transform .1s;
+}
+.help-action-card:hover { border-color: var(--green); transform: translateY(-1px); }
+.help-action-emoji { font-size: 24px; line-height: 1; }
+.help-action-title { display: block; font-weight: 700; font-size: 14px; color: var(--text); }
+.help-action-sub { display: block; font-size: 12.5px; color: var(--muted); }
+.help-search { width: 100%; margin-bottom: 14px; }
+.help-topics { display: flex; flex-direction: column; gap: 8px; }
+.help-topic { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--surface); }
+.help-topic.open { border-color: var(--green); }
+.help-topic-q {
+  width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 14px 16px; background: none; border: none; cursor: pointer;
+  font-size: 14.5px; font-weight: 600; color: var(--text); text-align: start;
+}
+.help-topic-chev { color: var(--muted); font-size: 18px; font-weight: 400; line-height: 1; flex-shrink: 0; }
+.help-topic-a { padding: 0 16px 16px; font-size: 13.5px; color: var(--muted); line-height: 1.6; }
+.help-empty { color: var(--muted); font-size: 13.5px; padding: 12px 4px; }
+.help-pricing {
+  margin-top: 22px; border: 1px solid var(--border); border-radius: 14px;
+  padding: 16px 18px; background: var(--surface); max-width: 420px;
+}
+.help-pricing-title { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); margin-bottom: 10px; }
+.help-pricing-row { display: flex; align-items: baseline; justify-content: space-between; padding: 5px 0; font-size: 14px; color: var(--text); }
+.help-pricing-row b { font-size: 17px; font-weight: 800; }
+.help-pricing-row small { font-size: 12px; color: var(--muted); font-weight: 500; margin-inline-start: 2px; }
+.help-pricing-foot { font-size: 12px; color: var(--muted); line-height: 1.5; margin-top: 8px; }
 
 /* Accessibility — honour the OS "reduce motion" setting */
 @media (prefers-reduced-motion: reduce) {

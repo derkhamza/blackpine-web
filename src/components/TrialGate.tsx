@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useApp } from "../context/AppContext";
 import { BlackpineLogo } from "./Logo";
+import { PRICING } from "../lib/pricing";
 
 // Product owner / operators are never trial-gated (mirrors the backend + the
 // admin nav gate). Keep in sync with ADMIN_EMAILS in Layout.tsx.
@@ -70,6 +71,28 @@ export function TrialGate() {
             <BlackpineLogo size={44} radius={11} />
             <h2 className="trial-title">{expired ? t("trial.expiredTitle") : t("trial.subscribeTitle")}</h2>
             <p className="trial-msg">{expired ? t("trial.expiredMsg") : t("trial.subscribeMsg")}</p>
+
+            <div className="trial-plans">
+              <div className="trial-plan">
+                <span className="trial-plan-name">{t("trial.planMonthly")}</span>
+                <span className="trial-plan-price">
+                  <b>{PRICING.monthly.amount}</b> {PRICING.currency}
+                  <small>{t("trial.perMonth")}</small>
+                </span>
+              </div>
+              <div className="trial-plan trial-plan-best">
+                <span className="trial-plan-badge">{t("trial.bestValue")}</span>
+                <span className="trial-plan-name">{t("trial.planYearly")}</span>
+                <span className="trial-plan-price">
+                  <b>{PRICING.yearly.amount}</b> {PRICING.currency}
+                  <small>{t("trial.perYear")}</small>
+                </span>
+                <span className="trial-plan-note">
+                  {t("trial.yearlyNote", { perMonth: PRICING.yearly.perMonth, currency: PRICING.currency })}
+                </span>
+              </div>
+            </div>
+            <p className="trial-plans-foot">{t("trial.plansFoot")}</p>
 
             {done ? (
               <div className="trial-ok">✓ {t("trial.activated")}</div>

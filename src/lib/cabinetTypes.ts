@@ -159,6 +159,10 @@ export interface SecretaryPermissions {
   viewDocuments?:       boolean; // attachments, certificates
   editPatients?:        boolean; // create/edit patient records
   managePayroll?:       boolean; // salaries / bulletins
+  useCommunication?:    boolean; // WhatsApp / messaging module (/communication)
+  manageStock?:         boolean; // stock & purchase orders (/stocks)
+  useNotes?:            boolean; // internal notes & tasks (/notes)
+  useCalculators?:      boolean; // clinical calculators (/calculateurs)
 }
 
 // In Morocco a secretary commonly takes vital-sign measurements and handles
@@ -172,6 +176,10 @@ export const DEFAULT_SECRETARY_PERMISSIONS: SecretaryPermissions = {
   viewDocuments: false,
   editPatients:  true,
   managePayroll: false,
+  useCommunication: false,
+  manageStock:      false,
+  useNotes:         false,
+  useCalculators:   false,
 };
 
 export const SPECIALTIES: { id: string; label: string }[] = [

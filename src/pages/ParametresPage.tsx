@@ -642,6 +642,10 @@ function SecretaryPermissionsSection({
     { key: "viewDocuments", label: t("settings.permViewDocuments"), hint: t("settings.permViewDocumentsHint") },
     { key: "viewFinances",  label: t("settings.permViewFinances"),  hint: t("settings.permViewFinancesHint") },
     { key: "managePayroll", label: t("settings.permManagePayroll"), hint: t("settings.permManagePayrollHint") },
+    { key: "useCommunication", label: t("settings.permUseCommunication"), hint: t("settings.permUseCommunicationHint") },
+    { key: "manageStock",   label: t("settings.permManageStock"),   hint: t("settings.permManageStockHint") },
+    { key: "useNotes",      label: t("settings.permUseNotes"),      hint: t("settings.permUseNotesHint") },
+    { key: "useCalculators", label: t("settings.permUseCalculators"), hint: t("settings.permUseCalculatorsHint") },
   ];
   return (
     <div className="secretary-perms-list" style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>

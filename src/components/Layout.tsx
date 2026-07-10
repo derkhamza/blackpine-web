@@ -553,6 +553,10 @@ export function Layout({ title, subtitle, actions, children }: Props) {
   const secretaryCanSee = (to: string, group: string): boolean => {
     if (group === "Quotidien" && to !== "/") return true;
     if (to === "/documents" || to === "/examens") return !!secPerms.viewClinical;
+    if (to === "/communication") return !!secPerms.useCommunication;
+    if (to === "/calculateurs") return !!secPerms.useCalculators;
+    if (to === "/notes") return !!secPerms.useNotes;
+    if (to === "/stocks") return !!secPerms.manageStock;
     if (to === "/facturation") return !!secPerms.handleBilling;
     if (to === "/transactions" || to === "/comptabilite"
         || to === "/rapports" || to === "/analytiques") return !!secPerms.viewFinances;
@@ -639,6 +643,18 @@ export function Layout({ title, subtitle, actions, children }: Props) {
           <div className="sidebar-user">
             <div className="sidebar-avatar">{user.email[0].toUpperCase()}</div>
             <span className="sidebar-email">{user.email}</span>
+            <button
+              className="sidebar-dark-btn"
+              onClick={() => { navigate("/aide"); closeDrawer(); }}
+              title={t("nav.help")}
+              style={{ marginRight: 2 }}
+            >
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+                <path d="M7 3.5C6 2.7 4.6 2.5 3 2.7v7.6c1.6-.2 3 0 4 .8 1-.8 2.4-1 4-.8V2.7c-1.6-.2-3 0-4 .8Z"
+                  stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/>
+                <path d="M7 3.5v7.7" stroke="currentColor" strokeWidth="1.3"/>
+              </svg>
+            </button>
             <button
               className="sidebar-dark-btn"
               onClick={() => setShortcutsOpen(true)}

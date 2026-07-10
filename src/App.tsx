@@ -6,6 +6,8 @@ import { useCabinet } from "./context/CabinetContext";
 import type { SecretaryPermissions } from "./lib/cabinetTypes";
 import { DEFAULT_SECRETARY_PERMISSIONS } from "./lib/cabinetTypes";
 import { OnboardingWizard } from "./pages/OnboardingWizard";
+import { WelcomeTour, hasSeenTour } from "./components/WelcomeTour";
+import { HelpPage }              from "./pages/HelpPage";
 import { AuthPage }              from "./pages/AuthPage";
 import { BookingPage }           from "./pages/BookingPage";
 import { DeleteAccountPage }     from "./pages/DeleteAccountPage";
@@ -79,6 +81,31 @@ function OnboardingGate() {
   return <OnboardingWizard onDone={() => setDismissed(true)} />;
 }
 
+// First-time feature walkthrough. Shows once the profile is set up (so it never
+// competes with the OnboardingWizard) and only for the doctor. Re-openable from
+// the Help page via the "bp:open-tour" event.
+function TourGate() {
+  const { isAuthenticated, isSecretary } = useApp();
+  const { doctorProfile } = useCabinet();
+  const [open, setOpen] = useState(false);
+  const [forced, setForced] = useState(false);
+
+  useEffect(() => {
+    const reopen = () => { setForced(true); setOpen(true); };
+    window.addEventListener("bp:open-tour", reopen);
+    return () => window.removeEventListener("bp:open-tour", reopen);
+  }, []);
+
+  useEffect(() => {
+    if (forced) return;
+    if (isAuthenticated && !isSecretary && !!doctorProfile.fullName && !hasSeenTour()) {
+      setOpen(true);
+    }
+  }, [isAuthenticated, isSecretary, doctorProfile.fullName, forced]);
+
+  return <WelcomeTour open={open} onClose={() => { setOpen(false); setForced(false); }} />;
+}
+
 function RouteTracker() {
   const loc = useLocation();
   useEffect(() => { trackPage(loc.pathname); }, [loc.pathname]);
@@ -132,6 +159,7 @@ export function App() {
     <RouteTracker />
     <ModalDragGuard />
     <OnboardingGate />
+    <TourGate />
     <Routes>
       <Route path="/login" element={<AuthPage />} />
       {/* Public patient self-booking — no auth */}
@@ -151,7 +179,7 @@ export function App() {
         <RequireAuth perm="viewClinical"><DocumentsPage /></RequireAuth>
       } />
       <Route path="/communication" element={
-        <RequireAuth><CommunicationPage /></RequireAuth>
+        <RequireAuth perm="useCommunication"><CommunicationPage /></RequireAuth>
       } />
       <Route path="/rapports" element={
         <RequireAuth><RapportsPage /></RequireAuth>
@@ -207,10 +235,10 @@ export function App() {
       <Route path="/rappels" element={<Navigate to="/communication" replace />} />
       <Route path="/analytiques" element={<Navigate to="/rapports" replace />} />
       <Route path="/stocks" element={
-        <RequireAuth><StocksSupplyPage /></RequireAuth>
+        <RequireAuth perm="manageStock"><StocksSupplyPage /></RequireAuth>
       } />
       <Route path="/calculateurs" element={
-        <RequireAuth><CalculateursPage /></RequireAuth>
+        <RequireAuth perm="useCalculators"><CalculateursPage /></RequireAuth>
       } />
       <Route path="/messages" element={
         <RequireAuth><MessagesPage /></RequireAuth>
@@ -219,7 +247,7 @@ export function App() {
         <RequireAuth><TeleconsultPage /></RequireAuth>
       } />
       <Route path="/notes" element={
-        <RequireAuth><NotesPage /></RequireAuth>
+        <RequireAuth perm="useNotes"><NotesPage /></RequireAuth>
       } />
       <Route path="/fournisseurs" element={
         <RequireAuth><FournisseursPage /></RequireAuth>
@@ -238,6 +266,9 @@ export function App() {
       } />
       <Route path="/parametres" element={
         <RequireAuth><ParametresPage /></RequireAuth>
+      } />
+      <Route path="/aide" element={
+        <RequireAuth secretaryOk><HelpPage /></RequireAuth>
       } />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

@@ -40,7 +40,96 @@
     "contact": "Nous contacter : {{email}}",
     "mailSubject": "Abonnement Blackpine",
     "later": "Plus tard",
+    "planMonthly": "Mensuel",
+    "planYearly": "Annuel",
+    "perMonth": "/mois",
+    "perYear": "/an",
+    "bestValue": "Meilleur prix",
+    "yearlyNote": "Soit ≈ {{perMonth}} {{currency}}/mois — près de 2 mois offerts.",
+    "plansFoot": "Sans carte bancaire. Activation par virement — nous vous envoyons un code.",
     "supportEmail": "contact@blackpinecap.com"
+  },
+  "tour": {
+    "skip": "Passer",
+    "back": "Retour",
+    "next": "Suivant",
+    "start": "Commencer",
+    "welcomeTitle": "Bienvenue sur Blackpine",
+    "welcomeBody": "Votre cabinet, entièrement digitalisé : agenda, dossiers patients, consultations, facturation et comptabilité, en français, arabe et anglais. Voici un tour rapide des fonctionnalités clés.",
+    "agendaTitle": "Agenda & rendez-vous",
+    "agendaBody": "Planifiez les RDV, gérez la salle d'attente et suivez chaque patient de son arrivée à la consultation. Les patients peuvent aussi réserver en ligne via votre lien de réservation.",
+    "patientsTitle": "Dossiers patients",
+    "patientsBody": "Chaque patient a un dossier complet : coordonnées, antécédents, allergies, mesures, documents et l'historique de toutes ses consultations, ordonnances et examens.",
+    "consultTitle": "Consultation clinique",
+    "consultBody": "Un seul écran pour tout : notes structurées, signes vitaux, bilans biologiques et radiologiques, ordonnances, certificats et suivi. Des modèles accélèrent la saisie.",
+    "billingTitle": "Facturation & paiements",
+    "billingBody": "Facturez la consultation et les actes, appliquez des remises, encaissez en plusieurs fois et générez factures et reçus. Tout alimente automatiquement la comptabilité.",
+    "secretaryTitle": "Accès secrétaire",
+    "secretaryBody": "Déléguez l'accueil à votre secrétaire tout en gardant le contrôle : vous décidez précisément à quoi elle accède (facturation, mesures, stock…) dans les Paramètres.",
+    "helpTitle": "Aide à tout moment",
+    "helpBody": "Une question ? Ouvrez l'Aide depuis le menu (icône livre en bas) pour revoir ce guide, consulter les rubriques d'aide ou nous contacter. Bon travail !"
+  },
+  "help": {
+    "title": "Centre d'aide",
+    "subtitle": "Guides, réponses et contact",
+    "replayTour": "Revoir le guide de démarrage",
+    "replayTourSub": "Le tour complet des fonctionnalités",
+    "contact": "Nous contacter",
+    "mailSubject": "Aide Blackpine",
+    "searchPlaceholder": "Rechercher dans l'aide…",
+    "noResults": "Aucune rubrique ne correspond à votre recherche.",
+    "pricingTitle": "Abonnement & tarifs",
+    "pricingFoot": "Essai gratuit de {{days}} jours, sans carte bancaire. L'activation se fait par code après virement.",
+    "topics": {
+      "gettingStarted": {
+        "q": "Premiers pas",
+        "a": "Commencez par compléter votre profil (Profil) : nom, spécialité, INPE, ICE et coordonnées apparaissent sur vos documents. Créez ensuite votre premier patient, puis planifiez un rendez-vous depuis l'Agenda. Le tableau de bord résume votre activité du jour."
+      },
+      "agenda": {
+        "q": "Agenda & rendez-vous",
+        "a": "Créez un RDV en cliquant sur un créneau. Choisissez le type (consultation, contrôle, suivi…), le patient et l'heure. Les RDV récurrents et multi-cabinets sont pris en charge. Depuis un RDV, marquez le patient « arrivé » pour l'envoyer en salle d'attente, puis « en consultation »."
+      },
+      "waitingRoom": {
+        "q": "Salle d'attente",
+        "a": "La salle d'attente affiche en temps réel les patients arrivés, leur temps d'attente et leur statut. Appelez le patient suivant en un clic — le RDV passe automatiquement en consultation."
+      },
+      "patients": {
+        "q": "Dossiers patients",
+        "a": "Chaque fiche regroupe l'identité, les coordonnées, la mutuelle (CNOPS/AMO…), les antécédents, allergies et traitements. L'onglet historique liste toutes les consultations, ordonnances, examens et documents. Vous pouvez aussi ajouter des événements à la frise chronologique."
+      },
+      "consultation": {
+        "q": "Consultation",
+        "a": "L'écran de consultation réunit les notes cliniques (motif, examen, diagnostic, traitement), les signes vitaux, les bilans, les ordonnances, les certificats et la date de suivi. Utilisez les modèles de notes pour gagner du temps et joignez radios ou résultats directement au RDV."
+      },
+      "bilans": {
+        "q": "Bilans & mesures",
+        "a": "Ajoutez un bilan (biologique, rénal, thyroïdien, croissance, hormonal…) à une consultation pour saisir les mesures correspondantes. Certains calculs sont automatiques (ex. DFG / CKD-EPI dans le bilan rénal). Vous pouvez aussi créer des mesures personnalisées."
+      },
+      "documents": {
+        "q": "Ordonnances & documents",
+        "a": "Générez ordonnances, certificats, demandes d'examens et factures, imprimables ou partageables. Le concepteur de document (Paramètres) permet d'ajuster la mise en page à votre papier à en-tête : marges, logo, position des blocs."
+      },
+      "billing": {
+        "q": "Facturation & comptabilité",
+        "a": "À la fin d'une consultation, facturez la base et les actes réalisés, avec une remise éventuelle par acte ou globale. Le patient peut payer en totalité, en partie ou différer. Chaque encaissement alimente la comptabilité, les rapports et le rappel des impayés."
+      },
+      "secretary": {
+        "q": "Accès de la secrétaire",
+        "a": "Deux options : le « mode secrétaire » local (depuis votre propre session, protégé par un code PIN) ou un compte secrétaire séparé. Dans Paramètres, cochez précisément ce à quoi la secrétaire accède : mesures, facturation, patients, clinique, communication, stock, notes, calculateurs, comptabilité, salaires. Les données cliniques restent protégées tant que vous ne les activez pas."
+      },
+      "sync": {
+        "q": "Synchronisation & hors-ligne",
+        "a": "Vos données sont enregistrées localement puis synchronisées automatiquement avec le serveur. Vous pouvez travailler hors-ligne : les modifications se synchronisent au retour du réseau. La pastille de synchronisation en bas du menu indique l'état."
+      },
+      "languages": {
+        "q": "Langues (FR / AR / EN)",
+        "a": "L'application est disponible en français, arabe et anglais. Changez de langue via le sélecteur en bas du menu. L'arabe s'affiche de droite à gauche. Vous pouvez saisir le nom arabe d'un patient pour les messages WhatsApp."
+      },
+      "subscription": {
+        "q": "Essai & abonnement",
+        "a": "Vous démarrez avec un essai gratuit de 30 jours, sans carte bancaire. Pour continuer, l'activation se fait par un code que nous vous envoyons après un virement — aucun prélèvement automatique. Voir les tarifs ci-dessous ou nous contacter."
+      }
+    }
   },
   "ctx": {
     "openConsult": "Ouvrir la consultation",
@@ -146,6 +235,7 @@
     "payroll": "Salaires",
     "profile": "Profil",
     "settings": "Paramètres",
+    "help": "Aide",
     "admin": "Supervision"
   },
   "navGroup": {
@@ -942,6 +1032,14 @@
     "permViewFinancesHint": "Voir les transactions, rapports et la comptabilité.",
     "permManagePayroll": "Salaires",
     "permManagePayrollHint": "Gérer les salaires et bulletins de paie.",
+    "permUseCommunication": "Communication (WhatsApp)",
+    "permUseCommunicationHint": "Envoyer des messages et rappels aux patients.",
+    "permManageStock": "Stock & commandes",
+    "permManageStockHint": "Gérer l'inventaire, les fournisseurs et les commandes.",
+    "permUseNotes": "Notes & tâches internes",
+    "permUseNotesHint": "Voir et gérer les notes et tâches du cabinet.",
+    "permUseCalculators": "Calculateurs cliniques",
+    "permUseCalculatorsHint": "Accéder aux calculateurs médicaux.",
     "secretaryPin": "Code secrétaire",
     "secretaryPinHint": "Un code à 4 chiffres protège le retour en mode médecin",
     "modifyPin": "Modifier le code",

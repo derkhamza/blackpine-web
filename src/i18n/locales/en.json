@@ -40,7 +40,96 @@
     "contact": "Contact us: {{email}}",
     "mailSubject": "Blackpine subscription",
     "later": "Later",
+    "planMonthly": "Monthly",
+    "planYearly": "Yearly",
+    "perMonth": "/month",
+    "perYear": "/year",
+    "bestValue": "Best value",
+    "yearlyNote": "≈ {{perMonth}} {{currency}}/month — about 2 months free.",
+    "plansFoot": "No card required. Activate by bank transfer — we send you a code.",
     "supportEmail": "contact@blackpinecap.com"
+  },
+  "tour": {
+    "skip": "Skip",
+    "back": "Back",
+    "next": "Next",
+    "start": "Get started",
+    "welcomeTitle": "Welcome to Blackpine",
+    "welcomeBody": "Your practice, fully digital: agenda, patient records, consultations, billing and accounting — in French, Arabic and English. Here's a quick tour of the key features.",
+    "agendaTitle": "Agenda & appointments",
+    "agendaBody": "Book appointments, run the waiting room and follow each patient from arrival to consultation. Patients can also self-book online through your booking link.",
+    "patientsTitle": "Patient records",
+    "patientsBody": "Every patient has a full record: contact details, history, allergies, measurements, documents and the timeline of all their consultations, prescriptions and exams.",
+    "consultTitle": "Clinical consultation",
+    "consultBody": "One screen for everything: structured notes, vital signs, lab and imaging work-ups, prescriptions, certificates and follow-up. Templates speed up data entry.",
+    "billingTitle": "Billing & payments",
+    "billingBody": "Bill the consultation and procedures, apply discounts, take payments in instalments and generate invoices and receipts. It all feeds accounting automatically.",
+    "secretaryTitle": "Secretary access",
+    "secretaryBody": "Delegate the front desk to your secretary while staying in control: you decide exactly what they can access (billing, vitals, stock…) in Settings.",
+    "helpTitle": "Help whenever you need it",
+    "helpBody": "Got a question? Open Help from the menu (book icon at the bottom) to replay this guide, browse help topics or contact us. Enjoy!"
+  },
+  "help": {
+    "title": "Help centre",
+    "subtitle": "Guides, answers and contact",
+    "replayTour": "Replay the getting-started guide",
+    "replayTourSub": "The full feature walkthrough",
+    "contact": "Contact us",
+    "mailSubject": "Blackpine help",
+    "searchPlaceholder": "Search help…",
+    "noResults": "No topic matches your search.",
+    "pricingTitle": "Subscription & pricing",
+    "pricingFoot": "{{days}}-day free trial, no card required. Activation is by code after a bank transfer.",
+    "topics": {
+      "gettingStarted": {
+        "q": "Getting started",
+        "a": "Start by completing your profile (Profile): name, specialty, INPE, ICE and contact details appear on your documents. Then create your first patient and book an appointment from the Agenda. The dashboard summarises your day's activity."
+      },
+      "agenda": {
+        "q": "Agenda & appointments",
+        "a": "Create an appointment by clicking a slot. Choose the type (consultation, check-up, follow-up…), the patient and the time. Recurring and multi-location appointments are supported. From an appointment, mark the patient \"arrived\" to send them to the waiting room, then \"in consultation\"."
+      },
+      "waitingRoom": {
+        "q": "Waiting room",
+        "a": "The waiting room shows arrived patients in real time, their wait time and status. Call the next patient in one click — the appointment automatically moves to in-consultation."
+      },
+      "patients": {
+        "q": "Patient records",
+        "a": "Each record holds identity, contact details, insurance (CNOPS/AMO…), history, allergies and medications. The history tab lists every consultation, prescription, exam and document. You can also add events to the timeline."
+      },
+      "consultation": {
+        "q": "Consultation",
+        "a": "The consultation screen brings together clinical notes (reason, exam, diagnosis, treatment), vital signs, work-ups, prescriptions, certificates and the follow-up date. Use note templates to save time and attach X-rays or results directly to the appointment."
+      },
+      "bilans": {
+        "q": "Work-ups & measurements",
+        "a": "Add a work-up (biology, renal, thyroid, growth, hormonal…) to a consultation to record the relevant measurements. Some values are computed automatically (e.g. eGFR / CKD-EPI in the renal work-up). You can also create custom measurements."
+      },
+      "documents": {
+        "q": "Prescriptions & documents",
+        "a": "Generate prescriptions, certificates, exam requests and invoices, ready to print or share. The document designer (Settings) lets you match the layout to your letterhead paper: margins, logo, block positions."
+      },
+      "billing": {
+        "q": "Billing & accounting",
+        "a": "At the end of a consultation, bill the base fee and the procedures performed, with an optional per-line or global discount. The patient can pay in full, in part or defer. Every payment feeds accounting, reports and the unpaid-balance reminder."
+      },
+      "secretary": {
+        "q": "Secretary access",
+        "a": "Two options: local \"secretary mode\" (from your own session, protected by a PIN) or a separate secretary account. In Settings, tick exactly what the secretary can access: vitals, billing, patients, clinical, communication, stock, notes, calculators, accounting, payroll. Clinical data stays protected until you enable it."
+      },
+      "sync": {
+        "q": "Sync & offline",
+        "a": "Your data is saved locally then synced automatically with the server. You can work offline: changes sync once the network is back. The sync pill at the bottom of the menu shows the status."
+      },
+      "languages": {
+        "q": "Languages (FR / AR / EN)",
+        "a": "The app is available in French, Arabic and English. Switch language via the selector at the bottom of the menu. Arabic displays right-to-left. You can enter a patient's Arabic name for WhatsApp messages."
+      },
+      "subscription": {
+        "q": "Trial & subscription",
+        "a": "You start with a 30-day free trial, no card required. To continue, activation is by a code we send you after a bank transfer — no automatic charges. See the pricing below or contact us."
+      }
+    }
   },
   "ctx": {
     "openConsult": "Open consultation",
@@ -146,6 +235,7 @@
     "payroll": "Payroll",
     "profile": "Profile",
     "settings": "Settings",
+    "help": "Help",
     "admin": "Monitoring"
   },
   "navGroup": {
@@ -942,6 +1032,14 @@
     "permViewFinancesHint": "View transactions, reports and accounting.",
     "permManagePayroll": "Payroll",
     "permManagePayrollHint": "Manage salaries and pay slips.",
+    "permUseCommunication": "Communication (WhatsApp)",
+    "permUseCommunicationHint": "Send messages and reminders to patients.",
+    "permManageStock": "Stock & orders",
+    "permManageStockHint": "Manage inventory, suppliers and purchase orders.",
+    "permUseNotes": "Internal notes & tasks",
+    "permUseNotesHint": "View and manage the practice's notes and tasks.",
+    "permUseCalculators": "Clinical calculators",
+    "permUseCalculatorsHint": "Access the medical calculators.",
     "secretaryPin": "Secretary PIN",
     "secretaryPinHint": "A 4-digit PIN protects the return to doctor mode",
     "modifyPin": "Change PIN",
