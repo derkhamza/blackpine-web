@@ -8287,6 +8287,32 @@ html { scroll-behavior: smooth; }
 }
 .growth-caption { margin-top: 10px; font-size: 11px; color: var(--tertiary); }
 
+/* ── Patient static medical info card (consultation history / dossier) ─────── */
+.hist-static {
+  border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; margin-bottom: 16px;
+  background: color-mix(in srgb, var(--blue) 4%, var(--surface));
+}
+.hist-static-head { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; }
+.hist-static-title { font-size: 13px; font-weight: 800; color: var(--text); }
+.hist-static-note { font-size: 11px; color: var(--muted); }
+.hist-static-row { display: flex; gap: 8px; font-size: 13px; padding: 4px 0; border-top: 1px solid var(--border); }
+.hist-static-row:first-of-type { border-top: none; }
+.hist-static-row b { flex-shrink: 0; min-width: 120px; color: var(--muted); font-weight: 700; }
+.hist-static-row span { color: var(--text); white-space: pre-wrap; }
+.hist-static-alert { background: color-mix(in srgb, var(--coral) 8%, transparent); border-radius: 6px; padding: 6px 8px; margin: 2px 0; }
+.hist-static-alert b { color: var(--coral); min-width: auto; }
+.hist-static-alert span { color: var(--coral); font-weight: 600; }
+.hist-static-empty { font-size: 12.5px; color: var(--muted); font-style: italic; }
+
+/* Patient identification card (dossier tab) */
+.patient-id-card {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 2px 18px;
+  border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; background: var(--surface);
+}
+.patient-id-row { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+.patient-id-label { color: var(--muted); }
+.patient-id-val { color: var(--text); font-weight: 600; text-align: end; }
+
 /* ── Settings: subscription & pricing ─────────────────────────────────────── */
 .sub-status {
   display: flex; align-items: center; gap: 8px; padding: 10px 12px; margin-bottom: 14px;

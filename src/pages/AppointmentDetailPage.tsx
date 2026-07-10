@@ -1849,11 +1849,32 @@ export function AppointmentDetailPage() {
             <div className="appt-note-nolink">{t("apptDetail.historyNeedsPatient")}</div>
           ) : (
             <>
-              {patient.allergies && (
-                <div style={{ display: "flex", gap: 8, alignItems: "flex-start", background: "var(--coral-soft, #FDECEC)", color: "var(--coral, #C0392B)", border: "1px solid var(--coral, #C0392B)", borderRadius: 8, padding: "8px 12px", marginBottom: 14, fontSize: 13 }}>
-                  <span>⚠</span><span><b>{t("apptDetail.allergiesLabel")} :</b> {patient.allergies}</span>
+              {/* Patient-level medical info — the static dossier, NOT tied to any
+                  single visit (antécédents, allergies, traitement de fond…). Shown
+                  first so the doctor has the whole picture without leaving. */}
+              <div className="hist-static">
+                <div className="hist-static-head">
+                  <span className="hist-static-title">{t("apptDetail.patientMedicalInfo")}</span>
+                  <span className="hist-static-note">{t("apptDetail.staticInfoNote")}</span>
                 </div>
-              )}
+                {patient.allergies && (
+                  <div className="hist-static-row hist-static-alert">
+                    <b>⚠ {t("apptDetail.allergiesLabel")}</b><span>{patient.allergies}</span>
+                  </div>
+                )}
+                {patient.bloodType && (
+                  <div className="hist-static-row"><b>{t("apptDetail.bloodTypeLabel")}</b><span>{patient.bloodType}</span></div>
+                )}
+                {patient.antecedents && (
+                  <div className="hist-static-row"><b>{t("apptDetail.antecedents")}</b><span>{patient.antecedents}</span></div>
+                )}
+                {patient.currentMedications && (
+                  <div className="hist-static-row"><b>{t("apptDetail.currentMeds")}</b><span>{patient.currentMedications}</span></div>
+                )}
+                {!patient.allergies && !patient.bloodType && !patient.antecedents && !patient.currentMedications && (
+                  <div className="hist-static-empty">{t("apptDetail.noStaticInfo")}</div>
+                )}
+              </div>
 
               <div className="appt-section-header">
                 <div className="appt-section-title">

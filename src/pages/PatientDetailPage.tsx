@@ -916,7 +916,31 @@ export function PatientDetailPage() {
       {/* ── DOSSIER MÉDICAL ── */}
       {tab === "dossier" && (
         <div className="appt-tab-panel">
+          {/* Identification — the full identity record, read-only here (edited via
+              the patient form). Gives the dossier every identifying detail at a
+              glance alongside the medical information below. */}
           <div className="appt-section-header">
+            <div className="appt-section-title">{t("patientDetail.idSectionTitle")}</div>
+          </div>
+          <div className="patient-id-card">
+            {[
+              [t("patientDetail.birthDate"), patient.dateOfBirth ? `${formatDateShort(patient.dateOfBirth)}${age != null ? ` · ${age} ${t("patientDetail.ageYears")}` : ""}` : null],
+              [t("patients.gender"), patient.gender === "M" ? t("patients.male") : patient.gender === "F" ? t("patients.female") : null],
+              [t("patients.phone"), patient.phone || null],
+              [t("patients.cin"), patient.cin || null],
+              [t("patients.cnops"), patient.cnopsNumber || null],
+              [t("patientDetail.mutuelleLabel"), patient.mutuelle || null],
+              [t("patients.city"), patient.city || null],
+              [t("patientDetail.patientSince"), patient.createdAt ? formatDateShort(patient.createdAt) : null],
+            ].filter(([, v]) => v).map(([label, v]) => (
+              <div key={label as string} className="patient-id-row">
+                <span className="patient-id-label">{label}</span>
+                <span className="patient-id-val">{v}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="appt-section-header" style={{ marginTop: 18 }}>
             <div className="appt-section-title">{t("patientDetail.dossierTitle")}</div>
             <span style={{ fontSize: 11, color: "var(--tertiary)" }}>{t("patientDetail.dossierAutoSave")}</span>
           </div>
