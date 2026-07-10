@@ -139,6 +139,7 @@
     "needDob": "Add the patient's date of birth to display the growth curve.",
     "noData": "No growth measurement (height, weight…) recorded yet.",
     "bandsPending": "Reference percentile bands (GFA/WHO) are not loaded yet — the curve shows the child's actual measurements and the target height.",
+    "refWho": "Reference bands: WHO 3–10–25–50–75–90–97th percentiles (0–5 y: WHO standards; 5–19 y: WHO 2007 reference). Weight is not defined beyond 10 y.",
     "metric": { "height": "Height", "weight": "Weight", "bmi": "BMI", "headCirc": "Head circumference" }
   },
   "ctx": {

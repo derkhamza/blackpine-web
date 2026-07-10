@@ -8258,6 +8258,7 @@ html { scroll-behavior: smooth; }
   border: 1px solid color-mix(in srgb, var(--gold) 28%, var(--border));
   border-radius: 10px; padding: 9px 12px;
 }
+.growth-caption { margin-top: 10px; font-size: 11px; color: var(--tertiary); }
 
 /* Accessibility — honour the OS "reduce motion" setting */
 @media (prefers-reduced-motion: reduce) {

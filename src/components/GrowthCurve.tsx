@@ -172,7 +172,7 @@ export function GrowthCurve({ patient, appointments }: { patient: Patient; appoi
           />
         ))}
       </div>
-      {!anyBands && <div className="growth-note">{t("growth.bandsPending")}</div>}
+      <div className={anyBands ? "growth-caption" : "growth-note"}>{anyBands ? t("growth.refWho") : t("growth.bandsPending")}</div>
     </div>
   );
 }

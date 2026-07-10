@@ -139,6 +139,7 @@
     "needDob": "Renseignez la date de naissance du patient pour afficher la courbe de croissance.",
     "noData": "Aucune mesure de croissance (taille, poids…) enregistrée pour l'instant.",
     "bandsPending": "Les couloirs de percentiles de référence (GFA/OMS) ne sont pas encore chargés — la courbe affiche les mesures réelles de l'enfant et la taille cible.",
+    "refWho": "Couloirs de référence : 3–10–25–50–75–90–97e percentiles OMS (0–5 ans : normes OMS ; 5–19 ans : référence OMS 2007). Le poids n'est pas défini au-delà de 10 ans.",
     "metric": { "height": "Taille", "weight": "Poids", "bmi": "IMC", "headCirc": "Périmètre crânien" }
   },
   "ctx": {

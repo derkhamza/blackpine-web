@@ -1,17 +1,14 @@
 // Growth-reference helpers for the pediatric growth curve (Suivi & analyses).
 //
-// IMPORTANT — medical safety: the percentile *band* curves (3/10/25/50/75/90/97
-// of the Groupe Français d'Auxologie, or the WHO Child Growth Standards) are
-// clinical reference values. They are NOT invented here — fabricated growth
-// references could mislead a real clinical decision. `percentileBands()` returns
-// the official dataset ONLY when it has been embedded in GROWTH_REFERENCE below;
-// until then it returns null and the chart draws the child's own measurements
-// (and the mid-parental target) without reference bands.
-//
-// To enable the bands, drop the official GFA (or WHO) LMS table into
-// GROWTH_REFERENCE keyed by metric + sex. Each entry is a list of
-// { age, L, M, S } rows; a percentile p is then M·(1 + L·S·Z_p)^(1/L)
-// (Z_p from the standard normal), per the WHO/Cole LMS method.
+// The percentile *band* curves (3/10/25/50/75/90/97) are the official WHO growth
+// references (Child Growth Standards 0–5 y + WHO 2007 reference 5–19 y), embedded
+// as exact LMS tables in growthReferenceData.ts — NOT invented. A percentile p is
+// M·(1 + L·S·Z_p)^(1/L) (Z_p from the standard normal), the WHO/Cole LMS method.
+// `percentileBands()` returns null only for a metric/sex with no table (e.g.
+// weight above 10 y, which WHO does not define), in which case the chart draws
+// the child's own measurements (and mid-parental target) without bands.
+
+import { WHO_GROWTH_REFERENCE } from "./growthReferenceData";
 
 export type GrowthMetric = "height" | "weight" | "bmi" | "headCirc";
 export type GrowthSex = "M" | "F";
@@ -26,9 +23,9 @@ export const CENTILE_Z: Record<number, number> = {
 
 export interface LmsRow { age: number; L: number; M: number; S: number } // age in years
 
-// Official reference tables go here, keyed `${metric}:${sex}`. Empty until the
-// verified GFA / WHO dataset is supplied — see the note above.
-export const GROWTH_REFERENCE: Partial<Record<`${GrowthMetric}:${GrowthSex}`, LmsRow[]>> = {};
+// Official WHO LMS tables (auto-generated from WHO's own data — see
+// growthReferenceData.ts), keyed `${metric}:${sex}`.
+export const GROWTH_REFERENCE: Partial<Record<`${GrowthMetric}:${GrowthSex}`, LmsRow[]>> = WHO_GROWTH_REFERENCE;
 
 export interface CentileCurve { centile: number; points: { age: number; value: number }[] }
 
