@@ -14,6 +14,7 @@ import { APPT_TYPE_COLORS, DEFAULT_SECRETARY_PERMISSIONS, DEFAULT_DOCUMENT_SETTI
 import { COMMON_DRUGS } from "../lib/ordonnancePrinter";
 import { ActeCatalogModal } from "../components/ActeCatalogModal";
 import { BlackpineLogo } from "../components/Logo";
+import { PRICING } from "../lib/pricing";
 import { PageDesigner } from "../components/PageDesigner";
 import QRCode from "qrcode";
 import {
@@ -105,6 +106,11 @@ const SECTION_ICONS: Record<string, { tone: string; node: React.ReactNode }> = {
       <circle cx="9" cy="9" r="6" stroke="currentColor" strokeWidth="1.5"/>
       <path d="M9 8.2v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
       <circle cx="9" cy="5.9" r="0.5" fill="currentColor" stroke="currentColor" strokeWidth="0.6"/>
+    </svg>) },
+  subscription: { tone: "#15A876", node: (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
+      <rect x="2.6" y="4.4" width="12.8" height="9.2" rx="1.6" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M2.6 7.4h12.8M5 11h3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
     </svg>) },
 };
 
@@ -623,6 +629,79 @@ function SmsRemindersSection({
 // ── Consultation types manager ────────────────────────────────────────────────
 
 const ALL_TYPES: AppointmentType[] = ["consultation", "controle", "autre"];
+
+// ── Subscription & pricing ──────────────────────────────────────────────────────
+// Always-available view of the plan status and prices, so the doctor is never
+// surprised by the cost (the TrialGate modal only appears near/after expiry).
+
+function SubscriptionSection() {
+  const { t } = useTranslation();
+  const { trial, applyActivation } = useApp();
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const supportEmail = t("trial.supportEmail");
+
+  const status = trial.expired
+    ? { tone: "var(--coral)", text: t("settings.subExpired") }
+    : trial.isTrial
+      ? { tone: "var(--gold)", text: trial.daysLeft != null ? t("settings.subTrial", { n: trial.daysLeft }) : t("settings.subTrialActive") }
+      : { tone: "var(--green)", text: trial.daysLeft != null ? t("settings.subActive", { n: trial.daysLeft }) : t("settings.subActiveLifetime") };
+
+  const submit = async () => {
+    if (!code.trim() || busy) return;
+    setBusy(true); setMsg(null);
+    try {
+      await applyActivation(code);
+      setMsg({ ok: true, text: t("trial.activated") });
+      setCode("");
+    } catch (e) {
+      setMsg({ ok: false, text: (e as Error).message });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div>
+      <div className="sub-status" style={{ borderColor: status.tone }}>
+        <span className="sub-status-dot" style={{ background: status.tone }} />
+        <span className="sub-status-text">{status.text}</span>
+      </div>
+
+      <div className="sub-plans">
+        <div className="sub-plan">
+          <span className="sub-plan-name">{t("trial.planMonthly")}</span>
+          <span className="sub-plan-price"><b>{PRICING.monthly.amount}</b> {PRICING.currency}<small>{t("trial.perMonth")}</small></span>
+        </div>
+        <div className="sub-plan sub-plan-best">
+          <span className="sub-plan-badge">{t("trial.bestValue")}</span>
+          <span className="sub-plan-name">{t("trial.planYearly")}</span>
+          <span className="sub-plan-price"><b>{PRICING.yearly.amount}</b> {PRICING.currency}<small>{t("trial.perYear")}</small></span>
+          <span className="sub-plan-note">{t("trial.yearlyNote", { perMonth: PRICING.yearly.perMonth, currency: PRICING.currency })}</span>
+        </div>
+      </div>
+      <p className="sub-foot">{t("trial.plansFoot")}</p>
+
+      <div className="sub-activate">
+        <input
+          className="form-input"
+          value={code}
+          placeholder={t("trial.codePlaceholder")}
+          onChange={(e) => setCode(e.target.value.toUpperCase())}
+          onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
+        />
+        <button className="btn btn-primary" disabled={busy || !code.trim()} onClick={submit}>
+          {busy ? t("trial.checking") : t("trial.activateBtn")}
+        </button>
+      </div>
+      {msg && <div className={msg.ok ? "sub-msg-ok" : "sub-msg-err"}>{msg.ok ? "✓ " : ""}{msg.text}</div>}
+      <a className="sub-contact" href={`mailto:${supportEmail}?subject=${encodeURIComponent(t("trial.mailSubject"))}`}>
+        {t("trial.contact", { email: supportEmail })}
+      </a>
+    </div>
+  );
+}
 
 // ── Secretary granular permissions ─────────────────────────────────────────────
 
@@ -1339,6 +1418,11 @@ export function ParametresPage() {
         {/* ── Sécurité & confidentialité ── */}
         <Section icon="security" title={t("settings.securityTitle")} subtitle={t("settings.securitySub")} defaultOpen>
           <SecuritySection />
+        </Section>
+
+        {/* ── Abonnement & tarifs ── */}
+        <Section icon="subscription" title={t("settings.subTitle")} subtitle={t("settings.subSub")}>
+          <SubscriptionSection />
         </Section>
 
         {/* ── Apparence ── */}
