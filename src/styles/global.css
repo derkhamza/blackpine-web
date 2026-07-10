@@ -8234,7 +8234,22 @@ html { scroll-behavior: smooth; }
 .help-action-emoji { font-size: 24px; line-height: 1; }
 .help-action-title { display: block; font-weight: 700; font-size: 14px; color: var(--text); }
 .help-action-sub { display: block; font-size: 12.5px; color: var(--muted); }
-.help-search { width: 100%; margin-bottom: 14px; }
+.help-search { width: 100%; margin-bottom: 18px; }
+.help-steps {
+  border: 1px solid var(--border); border-radius: 14px; padding: 16px 18px; margin-bottom: 18px;
+  background: color-mix(in srgb, var(--blue) 5%, var(--surface));
+}
+.help-steps-title { font-size: 13px; font-weight: 800; color: var(--text); margin-bottom: 10px; }
+.help-steps-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+.help-steps-list li { display: flex; align-items: flex-start; gap: 10px; font-size: 13.5px; color: var(--text); line-height: 1.4; }
+.help-step-n {
+  flex-shrink: 0; width: 20px; height: 20px; border-radius: 50%; background: var(--blue); color: #fff;
+  font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center;
+}
+.help-cat { margin-bottom: 18px; }
+.help-cat-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.help-cat-emoji { font-size: 16px; }
+.help-cat-title { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); }
 .help-topics { display: flex; flex-direction: column; gap: 8px; }
 .help-topic { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--surface); }
 .help-topic.open { border-color: var(--green); }

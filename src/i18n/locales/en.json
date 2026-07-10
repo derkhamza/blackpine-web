@@ -86,6 +86,14 @@
   "help": {
     "title": "Help centre",
     "subtitle": "Guides, answers and contact",
+    "cat": { "start": "Get started", "daily": "Daily use", "clinical": "Clinical", "money": "Billing", "team": "Team & access", "app": "App & account" },
+    "stepsTitle": "Get started in 4 steps",
+    "steps": {
+      "1": "Complete your profile (Profile): name, specialty, contact details.",
+      "2": "Create your first patient.",
+      "3": "Book an appointment in the Agenda.",
+      "4": "Open the consultation to record notes, prescription and invoice."
+    },
     "replayTour": "Replay the getting-started guide",
     "replayTourSub": "The full feature walkthrough",
     "contact": "Contact us",

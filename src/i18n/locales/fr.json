@@ -86,6 +86,14 @@
   "help": {
     "title": "Centre d'aide",
     "subtitle": "Guides, réponses et contact",
+    "cat": { "start": "Démarrer", "daily": "Au quotidien", "clinical": "Clinique", "money": "Facturation", "team": "Équipe & accès", "app": "Application & compte" },
+    "stepsTitle": "Démarrer en 4 étapes",
+    "steps": {
+      "1": "Complétez votre profil (Profil) : nom, spécialité, coordonnées.",
+      "2": "Créez votre premier patient.",
+      "3": "Planifiez un rendez-vous dans l'Agenda.",
+      "4": "Ouvrez la consultation pour saisir notes, ordonnance et facture."
+    },
     "replayTour": "Revoir le guide de démarrage",
     "replayTourSub": "Le tour complet des fonctionnalités",
     "contact": "Nous contacter",

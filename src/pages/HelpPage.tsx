@@ -4,25 +4,23 @@ import { Layout } from "../components/Layout";
 import { openWelcomeTour } from "../components/WelcomeTour";
 import { PRICING } from "../lib/pricing";
 
-// In-app help centre: a searchable list of collapsible topics, a button to
-// replay the first-time walkthrough, subscription pricing (so nobody is
-// surprised) and a contact link. Content lives in i18n under `help.*`.
+// In-app help centre: quick actions, a searchable set of topics grouped into
+// clear categories, a short "getting started in 4 steps" guide, subscription
+// pricing (so nobody is surprised) and contact. Content lives in i18n (help.*).
 
-// Topic keys map to help.topics.<key>.q (title) and .a (answer body).
-const TOPIC_KEYS = [
-  "gettingStarted",
-  "agenda",
-  "waitingRoom",
-  "patients",
-  "consultation",
-  "bilans",
-  "documents",
-  "billing",
-  "secretary",
-  "sync",
-  "languages",
-  "subscription",
-] as const;
+// Topics grouped by theme. Each key maps to help.topics.<key>.{q,a};
+// each category to help.cat.<id>.
+const CATEGORIES: { id: string; emoji: string; topics: string[] }[] = [
+  { id: "start",    emoji: "🚀", topics: ["gettingStarted"] },
+  { id: "daily",    emoji: "📅", topics: ["agenda", "waitingRoom", "patients"] },
+  { id: "clinical", emoji: "🩺", topics: ["consultation", "bilans", "documents"] },
+  { id: "money",    emoji: "🧾", topics: ["billing"] },
+  { id: "team",     emoji: "🤝", topics: ["secretary"] },
+  { id: "app",      emoji: "⚙️", topics: ["sync", "languages", "subscription"] },
+];
+
+// The 4-step first-run checklist (help.steps.<n>).
+const STEPS = [1, 2, 3, 4];
 
 export function HelpPage() {
   const { t } = useTranslation();
@@ -30,16 +28,23 @@ export function HelpPage() {
   const [open, setOpen] = useState<string | null>("gettingStarted");
   const supportEmail = t("trial.supportEmail");
 
-  const topics = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return TOPIC_KEYS.map((key) => ({
-      key,
-      title: t(`help.topics.${key}.q`),
-      body: t(`help.topics.${key}.a`),
-    })).filter((topic) =>
-      !q || topic.title.toLowerCase().includes(q) || topic.body.toLowerCase().includes(q)
+  const q = query.trim().toLowerCase();
+  const matches = (key: string) => {
+    if (!q) return true;
+    return (
+      t(`help.topics.${key}.q`).toLowerCase().includes(q) ||
+      t(`help.topics.${key}.a`).toLowerCase().includes(q)
     );
-  }, [query, t]);
+  };
+
+  // Categories with their matching topics (drop empty categories while searching).
+  const groups = useMemo(
+    () =>
+      CATEGORIES.map((c) => ({ ...c, topics: c.topics.filter(matches) }))
+        .filter((c) => c.topics.length > 0),
+    [q, t],
+  );
+  const anyResults = groups.length > 0;
 
   return (
     <Layout title={t("help.title")} subtitle={t("help.subtitle")}>
@@ -61,6 +66,21 @@ export function HelpPage() {
         </a>
       </div>
 
+      {/* Getting started in 4 steps (hidden while searching) */}
+      {!q && (
+        <div className="help-steps">
+          <div className="help-steps-title">{t("help.stepsTitle")}</div>
+          <ol className="help-steps-list">
+            {STEPS.map((n) => (
+              <li key={n}>
+                <span className="help-step-n">{n}</span>
+                <span>{t(`help.steps.${n}`)}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
+
       {/* Search */}
       <input
         className="form-input help-search"
@@ -69,22 +89,30 @@ export function HelpPage() {
         onChange={(e) => setQuery(e.target.value)}
       />
 
-      {/* Topics — collapsible */}
-      <div className="help-topics">
-        {topics.length === 0 && <div className="help-empty">{t("help.noResults")}</div>}
-        {topics.map((topic) => {
-          const isOpen = open === topic.key;
-          return (
-            <div key={topic.key} className={`help-topic${isOpen ? " open" : ""}`}>
-              <button className="help-topic-q" onClick={() => setOpen(isOpen ? null : topic.key)}>
-                <span>{topic.title}</span>
-                <span className="help-topic-chev" aria-hidden>{isOpen ? "−" : "+"}</span>
-              </button>
-              {isOpen && <div className="help-topic-a">{topic.body}</div>}
-            </div>
-          );
-        })}
-      </div>
+      {/* Topics grouped by category */}
+      {!anyResults && <div className="help-empty">{t("help.noResults")}</div>}
+      {groups.map((cat) => (
+        <div key={cat.id} className="help-cat">
+          <div className="help-cat-head">
+            <span className="help-cat-emoji" aria-hidden>{cat.emoji}</span>
+            <span className="help-cat-title">{t(`help.cat.${cat.id}`)}</span>
+          </div>
+          <div className="help-topics">
+            {cat.topics.map((key) => {
+              const isOpen = open === key;
+              return (
+                <div key={key} className={`help-topic${isOpen ? " open" : ""}`}>
+                  <button className="help-topic-q" onClick={() => setOpen(isOpen ? null : key)}>
+                    <span>{t(`help.topics.${key}.q`)}</span>
+                    <span className="help-topic-chev" aria-hidden>{isOpen ? "−" : "+"}</span>
+                  </button>
+                  {isOpen && <div className="help-topic-a">{t(`help.topics.${key}.a`)}</div>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
 
       {/* Pricing reminder */}
       <div className="help-pricing">
