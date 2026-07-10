@@ -1407,6 +1407,8 @@
     "colActions": "Actions",
     "notEmitted": "— Not issued",
     "reprint": "Reprint",
+    "remove": "Remove invoice",
+    "removeConfirm": "Remove {{name}}'s invoice? The consultation reverts to unbilled (amount and payment cleared).",
     "emit": "📄 Issue",
     "rdvLink": "Appt →",
     "footerTotal": "Total ({{n}} consultation{{s}})",

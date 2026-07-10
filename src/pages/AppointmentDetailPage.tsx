@@ -17,7 +17,8 @@ import {
   APPT_TYPE_LABELS, APPT_TYPE_COLORS, APPT_STATUS_LABELS, DEFAULT_SECRETARY_PERMISSIONS,
 } from "../lib/cabinetTypes";
 import { NOTE_TEMPLATES, TEMPLATE_CATEGORIES } from "../lib/noteTemplates";
-import { todayIso, formatMAD, formatDateShort, bmiClassify } from "../lib/format";
+import { todayIso, formatMAD, formatDateShort, bmiClassify, calcAge } from "../lib/format";
+import { ckdEpiFromMgL, type Sex } from "../lib/ckdEpi";
 import { printReceipt } from "../lib/receiptPrinter";
 import { nextInvoiceNumber, printFacture } from "../lib/facturePrinter";
 import { OrdonnanceModal }  from "../components/OrdonnanceModal";
@@ -296,6 +297,18 @@ export function AppointmentDetailPage() {
     () => appt?.patientId ? patients.find((p) => p.id === appt.patientId) : null,
     [patients, appt?.patientId],
   );
+
+  // eGFR (CKD-EPI) is auto-computed from serum creatinine + the patient's age &
+  // sex, so it only needs the doctor to enter the creatinine. Requires a known
+  // sex (the formula is sex-specific) and a birth date.
+  const patientAge = patient?.dateOfBirth ? calcAge(patient.dateOfBirth) : null;
+  const patientSex: Sex | null =
+    patient?.gender === "M" ? "male" : patient?.gender === "F" ? "female" : null;
+  const canAutoDfg = patientAge != null && patientAge > 0 && patientSex != null;
+  // Maps a creatinine field to the eGFR field it feeds (bilan rénal + néphro).
+  const DFG_FROM_CREAT: Record<string, string> = { bl_ren_creat: "bl_ren_dfg", creatinine: "dfg" };
+  const computeDfg = (creatValue: string): number | null =>
+    canAutoDfg ? ckdEpiFromMgL(creatValue, patientAge as number, patientSex as Sex) : null;
 
   // ── Tabs ──────────────────────────────────────────────────────────────────
   const [tab, setTab] = useState<"notes" | "vitals" | "history" | "suivi">("notes");
@@ -655,6 +668,13 @@ export function AppointmentDetailPage() {
 
   const saveExtraField = (key: string, value: string) => {
     const updated = { ...extraFields, [key]: value };
+    // Auto-compute eGFR (CKD-EPI) whenever serum creatinine is entered.
+    const dfgKey = DFG_FROM_CREAT[key];
+    if (dfgKey) {
+      const dfg = computeDfg(value);
+      if (dfg != null) updated[dfgKey] = String(dfg);
+      else if (!value.trim()) delete updated[dfgKey]; // creatinine cleared → clear derived
+    }
     setExtraFields(updated);
     saveNotes(updated);
   };
@@ -1229,8 +1249,9 @@ export function AppointmentDetailPage() {
           { key: "notes",  label: t("apptDetail.clinicalNotes"), dot: hasNotes },
           { key: "vitals", label: t("apptDetail.measuresTab"),   dot: !!appt.vitalSigns || filledBilan.length > 0 },
           { key: "history", label: t("apptDetail.historyTab"),   dot: historyCount > 0 },
-          // The follow-up / AMO tab is financial — hidden from secretaries.
-          ...(readOnly ? [] : [{ key: "suivi" as const, label: t("apptDetail.followup"), dot: !!appt.mutuellePapersFilled || !!appt.followUpDate }]),
+          // Suivi & AMO: the secretary handles the mutuelle/AMO paperwork and the
+          // encaissement, so this tab is shown to secretaries too.
+          { key: "suivi" as const, label: t("apptDetail.followup"), dot: !!appt.mutuellePapersFilled || !!appt.followUpDate },
         ] as const).map(({ key, label, dot }) => (
           <button
             key={key}
@@ -1689,13 +1710,21 @@ export function AppointmentDetailPage() {
                           {open && (
                             <>
                               <div className="specialty-fields-grid">
-                                {group.fields.map((field: SpecialtyField) => (
-                                  <SpecialtyFieldInput key={field.key} field={field}
-                                    value={extraFields[field.key] ?? ""}
-                                    onChange={(v) => setExtraField(field.key, v)}
-                                    onBlur={(v) => saveExtraField(field.key, v)}
-                                    readOnly={bilanReadOnly} />
-                                ))}
+                                {group.fields.map((field: SpecialtyField) => {
+                                  // eGFR is derived from creatinine — lock it and label it "auto".
+                                  const isDfg    = field.key === "bl_ren_dfg" || field.key === "dfg";
+                                  const creatKey = field.key === "bl_ren_dfg" ? "bl_ren_creat" : "creatinine";
+                                  const dfgAuto  = isDfg && canAutoDfg && (extraFields[creatKey] ?? "").trim() !== "";
+                                  const dfgVal = dfgAuto ? computeDfg(extraFields[creatKey] ?? "") : null;
+                                  return (
+                                    <SpecialtyFieldInput key={field.key}
+                                      field={dfgAuto ? { ...field, label: `${field.label} · auto` } : field}
+                                      value={dfgAuto ? (dfgVal != null ? String(dfgVal) : "") : (extraFields[field.key] ?? "")}
+                                      onChange={(v) => setExtraField(field.key, v)}
+                                      onBlur={(v) => saveExtraField(field.key, v)}
+                                      readOnly={bilanReadOnly || dfgAuto} />
+                                  );
+                                })}
                               </div>
                               {renderCustomMeasures(gk, src)}
                             </>

@@ -1407,6 +1407,8 @@
     "colActions": "Actions",
     "notEmitted": "— Non émise",
     "reprint": "Réimprimer",
+    "remove": "Supprimer la facture",
+    "removeConfirm": "Supprimer la facture de {{name}} ? La consultation redeviendra non facturée (montant et paiement effacés).",
     "emit": "📄 Émettre",
     "rdvLink": "RDV →",
     "footerTotal": "Total ({{n}} consultation{{s}})",

@@ -160,6 +160,23 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
     });
   };
 
+  // Remove a facture: void the billing so the appointment reverts to unbilled.
+  // Fields are cleared with null (not undefined) so the clear also survives the
+  // secretary whitelist merge, which only copies keys that are actually present.
+  const removeInvoice = (apptId: string) => {
+    const appt = appointments.find(a => a.id === apptId);
+    if (!appt) return;
+    if (!confirm(t("factures.removeConfirm", { name: appt.patientName }))) return;
+    const cleared: any = {
+      ...appt,
+      billedAt: null, billedAmount: null,
+      invoiceNumber: null, invoiceIssuedAt: null,
+      billedItems: null, billedReduction: null,
+      paidAmount: null, payments: null,
+    };
+    updateAppointment(cleared);
+  };
+
   const body = (
     <>
       {/* À encaisser — factures the doctor prepared, awaiting payment at the desk.
@@ -314,6 +331,7 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
                   { label: t("ctx.openAppt"), icon: "📋", onClick: () => navigate(`/agenda/${a.id}`) },
                   ...(a.patientId
                     ? [{ label: t("ctx.patientFile"), icon: "👤", onClick: () => navigate(`/patients/${a.patientId}`) }] : []),
+                  { label: t("factures.remove"), icon: "🗑", danger: true, divider: true, onClick: () => removeInvoice(a.id) },
                 ];
                 return (
                 <Fragment key={a.id}>
