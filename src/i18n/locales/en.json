@@ -678,6 +678,8 @@
     "billReduction": "Global discount (MAD)",
     "billActRemise": "Act discount",
     "billActRemiseToggle": "Toggle % / MAD",
+    "billApplyRemise": "Apply a discount on this act",
+    "billRemoveRemise": "Remove discount",
     "billActRemises": "Per-act discounts",
     "billSubtotal": "Subtotal",
     "billTotal": "Total due",

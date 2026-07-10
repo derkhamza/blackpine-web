@@ -678,6 +678,8 @@
     "billReduction": "تخفيض إجمالي (درهم)",
     "billActRemise": "تخفيض على العمل",
     "billActRemiseToggle": "تبديل % / درهم",
+    "billApplyRemise": "تطبيق خصم على هذا العمل",
+    "billRemoveRemise": "إزالة الخصم",
     "billActRemises": "تخفيضات حسب العمل",
     "billSubtotal": "المجموع الفرعي",
     "billTotal": "المبلغ الإجمالي",

@@ -678,6 +678,8 @@
     "billReduction": "Remise globale (MAD)",
     "billActRemise": "Remise sur l'acte",
     "billActRemiseToggle": "Basculer % / MAD",
+    "billApplyRemise": "Appliquer une remise sur cet acte",
+    "billRemoveRemise": "Retirer la remise",
     "billActRemises": "Remises par acte",
     "billSubtotal": "Sous-total",
     "billTotal": "Total à payer",

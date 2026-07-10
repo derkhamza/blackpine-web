@@ -2238,6 +2238,8 @@ export function AppointmentDetailPage() {
                   </div>
                 ) : (
                   <div className="bill-line bill-line-editable" key={i}>
+                    {/* Everything on one line: act, qty, price, then (only after
+                        the doctor clicks the % button) the per-act remise. */}
                     <div className="bill-line-main">
                       <input
                         className="form-input bill-line-label"
@@ -2259,6 +2261,37 @@ export function AppointmentDetailPage() {
                         onChange={(e) => updateBillLine(i, { unitPrice: parseFloat(e.target.value.replace(",", ".")) || 0 })}
                         title={t("apptDetail.billUnitPrice")}
                       />
+                      {l.remise == null ? (
+                        <button
+                          type="button"
+                          className="bill-line-remise-btn"
+                          onClick={() => updateBillLine(i, { remise: 0, remiseType: l.remiseType ?? "mad" })}
+                          title={t("apptDetail.billApplyRemise")}
+                        >%</button>
+                      ) : (
+                        <>
+                          <input
+                            className="form-input bill-line-remise-input"
+                            type="number" min="0" step="0.01"
+                            placeholder="0" autoFocus
+                            value={l.remise || ""}
+                            onChange={(e) => updateBillLine(i, { remise: parseFloat(e.target.value.replace(",", ".")) || 0, remiseType: l.remiseType ?? "mad" })}
+                            title={t("apptDetail.billActRemise")}
+                          />
+                          <button
+                            type="button"
+                            className="bill-line-remise-toggle"
+                            onClick={() => updateBillLine(i, { remiseType: l.remiseType === "pct" ? "mad" : "pct" })}
+                            title={t("apptDetail.billActRemiseToggle")}
+                          >{l.remiseType === "pct" ? "%" : "MAD"}</button>
+                          <button
+                            type="button"
+                            className="bill-line-remise-clear"
+                            onClick={() => updateBillLine(i, { remise: undefined, remiseType: undefined })}
+                            title={t("apptDetail.billRemoveRemise")}
+                          >↩</button>
+                        </>
+                      )}
                       <button
                         type="button"
                         className="bill-line-remove"
@@ -2267,26 +2300,9 @@ export function AppointmentDetailPage() {
                         title={t("common.delete")}
                       >×</button>
                     </div>
-                    {/* Optional per-act discount: value + %/MAD toggle. */}
-                    <div className="bill-line-remise-row">
-                      <span className="bill-line-remise-lbl">{t("apptDetail.billActRemise")}</span>
-                      <input
-                        className="form-input bill-line-remise-input"
-                        type="number" min="0" step="0.01"
-                        placeholder="0"
-                        value={l.remise || ""}
-                        onChange={(e) => updateBillLine(i, { remise: parseFloat(e.target.value.replace(",", ".")) || 0, remiseType: l.remiseType ?? "mad" })}
-                      />
-                      <button
-                        type="button"
-                        className="bill-line-remise-toggle"
-                        onClick={() => updateBillLine(i, { remiseType: l.remiseType === "pct" ? "mad" : "pct" })}
-                        title={t("apptDetail.billActRemiseToggle")}
-                      >{l.remiseType === "pct" ? "%" : "MAD"}</button>
-                      {lineDiscount(l) > 0 && (
-                        <span className="bill-line-remise-net">− {formatMAD(lineDiscount(l))} → {formatMAD(lineNet(l))}</span>
-                      )}
-                    </div>
+                    {l.remise != null && lineDiscount(l) > 0 && (
+                      <div className="bill-line-remise-hint">− {formatMAD(lineDiscount(l))} → {formatMAD(lineNet(l))}</div>
+                    )}
                   </div>
                 ))}
               </div>

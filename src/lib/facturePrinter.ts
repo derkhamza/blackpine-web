@@ -133,24 +133,31 @@ export function printFacture(opts: FactureOptions): void {
     .party-detail { font-size: 9pt; color: #444; line-height: 1.6; }
 
     /* ── Line items ───────────────────────────────────────────────────────── */
+    /* The per-act / per-consultation lines and their remises stay small; the
+       final TOTAL line is the emphasised element. */
     table.items {
-      width: 100%; border-collapse: collapse; margin-bottom: 0; font-size: 10pt;
+      width: 100%; border-collapse: collapse; margin-bottom: 0; font-size: 8.5pt;
     }
     .items thead { display: table-header-group; }
     .items tbody tr { break-inside: avoid; page-break-inside: avoid; }
     .items thead tr { background: #0A4E7E; color: #fff; }
-    .items thead th { padding: 8px 10px; text-align: left; font-size: 9pt; font-weight: 700; letter-spacing: 0.3px; }
+    .items thead th { padding: 6px 10px; text-align: left; font-size: 8pt; font-weight: 700; letter-spacing: 0.3px; }
     .items thead th.r { text-align: right; }
-    .items tbody td { padding: 10px 10px; border-bottom: 1px solid #E2EFF8; vertical-align: top; }
+    .items tbody td { padding: 5px 10px; border-bottom: 1px solid #E2EFF8; vertical-align: top; font-size: 8.5pt; }
     .items tbody td.r { text-align: right; white-space: nowrap; }
     .items tbody tr:last-child td { border-bottom: none; }
-    .items tfoot td { padding: 7px 10px; font-size: 10pt; }
-    .items tfoot .sep { border-top: 2px solid #0A4E7E; }
-    .items tfoot .lbl { color: #555; text-align: right; padding-right: 14px; }
-    .items tfoot .total-lbl { font-weight: 700; text-align: right; padding-right: 14px; font-size: 11pt; }
-    .items tfoot .val { text-align: right; white-space: nowrap; }
+    .items tfoot td { padding: 4px 10px; font-size: 8.5pt; }
+    .items tfoot .sep { border-top: 1.5px solid #0A4E7E; }
+    .items tfoot .lbl { color: #666; text-align: right; padding-right: 14px; font-size: 8.5pt; }
+    .items tfoot .val { text-align: right; white-space: nowrap; font-size: 8.5pt; }
+    /* Emphasised grand-total row: larger type, heavy rule and a soft highlight. */
+    .items tfoot .total-lbl {
+      font-weight: 800; text-align: right; padding: 10px 14px 10px 0; font-size: 13pt;
+      color: #0A4E7E; border-top: 2.5px solid #0A4E7E; background: #EFF6FB;
+    }
     .items tfoot .total-val {
-      font-weight: 800; text-align: right; font-size: 12pt; color: #0A4E7E; white-space: nowrap;
+      font-weight: 900; text-align: right; font-size: 17pt; color: #0A4E7E; white-space: nowrap;
+      padding: 10px 10px; border-top: 2.5px solid #0A4E7E; background: #EFF6FB;
     }
 
     /* ── Amount in words ──────────────────────────────────────────────────── */
