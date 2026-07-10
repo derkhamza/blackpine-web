@@ -142,10 +142,12 @@ export function PageDesigner({
   const blockPos = (key: string) => {
     const b = design.blocks?.[key];
     const flow = FLOW_Y[kind][key];
-    const w = RIGHT_BLOCKS.has(key) ? 45 : page.w - margins.left - margins.right;
-    const x = b?.x ?? (RIGHT_BLOCKS.has(key) ? page.w - margins.right - w : margins.left);
+    const defW = RIGHT_BLOCKS.has(key) ? 45 : page.w - margins.left - margins.right;
+    const x = b?.x ?? (RIGHT_BLOCKS.has(key) ? page.w - margins.right - defW : margins.left);
     const y = b?.y ?? flow.y;
-    return { x, y, w: RIGHT_BLOCKS.has(key) ? w : Math.min(w, page.w - x - margins.right), h: flow.h };
+    // Honour a doctor-set width; otherwise fill to the right margin.
+    const w = b?.w ?? (RIGHT_BLOCKS.has(key) ? defW : Math.min(defW, page.w - x - margins.right));
+    return { x, y, w, h: flow.h };
   };
 
   // ── Drag handling (pointer events, mm-precise) ─────────────────────────────
@@ -187,7 +189,10 @@ export function PageDesigner({
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
-    resizeImageToDataUrl(file, (dataUrl) => { if (dataUrl) setDesign({ background: dataUrl }); }, MAX_BG_PX, "image/jpeg");
+    // Default to printing the background — a doctor who uploads a letterhead
+    // usually wants it ON the document. They can untick "print background" if
+    // they only need it as an alignment guide for pre-printed paper.
+    resizeImageToDataUrl(file, (dataUrl) => { if (dataUrl) setDesign({ background: dataUrl, printBackground: true }); }, MAX_BG_PX, "image/jpeg");
   };
 
   const selBlock: DocBlockDesign | undefined = selected && selected !== "__logo" ? design.blocks?.[selected] : undefined;
@@ -358,7 +363,7 @@ export function PageDesigner({
             })}
           </div>
 
-          {/* Selected block numeric position */}
+          {/* Selected block numeric position + size */}
           {selected && selected !== "__logo" && !flow && (
             <div className="pd-pos-row">
               <span className="pd-pos-label">{blockLabel(selected)}</span>
@@ -368,6 +373,18 @@ export function PageDesigner({
               <label>Y <input className="form-input" type="number" step="0.5"
                 value={selBlock?.y ?? ""} placeholder="auto"
                 onChange={e => setBlock(selected, { y: e.target.value === "" ? undefined : parseFloat(e.target.value) })} /> mm</label>
+              <label>{t("settings.pd.width")} <input className="form-input" type="number" step="1" min="10"
+                value={selBlock?.w ?? ""} placeholder="auto"
+                onChange={e => setBlock(selected, { w: e.target.value === "" ? undefined : Math.max(5, parseFloat(e.target.value) || 0) })} /> mm</label>
+            </div>
+          )}
+          {/* Width also applies to flow-layout blocks (report / patient file) */}
+          {selected && selected !== "__logo" && flow && (
+            <div className="pd-pos-row">
+              <span className="pd-pos-label">{blockLabel(selected)}</span>
+              <label>{t("settings.pd.width")} <input className="form-input" type="number" step="1" min="10"
+                value={selBlock?.w ?? ""} placeholder="auto"
+                onChange={e => setBlock(selected, { w: e.target.value === "" ? undefined : Math.max(5, parseFloat(e.target.value) || 0) })} /> mm</label>
             </div>
           )}
 

@@ -116,10 +116,12 @@ export function blockStyle(d: PageDesign | undefined, key: string, m: PageMargin
   const b = d?.blocks?.[key];
   if (!b) return "";
   if (b.show === false) return "display:none;";
-  if (b.x == null && b.y == null) return "";
+  const width = b.w != null ? `width:${b.w}mm;` : "";
+  // No position set → keep natural flow, but still honour a custom width.
+  if (b.x == null && b.y == null) return width;
   const left = (b.x ?? m.left) - m.left;
   const top  = (b.y ?? m.top)  - m.top;
-  return `position:absolute;left:${left}mm;top:${top}mm;right:auto;margin:0;`;
+  return `position:absolute;left:${left}mm;top:${top}mm;right:auto;margin:0;${width}`;
 }
 
 /** Absolutely-positioned logo image, or empty string when none is set. */

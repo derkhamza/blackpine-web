@@ -1286,6 +1286,7 @@
       "logoAdd": "Ajouter un logo",
       "logoReplace": "Remplacer le logo",
       "logoWidth": "Largeur",
+      "width": "Largeur",
       "letterheadTip": "Astuce : si votre papier contient déjà votre en-tête, décochez « En-tête » et augmentez la marge haute.",
       "paperSize": "Taille du papier",
       "background": "Modèle de fond",

@@ -1286,6 +1286,7 @@
       "logoAdd": "Add a logo",
       "logoReplace": "Replace logo",
       "logoWidth": "Width",
+      "width": "Width",
       "letterheadTip": "Tip: if your paper already carries your letterhead, untick “Header” and increase the top margin.",
       "paperSize": "Paper size",
       "background": "Background model",

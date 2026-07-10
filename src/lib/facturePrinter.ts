@@ -5,7 +5,7 @@ import { amountInWords } from "./receiptPrinter";
 import { printHtmlDocument } from "./printDoc";
 import {
   FACTURE_DEFAULT_MARGINS, resolveMargins, pageRule, resolvePageSize, backgroundHtml,
-  blockStyle, blockHidden, logoHtml,
+  blockStyle, blockHidden, logoHtml, designForKind,
 } from "./docDesign";
 
 // ── Sequential invoice counter ────────────────────────────────────────────────
@@ -54,8 +54,10 @@ function fmtMAD(n: number): string {
 export function printFacture(opts: FactureOptions): void {
   const { invoiceNumber, invoiceDate, patientName, patientCnops, serviceLabel, serviceDate, amount, doctorProfile: doc } = opts;
   const ds = { ...DEFAULT_DOCUMENT_SETTINGS, ...(doc.documentSettings ?? {}) };
-  // Advanced page design (margins / block positions / logo) — doctor-defined.
-  const design  = ds.factureDesign;
+  // Advanced page design (margins / block positions / logo / letterhead
+  // background) — the page designer saves it under designs.facture, so read it
+  // via designForKind (falls back to the legacy factureDesign field).
+  const design  = designForKind(ds, "facture");
   const margins = resolveMargins(design, FACTURE_DEFAULT_MARGINS);
   const bs = (key: string) => blockStyle(design, key, margins);
 

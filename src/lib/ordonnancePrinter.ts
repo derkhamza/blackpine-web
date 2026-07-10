@@ -2,7 +2,7 @@ import type { OrdonnanceLine, CabinetDoctorProfile } from "./cabinetTypes";
 import { DEFAULT_DOCUMENT_SETTINGS } from "./cabinetTypes";
 import {
   ORDONNANCE_DEFAULT_MARGINS, resolveMargins, pageRule, resolvePageSize, backgroundHtml,
-  blockStyle, blockHidden, logoHtml,
+  blockStyle, blockHidden, logoHtml, designForKind,
 } from "./docDesign";
 
 // ── Common drug suggestions (datalist) ───────────────────────────────────────
@@ -460,8 +460,10 @@ export function printOrdonnance(opts: {
   const ds = { ...DEFAULT_DOCUMENT_SETTINGS, ...(doctorProfile.documentSettings ?? {}) };
   const letterhead = ds.layout === "letterhead";   // pre-printed paper: skip identity block
   const compact    = ds.layout === "compact";
-  // Advanced page design (margins / block positions / logo) — doctor-defined.
-  const design  = ds.ordonnanceDesign;
+  // Advanced page design (margins / block positions / logo / letterhead
+  // background) — read via designForKind (the page designer saves under
+  // designs.ordonnance; falls back to the legacy ordonnanceDesign field).
+  const design  = designForKind(ds, "ordonnance");
   const margins = resolveMargins(design, ORDONNANCE_DEFAULT_MARGINS);
   const bs = (key: string) => blockStyle(design, key, margins);
 

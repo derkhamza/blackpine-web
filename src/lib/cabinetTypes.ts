@@ -97,6 +97,7 @@ export interface DocBlockDesign {
   show?: boolean;   // default true
   x?: number;       // mm from the left page edge; undefined = natural flow
   y?: number;       // mm from the top page edge
+  w?: number;       // mm — block width (text wraps to it); undefined = natural width
 }
 
 // Custom page design for a printed document (facture / ordonnance).
