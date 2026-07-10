@@ -24,8 +24,8 @@ export interface PlanPrice {
 
 export const PRICING = {
   currency: "MAD",
-  monthly: { amount: 149, period: "month" } as PlanPrice,
-  // 1 490 MAD/an ≈ 124 MAD/mo — about two months free vs. paying monthly.
-  yearly: { amount: 1490, period: "year", perMonth: 124, monthsFree: 2 } as PlanPrice,
+  monthly: { amount: 199, period: "month" } as PlanPrice,
+  // 1 990 MAD/an ≈ 166 MAD/mo — two months free vs. paying monthly (199×12 = 2 388).
+  yearly: { amount: 1990, period: "year", perMonth: 166, monthsFree: 2 } as PlanPrice,
   trialDays: 30,
 } as const;
