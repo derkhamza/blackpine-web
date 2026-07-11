@@ -717,11 +717,12 @@ export function CabinetProvider({
   // local edits (dirtyRef) so a pull can never clobber work in progress.
   useEffect(() => {
     if (!userId && !secretarySession) return;
-    // Floor is 12 s so a co-editing doctor/secretary sees each other's changes
-    // within ~12 s; conditional 304s keep an unchanged poll cheap on bytes. Backs
-    // off to 90 s once the tab has been idle (no changes) for a while. Any change
-    // or a refocus resets to the 12 s floor (see pollMissRef handling).
-    const STEPS = [12000, 20000, 45000, 90000];
+    // Floor is 25 s: a co-editing doctor/secretary still sees changes reasonably
+    // quickly, but we keep the serverless invocation / Turso connection volume
+    // low — an aggressive floor spins up many cold lambdas that each open a fresh
+    // DB connection, which pressured Turso and caused intermittent connect hangs.
+    // Backs off to 120 s when idle; any change or refocus resets to the floor.
+    const STEPS = [25000, 45000, 75000, 120000];
     let timer: ReturnType<typeof setTimeout>;
     const schedule = () => {
       const delay = STEPS[Math.min(pollMissRef.current, STEPS.length - 1)];
