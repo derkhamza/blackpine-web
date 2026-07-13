@@ -650,18 +650,31 @@ function SmsRemindersSection({
   };
 
   if (!loaded) return null;
-  if (!cfg) return <div className="secretary-info-desc">{t("settings.smsError")}</div>;
+
+  // SMS delivery isn't live yet — the provider isn't configured on the backend, or
+  // the config endpoint is unavailable. Rather than surfacing a server/technical
+  // error, present a friendly "coming soon" state.
+  if (!cfg || !cfg.serverConfigured) {
+    return (
+      <div className="sms-soon">
+        <span className="sms-soon-icon" aria-hidden>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+            <path d="M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H8l-4 3V6a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"/>
+            <path d="M8 10h8M8 13h5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+          </svg>
+        </span>
+        <div className="sms-soon-body">
+          <div className="sms-soon-title">{t("settings.smsSoonTitle")}</div>
+          <div className="sms-soon-desc">{t("settings.smsSoonDesc")}</div>
+        </div>
+        <span className="sms-soon-badge">{t("settings.smsSoonBadge")}</span>
+      </div>
+    );
+  }
 
   return (
     <div>
       <div className="secretary-info-desc" style={{ marginBottom: 12 }}>{t("settings.smsDesc")}</div>
-
-      {!cfg.serverConfigured && (
-        <div className="ord-allergy-banner" style={{ marginBottom: 14 }}>
-          <span style={{ fontSize: 15, lineHeight: 1.2 }}>⚙️</span>
-          <div className="ord-allergy-title" style={{ fontWeight: 600 }}>{t("settings.smsNotConfigured")}</div>
-        </div>
-      )}
 
       {!cfg.enabled ? (
         <button className="btn btn-primary" onClick={() => save({ enabled: true })} disabled={busy}>

@@ -1870,6 +1870,24 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 }
 
 /* Allergy safety banner */
+/* SMS "coming soon" placeholder (feature not yet live — no server error shown) */
+.sms-soon {
+  display: flex; align-items: center; gap: 12px;
+  padding: 16px; border-radius: 12px;
+  background: rgba(20,184,166,0.08); border: 1px solid rgba(20,184,166,0.22);
+}
+.sms-soon-icon { color: #0d9488; flex-shrink: 0; display: inline-flex; }
+.sms-soon-body { flex: 1; min-width: 0; }
+.sms-soon-title { font-weight: 600; font-size: 13.5px; color: var(--text); margin-bottom: 2px; }
+.sms-soon-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
+.sms-soon-badge {
+  flex-shrink: 0; align-self: flex-start;
+  font-size: 11px; font-weight: 700; letter-spacing: .3px;
+  color: #0d9488; background: rgba(20,184,166,0.15);
+  border-radius: 999px; padding: 2px 9px;
+}
+[data-theme="dark"] .sms-soon-icon, [data-theme="dark"] .sms-soon-badge { color: #2dd4bf; }
+
 .ord-allergy-banner {
   display: flex; align-items: flex-start; gap: 9px;
   padding: 9px 12px; border-radius: var(--r);
