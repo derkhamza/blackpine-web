@@ -467,25 +467,51 @@ const pullEtags: Record<string, string> = {};
 // server can omit the heavy base64 blobs when they haven't changed — even when
 // other data has (the residual attachment re-transfer during a consultation).
 const docsVersions: Record<string, string> = {};
+// Last per-column content versions (JSON {a,p,r,e}) seen per endpoint. Sent as
+// ?cv so the server returns ONLY the columns that changed — an appointment edit
+// no longer drags the patients list + all clinical extras out of Neon. The
+// server always echoes its full current versions, even in a delta response, so
+// this stays a complete baseline. See buildColVersions on the backend.
+const colVersions: Record<string, string> = {};
+// Count of doctor pulls that returned changed data since the last FULL reconcile
+// (see pullCabinet). Reset on account change so a full heal happens right after login.
+let myPullsSinceFull = 0;
 
 // Drop all per-account conditional state. Called whenever the token changes
 // (login/logout) so one account can never send another's If-None-Match /
-// docsVersion — which could otherwise yield a 304 and hide the new account's
+// docsVersion / cv — which could otherwise yield a 304 and hide the new account's
 // data behind a stale one. (Hoisted; runs at call time when these exist.)
 export function resetConditionalCaches(): void {
   for (const k of Object.keys(pullEtags))    delete pullEtags[k];
   for (const k of Object.keys(docsVersions)) delete docsVersions[k];
+  for (const k of Object.keys(colVersions))  delete colVersions[k];
+  myPullsSinceFull = 0;
 }
 
+// Every Nth pull that actually returned changed data, force a FULL reconcile:
+// drop the ETag + cv + docsVersion so the server re-sends the complete snapshot.
+// This self-heals any delta drift (a server-side missed version bump, or a
+// client that failed to apply/store a column) within a bounded number of
+// changes — the safety net that makes per-column delta safe to ship on a live,
+// untestable clinical sync path. Idle 304 polls don't count, so this costs
+// nothing while the cabinet is quiet.
+const FULL_PULL_EVERY = 15;
+
 export async function pullCabinet(): Promise<CabinetSnapshot | null | typeof NOT_MODIFIED> {
-  const prev = pullEtags["/cabinet/my"];
-  const dv   = docsVersions["/cabinet/my"];
-  const res = await request(`/cabinet/my${dv ? `?docsVersion=${encodeURIComponent(dv)}` : ""}`, {
+  const forceFull = myPullsSinceFull >= FULL_PULL_EVERY;
+  const prev = forceFull ? undefined : pullEtags["/cabinet/my"];
+  const dv   = forceFull ? undefined : docsVersions["/cabinet/my"];
+  const cv   = forceFull ? undefined : colVersions["/cabinet/my"];
+  const qs = new URLSearchParams();
+  if (dv) qs.set("docsVersion", dv);
+  if (cv) qs.set("cv", cv);
+  const suffix = qs.toString() ? `?${qs.toString()}` : "";
+  const res = await request(`/cabinet/my${suffix}`, {
     cache: "no-store",
     headers: prev ? { "If-None-Match": prev } : {},
   });
   if (res.status === 401) { clearToken(); throw new Error("TOKEN_EXPIRED"); }
-  if (res.status === 304) return NOT_MODIFIED;
+  if (res.status === 304) return NOT_MODIFIED; // unchanged — don't advance the heal counter
   if (!res.ok) {
     const d = await res.json().catch(() => ({}));
     throw new Error((d as any).error || "Cabinet pull failed");
@@ -496,6 +522,15 @@ export async function pullCabinet(): Promise<CabinetSnapshot | null | typeof NOT
   if (snap && typeof (snap as any).apptDocumentsVersion === "string") {
     docsVersions["/cabinet/my"] = (snap as any).apptDocumentsVersion;
   }
+  // Store the server's full per-column baseline (present on every non-304 body,
+  // delta or full). Null means the row has no baseline yet → send none next time.
+  if (snap && typeof (snap as any).colVersions === "string") {
+    colVersions["/cabinet/my"] = (snap as any).colVersions;
+  } else if (snap) {
+    delete colVersions["/cabinet/my"];
+  }
+  // A forced full pull resets the cadence; a normal changed pull advances it.
+  myPullsSinceFull = forceFull ? 0 : myPullsSinceFull + 1;
   return snap;
 }
 
