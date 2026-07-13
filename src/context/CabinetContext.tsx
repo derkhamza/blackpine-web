@@ -5,6 +5,7 @@ import type { Appointment, ApptDocument, CabinetDoctorProfile, Certificate, Empl
 import { BLANK_DOCTOR_PROFILE, setApptTypeRegistry } from "../lib/cabinetTypes";
 import { idbGet, idbSet } from "../lib/idbStore";
 import { fullName } from "../lib/nameFormat";
+import { mergeConflict } from "../lib/cabinetMerge";
 import {
   getToken, pullCabinet, pushCabinet, CabinetConflictError, type CabinetSnapshot,
   getSecretaryToken, secretaryPull, secretaryPushAppointments, secretaryPushPatients,
@@ -78,31 +79,9 @@ export function estimateStorageBytes(): number {
 
 const BACKUP_KEY = "bp.lastBackupAt";
 
-/**
- * Per-record conflict merge used when our push is rejected (409) because
- * another device (typically the secretary) wrote in between. The old behaviour
- * adopted the server snapshot wholesale, silently discarding every local edit
- * made since the last successful sync — including freshly created patients
- * (the "patient introuvable" bug). Instead:
- *   - records we deleted locally stay deleted (tombstones),
- *   - records we edited/created locally win over the server copy,
- *   - everything else adopts the server copy (keeps the other device's edits).
- */
-function mergeConflict<T extends { id: string }>(
-  server: T[], local: T[], tombstones: Set<string>, touched: Set<string>,
-): T[] {
-  const localById = new Map(local.map(x => [x.id, x]));
-  const out: T[] = [];
-  for (const srv of server ?? []) {
-    if (!srv || !srv.id) continue;
-    if (tombstones.has(srv.id)) continue;               // deleted here → stays deleted
-    const loc = localById.get(srv.id);
-    out.push(loc && touched.has(srv.id) ? loc : srv);   // local edit wins, else server
-    localById.delete(srv.id);
-  }
-  for (const loc of localById.values()) out.push(loc);  // created here → keep
-  return out;
-}
+// mergeConflict / mergeRecord (the 409 reconciliation) live in ../lib/cabinetMerge
+// so they can be unit-tested in isolation. Appointments and patients are merged
+// 3-way (field level) against a per-record base captured at each sync point.
 
 // Sub-keys that hold per-cabinet data. Must stay in sync with all save() calls below.
 const CABINET_SUBKEYS = [
@@ -624,6 +603,16 @@ export function CabinetProvider({
   // conflict merge so a 409 never resurrects deletions nor drops local edits.
   const tombstonesRef = useRef({ appts: new Set<string>(), patients: new Set<string>(), apptDocs: new Set<string>() });
   const touchedRef    = useRef({ appts: new Set<string>(), patients: new Set<string>(), apptDocs: new Set<string>() });
+  // Per-record snapshot as of our last successful sync — the "base" the 3-way
+  // field merge diffs against on a 409. Refreshed whenever local state becomes
+  // clean: a fresh server snapshot is applied, or our push is accepted.
+  const baseRef = useRef<{ appts: Map<string, Appointment>; patients: Map<string, Patient> }>({
+    appts: new Map(), patients: new Map(),
+  });
+  const captureBase = (appts: Appointment[], pts: Patient[]) => {
+    baseRef.current.appts    = new Map(appts.map(a => [a.id, a]));
+    baseRef.current.patients = new Map(pts.map(p => [p.id, p]));
+  };
   const clearMergeMarks = () => {
     tombstonesRef.current.appts.clear();   tombstonesRef.current.patients.clear();
     touchedRef.current.appts.clear();      touchedRef.current.patients.clear();
@@ -667,6 +656,11 @@ export function CabinetProvider({
       });
     }
     baseUpdatedAt.current = snapshot.updatedAt ?? null;
+    // The applied snapshot is our new merge base for appointments & patients.
+    if (Array.isArray(snapshot.appointments))
+      baseRef.current.appts = new Map((snapshot.appointments as Appointment[]).map(a => [a.id, a]));
+    if (Array.isArray(snapshot.patients))
+      baseRef.current.patients = new Map((snapshot.patients as Patient[]).map(p => [p.id, p]));
     clearMergeMarks(); // fresh baseline — nothing local is pending anymore
   }, []);
 
@@ -875,6 +869,7 @@ export function CabinetProvider({
           if (editSeqRef.current === seqAtPush) {
             dirtyRef.current = false;
             clearMergeMarks();
+            captureBase(appointments, patients); // server accepted our state → new base
           }
           setSyncState("synced");
           setLastSynced(new Date().toISOString());
@@ -890,10 +885,10 @@ export function CabinetProvider({
             baseUpdatedAt.current = snap.updatedAt ?? null;
             setAppts(local => mergeConflict(
               (snap.appointments ?? []) as Appointment[], local,
-              tombstonesRef.current.appts, touchedRef.current.appts));
+              tombstonesRef.current.appts, touchedRef.current.appts, baseRef.current.appts));
             setPatients(local => mergeConflict(
               (snap.patients ?? []) as Patient[], local,
-              tombstonesRef.current.patients, touchedRef.current.patients));
+              tombstonesRef.current.patients, touchedRef.current.patients, baseRef.current.patients));
             // Attachments can also be added by the secretary between our pulls
             // — merge them too so her scans survive the doctor's next push.
             setApptDocuments(local => mergeConflict(
