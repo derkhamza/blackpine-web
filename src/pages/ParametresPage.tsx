@@ -80,6 +80,12 @@ const SECTION_ICONS: Record<string, { tone: string; node: React.ReactNode }> = {
       <rect x="3.3" y="4" width="11.4" height="11" rx="1.6" stroke="currentColor" strokeWidth="1.5"/>
       <path d="M3.3 7.4h11.4M6.4 2.4v3M11.6 2.4v3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
     </svg>) },
+  daysoff: { tone: "#F59E0B", node: (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
+      <rect x="3.3" y="4" width="11.4" height="11" rx="1.6" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M3.3 7.4h11.4M6.4 2.4v3M11.6 2.4v3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      <path d="M7 11.4 11 11.4M9 9.4v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" transform="rotate(45 9 11.4)"/>
+    </svg>) },
   sms: { tone: "#14B8A6", node: (
     <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
       <path d="M3.4 8.6c0-2.6 2.5-4.4 5.6-4.4s5.6 1.8 5.6 4.4-2.5 4.4-5.6 4.4c-.8 0-1.6-.1-2.3-.35L4 14.6l.7-2.5A4.1 4.1 0 0 1 3.4 8.6z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
@@ -1066,6 +1072,91 @@ function ApptLabelsSection({
   );
 }
 
+// ── Agenda days off (weekly closures, public holidays, one-off congés) ─────────
+
+function DaysOffSection({
+  doctorProfile,
+  onChange,
+}: {
+  doctorProfile: CabinetDoctorProfile;
+  onChange: (p: CabinetDoctorProfile) => void;
+}) {
+  const { t } = useTranslation();
+  const weekly  = doctorProfile.weeklyDaysOff ?? [];
+  const custom  = doctorProfile.customDaysOff ?? [];
+  const showHol = doctorProfile.showPublicHolidays !== false;
+  // Monday-first row; JS getDay() numbers (Sun=0 … Sat=6).
+  const DOW: { n: number; key: string }[] = [
+    { n: 1, key: "mon" }, { n: 2, key: "tue" }, { n: 3, key: "wed" },
+    { n: 4, key: "thu" }, { n: 5, key: "fri" }, { n: 6, key: "sat" }, { n: 0, key: "sun" },
+  ];
+  const toggleDow = (n: number) => {
+    const next = weekly.includes(n) ? weekly.filter(x => x !== n) : [...weekly, n];
+    onChange({ ...doctorProfile, weeklyDaysOff: next.length ? next : undefined });
+  };
+  const [newDate, setNewDate]     = useState("");
+  const [newReason, setNewReason] = useState("");
+  const addCustom = () => {
+    if (!newDate || custom.some(c => c.date === newDate)) return;
+    const next = [...custom, { date: newDate, reason: newReason.trim() || undefined }]
+      .sort((a, b) => a.date.localeCompare(b.date));
+    onChange({ ...doctorProfile, customDaysOff: next });
+    setNewDate(""); setNewReason("");
+  };
+  const removeCustom = (date: string) => {
+    const next = custom.filter(c => c.date !== date);
+    onChange({ ...doctorProfile, customDaysOff: next.length ? next : undefined });
+  };
+  return (
+    <div className="consult-types-list">
+      <label className="form-label">{t("settings.weeklyDaysOff")}</label>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+        {DOW.map(d => {
+          const on = weekly.includes(d.n);
+          return (
+            <button
+              key={d.n}
+              type="button"
+              className={`btn ${on ? "btn-primary" : "btn-ghost"}`}
+              style={{ fontSize: 12, padding: "5px 10px", minWidth: 44 }}
+              onClick={() => toggleDow(d.n)}
+            >{t(`common.dow.${d.key}`)}</button>
+          );
+        })}
+      </div>
+
+      <label className="settings-toggle-row" style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12 }}>
+        <input
+          type="checkbox"
+          checked={showHol}
+          onChange={e => onChange({ ...doctorProfile, showPublicHolidays: e.target.checked ? undefined : false })}
+        />
+        <span>{t("settings.showHolidays")}</span>
+      </label>
+
+      <label className="form-label" style={{ marginTop: 12 }}>{t("settings.customDaysOff")}</label>
+      {custom.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 }}>
+          {custom.map(c => (
+            <div key={c.date} className="consult-type-row visible" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontVariantNumeric: "tabular-nums", fontSize: 13, minWidth: 92 }}>{c.date}</span>
+              <span style={{ flex: 1, minWidth: 0, color: "var(--muted)", fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.reason || t("settings.closed")}</span>
+              <button type="button" onClick={() => removeCustom(c.date)} title={t("common.delete")}
+                style={{ background: "none", border: "none", color: "var(--coral)", cursor: "pointer", fontSize: 18, lineHeight: 1 }}>×</button>
+            </div>
+          ))}
+        </div>
+      )}
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+        <input className="form-input" type="date" style={{ maxWidth: 170 }} value={newDate} onChange={e => setNewDate(e.target.value)} />
+        <input className="form-input" style={{ flex: 1, minWidth: 120 }} placeholder={t("settings.closureReasonPlaceholder")} value={newReason} onChange={e => setNewReason(e.target.value)} />
+        <button type="button" className="btn btn-ghost" style={{ fontSize: 13 }} disabled={!newDate} onClick={addCustom}>+ {t("common.add")}</button>
+      </div>
+      <div className="consult-types-hint">{t("settings.daysOffHint")}</div>
+    </div>
+  );
+}
+
 // ── Acts codes manager ─────────────────────────────────────────────────────────
 
 function ActeCodesSection({
@@ -1786,6 +1877,15 @@ export function ParametresPage() {
           subtitle={t("settings.bookingSubtitle")}
         >
           <OnlineBookingSection doctorProfile={doctorProfile} t={t} showToast={showToast} />
+        </Section>
+
+        {/* ── Jours de congé & fériés ── */}
+        <Section
+          icon="daysoff"
+          title={t("settings.daysOffTitle")}
+          subtitle={t("settings.daysOffSubtitle")}
+        >
+          <DaysOffSection doctorProfile={doctorProfile} onChange={setDoctorProfile} />
         </Section>
 
         {/* ── Rappels SMS automatiques ── */}

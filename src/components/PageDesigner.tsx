@@ -16,7 +16,7 @@ import { resolveDocImage, offloadDocImage, warmDocImages } from "../lib/docImage
 // is stored in doctorProfile.documentSettings.designs[kind] and applied by the
 // print functions.
 
-const DOC_KINDS: DocKind[] = ["ordonnance", "facture", "certificate", "examRequest", "receipt", "report", "payroll"];
+const DOC_KINDS: DocKind[] = ["ordonnance", "facture", "certificate", "examRequest", "receipt", "report", "payroll", "compteRendu", "rapportMedical"];
 const PAPER_OPTS: PaperSize[] = ["A5", "A4", "Letter"];
 
 // Natural (flow) positions used to draw un-pinned blocks on the preview.
@@ -64,6 +64,14 @@ const FLOW_Y: Record<DocKind, Record<string, { y: number; h: number }>> = {
   },
   report: {
     header:    { y: 14,  h: 26 },
+    footer:    { y: 279, h: 10 },
+  },
+  compteRendu: {
+    header:    { y: 14,  h: 26 },
+    footer:    { y: 279, h: 10 },
+  },
+  rapportMedical: {
+    header:    { y: 16,  h: 26 },
     footer:    { y: 279, h: 10 },
   },
   payroll: {

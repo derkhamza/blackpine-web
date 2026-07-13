@@ -82,68 +82,150 @@
     "stepOf": "Step {{n}} / {{total}}",
     "welcomeTitle": "Welcome to Blackpine",
     "welcomeBody": "Your practice, fully digital: agenda, records, consultations, billing and accounting — in French, Arabic and English. This illustrated guide shows you, screen by screen, how to do things.",
-    "welcomeSteps": ["Step through with \"Next\".", "Each screen shows how to do one concrete action.", "Replay it anytime from Help."],
+    "welcomeSteps": [
+      "Step through with \"Next\".",
+      "Each screen shows how to do one concrete action.",
+      "Replay it anytime from Help."
+    ],
     "agendaTitle": "Agenda & appointments",
     "agendaBody": "Book and organise appointments in day, week or month views.",
-    "agendaSteps": ["Click \"+\" (or an empty slot) to create an appointment.", "Pick the patient, visit type and time.", "Drag and drop an appointment to move it.", "Colours and labels distinguish visit types."],
+    "agendaSteps": [
+      "Click \"+\" (or an empty slot) to create an appointment.",
+      "Pick the patient, visit type and time.",
+      "Drag and drop an appointment to move it.",
+      "Colours and labels distinguish visit types."
+    ],
     "waitingTitle": "Waiting room",
     "waitingBody": "Follow patient flow in real time, from arrival to consultation.",
-    "waitingSteps": ["At the desk, mark the patient \"Arrived\".", "The doctor sees the queue and calls the next patient.", "Wait times are shown automatically."],
+    "waitingSteps": [
+      "At the desk, mark the patient \"Arrived\".",
+      "The doctor sees the queue and calls the next patient.",
+      "Wait times are shown automatically."
+    ],
     "patientsTitle": "Patient records",
     "patientsBody": "Every patient has a full record, one click away.",
-    "patientsSteps": ["Open a patient to see their identification and medical file.", "History, allergies and ongoing treatment stay always visible.", "The Consultations tab traces every visit, prescription and exam."],
+    "patientsSteps": [
+      "Open a patient to see their identification and medical file.",
+      "History, allergies and ongoing treatment stay always visible.",
+      "The Consultations tab traces every visit, prescription and exam."
+    ],
     "consultTitle": "Consultation screen",
     "consultBody": "Everything happens on a single screen — no page-switching.",
-    "consultSteps": ["Fill in the notes (reason, exam, diagnosis, treatment) — templates speed it up.", "Enter vital signs: BMI and eGFR compute automatically.", "The history panel on the right shows every measure and document from past visits."],
+    "consultSteps": [
+      "Fill in the notes (reason, exam, diagnosis, treatment) — templates speed it up.",
+      "Enter vital signs: BMI and eGFR compute automatically.",
+      "The history panel on the right shows every measure and document from past visits."
+    ],
     "prescribeTitle": "Prescriptions & documents",
     "prescribeBody": "Produce every medical document in one click.",
-    "prescribeSteps": ["From the consultation, create a prescription (with your templates).", "Add certificates and exam requests the same way.", "Print or reprint anytime; everything stays in the record."],
+    "prescribeSteps": [
+      "From the consultation, create a prescription (with your templates).",
+      "Add certificates and exam requests the same way.",
+      "Print or reprint anytime; everything stays in the record."
+    ],
     "billingTitle": "Billing & payments",
     "billingBody": "Bill acts and take payment, all linked to accounting.",
-    "billingSteps": ["Add the acts; the fee fills in automatically.", "Apply a discount via the \"%\" button on the line.", "Take full, partial or deferred payment, then print an invoice or receipt."],
+    "billingSteps": [
+      "Add the acts; the fee fills in automatically.",
+      "Apply a discount via the \"%\" button on the line.",
+      "Take full, partial or deferred payment, then print an invoice or receipt."
+    ],
     "financesTitle": "Finances & accounting",
     "financesBody": "Track your income, expenses and taxable result.",
-    "financesSteps": ["The daily cash box totals your takings automatically.", "Record your expenses (rent, salaries, supplies…).", "Find reports and filings under Accounting."],
+    "financesSteps": [
+      "The daily cash box totals your takings automatically.",
+      "Record your expenses (rent, salaries, supplies…).",
+      "Find reports and filings under Accounting."
+    ],
     "documentsTitle": "Customise your documents",
     "documentsBody": "Brand your prescriptions and invoices — no external software.",
-    "documentsSteps": ["Open Settings → Document format.", "Add your logo or a letterhead background.", "Drag the block edges to adjust margins and sizes; the preview shows the real result."],
+    "documentsSteps": [
+      "Open Settings → Document format.",
+      "Add your logo or a letterhead background.",
+      "Drag the block edges to adjust margins and sizes; the preview shows the real result."
+    ],
     "teamTitle": "Secretary & team",
     "teamBody": "Delegate the front desk while keeping control of access.",
-    "teamSteps": ["Create a secretary account in Settings → Secretary.", "Tick exactly what they can see (agenda, payments, stock…).", "\"Secretary preview\" shows you exactly what they see."],
+    "teamSteps": [
+      "Create a secretary account in Settings → Secretary.",
+      "Tick exactly what they can see (agenda, payments, stock…).",
+      "\"Secretary preview\" shows you exactly what they see."
+    ],
     "syncTitle": "Multi-device, offline & languages",
     "syncBody": "Your data follows you everywhere, safely.",
-    "syncSteps": ["Sign in on desktop and mobile: everything syncs.", "The app works even offline (installable like a native app).", "Switch language (FR / EN / ع) anytime from the menu."],
+    "syncSteps": [
+      "Sign in on desktop and mobile: everything syncs.",
+      "The app works even offline (installable like a native app).",
+      "Switch language (FR / EN / ع) anytime from the menu."
+    ],
     "helpTitle": "Help whenever you need it",
     "helpBody": "You're never stuck.",
-    "helpSteps": ["Open Help (book icon at the bottom of the menu) to replay this guide.", "Browse the feature guide and help topics.", "Contact us in one click from Help. Enjoy!"],
+    "helpSteps": [
+      "Open Help (book icon at the bottom of the menu) to replay this guide.",
+      "Browse the feature guide and help topics.",
+      "Contact us in one click from Help. Enjoy!"
+    ],
     "sec": {
       "welcomeTitle": "Welcome — front desk",
       "welcomeBody": "You run the front desk: appointments, arrivals, contact details and payments. This illustrated guide shows you how.",
-      "welcomeSteps": ["Step through with \"Next\".", "The doctor sets your access; some sections may be hidden."],
+      "welcomeSteps": [
+        "Step through with \"Next\".",
+        "The doctor sets your access; some sections may be hidden."
+      ],
       "agendaTitle": "Agenda & appointments",
       "agendaBody": "Book and organise the practice's appointments.",
-      "agendaSteps": ["Click \"+\" or an empty slot to create an appointment.", "Enter the patient, reason and time.", "Drag an appointment to move it; online bookings appear here."],
+      "agendaSteps": [
+        "Click \"+\" or an empty slot to create an appointment.",
+        "Enter the patient, reason and time.",
+        "Drag an appointment to move it; online bookings appear here."
+      ],
       "waitingTitle": "Waiting room",
       "waitingBody": "Manage patient arrivals in real time.",
-      "waitingSteps": ["On arrival, mark the patient \"Arrived\".", "They move to the waiting room and the doctor sees them.", "Wait times are shown automatically."],
+      "waitingSteps": [
+        "On arrival, mark the patient \"Arrived\".",
+        "They move to the waiting room and the doctor sees them.",
+        "Wait times are shown automatically."
+      ],
       "patientsTitle": "Patient records",
       "patientsBody": "Create and keep patient records up to date.",
-      "patientsSteps": ["Create a record: identity, phone, insurance.", "Update contact details anytime.", "Depending on your access: vitals entry and AMO paperwork."],
+      "patientsSteps": [
+        "Create a record: identity, phone, insurance.",
+        "Update contact details anytime.",
+        "Depending on your access: vitals entry and AMO paperwork."
+      ],
       "billingTitle": "Payments",
       "billingBody": "Take payment and issue receipts (if the doctor allows).",
-      "billingSteps": ["Open the appointment to bill.", "Record the payment (full, partial or deferred).", "Print the invoice or receipt."],
+      "billingSteps": [
+        "Open the appointment to bill.",
+        "Record the payment (full, partial or deferred).",
+        "Print the invoice or receipt."
+      ],
       "syncTitle": "Multi-device & languages",
       "syncBody": "Work on desktop or mobile, in your language.",
-      "syncSteps": ["Everything syncs across devices.", "Works even offline.", "Switch language (FR / EN / ع) from the menu."],
+      "syncSteps": [
+        "Everything syncs across devices.",
+        "Works even offline.",
+        "Switch language (FR / EN / ع) from the menu."
+      ],
       "helpTitle": "Help whenever you need it",
       "helpBody": "Need a hand?",
-      "helpSteps": ["Open Help (book icon) to replay this guide.", "The doctor manages your access in Settings."]
+      "helpSteps": [
+        "Open Help (book icon) to replay this guide.",
+        "The doctor manages your access in Settings."
+      ]
     }
   },
   "help": {
     "title": "Help centre",
     "subtitle": "Guides, answers and contact",
-    "cat": { "start": "Get started", "daily": "Daily use", "clinical": "Clinical", "money": "Billing", "team": "Team & access", "app": "App & account" },
+    "cat": {
+      "start": "Get started",
+      "daily": "Daily use",
+      "clinical": "Clinical",
+      "money": "Billing",
+      "team": "Team & access",
+      "app": "App & account"
+    },
     "stepsTitle": "Get started in 4 steps",
     "steps": {
       "1": "Complete your profile (Profile): name, specialty, contact details.",
@@ -159,28 +241,94 @@
     "noResults": "No topic matches your search.",
     "featuresTitle": "Feature guide",
     "feat": {
-      "agenda":       { "t": "Agenda", "d": "Day / week / month views, recurring appointments, drag-and-drop, and differentiation by type and by colour label." },
-      "apptTypes":    { "t": "Consultation types", "d": "Add, rename and recolour your appointment types, plus an optional 2nd label as a distinguishing axis (Settings)." },
-      "waitingRoom":  { "t": "Waiting room", "d": "Track arrived, in-consultation and finished patients in real time, with waiting times." },
-      "patients":     { "t": "Patients", "d": "Full records, instant search, medical file (history, allergies, ongoing treatment) and timeline." },
-      "consultation": { "t": "Consultation screen", "d": "One screen: structured notes, measurements, radiology, prescriptions, certificates and the next appointment." },
-      "history":      { "t": "Built-in history", "d": "Inside the consultation, every past visit with all its measures and attached documents, each linked to its appointment." },
-      "autoCalc":     { "t": "Calculated fields", "d": "BMI, eGFR (CKD-EPI) from creatinine, and FEV1/FVC ratio compute automatically as soon as the inputs are entered." },
-      "growth":       { "t": "Growth curves", "d": "WHO charts (height, weight, BMI, head circumference) with official percentiles and mid-parental target height." },
-      "bilans":       { "t": "Specialty work-ups", "d": "Clinical fields tailored to your specialty, plus custom measures added on the fly." },
-      "documents":    { "t": "Documents", "d": "Prescriptions, certificates, exam requests, invoices and receipts — printable and re-issuable." },
-      "designer":     { "t": "Document designer", "d": "Personalise every document by dragging edges: margins and boxes, logo, paper background — with a true-to-life preview." },
-      "billing":      { "t": "Billing", "d": "Acts and remise (MAD or %) on the same line, front-desk collection, partial and deferred payments." },
-      "finances":     { "t": "Finances", "d": "Daily cash, income and expenses, unpaid tracking and AMO / mutuelle paperwork." },
-      "reminders":    { "t": "Reminders", "d": "Appointment reminders by SMS and WhatsApp messages to patients." },
-      "booking":      { "t": "Online booking", "d": "A public page where patients book a slot themselves, integrated with your agenda." },
-      "tele":         { "t": "Teleconsultation", "d": "Run remote consultations and keep a record in the patient file." },
-      "stock":        { "t": "Stock", "d": "Manage practice stock, suppliers and purchase orders, with low-level alerts." },
-      "secretary":    { "t": "Secretary accounts", "d": "Create secretary accounts with fine-grained permissions (agenda, collection, contacts) and no clinical access." },
-      "stats":        { "t": "Statistics", "d": "Activity dashboard, revenue, act types and clinical indicators." },
-      "sync":         { "t": "Sync", "d": "Your data syncs across devices and stays available offline (installable app)." },
-      "languages":    { "t": "Multilingual", "d": "Interface and documents in French, English and Arabic, switchable any time." },
-      "backup":       { "t": "Export & backup", "d": "Export patients and appointments to CSV, the agenda to iCal, and back up your data." }
+      "agenda": {
+        "t": "Agenda",
+        "d": "Day / week / month views, recurring appointments, drag-and-drop, and differentiation by type and by colour label."
+      },
+      "apptTypes": {
+        "t": "Consultation types",
+        "d": "Add, rename and recolour your appointment types, plus an optional 2nd label as a distinguishing axis (Settings)."
+      },
+      "waitingRoom": {
+        "t": "Waiting room",
+        "d": "Track arrived, in-consultation and finished patients in real time, with waiting times."
+      },
+      "patients": {
+        "t": "Patients",
+        "d": "Full records, instant search, medical file (history, allergies, ongoing treatment) and timeline."
+      },
+      "consultation": {
+        "t": "Consultation screen",
+        "d": "One screen: structured notes, measurements, radiology, prescriptions, certificates and the next appointment."
+      },
+      "history": {
+        "t": "Built-in history",
+        "d": "Inside the consultation, every past visit with all its measures and attached documents, each linked to its appointment."
+      },
+      "autoCalc": {
+        "t": "Calculated fields",
+        "d": "BMI, eGFR (CKD-EPI) from creatinine, and FEV1/FVC ratio compute automatically as soon as the inputs are entered."
+      },
+      "growth": {
+        "t": "Growth curves",
+        "d": "WHO charts (height, weight, BMI, head circumference) with official percentiles and mid-parental target height."
+      },
+      "bilans": {
+        "t": "Specialty work-ups",
+        "d": "Clinical fields tailored to your specialty, plus custom measures added on the fly."
+      },
+      "documents": {
+        "t": "Documents",
+        "d": "Prescriptions, certificates, exam requests, invoices and receipts — printable and re-issuable."
+      },
+      "designer": {
+        "t": "Document designer",
+        "d": "Personalise every document by dragging edges: margins and boxes, logo, paper background — with a true-to-life preview."
+      },
+      "billing": {
+        "t": "Billing",
+        "d": "Acts and remise (MAD or %) on the same line, front-desk collection, partial and deferred payments."
+      },
+      "finances": {
+        "t": "Finances",
+        "d": "Daily cash, income and expenses, unpaid tracking and AMO / mutuelle paperwork."
+      },
+      "reminders": {
+        "t": "Reminders",
+        "d": "Appointment reminders by SMS and WhatsApp messages to patients."
+      },
+      "booking": {
+        "t": "Online booking",
+        "d": "A public page where patients book a slot themselves, integrated with your agenda."
+      },
+      "tele": {
+        "t": "Teleconsultation",
+        "d": "Run remote consultations and keep a record in the patient file."
+      },
+      "stock": {
+        "t": "Stock",
+        "d": "Manage practice stock, suppliers and purchase orders, with low-level alerts."
+      },
+      "secretary": {
+        "t": "Secretary accounts",
+        "d": "Create secretary accounts with fine-grained permissions (agenda, collection, contacts) and no clinical access."
+      },
+      "stats": {
+        "t": "Statistics",
+        "d": "Activity dashboard, revenue, act types and clinical indicators."
+      },
+      "sync": {
+        "t": "Sync",
+        "d": "Your data syncs across devices and stays available offline (installable app)."
+      },
+      "languages": {
+        "t": "Multilingual",
+        "d": "Interface and documents in French, English and Arabic, switchable any time."
+      },
+      "backup": {
+        "t": "Export & backup",
+        "d": "Export patients and appointments to CSV, the agenda to iCal, and back up your data."
+      }
     },
     "pricingTitle": "Subscription & pricing",
     "pricingFoot": "{{days}}-day free trial, no card required. Activation is by code after a bank transfer.",
@@ -244,7 +392,12 @@
     "noData": "No growth measurement (height, weight…) recorded yet.",
     "bandsPending": "Reference percentile bands (GFA/WHO) are not loaded yet — the curve shows the child's actual measurements and the target height.",
     "refWho": "Reference bands: WHO 3–10–25–50–75–90–97th percentiles (0–5 y: WHO standards; 5–19 y: WHO 2007 reference). Weight is not defined beyond 10 y.",
-    "metric": { "height": "Height", "weight": "Weight", "bmi": "BMI", "headCirc": "Head circumference" }
+    "metric": {
+      "height": "Height",
+      "weight": "Weight",
+      "bmi": "BMI",
+      "headCirc": "Head circumference"
+    }
   },
   "ctx": {
     "openConsult": "Open consultation",
@@ -331,7 +484,16 @@
     "deadline": "Due:",
     "darkMode": "Dark mode",
     "lightMode": "Light mode",
-    "productOf": "A product of Blackpine Capital SARL"
+    "productOf": "A product of Blackpine Capital SARL",
+    "dow": {
+      "mon": "Mon",
+      "tue": "Tue",
+      "wed": "Wed",
+      "thu": "Thu",
+      "fri": "Fri",
+      "sat": "Sat",
+      "sun": "Sun"
+    }
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -500,7 +662,8 @@
     "secretaryUserPlaceholder": "e.g. sara.secretary",
     "secretaryLoginBtn": "Sign in",
     "secretaryUseCode": "First time? Use a code",
-    "secretaryUseAccount": "I have a username"
+    "secretaryUseAccount": "I have a username",
+    "doctorLink": "Doctor area"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -740,7 +903,12 @@
     "collectedMAD": "Amount collected (MAD)",
     "sumDue": "Sum due",
     "sumPaid": "Sum paid (MAD)",
-    "billEmit": "Collect + Issue invoice"
+    "billEmit": "Collect + Issue invoice",
+    "changeType": "Change type",
+    "typeChanged": "Type changed: {{type}}",
+    "changeLabel": "Change label",
+    "noLabel": "No label",
+    "closed": "Closed"
   },
   "apptDetail": {
     "clinicalNotes": "Clinical notes",
@@ -960,7 +1128,9 @@
     "billPrepare": "Prepare (front-desk collection)",
     "billPrepareTitle": "Save the acts and rebate without collecting — the secretary will collect at the desk",
     "billPreparedToast": "Bill prepared — to be collected at the front desk",
-    "billPreparedBadge": "To collect"
+    "billPreparedBadge": "To collect",
+    "sameDayNone": "No appointments that day.",
+    "sameDayCount": "Already booked that day: {{count}}."
   },
   "patients": {
     "title": "Patients",
@@ -1034,7 +1204,7 @@
     "printDossier": "File",
     "printTitle": "Print full A4 patient file",
     "newApptBtn": "New Appt",
-    "ageYears": "{{n}} yrs",
+    "ageYears": "yrs",
     "tabTimeline": "Timeline ({{n}})",
     "tabDossier": "Medical file",
     "tabConsultations": "Consultations ({{n}})",
@@ -1082,7 +1252,6 @@
     "mutuelleLabel": "Mutuelle / Insurance",
     "idSectionTitle": "Identification",
     "birthDate": "Date of birth",
-    "ageYears": "yrs",
     "patientSince": "Patient since",
     "mutuellePlaceholder": "CNOPS, CNSS – AMO, Allianz…",
     "medications": "Current medications",
@@ -1491,8 +1660,18 @@
       "block_parties": "Provider / Recipient",
       "block_items": "Items table",
       "block_signature": "Signature",
-      "block_footer": "Footer"
-    }
+      "block_footer": "Footer",
+      "kind_compteRendu": "Imaging report",
+      "kind_rapportMedical": "Medical report"
+    },
+    "daysOffTitle": "Days off & holidays",
+    "daysOffSubtitle": "Cabinet closures and public holidays shown on the agenda",
+    "weeklyDaysOff": "Weekly closing days",
+    "showHolidays": "Show Moroccan public holidays",
+    "customDaysOff": "One-off closures (leave)",
+    "closureReasonPlaceholder": "Reason (optional) — e.g. leave",
+    "daysOffHint": "These days are greyed out on the agenda; you can still add an appointment.",
+    "closed": "Closed"
   },
   "pin": {
     "title": "🔐 Doctor code",
@@ -2152,7 +2331,8 @@
     "subtitle": "Prescriptions & Certificates",
     "tabOrd": "Prescriptions",
     "tabCert": "Certificates",
-    "tabExam": "Exam requests"
+    "tabExam": "Exam requests",
+    "tabReports": "Reports"
   },
   "stocksSupply": {
     "title": "Stock & Suppliers",
@@ -2906,5 +3086,39 @@
     "title": "An error occurred",
     "body": "The application encountered a problem. Reload the page to try again.",
     "reload": "Reload page"
+  },
+  "medReport": {
+    "title": "New medical document",
+    "editTitle": "Edit document",
+    "btn": "Report",
+    "btnTitle": "Imaging report or medical report",
+    "kind_imaging": "Imaging report",
+    "kind_report": "Medical report",
+    "patientLabel": "Patient",
+    "patientPlaceholder": "Search a patient…",
+    "dateLabel": "Date",
+    "titleLabel": "Title",
+    "titlePlaceholderReport": "Medical report",
+    "modalityLabel": "Imaging type",
+    "indicationLabel": "Clinical information",
+    "indicationPlaceholder": "Indication, clinical context…",
+    "techniqueLabel": "Technique",
+    "techniquePlaceholder": "Protocol, contrast agent…",
+    "findingsLabel": "Findings",
+    "findingsPlaceholder": "Description of the images…",
+    "conclusionLabel": "Conclusion",
+    "conclusionPlaceholder": "Diagnostic conclusion…",
+    "bodyLabel": "Report content",
+    "bodyPlaceholder": "Write the medical report…",
+    "saveOnly": "Save",
+    "printBtn": "Print",
+    "newReport": "New report",
+    "searchPlaceholder": "Search…",
+    "emptyTitle": "No reports",
+    "emptyHint": "Create an imaging report or a medical report.",
+    "print": "Print",
+    "deleteConfirm": "Delete this document?",
+    "pageTitle": "Reports",
+    "pageSubtitle": "Imaging and medical reports, printable and reissuable."
   }
 }

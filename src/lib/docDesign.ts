@@ -26,6 +26,8 @@ export const DOC_DEFAULT_MARGINS: Record<DocKind, PageMargins> = {
   receipt:     { top: 12, right: 14, bottom: 12, left: 14 },
   report:      { top: 14, right: 16, bottom: 14, left: 16 },
   payroll:     { top: 14, right: 16, bottom: 14, left: 16 },
+  compteRendu:    { top: 14, right: 16, bottom: 14, left: 16 },
+  rapportMedical: { top: 16, right: 18, bottom: 16, left: 18 },
 };
 
 export const DOC_DEFAULT_SIZE: Record<DocKind, PaperSize> = {
@@ -36,6 +38,8 @@ export const DOC_DEFAULT_SIZE: Record<DocKind, PaperSize> = {
   receipt:     "A5",
   report:      "A4",
   payroll:     "A4",
+  compteRendu:    "A4",
+  rapportMedical: "A4",
 };
 
 export const DOC_BLOCKS: Record<DocKind, readonly string[]> = {
@@ -46,12 +50,14 @@ export const DOC_BLOCKS: Record<DocKind, readonly string[]> = {
   receipt:     ["header", "title", "info", "amount", "signature", "footer"],
   report:      ["header", "footer"],
   payroll:     ["header", "title", "info", "body", "amount", "signature", "footer"],
+  compteRendu:    ["header", "footer"],
+  rapportMedical: ["header", "footer"],
 };
 
 // "Flow" documents span multiple pages and reflow, so their sections can only be
 // shown/hidden — never absolutely positioned (that would break pagination). The
 // designer offers margins/paper/logo/background + show-hide, but no dragging.
-export const FLOW_DOC_KINDS: readonly DocKind[] = ["report"];
+export const FLOW_DOC_KINDS: readonly DocKind[] = ["report", "compteRendu", "rapportMedical"];
 export function isFlowDoc(kind: DocKind): boolean {
   return FLOW_DOC_KINDS.includes(kind);
 }

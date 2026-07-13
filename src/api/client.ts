@@ -437,6 +437,7 @@ export interface CabinetSnapshot {
   prescriptionTemplates?: unknown[];
   prescriptions?:         unknown[];
   examRequests?:          unknown[];
+  medicalReports?:        unknown[];
   certificates?:          unknown[];
   stockItems?:            unknown[];
   waTemplates?:           unknown[];

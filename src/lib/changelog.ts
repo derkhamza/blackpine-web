@@ -17,6 +17,17 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "1.15.0",
+    date:    "2026-07-13",
+    title:   "Comptes rendus d'imagerie, agenda intelligent & agenda plus rapide",
+    items: [
+      "Nouveau : rédigez et imprimez un compte rendu d'échographie/radio/IRM ou un rapport médical, avec votre en-tête — depuis la consultation ou l'onglet Documents.",
+      "Agenda intelligent : jours fériés marocains et jours de congé du cabinet grisés automatiquement (à régler dans Paramètres).",
+      "Changez le type d'un rendez-vous d'un clic droit directement sur l'agenda.",
+      "À la fin de la consultation, l'agenda vous indique combien de rendez-vous sont déjà prévus le jour choisi.",
+    ],
+  },
+  {
     version: "1.14.0",
     date:    "2026-07-13",
     title:   "Salle d'attente fluide, nouveaux calculateurs & réglages plus clairs",

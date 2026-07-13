@@ -45,6 +45,18 @@ export interface CabinetDoctorProfile {
   extraBilans?:    string[];          // preferred measure groups shown by default (bilan keys or "spec:<title>")
   bilanSourcePrefs?: Record<string, "office" | "external">; // preferred section per group in the preferred set
   hiddenSpecialtyGroups?: string[];   // legacy — specialty groups the doctor removed (superseded by opt-in extraBilans)
+  // Agenda "days off": recurring closed weekdays (0=Sun … 6=Sat) and one-off
+  // closures (holidays the cabinet takes, congés). The agenda greys these out and
+  // warns when booking into them; Moroccan public holidays are added automatically.
+  weeklyDaysOff?:  number[];
+  customDaysOff?:  DayOff[];
+  showPublicHolidays?: boolean;       // default true — mark Moroccan public holidays
+}
+
+// A one-off cabinet closure shown on the agenda (congé, jour férié pris, …).
+export interface DayOff {
+  date:    string;   // YYYY-MM-DD
+  reason?: string;
 }
 
 // A clinical-note template the doctor saved themselves (in addition to the
@@ -119,7 +131,9 @@ export type DocKind =
   | "examRequest"
   | "receipt"
   | "report"
-  | "payroll";
+  | "payroll"
+  | "compteRendu"      // imaging report (échographie / radio / IRM) done in-cabinet
+  | "rapportMedical";  // free-form medical report / letter
 
 export interface PageDesign {
   // Paper mode: false/undefined = blank paper (the app prints the full document,
@@ -449,6 +463,41 @@ export interface ExamRequest {
   source:        "standalone" | "appointment";
   appointmentId?: string;
   createdAt:     string;          // ISO
+}
+
+// ── Medical reports (compte rendu d'imagerie & rapport médical) ────────────────
+// A doctor-authored prose document: an imaging report for an act performed in the
+// cabinet (échographie / radio / IRM), or a free-form medical report/letter. Both
+// print through the shared letterhead pipeline like the other documents.
+export type MedicalReportKind = "imaging" | "report";
+export type ImagingModality = "echographie" | "radiologie" | "scanner" | "irm" | "autre";
+
+export const IMAGING_MODALITY_LABELS: Record<ImagingModality, string> = {
+  echographie: "Échographie",
+  radiologie:  "Radiographie",
+  scanner:     "Scanner (TDM)",
+  irm:         "IRM",
+  autre:       "Autre imagerie",
+};
+
+export interface MedicalReport {
+  id:            string;
+  kind:          MedicalReportKind;
+  patientId?:    string;
+  patientName:   string;
+  date:          string;           // YYYY-MM-DD — date of the act / report
+  title?:        string;           // e.g. "Échographie abdominale", "Rapport médical"
+  // Imaging compte rendu (prose sections)
+  modality?:     ImagingModality;
+  indication?:   string;           // renseignements cliniques
+  technique?:    string;           // technique / protocole
+  findings?:     string;           // résultat / description
+  conclusion?:   string;
+  // Rapport médical (single free-form body)
+  body?:         string;
+  source:        "standalone" | "appointment";
+  appointmentId?: string;
+  createdAt:     string;           // ISO
 }
 
 // ── Appointment ───────────────────────────────────────────────────────────────

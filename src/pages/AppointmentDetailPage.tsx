@@ -27,6 +27,7 @@ import { nextInvoiceNumber, printFacture } from "../lib/facturePrinter";
 import { OrdonnanceModal }  from "../components/OrdonnanceModal";
 import { CertificateModal } from "../components/CertificateModal";
 import { ExamRequestModal } from "../components/ExamRequestModal";
+import { MedicalReportModal } from "../components/MedicalReportModal";
 import { Icd10Picker }      from "../components/Icd10Picker";
 import type { Icd10Entry }  from "../lib/icd10";
 import { getSpecialtyGroups, getSpecialtyBilans, DEFAULT_BILANS, BILAN_CATALOG, fieldMeta } from "../lib/specialtyFields";
@@ -259,6 +260,7 @@ export function AppointmentDetailPage() {
     examRequests, addExamRequest, updateExamRequest,
     apptDocuments, addApptDocument, deleteApptDocument,
     examResults, addExamResult, prescriptions,
+    medicalReports, addMedicalReport, updateMedicalReport,
   } = useCabinet();
   const { addTransaction } = useApp();
   const toast = useToast();
@@ -377,6 +379,13 @@ export function AppointmentDetailPage() {
   const apptExamRequests = useMemo(
     () => examRequests.filter(e => e.appointmentId === apptId),
     [examRequests, apptId],
+  );
+
+  // ── Medical report modal (compte rendu d'imagerie / rapport médical) ───────
+  const [reportModal, setReportModal] = useState<null | { editId?: string }>(null);
+  const apptReports = useMemo(
+    () => medicalReports.filter(r => r.appointmentId === apptId),
+    [medicalReports, apptId],
   );
 
   // ── Billing modal ─────────────────────────────────────────────────────────
@@ -1280,6 +1289,21 @@ export function AppointmentDetailPage() {
                 <span className="ord-saved-dot" />
               )}
             </button>
+            <button
+              className="btn btn-ghost ord-open-btn"
+              onClick={() => setReportModal({})}
+              title={t("medReport.btnTitle")}
+            >
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style={{ marginRight: 5 }}>
+                <path d="M3 2h7l3 3v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+                <circle cx="8" cy="8.5" r="2" stroke="currentColor" strokeWidth="1.3"/>
+                <path d="M10 2v3h3M5.6 12.4a2.9 2.9 0 0 1 4.8 0" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+              </svg>
+              {t("medReport.btn")}
+              {apptReports.length > 0 && (
+                <span className="ord-saved-dot" />
+              )}
+            </button>
             {!appt.billedAt && (
               <button className="btn btn-primary" style={{ background: "var(--green)" }}
                 onClick={openBillModal}>
@@ -1694,6 +1718,22 @@ export function AppointmentDetailPage() {
                   {t("apptDetail.nextApptCreate")}
                 </button>
               </div>
+              {nextDate && (() => {
+                // How full is the day the doctor is about to book into? Count the
+                // live appointments already planned that date (skip this one +
+                // cancelled/no-show) so they can steer to a quieter day.
+                const n = appointments.filter(a =>
+                  a.date === nextDate && a.id !== appt.id &&
+                  a.status !== "cancelled" && a.status !== "no_show").length;
+                const busy = n >= 8; // a heavy day — flag in amber
+                return (
+                  <div style={{ marginTop: 6, fontSize: 12, color: busy ? "var(--amber, #B45309)" : "var(--muted)" }}>
+                    {n === 0
+                      ? t("apptDetail.sameDayNone")
+                      : t("apptDetail.sameDayCount", { count: n })}
+                  </div>
+                );
+              })()}
               {!appt.patientId && (
                 <div className="appt-note-nolink" style={{ marginTop: 6 }}>{t("apptDetail.historyNeedsPatient")}</div>
               )}
@@ -2702,6 +2742,30 @@ export function AppointmentDetailPage() {
             }
           }}
           onClose={() => setShowExam(false)}
+        />
+      )}
+
+      {/* ── Medical report modal (compte rendu d'imagerie / rapport médical) ── */}
+      {reportModal && (
+        <MedicalReportModal
+          patientName={appt.patientName}
+          patientId={appt.patientId}
+          date={appt.date}
+          doctorProfile={doctorProfile}
+          source="appointment"
+          appointmentId={appt.id}
+          initial={reportModal.editId ? medicalReports.find(r => r.id === reportModal.editId) : undefined}
+          onSave={(data) => {
+            if (reportModal.editId) {
+              const existing = medicalReports.find(r => r.id === reportModal.editId);
+              if (existing) updateMedicalReport({ ...existing, ...data });
+            } else {
+              const created = addMedicalReport(data);
+              // Switch to edit mode so a subsequent print/save updates the same record.
+              setReportModal({ editId: created.id });
+            }
+          }}
+          onClose={() => setReportModal(null)}
         />
       )}
 

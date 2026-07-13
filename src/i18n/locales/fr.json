@@ -82,68 +82,150 @@
     "stepOf": "Étape {{n}} / {{total}}",
     "welcomeTitle": "Bienvenue sur Blackpine",
     "welcomeBody": "Votre cabinet, entièrement digitalisé : agenda, dossiers, consultations, facturation et comptabilité — en français, arabe et anglais. Ce guide illustré vous montre, écran par écran, comment faire.",
-    "welcomeSteps": ["Parcourez les étapes avec « Suivant ».", "Chaque écran montre comment réaliser une action concrète.", "Rejouable à tout moment depuis l'Aide."],
+    "welcomeSteps": [
+      "Parcourez les étapes avec « Suivant ».",
+      "Chaque écran montre comment réaliser une action concrète.",
+      "Rejouable à tout moment depuis l'Aide."
+    ],
     "agendaTitle": "Agenda & rendez-vous",
     "agendaBody": "Planifiez et organisez vos rendez-vous en vues jour, semaine ou mois.",
-    "agendaSteps": ["Cliquez sur « + » (ou un créneau vide) pour créer un rendez-vous.", "Choisissez le patient, le type de visite et l'heure.", "Glissez-déposez un rendez-vous pour le déplacer.", "Couleurs et étiquettes distinguent les types de visite."],
+    "agendaSteps": [
+      "Cliquez sur « + » (ou un créneau vide) pour créer un rendez-vous.",
+      "Choisissez le patient, le type de visite et l'heure.",
+      "Glissez-déposez un rendez-vous pour le déplacer.",
+      "Couleurs et étiquettes distinguent les types de visite."
+    ],
     "waitingTitle": "Salle d'attente",
     "waitingBody": "Suivez le flux des patients en temps réel, de l'arrivée à la consultation.",
-    "waitingSteps": ["À l'accueil, marquez le patient « Arrivé ».", "Le médecin voit la file et appelle le patient suivant.", "Les temps d'attente s'affichent automatiquement."],
+    "waitingSteps": [
+      "À l'accueil, marquez le patient « Arrivé ».",
+      "Le médecin voit la file et appelle le patient suivant.",
+      "Les temps d'attente s'affichent automatiquement."
+    ],
     "patientsTitle": "Dossiers patients",
     "patientsBody": "Chaque patient a un dossier complet, consultable en un clic.",
-    "patientsSteps": ["Ouvrez un patient pour voir son identification et son dossier médical.", "Antécédents, allergies et traitements de fond restent toujours visibles.", "L'onglet Consultations retrace visites, ordonnances et examens."],
+    "patientsSteps": [
+      "Ouvrez un patient pour voir son identification et son dossier médical.",
+      "Antécédents, allergies et traitements de fond restent toujours visibles.",
+      "L'onglet Consultations retrace visites, ordonnances et examens."
+    ],
     "consultTitle": "Écran de consultation",
     "consultBody": "Tout se fait sur un seul écran, sans changer de page.",
-    "consultSteps": ["Remplissez les notes (motif, examen, diagnostic, traitement) — des modèles accélèrent la saisie.", "Saisissez les signes vitaux : l'IMC et le DFG se calculent automatiquement.", "L'historique à droite montre toutes les mesures et documents des visites passées."],
+    "consultSteps": [
+      "Remplissez les notes (motif, examen, diagnostic, traitement) — des modèles accélèrent la saisie.",
+      "Saisissez les signes vitaux : l'IMC et le DFG se calculent automatiquement.",
+      "L'historique à droite montre toutes les mesures et documents des visites passées."
+    ],
     "prescribeTitle": "Ordonnances & documents",
     "prescribeBody": "Produisez tous vos documents médicaux en un clic.",
-    "prescribeSteps": ["Depuis la consultation, créez une ordonnance (avec vos modèles).", "Ajoutez certificats et demandes d'examens de la même façon.", "Imprimez ou réimprimez à tout moment ; tout reste dans le dossier."],
+    "prescribeSteps": [
+      "Depuis la consultation, créez une ordonnance (avec vos modèles).",
+      "Ajoutez certificats et demandes d'examens de la même façon.",
+      "Imprimez ou réimprimez à tout moment ; tout reste dans le dossier."
+    ],
     "billingTitle": "Facturation & paiements",
     "billingBody": "Facturez les actes et encaissez, le tout relié à la comptabilité.",
-    "billingSteps": ["Ajoutez les actes ; le tarif se remplit automatiquement.", "Appliquez une remise via le bouton « % » sur la ligne.", "Encaissez en total, partiel ou différé, puis imprimez facture ou reçu."],
+    "billingSteps": [
+      "Ajoutez les actes ; le tarif se remplit automatiquement.",
+      "Appliquez une remise via le bouton « % » sur la ligne.",
+      "Encaissez en total, partiel ou différé, puis imprimez facture ou reçu."
+    ],
     "financesTitle": "Finances & comptabilité",
     "financesBody": "Suivez vos recettes, vos charges et votre résultat fiscal.",
-    "financesSteps": ["La caisse du jour totalise vos encaissements automatiquement.", "Enregistrez vos charges (loyer, salaires, fournitures…).", "Consultez rapports et déclarations dans Comptabilité."],
+    "financesSteps": [
+      "La caisse du jour totalise vos encaissements automatiquement.",
+      "Enregistrez vos charges (loyer, salaires, fournitures…).",
+      "Consultez rapports et déclarations dans Comptabilité."
+    ],
     "documentsTitle": "Personnaliser vos documents",
     "documentsBody": "Mettez ordonnances et factures à votre image, sans logiciel externe.",
-    "documentsSteps": ["Ouvrez Paramètres → Format des documents.", "Ajoutez votre logo ou un fond à en-tête.", "Faites glisser les bords des blocs pour ajuster marges et tailles ; l'aperçu montre le rendu réel."],
+    "documentsSteps": [
+      "Ouvrez Paramètres → Format des documents.",
+      "Ajoutez votre logo ou un fond à en-tête.",
+      "Faites glisser les bords des blocs pour ajuster marges et tailles ; l'aperçu montre le rendu réel."
+    ],
     "teamTitle": "Secrétaire & équipe",
     "teamBody": "Déléguez l'accueil tout en gardant le contrôle des accès.",
-    "teamSteps": ["Créez un compte secrétaire dans Paramètres → Secrétariat.", "Cochez précisément ce qu'elle peut voir (agenda, encaissement, stock…).", "« Aperçu secrétaire » vous montre exactement ce qu'elle voit."],
+    "teamSteps": [
+      "Créez un compte secrétaire dans Paramètres → Secrétariat.",
+      "Cochez précisément ce qu'elle peut voir (agenda, encaissement, stock…).",
+      "« Aperçu secrétaire » vous montre exactement ce qu'elle voit."
+    ],
     "syncTitle": "Multi-appareils, hors ligne & langues",
     "syncBody": "Vos données vous suivent partout, en toute sécurité.",
-    "syncSteps": ["Connectez-vous sur ordinateur et mobile : tout se synchronise.", "L'app fonctionne même sans connexion (installable comme une application).", "Changez de langue (FR / EN / ع) à tout moment depuis le menu."],
+    "syncSteps": [
+      "Connectez-vous sur ordinateur et mobile : tout se synchronise.",
+      "L'app fonctionne même sans connexion (installable comme une application).",
+      "Changez de langue (FR / EN / ع) à tout moment depuis le menu."
+    ],
     "helpTitle": "Aide à tout moment",
     "helpBody": "Vous n'êtes jamais bloqué.",
-    "helpSteps": ["Ouvrez l'Aide (icône livre, en bas du menu) pour rejouer ce guide.", "Parcourez le guide des fonctionnalités et les rubriques d'aide.", "Contactez-nous en un clic depuis l'Aide. Bon travail !"],
+    "helpSteps": [
+      "Ouvrez l'Aide (icône livre, en bas du menu) pour rejouer ce guide.",
+      "Parcourez le guide des fonctionnalités et les rubriques d'aide.",
+      "Contactez-nous en un clic depuis l'Aide. Bon travail !"
+    ],
     "sec": {
       "welcomeTitle": "Bienvenue — espace secrétaire",
       "welcomeBody": "Vous gérez l'accueil : rendez-vous, arrivées, coordonnées et encaissement. Ce guide illustré vous montre comment faire.",
-      "welcomeSteps": ["Parcourez les étapes avec « Suivant ».", "Le médecin définit vos accès ; certaines sections peuvent être masquées."],
+      "welcomeSteps": [
+        "Parcourez les étapes avec « Suivant ».",
+        "Le médecin définit vos accès ; certaines sections peuvent être masquées."
+      ],
       "agendaTitle": "Agenda & rendez-vous",
       "agendaBody": "Planifiez et organisez les rendez-vous du cabinet.",
-      "agendaSteps": ["Cliquez « + » ou un créneau vide pour créer un rendez-vous.", "Renseignez le patient, le motif et l'heure.", "Glissez un rendez-vous pour le déplacer ; les réservations en ligne apparaissent ici."],
+      "agendaSteps": [
+        "Cliquez « + » ou un créneau vide pour créer un rendez-vous.",
+        "Renseignez le patient, le motif et l'heure.",
+        "Glissez un rendez-vous pour le déplacer ; les réservations en ligne apparaissent ici."
+      ],
       "waitingTitle": "Salle d'attente",
       "waitingBody": "Gérez l'arrivée des patients en temps réel.",
-      "waitingSteps": ["À l'arrivée, marquez le patient « Arrivé ».", "Il passe en salle d'attente et le médecin le voit.", "Les temps d'attente s'affichent automatiquement."],
+      "waitingSteps": [
+        "À l'arrivée, marquez le patient « Arrivé ».",
+        "Il passe en salle d'attente et le médecin le voit.",
+        "Les temps d'attente s'affichent automatiquement."
+      ],
       "patientsTitle": "Fiches patients",
       "patientsBody": "Créez et tenez à jour les fiches patients.",
-      "patientsSteps": ["Créez une fiche : identité, téléphone, mutuelle.", "Mettez à jour les coordonnées à tout moment.", "Selon vos accès : saisie des mesures et paperasse AMO."],
+      "patientsSteps": [
+        "Créez une fiche : identité, téléphone, mutuelle.",
+        "Mettez à jour les coordonnées à tout moment.",
+        "Selon vos accès : saisie des mesures et paperasse AMO."
+      ],
       "billingTitle": "Encaissement",
       "billingBody": "Encaissez et éditez les justificatifs (si le médecin l'autorise).",
-      "billingSteps": ["Ouvrez le rendez-vous à facturer.", "Enregistrez le paiement (total, partiel ou différé).", "Imprimez la facture ou le reçu."],
+      "billingSteps": [
+        "Ouvrez le rendez-vous à facturer.",
+        "Enregistrez le paiement (total, partiel ou différé).",
+        "Imprimez la facture ou le reçu."
+      ],
       "syncTitle": "Multi-appareils & langues",
       "syncBody": "Travaillez sur ordinateur ou mobile, dans votre langue.",
-      "syncSteps": ["Tout se synchronise entre les appareils.", "Fonctionne même sans connexion.", "Changez de langue (FR / EN / ع) depuis le menu."],
+      "syncSteps": [
+        "Tout se synchronise entre les appareils.",
+        "Fonctionne même sans connexion.",
+        "Changez de langue (FR / EN / ع) depuis le menu."
+      ],
       "helpTitle": "Aide à tout moment",
       "helpBody": "Besoin d'aide ?",
-      "helpSteps": ["Ouvrez l'Aide (icône livre) pour rejouer ce guide.", "Le médecin gère vos accès dans les Paramètres."]
+      "helpSteps": [
+        "Ouvrez l'Aide (icône livre) pour rejouer ce guide.",
+        "Le médecin gère vos accès dans les Paramètres."
+      ]
     }
   },
   "help": {
     "title": "Centre d'aide",
     "subtitle": "Guides, réponses et contact",
-    "cat": { "start": "Démarrer", "daily": "Au quotidien", "clinical": "Clinique", "money": "Facturation", "team": "Équipe & accès", "app": "Application & compte" },
+    "cat": {
+      "start": "Démarrer",
+      "daily": "Au quotidien",
+      "clinical": "Clinique",
+      "money": "Facturation",
+      "team": "Équipe & accès",
+      "app": "Application & compte"
+    },
     "stepsTitle": "Démarrer en 4 étapes",
     "steps": {
       "1": "Complétez votre profil (Profil) : nom, spécialité, coordonnées.",
@@ -159,28 +241,94 @@
     "noResults": "Aucune rubrique ne correspond à votre recherche.",
     "featuresTitle": "Guide des fonctionnalités",
     "feat": {
-      "agenda":       { "t": "Agenda", "d": "Vues jour / semaine / mois, rendez-vous récurrents, glisser-déposer, et différenciation par type et par étiquette de couleur." },
-      "apptTypes":    { "t": "Types de consultation", "d": "Ajoutez, renommez et recolorez vos types de rendez-vous, et ajoutez une 2e étiquette facultative comme axe de distinction (Réglages)." },
-      "waitingRoom":  { "t": "Salle d'attente", "d": "Suivez en temps réel les patients arrivés, en consultation et terminés, avec les temps d'attente." },
-      "patients":     { "t": "Patients", "d": "Fiches complètes, recherche instantanée, dossier médical (antécédents, allergies, traitement de fond) et historique." },
-      "consultation": { "t": "Écran de consultation", "d": "Un seul écran : notes structurées, mesures, radiologie, ordonnances, certificats et prochain rendez-vous." },
-      "history":      { "t": "Historique intégré", "d": "Dans la consultation, retrouvez chaque visite passée avec toutes les mesures et les documents joints, liés à leur rendez-vous." },
-      "autoCalc":     { "t": "Champs calculés", "d": "IMC, DFG (CKD-EPI) à partir de la créatinine, et rapport VEMS/CVF se calculent automatiquement dès que les données sont saisies." },
-      "growth":       { "t": "Courbes de croissance", "d": "Courbes OMS (taille, poids, IMC, périmètre crânien) avec percentiles officiels et taille cible parentale." },
-      "bilans":       { "t": "Bilans par spécialité", "d": "Champs cliniques adaptés à votre spécialité, plus des mesures personnalisées ajoutées à la volée." },
-      "documents":    { "t": "Documents", "d": "Ordonnances, certificats, demandes d'examens, factures et reçus, imprimables et réémettables." },
-      "designer":     { "t": "Concepteur de documents", "d": "Personnalisez chaque document en glissant les bords : marges et blocs, logo, fond de papier — avec un aperçu réel." },
-      "billing":      { "t": "Facturation", "d": "Actes et remise (MAD ou %) sur la même ligne, encaissement au comptoir, paiements partiels et différés." },
-      "finances":     { "t": "Finances", "d": "Caisse du jour, recettes et charges, suivi des impayés et papiers AMO / mutuelle." },
-      "reminders":    { "t": "Rappels", "d": "Rappels de rendez-vous par SMS et messages WhatsApp aux patients." },
-      "booking":      { "t": "Réservation en ligne", "d": "Une page publique où vos patients réservent eux-mêmes un créneau, intégré à votre agenda." },
-      "tele":         { "t": "Téléconsultation", "d": "Menez des consultations à distance et gardez-en la trace dans le dossier." },
-      "stock":        { "t": "Stock", "d": "Gérez le stock du cabinet, les fournisseurs et les bons de commande, avec alertes de seuil." },
-      "secretary":    { "t": "Comptes secrétaire", "d": "Créez des comptes secrétaire avec des permissions précises (agenda, encaissement, contacts) sans accès clinique." },
-      "stats":        { "t": "Statistiques", "d": "Tableau de bord d'activité, revenus, types d'actes et indicateurs cliniques." },
-      "sync":         { "t": "Synchronisation", "d": "Vos données se synchronisent entre appareils et restent accessibles hors ligne (application installable)." },
-      "languages":    { "t": "Multilingue", "d": "Interface et documents en français, anglais et arabe, changeables à tout moment." },
-      "backup":       { "t": "Export & sauvegarde", "d": "Exportez patients et rendez-vous en CSV, l'agenda en iCal, et sauvegardez vos données." }
+      "agenda": {
+        "t": "Agenda",
+        "d": "Vues jour / semaine / mois, rendez-vous récurrents, glisser-déposer, et différenciation par type et par étiquette de couleur."
+      },
+      "apptTypes": {
+        "t": "Types de consultation",
+        "d": "Ajoutez, renommez et recolorez vos types de rendez-vous, et ajoutez une 2e étiquette facultative comme axe de distinction (Réglages)."
+      },
+      "waitingRoom": {
+        "t": "Salle d'attente",
+        "d": "Suivez en temps réel les patients arrivés, en consultation et terminés, avec les temps d'attente."
+      },
+      "patients": {
+        "t": "Patients",
+        "d": "Fiches complètes, recherche instantanée, dossier médical (antécédents, allergies, traitement de fond) et historique."
+      },
+      "consultation": {
+        "t": "Écran de consultation",
+        "d": "Un seul écran : notes structurées, mesures, radiologie, ordonnances, certificats et prochain rendez-vous."
+      },
+      "history": {
+        "t": "Historique intégré",
+        "d": "Dans la consultation, retrouvez chaque visite passée avec toutes les mesures et les documents joints, liés à leur rendez-vous."
+      },
+      "autoCalc": {
+        "t": "Champs calculés",
+        "d": "IMC, DFG (CKD-EPI) à partir de la créatinine, et rapport VEMS/CVF se calculent automatiquement dès que les données sont saisies."
+      },
+      "growth": {
+        "t": "Courbes de croissance",
+        "d": "Courbes OMS (taille, poids, IMC, périmètre crânien) avec percentiles officiels et taille cible parentale."
+      },
+      "bilans": {
+        "t": "Bilans par spécialité",
+        "d": "Champs cliniques adaptés à votre spécialité, plus des mesures personnalisées ajoutées à la volée."
+      },
+      "documents": {
+        "t": "Documents",
+        "d": "Ordonnances, certificats, demandes d'examens, factures et reçus, imprimables et réémettables."
+      },
+      "designer": {
+        "t": "Concepteur de documents",
+        "d": "Personnalisez chaque document en glissant les bords : marges et blocs, logo, fond de papier — avec un aperçu réel."
+      },
+      "billing": {
+        "t": "Facturation",
+        "d": "Actes et remise (MAD ou %) sur la même ligne, encaissement au comptoir, paiements partiels et différés."
+      },
+      "finances": {
+        "t": "Finances",
+        "d": "Caisse du jour, recettes et charges, suivi des impayés et papiers AMO / mutuelle."
+      },
+      "reminders": {
+        "t": "Rappels",
+        "d": "Rappels de rendez-vous par SMS et messages WhatsApp aux patients."
+      },
+      "booking": {
+        "t": "Réservation en ligne",
+        "d": "Une page publique où vos patients réservent eux-mêmes un créneau, intégré à votre agenda."
+      },
+      "tele": {
+        "t": "Téléconsultation",
+        "d": "Menez des consultations à distance et gardez-en la trace dans le dossier."
+      },
+      "stock": {
+        "t": "Stock",
+        "d": "Gérez le stock du cabinet, les fournisseurs et les bons de commande, avec alertes de seuil."
+      },
+      "secretary": {
+        "t": "Comptes secrétaire",
+        "d": "Créez des comptes secrétaire avec des permissions précises (agenda, encaissement, contacts) sans accès clinique."
+      },
+      "stats": {
+        "t": "Statistiques",
+        "d": "Tableau de bord d'activité, revenus, types d'actes et indicateurs cliniques."
+      },
+      "sync": {
+        "t": "Synchronisation",
+        "d": "Vos données se synchronisent entre appareils et restent accessibles hors ligne (application installable)."
+      },
+      "languages": {
+        "t": "Multilingue",
+        "d": "Interface et documents en français, anglais et arabe, changeables à tout moment."
+      },
+      "backup": {
+        "t": "Export & sauvegarde",
+        "d": "Exportez patients et rendez-vous en CSV, l'agenda en iCal, et sauvegardez vos données."
+      }
     },
     "pricingTitle": "Abonnement & tarifs",
     "pricingFoot": "Essai gratuit de {{days}} jours, sans carte bancaire. L'activation se fait par code après virement.",
@@ -244,7 +392,12 @@
     "noData": "Aucune mesure de croissance (taille, poids…) enregistrée pour l'instant.",
     "bandsPending": "Les couloirs de percentiles de référence (GFA/OMS) ne sont pas encore chargés — la courbe affiche les mesures réelles de l'enfant et la taille cible.",
     "refWho": "Couloirs de référence : 3–10–25–50–75–90–97e percentiles OMS (0–5 ans : normes OMS ; 5–19 ans : référence OMS 2007). Le poids n'est pas défini au-delà de 10 ans.",
-    "metric": { "height": "Taille", "weight": "Poids", "bmi": "IMC", "headCirc": "Périmètre crânien" }
+    "metric": {
+      "height": "Taille",
+      "weight": "Poids",
+      "bmi": "IMC",
+      "headCirc": "Périmètre crânien"
+    }
   },
   "ctx": {
     "openConsult": "Ouvrir la consultation",
@@ -331,7 +484,16 @@
     "deadline": "Échéance :",
     "darkMode": "Mode sombre",
     "lightMode": "Mode clair",
-    "productOf": "Un produit de Blackpine Capital SARL"
+    "productOf": "Un produit de Blackpine Capital SARL",
+    "dow": {
+      "mon": "Lun",
+      "tue": "Mar",
+      "wed": "Mer",
+      "thu": "Jeu",
+      "fri": "Ven",
+      "sat": "Sam",
+      "sun": "Dim"
+    }
   },
   "nav": {
     "dashboard": "Tableau de bord",
@@ -500,7 +662,8 @@
     "secretaryUserPlaceholder": "ex. : sara.secretaire",
     "secretaryLoginBtn": "Se connecter",
     "secretaryUseCode": "Première fois ? Utiliser un code",
-    "secretaryUseAccount": "J'ai un identifiant"
+    "secretaryUseAccount": "J'ai un identifiant",
+    "doctorLink": "Espace médecin"
   },
   "dashboard": {
     "title": "Tableau de bord",
@@ -740,7 +903,12 @@
     "collectedMAD": "Montant encaissé (MAD)",
     "sumDue": "Somme à payer",
     "sumPaid": "Somme réglée (MAD)",
-    "billEmit": "Encaisser + Émettre facture"
+    "billEmit": "Encaisser + Émettre facture",
+    "changeType": "Changer le type",
+    "typeChanged": "Type changé : {{type}}",
+    "changeLabel": "Changer l'étiquette",
+    "noLabel": "Aucune étiquette",
+    "closed": "Fermé"
   },
   "apptDetail": {
     "clinicalNotes": "Notes cliniques",
@@ -960,7 +1128,9 @@
     "billPrepare": "Préparer (encaissement au secrétariat)",
     "billPrepareTitle": "Enregistrer les actes et la remise sans encaisser — la secrétaire encaissera au comptoir",
     "billPreparedToast": "Facture préparée — à encaisser au secrétariat",
-    "billPreparedBadge": "À encaisser"
+    "billPreparedBadge": "À encaisser",
+    "sameDayNone": "Aucun rendez-vous ce jour-là.",
+    "sameDayCount": "Déjà {{count}} rendez-vous ce jour-là."
   },
   "patients": {
     "title": "Patients",
@@ -1034,7 +1204,7 @@
     "printDossier": "Dossier",
     "printTitle": "Imprimer le dossier complet A4",
     "newApptBtn": "Nouveau RDV",
-    "ageYears": "{{n}} ans",
+    "ageYears": "ans",
     "tabTimeline": "Timeline ({{n}})",
     "tabDossier": "Dossier médical",
     "tabConsultations": "Consultations ({{n}})",
@@ -1082,7 +1252,6 @@
     "mutuelleLabel": "Mutuelle / Assurance",
     "idSectionTitle": "Identification",
     "birthDate": "Date de naissance",
-    "ageYears": "ans",
     "patientSince": "Patient depuis",
     "mutuellePlaceholder": "CNOPS, CNSS – AMO, Allianz…",
     "medications": "Médicaments en cours",
@@ -1491,8 +1660,18 @@
       "block_parties": "Prestataire / Destinataire",
       "block_items": "Tableau des actes",
       "block_signature": "Signature",
-      "block_footer": "Pied de page"
-    }
+      "block_footer": "Pied de page",
+      "kind_compteRendu": "Compte rendu d'imagerie",
+      "kind_rapportMedical": "Rapport médical"
+    },
+    "daysOffTitle": "Jours de congé & fériés",
+    "daysOffSubtitle": "Jours de fermeture du cabinet et jours fériés affichés sur l'agenda",
+    "weeklyDaysOff": "Jours de fermeture hebdomadaires",
+    "showHolidays": "Afficher les jours fériés marocains",
+    "customDaysOff": "Fermetures ponctuelles (congés)",
+    "closureReasonPlaceholder": "Motif (facultatif) — ex. congé",
+    "daysOffHint": "Ces jours sont grisés sur l'agenda ; vous pouvez toujours y ajouter un rendez-vous.",
+    "closed": "Fermé"
   },
   "pin": {
     "title": "🔐 Code médecin",
@@ -2152,7 +2331,8 @@
     "subtitle": "Ordonnances & Certificats",
     "tabOrd": "Ordonnances",
     "tabCert": "Certificats",
-    "tabExam": "Demandes d'examens"
+    "tabExam": "Demandes d'examens",
+    "tabReports": "Comptes rendus"
   },
   "stocksSupply": {
     "title": "Stocks & Fournisseurs",
@@ -2906,5 +3086,39 @@
     "title": "Une erreur s'est produite",
     "body": "L'application a rencontré un problème. Rechargez la page pour réessayer.",
     "reload": "Recharger la page"
+  },
+  "medReport": {
+    "title": "Nouveau document médical",
+    "editTitle": "Modifier le document",
+    "btn": "Compte rendu",
+    "btnTitle": "Compte rendu d'imagerie ou rapport médical",
+    "kind_imaging": "Compte rendu d'imagerie",
+    "kind_report": "Rapport médical",
+    "patientLabel": "Patient",
+    "patientPlaceholder": "Rechercher un patient…",
+    "dateLabel": "Date",
+    "titleLabel": "Intitulé",
+    "titlePlaceholderReport": "Rapport médical",
+    "modalityLabel": "Type d'imagerie",
+    "indicationLabel": "Renseignements cliniques",
+    "indicationPlaceholder": "Indication, contexte clinique…",
+    "techniqueLabel": "Technique",
+    "techniquePlaceholder": "Protocole, produit de contraste…",
+    "findingsLabel": "Résultat",
+    "findingsPlaceholder": "Description des images…",
+    "conclusionLabel": "Conclusion",
+    "conclusionPlaceholder": "Conclusion diagnostique…",
+    "bodyLabel": "Contenu du rapport",
+    "bodyPlaceholder": "Rédigez le rapport médical…",
+    "saveOnly": "Enregistrer",
+    "printBtn": "Imprimer",
+    "newReport": "Nouveau compte rendu",
+    "searchPlaceholder": "Rechercher…",
+    "emptyTitle": "Aucun compte rendu",
+    "emptyHint": "Créez un compte rendu d'imagerie ou un rapport médical.",
+    "print": "Imprimer",
+    "deleteConfirm": "Supprimer ce document ?",
+    "pageTitle": "Comptes rendus",
+    "pageSubtitle": "Comptes rendus d'imagerie et rapports médicaux, imprimables et réémettables."
   }
 }

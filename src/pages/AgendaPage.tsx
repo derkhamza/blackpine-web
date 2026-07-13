@@ -26,6 +26,7 @@ import { useContextMenu, type CtxItem } from "../components/ContextMenu";
 import { ActionIcon } from "../components/ActionIcon";
 import { exportAgendaIcal } from "../lib/icalExport";
 import { parseAgendaIcal, icalEventsToAppointments } from "../lib/icalImport";
+import { holidayOn, type Holiday } from "../lib/holidays";
 import { useTranslation } from "react-i18next";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -1129,7 +1130,7 @@ function BulkBillModal({ items, onChange, onConfirm, onClose }: BulkBillModalPro
 // ── Time-slot grid body ────────────────────────────────────────────────────────
 
 function TGSlotGrid({
-  appts, isToday, nowTop, gridStart, gridEnd, onSlotClick, onApptClick, onApptPointerDown, draggingId,
+  appts, isToday, nowTop, gridStart, gridEnd, onSlotClick, onApptClick, onApptPointerDown, onApptContextMenu, draggingId,
 }: {
   appts:       Appointment[];
   isToday:     boolean;
@@ -1139,6 +1140,7 @@ function TGSlotGrid({
   onSlotClick: (startTime: string, endTime: string) => void;
   onApptClick: (appt: Appointment) => void;
   onApptPointerDown?: (e: React.PointerEvent, appt: Appointment) => void;
+  onApptContextMenu?: (e: React.MouseEvent, appt: Appointment) => void;
   draggingId?: string | null;
 }) {
   const layout = layoutDayAppts(appts);
@@ -1199,6 +1201,7 @@ function TGSlotGrid({
             }}
             onPointerDown={onApptPointerDown ? (e) => onApptPointerDown(e, appt) : undefined}
             onClick={(e) => { e.stopPropagation(); onApptClick(appt); }}
+            onContextMenu={onApptContextMenu ? (e) => onApptContextMenu(e, appt) : undefined}
             title={`${appt.patientName} · ${appt.startTime}–${appt.endTime}`}
           >
             {lbl && <span className="tgrid-label-dot" style={{ background: lbl.color }} title={lbl.label} />}
@@ -1291,6 +1294,79 @@ export function AgendaPage() {
   } = useCabinet();
   const { addTransaction } = useApp();
   const apptCtx = useContextMenu();
+
+  // Smart agenda: is a day a public holiday and/or a cabinet day-off? Drives the
+  // greyed-out styling + label on the week/month/day views and the booking warning.
+  const dayMark = (iso: string): { off: boolean; holiday?: Holiday; label?: string } => {
+    const holiday = doctorProfile.showPublicHolidays !== false ? holidayOn(iso) : undefined;
+    const dow = new Date(iso + "T12:00:00").getDay();
+    const weeklyOff = (doctorProfile.weeklyDaysOff ?? []).includes(dow);
+    const custom = (doctorProfile.customDaysOff ?? []).find(c => c.date === iso);
+    const off = weeklyOff || !!custom;
+    const label = custom?.reason || (weeklyOff ? t("agenda.closed") : undefined) || holiday?.name;
+    return { off, holiday, label };
+  };
+
+  // Context-menu section to change an appointment's TYPE (and optional label)
+  // directly from the agenda — no need to open the full edit form. Shared by the
+  // week time-grid event and the day list card. Both roles may change the type:
+  // it's a whitelisted scheduling field, so the secretary's edit syncs too.
+  const typeSwitchItems = (appt: Appointment): CtxItem[] => {
+    const dot = (c: string) => (
+      <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", background: c }} />
+    );
+    const items: CtxItem[] = [
+      { label: t("agenda.changeType"), header: true },
+      ...resolveApptTypes().map(rt => ({
+        label:    rt.label,
+        icon:     dot(rt.color),
+        disabled: appt.type === rt.id,
+        onClick:  () => {
+          updateAppointment({ ...appt, type: rt.id });
+          showToast(t("agenda.typeChanged", { type: rt.label }));
+        },
+      })),
+    ];
+    const labels = doctorProfile.apptLabels ?? [];
+    if (labels.length > 0) {
+      items.push({ label: t("agenda.changeLabel"), header: true });
+      items.push({
+        label:    t("agenda.noLabel"),
+        disabled: !appt.labelId,
+        onClick:  () => updateAppointment({ ...appt, labelId: undefined }),
+      });
+      for (const lb of labels) {
+        items.push({
+          label:    lb.label,
+          icon:     dot(lb.color),
+          disabled: appt.labelId === lb.id,
+          onClick:  () => updateAppointment({ ...appt, labelId: lb.id }),
+        });
+      }
+    }
+    return items;
+  };
+
+  // Right-click / long-press menu for an event on the week time-grid: the common
+  // actions plus the inline type/label switch (the full billing actions stay in
+  // the day list and the consultation screen).
+  const weekApptMenu = (appt: Appointment): CtxItem[] => {
+    const isDone = appt.status === "completed";
+    const doDelete = () => {
+      if (appt.recurringRuleId) setSeriesDeleteTarget(appt);
+      else if (confirm(t("agenda.deleteAppt"))) { deleteAppointment(appt.id); showToast(t("agenda.apptDeleted")); }
+    };
+    return [
+      { label: t("ctx.openConsult"), icon: <ActionIcon name="clipboard" />, onClick: () => navigate(`/agenda/${appt.id}`) },
+      { label: t("ctx.edit"), icon: <ActionIcon name="edit" />, onClick: () => setModal({ appt }) },
+      { label: isDone ? t("ctx.markUndone") : t("ctx.markDone"), icon: <ActionIcon name="check" />,
+        onClick: () => updateAppointment({ ...appt, status: isDone ? "scheduled" : "completed" }) },
+      ...(appt.patientId
+        ? [{ label: t("ctx.patientFile"), icon: <ActionIcon name="user" />, onClick: () => navigate(`/patients/${appt.patientId}`) }] : []),
+      { label: t("ctx.delete"), icon: <ActionIcon name="trash" />, onClick: doDelete, danger: true, divider: true },
+      ...typeSwitchItems(appt),
+    ];
+  };
 
   // Inline legend editing — rename or recolour an appointment type straight from
   // the agenda's colour key. Doctor only: the secretary can't sync the profile.
@@ -2018,19 +2094,21 @@ export function AgendaPage() {
                 const shown = cellAppts.slice(0, 3);
                 const more  = cellAppts.length - shown.length;
                 const isDropTarget = dragOverDay === iso && dragAppt?.date !== iso;
+                const mk = dayMark(iso);
                 return (
                   <div
                     key={i}
-                    className={`agenda-month-cell${isToday ? " am-today" : ""}${isSel ? " am-sel" : ""}${isDropTarget ? " am-drop" : ""}`}
+                    className={`agenda-month-cell${isToday ? " am-today" : ""}${isSel ? " am-sel" : ""}${isDropTarget ? " am-drop" : ""}${mk.off ? " am-off" : mk.holiday ? " am-holiday" : ""}`}
                     onClick={() => { setSelDate(iso); setView("day"); }}
                     onDragOver={dragAppt ? (e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; if (dragOverDay !== iso) setDragOverDay(iso); } : undefined}
                     onDragLeave={dragAppt ? () => setDragOverDay(d => d === iso ? null : d) : undefined}
                     onDrop={dragAppt ? (e) => { e.preventDefault(); moveApptToDate(iso); } : undefined}
-                    title={t("agenda.monthCellTitle", { day, n: cellAppts.length })}
+                    title={mk.label ? `${mk.label} · ${t("agenda.monthCellTitle", { day, n: cellAppts.length })}` : t("agenda.monthCellTitle", { day, n: cellAppts.length })}
                   >
                     <div className={`agenda-month-day-num${isToday ? " am-today-ring" : ""}`}>
                       {day}
                     </div>
+                    {mk.label && <div className="agenda-month-off-lbl" title={mk.label}>{mk.label}</div>}
                     <div className="agenda-month-chips">
                       {shown.map(a => {
                         const cancelled = a.status === "cancelled" || a.status === "no_show";
@@ -2094,8 +2172,9 @@ export function AgendaPage() {
                   const dayName = d.toLocaleDateString(locale, { weekday: "short" });
                   const dayNum  = d.getDate();
                   const appts   = weekApptsByDay.get(iso) ?? [];
+                  const mk      = dayMark(iso);
                   return (
-                    <div key={iso} className={`tgrid-col-hdr${isToday ? " tgrid-col-hdr-today" : ""}`}>
+                    <div key={iso} className={`tgrid-col-hdr${isToday ? " tgrid-col-hdr-today" : ""}${mk.off ? " tgrid-col-hdr-off" : mk.holiday ? " tgrid-col-hdr-holiday" : ""}`}>
                       <button
                         className="tgrid-hdr-btn"
                         onClick={() => { setSelDate(iso); setView("day"); }}
@@ -2105,6 +2184,7 @@ export function AgendaPage() {
                         {appts.length > 0 && (
                           <span className="tgrid-hdr-badge">{appts.length}</span>
                         )}
+                        {mk.label && <span className="tgrid-hdr-off-lbl" title={mk.label}>{mk.label}</span>}
                       </button>
                     </div>
                   );
@@ -2127,11 +2207,12 @@ export function AgendaPage() {
                   const isToday = iso === today;
                   const appts   = weekApptsByDay.get(iso) ?? [];
                   const isDropTarget = tgDrag?.preview?.iso === iso;
+                  const mk      = dayMark(iso);
                   return (
                     <div
                       key={iso}
                       data-iso={iso}
-                      className={`tgrid-col${isToday ? " tgrid-col-today" : ""}${isDropTarget ? " tgrid-col-drop" : ""}`}
+                      className={`tgrid-col${isToday ? " tgrid-col-today" : ""}${isDropTarget ? " tgrid-col-drop" : ""}${mk.off ? " tgrid-col-off" : mk.holiday ? " tgrid-col-holiday" : ""}`}
                     >
                       <TGSlotGrid
                         appts={appts}
@@ -2145,6 +2226,7 @@ export function AgendaPage() {
                         }}
                         onApptClick={appt => { if (tgDragMovedRef.current) return; navigate(`/agenda/${appt.id}`); }}
                         onApptPointerDown={onApptPointerDown}
+                        onApptContextMenu={(e, appt) => apptCtx.open(e, weekApptMenu(appt))}
                         draggingId={tgDrag?.appt.id ?? null}
                       />
                     </div>
@@ -2226,6 +2308,15 @@ export function AgendaPage() {
                 })}
               </div>
               <span className="agenda-day-count">{t("agenda.dayCount", { n: dayAppts.length })}</span>
+              {(() => {
+                const mk = dayMark(selDate);
+                if (!mk.off && !mk.holiday) return null;
+                return (
+                  <span className={`agenda-day-off-badge${mk.off ? " is-off" : ""}`}>
+                    {mk.off ? "🔒" : "🎉"} {mk.label}
+                  </span>
+                );
+              })()}
             </div>
             <div style={{ display: "flex", gap: 8 }}>
               {apptsPendingWa.length > 0 && (
@@ -2318,6 +2409,7 @@ export function AgendaPage() {
                   ...(appt.patientId
                     ? [{ label: t("ctx.patientFile"), icon: <ActionIcon name="user" />, onClick: () => navigate(`/patients/${appt.patientId}`) }] : []),
                   { label: t("ctx.delete"), icon: <ActionIcon name="trash" />, onClick: doDelete, danger: true, divider: true },
+                  ...typeSwitchItems(appt),
                 ];
                 return (
                   <ApptCard

@@ -443,9 +443,6 @@ export function AuthPage() {
                 {t("auth.forgotLink")}
               </button>
             )}
-            {mode === "secretary" && (
-              <button className="auth-link" onClick={() => switchMode("login")}>{t("auth.backToLogin")}</button>
-            )}
             {(mode === "forgot" || mode === "reset-verify") && (
               <button className="auth-link" onClick={() => switchMode("login")}>{t("auth.backToLogin")}</button>
             )}
@@ -469,6 +466,19 @@ export function AuthPage() {
                 <path d="M3.5 13c0-2.3 2-4 4.5-4s4.5 1.7 4.5 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
               </svg>
               {t("auth.secretaryLink")}
+            </button>
+          )}
+
+          {/* Doctor access — the deliberate way back to doctor sign-in, matching
+              the secretary button rather than a plain text link. */}
+          {mode === "secretary" && (
+            <button type="button" className="auth-secretary-btn auth-doctor-btn" onClick={() => switchMode("login")}>
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path d="M4.5 2v3a3.5 3.5 0 0 0 7 0V2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                <path d="M8 8.3v2.2a3 3 0 0 0 6 0V9.8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+                <circle cx="14" cy="8.8" r="1.3" stroke="currentColor" strokeWidth="1.3"/>
+              </svg>
+              {t("auth.doctorLink")}
             </button>
           )}
 

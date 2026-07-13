@@ -818,6 +818,10 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   cursor: pointer; transition: background var(--trans), border-color var(--trans);
 }
 .auth-secretary-btn:hover { background: rgba(124,58,237,0.07); border-color: rgba(124,58,237,0.5); }
+/* Doctor-space variant of the same button — blue accent to match the doctor role
+   badge, shown on the secretary screen as the deliberate way back to doctor sign-in. */
+.auth-doctor-btn       { border-color: rgba(37,99,235,0.30); color: var(--blue, #2563EB); }
+.auth-doctor-btn:hover { background: rgba(37,99,235,0.07); border-color: rgba(37,99,235,0.5); }
 
 /* App-lock screen */
 .lock-root {
@@ -1279,6 +1283,39 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 [data-theme="dark"] .tgrid-col-today { background: rgba(24,144,197,0.05); }
 .tgrid-col-drop { background: rgba(21,168,118,0.14); box-shadow: inset 0 0 0 2px var(--green); }
 .agenda-month-cell.am-drop { background: rgba(21,168,118,0.14); box-shadow: inset 0 0 0 2px var(--green); }
+
+/* ── Smart agenda: public holidays + cabinet days off ─────────────────────── */
+/* Day-off (weekly closure / congé) — greyed with faint diagonal hatch. Holiday —
+   a warm tint. Both stay bookable (some doctors work them); they're cues, not locks. */
+.tgrid-col-off {
+  background: repeating-linear-gradient(45deg, var(--surface-alt, #f6f7f9), var(--surface-alt, #f6f7f9) 9px, rgba(0,0,0,0.028) 9px, rgba(0,0,0,0.028) 18px);
+}
+.tgrid-col-holiday { background: rgba(245,158,11,0.06); }
+[data-theme="dark"] .tgrid-col-off { background: repeating-linear-gradient(45deg, rgba(255,255,255,0.02), rgba(255,255,255,0.02) 9px, rgba(255,255,255,0.05) 9px, rgba(255,255,255,0.05) 18px); }
+[data-theme="dark"] .tgrid-col-holiday { background: rgba(245,158,11,0.09); }
+.tgrid-col-hdr-off .tgrid-hdr-day, .tgrid-col-hdr-off .tgrid-hdr-num { color: var(--muted); }
+.tgrid-hdr-off-lbl {
+  display: block; margin-top: 2px; font-size: 9px; line-height: 1.15; font-weight: 600;
+  color: var(--amber, #B45309); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tgrid-col-hdr-off .tgrid-hdr-off-lbl { color: var(--muted); }
+
+.agenda-month-cell.am-off {
+  background: repeating-linear-gradient(45deg, transparent, transparent 7px, rgba(0,0,0,0.035) 7px, rgba(0,0,0,0.035) 14px);
+}
+.agenda-month-cell.am-holiday { background: rgba(245,158,11,0.07); }
+[data-theme="dark"] .agenda-month-cell.am-off { background: repeating-linear-gradient(45deg, transparent, transparent 7px, rgba(255,255,255,0.05) 7px, rgba(255,255,255,0.05) 14px); }
+[data-theme="dark"] .agenda-month-cell.am-holiday { background: rgba(245,158,11,0.10); }
+.agenda-month-off-lbl {
+  font-size: 9px; line-height: 1.15; font-weight: 600; color: var(--amber, #B45309);
+  margin: 1px 0 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.agenda-day-off-badge {
+  display: inline-flex; align-items: center; gap: 4px; margin-left: 8px;
+  padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600;
+  color: var(--amber, #B45309); background: rgba(245,158,11,0.12);
+}
+.agenda-day-off-badge.is-off { color: var(--muted); background: var(--surface-alt, rgba(0,0,0,0.05)); }
 
 /* Grid body (relative container for events + lines) */
 .tgrid-body {
