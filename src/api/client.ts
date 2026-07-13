@@ -883,6 +883,9 @@ export interface AdminFinance {
     byPlan: Record<string, number>;
   };
   expiredThisMonth: number;
+  cohorts: { month: string; signups: number; converted: number; rate: number }[];
+  conversionsByMonth: { month: string; count: number }[];
+  eventsLogged: number;
 }
 export async function adminGetFinance(): Promise<AdminFinance> {
   const res = await request(`/admin/finance`);

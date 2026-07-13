@@ -727,6 +727,26 @@ function ExecutiveTab({ stats, finance, retention, onGoto }: {
       </div>
     </Section>
 
+    <Section title="Cohortes de conversion (par mois d'inscription)">
+      {finance.cohorts.filter(c => c.signups > 0).length === 0 ? (
+        <div className="admin-empty">Pas encore de données de cohorte — le journal d'abonnements s'alimente dès maintenant.</div>
+      ) : (
+        <div className="admin-cohorts">
+          {finance.cohorts.filter(c => c.signups > 0).map(c => (
+            <div key={c.month} className="admin-cohort-row">
+              <span className="admin-cohort-m">{c.month}</span>
+              <span className="admin-cohort-n">{c.signups} inscrits</span>
+              <div className="admin-cohort-track">
+                <div className="admin-cohort-fill" style={{ width: `${Math.min(100, c.rate)}%`, background: c.rate >= 30 ? "var(--green)" : c.rate >= 15 ? "var(--gold)" : "var(--coral)" }} />
+              </div>
+              <span className="admin-cohort-r">{c.converted} → {c.rate} %</span>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="admin-sub">Part des comptes créés chaque mois ayant souscrit un plan payant · {finance.eventsLogged} événements journalisés.</div>
+    </Section>
+
     <div className="admin-two-col">
       <Section title="Cabinets actifs">
         <div className="admin-grid">
