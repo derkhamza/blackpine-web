@@ -114,8 +114,8 @@ function getSmartPrefill(patientId: string, appointments: Appointment[]): SmartP
 }
 
 // ── Time-grid constants ────────────────────────────────────────────────────────
-const TG_START  = 7;    // 07:00 — default first hour (grid expands earlier if needed)
-const TG_END    = 20;   // 20:00 — default last hour  (grid expands later if needed)
+const TG_START  = 8;    // 08:00 — default first hour (doctors generally work 8h–17h; grid expands earlier if needed)
+const TG_END    = 18;   // 18:00 — default last hour  (headroom past a 17h close; grid expands later if needed)
 const TG_PX_H   = 62;   // pixels per hour — compact enough that a typical working
                         // week fits the viewport without scrolling (15-min ≈ 15px)
 const TG_MIN_EVENT = 17; // px — floor so a quarter-hour RDV still fits without spilling

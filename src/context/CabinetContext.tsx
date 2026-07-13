@@ -486,6 +486,14 @@ export function CabinetProvider({
     }, []);
   const updateAppointment = useCallback(
     (a: Appointment) => {
+      // Guarantee the waiting-room "since" timers always have a timestamp, no
+      // matter where the status changed (agenda dropdown, appointment detail,
+      // drag-drop). Previously only the waiting-room buttons set these, so a
+      // patient marked "arrived" elsewhere showed no "Attend depuis…" timer.
+      if (a.status === "arrived" && !a.checkedInAt)
+        a = { ...a, checkedInAt: new Date().toISOString() };
+      if (a.status === "in_consultation" && !a.inConsultationAt)
+        a = { ...a, inConsultationAt: new Date().toISOString() };
       touchedRef.current.appts.add(a.id);
       setAppts(p => p.map(x => x.id === a.id ? a : x));
     }, []);
