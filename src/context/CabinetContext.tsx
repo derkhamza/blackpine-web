@@ -317,6 +317,38 @@ const DEFAULT_WA_TEMPLATES: WaTemplate[] = [
     category: "autre",
     body: "Bonjour {patient}, nous sommes dans l'obligation d'annuler votre rendez-vous du {date} à {heure}. Merci de nous contacter pour reprogrammer. Nous nous excusons pour la gêne occasionnée.",
   },
+  // Arabic equivalents — new accounts get both language sets so the doctor can
+  // message patients in Arabic without rewriting them. Variables are unchanged.
+  {
+    id: "wa-rappel-ar",
+    name: "تذكير بالموعد",
+    category: "rappel",
+    body: "مرحباً {patient}، نذكّركم بموعدكم يوم {date} على الساعة {heure} عند {docteur}. في حال تعذّر الحضور، يُرجى الاتصال بنا. شكراً.",
+  },
+  {
+    id: "wa-confirmation-ar",
+    name: "تأكيد الموعد",
+    category: "confirmation",
+    body: "مرحباً {patient}، تم تأكيد موعدكم يوم {date} على الساعة {heure} في {cabinet}. يُرجى الحضور قبل الموعد بخمس دقائق. إلى اللقاء!",
+  },
+  {
+    id: "wa-suivi-ar",
+    name: "متابعة بعد الاستشارة",
+    category: "suivi",
+    body: "مرحباً {patient}، بعد استشارتكم بتاريخ {date}، نتمنى أن تكونوا بخير. لا تترددوا في الاتصال بنا لأي استفسار. مع تحيات {cabinet}.",
+  },
+  {
+    id: "wa-resultats-ar",
+    name: "النتائج متوفرة",
+    category: "resultats",
+    body: "مرحباً {patient}، نتائج تحاليلكم متوفرة في {cabinet}. يُرجى الاتصال بنا أو المرور لاستلامها. مع التحية.",
+  },
+  {
+    id: "wa-annulation-ar",
+    name: "إلغاء الموعد",
+    category: "autre",
+    body: "مرحباً {patient}، نأسف لاضطرارنا إلى إلغاء موعدكم يوم {date} على الساعة {heure}. يُرجى الاتصال بنا لإعادة تحديد موعد. نعتذر عن الإزعاج.",
+  },
 ];
 
 // ── Provider ──────────────────────────────────────────────────────────────────

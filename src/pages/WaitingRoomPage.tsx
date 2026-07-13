@@ -85,16 +85,17 @@ function WaitCard({ appt, now, canConsult, onArrive, onCall, onUncall, onStart, 
           <button className="wr-btn wr-arrive" onClick={onArrive}>{t("waiting.btnArrive")}</button>
           <button className="wr-btn wr-absent" onClick={onNoShow}>{t("waiting.btnNoShow")}</button>
         </>}
-        {/* Step 1 — notify the secretary to bring the patient in (stays "arrived"). */}
+        {/* Step 1 — the DOCTOR calls the patient in (which notifies the secretary).
+            The secretary manages arrivals but doesn't call the patient in. */}
         {appt.status === "arrived" && !appt.calledInAt && <>
-          <button className="wr-btn wr-call" onClick={onCall}>{t("waiting.btnCall")}</button>
+          {canConsult && <button className="wr-btn wr-call" onClick={onCall}>{t("waiting.btnCall")}</button>}
           <button className="wr-btn wr-absent" onClick={onNoShow}>{t("waiting.btnNoShow")}</button>
         </>}
-        {/* Step 2 — the patient has been called. The call can be reverted; only
-            the doctor may actually start the consultation. */}
+        {/* Step 2 — the patient has been called. Only the doctor starts the
+            consultation or reverts the call. */}
         {appt.status === "arrived" && appt.calledInAt && <>
           {canConsult && <button className="wr-btn wr-start" onClick={onStart}>{t("waiting.btnStartConsult")}</button>}
-          <button className="wr-btn wr-ghost" onClick={onUncall}>{t("waiting.btnUncall")}</button>
+          {canConsult && <button className="wr-btn wr-ghost" onClick={onUncall}>{t("waiting.btnUncall")}</button>}
           <button className="wr-btn wr-absent" onClick={onNoShow}>{t("waiting.btnNoShow")}</button>
         </>}
         {/* Only the doctor can mark the consultation over. */}
