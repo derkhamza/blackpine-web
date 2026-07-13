@@ -417,6 +417,7 @@ export function CabinetProvider({
   const [apptDocuments, setApptDocuments] = useState<ApptDocument[]>([]);
   const apptDocsLoaded    = useRef(false); // IDB hydration finished (gates persist)
   const serverDocsApplied = useRef(false); // a pull already set the authoritative copy
+  const backfilledRef     = useRef(false); // one-time inline→blob offload has run
   // Secretary mode — session only (resets on page reload for security)
   const [secretaryMode, setSecretaryMode] = useState(false);
 
@@ -474,6 +475,7 @@ export function CabinetProvider({
   useEffect(() => {
     apptDocsLoaded.current = false;
     serverDocsApplied.current = false;
+    backfilledRef.current = false;
     let cancelled = false;
     const key = `${pfx}.apptDocs`;
     (async () => {
@@ -505,6 +507,30 @@ export function CabinetProvider({
     if (!apptDocsLoaded.current) return;
     void idbSet(`${pfx}.apptDocs`, apptDocuments);
   }, [apptDocuments, pfx]);
+
+  // One-time backfill: once object storage is available, offload any attachment
+  // still stored inline (data: base64) to blob and swap it for a small blob:<url>
+  // marker, shrinking the synced snapshot. Best-effort and idempotent — a failed
+  // upload keeps the inline copy, and the guard makes it run at most once per load.
+  useEffect(() => {
+    if (backfilledRef.current || !apptDocsLoaded.current || apptDocuments.length === 0) return;
+    const inline = apptDocuments.filter(d => d.data?.startsWith("data:"));
+    if (inline.length === 0) { backfilledRef.current = true; return; }
+    backfilledRef.current = true;
+    let cancelled = false;
+    (async () => {
+      const mode = await getStorageMode();
+      if (!mode.blob || cancelled) return;
+      for (const doc of inline) {
+        if (cancelled) break;
+        const url = await uploadAttachment(doc.id, doc.data);
+        if (!url || cancelled) continue;
+        touchedRef.current.apptDocs.add(doc.id);
+        setApptDocuments(prev => prev.map(x => x.id === doc.id ? { ...x, data: `blob:${url}` } : x));
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [apptDocuments]);
 
   const setDoctorProfile = useCallback(
     (p: CabinetDoctorProfile) => setDoctorProfileState(p), []);
