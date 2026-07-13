@@ -221,6 +221,13 @@ img { max-width: 100%; display: block; }
   font-size: 11px; font-weight: 700; flex-shrink: 0;
 }
 .sidebar-email { font-size: 11px; color: rgba(255,255,255,0.50); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Footer action buttons on their own row, separate from the profile line */
+.sidebar-actions {
+  display: flex; align-items: center; gap: 6px;
+  padding: 2px 8px 4px;
+}
+.sidebar-actions .sidebar-dark-btn { margin-left: 0; }
+.sidebar-lang-btn { font-size: 10px; font-weight: 700; letter-spacing: 0.2px; }
 .sidebar-logout {
   display: flex; align-items: center; gap: 8px;
   padding: 6px 8px; border-radius: 5px;

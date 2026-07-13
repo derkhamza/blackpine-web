@@ -250,22 +250,24 @@ const LANGS = [
   { code: "ar", flag: "🇲🇦", label: "ع" },
 ] as const;
 
-function LangSwitcher() {
-  const { i18n: i } = useTranslation();
+// Compact language toggle styled like the footer's icon buttons (secretary
+// preview, dark mode…). Shows the current language code and cycles to the next
+// on click. Flags are avoided on purpose — Windows renders country-flag emoji as
+// bare letters ("FR", "GB"), so the code is clearer and consistent everywhere.
+function LangButton() {
+  const { t, i18n: i } = useTranslation();
   const current = i.language?.slice(0, 2) ?? "fr";
+  const idx  = Math.max(0, LANGS.findIndex(l => l.code === current));
+  const next = LANGS[(idx + 1) % LANGS.length];
   return (
-    <div className="lang-switcher">
-      {LANGS.map(l => (
-        <button
-          key={l.code}
-          className={`lang-btn${current === l.code ? " active" : ""}`}
-          onClick={() => i18n.changeLanguage(l.code)}
-          title={l.label}
-        >
-          {l.flag} {l.label}
-        </button>
-      ))}
-    </div>
+    <button
+      className="sidebar-dark-btn sidebar-lang-btn"
+      onClick={() => i18n.changeLanguage(next.code)}
+      title={t("sidebar.changeLanguage")}
+      aria-label={t("sidebar.changeLanguage")}
+    >
+      {LANGS[idx].label}
+    </button>
   );
 }
 
@@ -656,12 +658,17 @@ export function Layout({ title, subtitle, actions, children }: Props) {
 
       {/* Footer */}
       <div className="sidebar-footer">
-        <LangSwitcher />
         <SyncPill />
         {user && (
+          <>
+          {/* Profile line — identity only */}
           <div className="sidebar-user">
             <div className="sidebar-avatar">{user.email[0].toUpperCase()}</div>
             <span className="sidebar-email">{user.email}</span>
+          </div>
+          {/* Action buttons on their own row, separate from the profile line */}
+          <div className="sidebar-actions">
+            <LangButton />
             {/* Secretary preview — subtle eye icon (doctor only). Full control also
                 in Paramètres → Secrétariat. Exit via the top banner while previewing. */}
             {role === "doctor" && !secretaryMode && !isAdmin && (
@@ -670,7 +677,6 @@ export function Layout({ title, subtitle, actions, children }: Props) {
                 onClick={() => { setSecretaryMode(true); navigate("/agenda"); closeDrawer(); }}
                 title={t("sidebar.secretaryEnter")}
                 aria-label={t("sidebar.secretaryEnter")}
-                style={{ marginRight: 2 }}
               >
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                   <path d="M1 7s2.2-4 6-4 6 4 6 4-2.2 4-6 4-6-4-6-4Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/>
@@ -682,7 +688,6 @@ export function Layout({ title, subtitle, actions, children }: Props) {
               className="sidebar-dark-btn"
               onClick={() => { navigate("/aide"); closeDrawer(); }}
               title={t("nav.help")}
-              style={{ marginRight: 2 }}
             >
               <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
                 <path d="M7 3.5C6 2.7 4.6 2.5 3 2.7v7.6c1.6-.2 3 0 4 .8 1-.8 2.4-1 4-.8V2.7c-1.6-.2-3 0-4 .8Z"
@@ -694,7 +699,6 @@ export function Layout({ title, subtitle, actions, children }: Props) {
               className="sidebar-dark-btn"
               onClick={() => setShortcutsOpen(true)}
               title={t("sidebar.shortcuts")}
-              style={{ marginRight: 2 }}
             >
               <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
                 <circle cx="7" cy="7" r="6" stroke="currentColor" strokeWidth="1.4"/>
@@ -720,6 +724,7 @@ export function Layout({ title, subtitle, actions, children }: Props) {
               }
             </button>
           </div>
+          </>
         )}
         {/* Secretary preview moved to Paramètres → Espace secrétaire (it cluttered
             the sidebar). While previewing, the exit is the top-of-page banner. */}
