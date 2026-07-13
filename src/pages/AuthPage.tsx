@@ -478,9 +478,6 @@ export function AuthPage() {
             </p>
           )}
 
-          <p className="auth-footer-note">
-            {t("auth.syncNote")}
-          </p>
           <p className="auth-footer-note" style={{ marginTop: 6 }}>
             <Link to="/supprimer-compte" className="auth-link" style={{ fontSize: 11 }}>
               {t("auth.deleteAccountLink")}

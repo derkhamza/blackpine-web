@@ -3,7 +3,7 @@
     "theDoctor": "الطبيب",
     "theSecretary": "السكرتيرة",
     "aPatient": "مريض",
-    "patientCalled": "{{who}} أدخل {{patient}}",
+    "patientCalled": "{{who}}: من فضلك أدخِل {{patient}}",
     "intercom": "{{who}} يناديك",
     "callSecretary": "نداء السكرتيرة",
     "calledSecretary": "تم نداء السكرتيرة",
@@ -594,6 +594,8 @@
   },
   "agenda": {
     "legendColor": "تغيير اللون",
+    "legendEdit": "تعديل مفتاح الألوان",
+    "legendEditDone": "تم",
     "legendName": "إعادة تسمية هذا النوع",
     "title": "جدول المواعيد",
     "subtitle": "التقويم والمواعيد",

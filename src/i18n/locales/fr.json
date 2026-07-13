@@ -3,7 +3,7 @@
     "theDoctor": "Le médecin",
     "theSecretary": "La secrétaire",
     "aPatient": "un patient",
-    "patientCalled": "{{who}} a fait entrer {{patient}}",
+    "patientCalled": "{{who}} : faites entrer {{patient}}",
     "intercom": "{{who}} vous appelle",
     "callSecretary": "Appeler la secrétaire",
     "calledSecretary": "Secrétaire appelée",
@@ -594,6 +594,8 @@
   },
   "agenda": {
     "legendColor": "Changer la couleur",
+    "legendEdit": "Modifier la légende",
+    "legendEditDone": "Terminé",
     "legendName": "Renommer ce type",
     "title": "Agenda",
     "subtitle": "Calendrier & rendez-vous",

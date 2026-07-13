@@ -1219,6 +1219,64 @@ function TGSlotGrid({
 
 // ── Main page ──────────────────────────────────────────────────────────────────
 
+// Finite colour palette for the legend editor — only these curated colours are
+// offered (no free-form picker), so the agenda stays visually consistent.
+const LEGEND_PALETTE = [
+  "#2563EB", "#0EA5E9", "#06B6D4", "#10B981", "#84CC16",
+  "#F59E0B", "#EF4444", "#EC4899", "#8B5CF6", "#64748B",
+];
+
+// One legend entry. In display mode it's a plain dot + label (nothing editable on
+// a normal click); in edit mode the dot opens a swatch palette and the name
+// becomes an inline field sized to its content.
+function LegendItem({ name, color, ring, editable, onRename, onRecolor, colorTitle, nameTitle }: {
+  name: string; color: string; ring: boolean; editable: boolean;
+  onRename: (v: string) => void; onRecolor: (c: string) => void;
+  colorTitle: string; nameTitle: string;
+}) {
+  const [palOpen, setPalOpen] = useState(false);
+  const dotCls = `agenda-legend-dot${ring ? " agenda-legend-dot-ring" : ""}`;
+  if (!editable) {
+    return (
+      <span className="agenda-legend-item">
+        <span className={dotCls} style={{ background: color }} />
+        {name}
+      </span>
+    );
+  }
+  return (
+    <span className="agenda-legend-item agenda-legend-item-edit">
+      <span className="agenda-legend-swatch-wrap">
+        <button type="button" className="agenda-legend-swatch-btn"
+          onClick={() => setPalOpen(o => !o)} title={colorTitle} aria-label={colorTitle}>
+          <span className={dotCls} style={{ background: color }} />
+        </button>
+        {palOpen && (
+          <>
+            <div className="agenda-legend-palette-backdrop" onClick={() => setPalOpen(false)} />
+            <div className="agenda-legend-palette" role="listbox">
+              {LEGEND_PALETTE.map(c => (
+                <button key={c} type="button" style={{ background: c }} aria-label={c}
+                  className={`agenda-legend-pal${c.toLowerCase() === color.toLowerCase() ? " active" : ""}`}
+                  onClick={() => { onRecolor(c); setPalOpen(false); }} />
+              ))}
+            </div>
+          </>
+        )}
+      </span>
+      <input
+        key={name}
+        className="agenda-legend-name-input"
+        defaultValue={name}
+        title={nameTitle} aria-label={nameTitle}
+        style={{ width: `${Math.max(6, name.length + 1)}ch` }}
+        onKeyDown={e => { if (e.key === "Enter") e.currentTarget.blur(); }}
+        onBlur={e => { const v = e.target.value.trim(); if (v && v !== name) onRename(v); }}
+      />
+    </span>
+  );
+}
+
 export function AgendaPage() {
   const { t, i18n } = useTranslation();
   const locale = i18n.language?.slice(0, 2) === "ar" ? "ar-MA"
@@ -1264,6 +1322,18 @@ export function AgendaPage() {
       setDoctorProfile({ ...doctorProfile, customApptTypes: [...customs, created] });
     }
   };
+  // Secondary axis (apptLabels) — same edit affordance as the type legend.
+  const updateLegendLabel = (id: string, patch: { label?: string; color?: string }) => {
+    const labels = doctorProfile.apptLabels ?? [];
+    setDoctorProfile({ ...doctorProfile, apptLabels: labels.map(l =>
+      l.id === id
+        ? { ...l,
+            label: patch.label !== undefined ? patch.label : l.label,
+            color: patch.color !== undefined ? patch.color : l.color }
+        : l) });
+  };
+  // Legend stays in read-only display mode until the doctor opts into editing.
+  const [legendEditMode, setLegendEditMode] = useState(false);
 
   const [selDate,   setSelDate]   = useState(today);
   const [view,      setView]      = useState<AgendaView>("week");
@@ -1861,37 +1931,12 @@ export function AgendaPage() {
               {/* Group 1 — consultation-type colours (filled square dot), left. */}
               <div className="agenda-legend-group">
                 {ids.map(id => (
-                  canEditLegend ? (
-                    <span key={id} className="agenda-legend-item agenda-legend-item-edit">
-                      <label className="agenda-legend-swatch" title={t("agenda.legendColor")}>
-                        <span className="agenda-legend-dot" style={{ background: apptTypeColor(id) }} />
-                        <input
-                          type="color"
-                          className="agenda-legend-color-input"
-                          value={apptTypeColor(id)}
-                          onChange={e => updateLegendType(id, { color: e.target.value })}
-                          aria-label={t("agenda.legendColor")}
-                        />
-                      </label>
-                      <input
-                        key={apptTypeLabel(id)}
-                        className="agenda-legend-name-input"
-                        defaultValue={apptTypeLabel(id)}
-                        title={t("agenda.legendName")}
-                        aria-label={t("agenda.legendName")}
-                        onKeyDown={e => { if (e.key === "Enter") e.currentTarget.blur(); }}
-                        onBlur={e => {
-                          const v = e.target.value.trim();
-                          if (v && v !== apptTypeLabel(id)) updateLegendType(id, { label: v });
-                        }}
-                      />
-                    </span>
-                  ) : (
-                    <span key={id} className="agenda-legend-item">
-                      <span className="agenda-legend-dot" style={{ background: apptTypeColor(id) }} />
-                      {apptTypeLabel(id)}
-                    </span>
-                  )
+                  <LegendItem key={id}
+                    name={apptTypeLabel(id)} color={apptTypeColor(id)} ring={false}
+                    editable={canEditLegend && legendEditMode}
+                    onRename={v => updateLegendType(id, { label: v })}
+                    onRecolor={c => updateLegendType(id, { color: c })}
+                    colorTitle={t("agenda.legendColor")} nameTitle={t("agenda.legendName")} />
                 ))}
               </div>
               {/* Group 2 — the secondary distinction axis (ring dot), pushed to the
@@ -1900,12 +1945,28 @@ export function AgendaPage() {
               {labels.length > 0 && (
                 <div className="agenda-legend-group agenda-legend-group-end">
                   {labels.map(lb => (
-                    <span key={lb.id} className="agenda-legend-item">
-                      <span className="agenda-legend-dot agenda-legend-dot-ring" style={{ background: lb.color }} />
-                      {lb.label}
-                    </span>
+                    <LegendItem key={lb.id}
+                      name={lb.label} color={lb.color} ring
+                      editable={canEditLegend && legendEditMode}
+                      onRename={v => updateLegendLabel(lb.id, { label: v })}
+                      onRecolor={c => updateLegendLabel(lb.id, { color: c })}
+                      colorTitle={t("agenda.legendColor")} nameTitle={t("agenda.legendName")} />
                   ))}
                 </div>
+              )}
+              {/* Explicit edit toggle — the legend is read-only until pressed. */}
+              {canEditLegend && (
+                <button type="button"
+                  className={`agenda-legend-edit${legendEditMode ? " active" : ""}`}
+                  onClick={() => setLegendEditMode(m => !m)}
+                  title={t(legendEditMode ? "agenda.legendEditDone" : "agenda.legendEdit")}>
+                  {legendEditMode ? (
+                    <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M3 7.5l3 3 5-6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  ) : (
+                    <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M9.2 2.4l2.4 2.4-6.3 6.3-3 .6.6-3 6.3-6.3Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/></svg>
+                  )}
+                  <span>{t(legendEditMode ? "agenda.legendEditDone" : "agenda.legendEdit")}</span>
+                </button>
               )}
             </>
           );
