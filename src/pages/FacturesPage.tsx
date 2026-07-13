@@ -43,6 +43,12 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
   const [sortKey, setSortKey] = useState<"date" | "name" | "amount">("date");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  // "À encaisser" panel: collapsed state persists (a preference); dismissed hides
+  // it for the session only, so unpaid prepared bills resurface on the next visit.
+  const [toCollectCollapsed, setToCollectCollapsed] = useState(
+    () => localStorage.getItem("bp.facToCollectCollapsed") === "1");
+  const [toCollectDismissed, setToCollectDismissed] = useState(
+    () => sessionStorage.getItem("bp.facToCollectDismissed") === "1");
 
   const toggleExpand = (id: string) => setExpanded(prev => {
     const next = new Set(prev);
@@ -182,13 +188,32 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
     <>
       {/* À encaisser — factures the doctor prepared, awaiting payment at the desk.
           Visible to the secretary; walk-ins with no patient record included. */}
-      {prepared.length > 0 && (
-        <div className="fac-toemit-box">
+      {prepared.length > 0 && !toCollectDismissed && (
+        <div className={`fac-toemit-box${toCollectCollapsed ? " collapsed" : ""}`}>
           <div className="fac-toemit-head">
-            <span className="fac-toemit-title">{t("factures.toCollectTitle")}</span>
-            <span className="fac-toemit-count">{prepared.length}</span>
+            <button
+              type="button"
+              className="fac-toemit-toggle"
+              onClick={() => setToCollectCollapsed(v => { const n = !v; try { localStorage.setItem("bp.facToCollectCollapsed", n ? "1" : "0"); } catch { /* ignore */ } return n; })}
+              aria-expanded={!toCollectCollapsed}
+              title={t(toCollectCollapsed ? "common.expand" : "common.collapse")}
+            >
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"
+                style={{ transform: toCollectCollapsed ? "rotate(-90deg)" : "none", transition: "transform .15s" }}>
+                <path d="M3 4.5L6 7.5l3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              <span className="fac-toemit-title">{t("factures.toCollectTitle")}</span>
+              <span className="fac-toemit-count">{prepared.length}</span>
+            </button>
+            <button
+              type="button"
+              className="fac-toemit-dismiss"
+              onClick={() => setToCollectDismissed(() => { try { sessionStorage.setItem("bp.facToCollectDismissed", "1"); } catch { /* ignore */ } return true; })}
+              aria-label={t("common.close")}
+              title={t("common.hide")}
+            >×</button>
           </div>
-          <div className="fac-toemit-list">
+          {!toCollectCollapsed && <div className="fac-toemit-list">
             {prepared.map(a => (
               <div key={a.id} className="fac-toemit-row">
                 <div className="fac-toemit-main">
@@ -201,7 +226,7 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
                 <Link to={`/agenda/${a.id}`} className="fac-emit-btn">{t("factures.collect")}</Link>
               </div>
             ))}
-          </div>
+          </div>}
         </div>
       )}
 

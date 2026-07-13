@@ -298,6 +298,26 @@ export function AuthPage() {
             </div>
           )}
 
+          {/* Role identity — makes it unmistakable whether you're signing in as
+              the doctor (blue) or a secretary account (violet). */}
+          {(mode === "login" || mode === "secretary") && (
+            <div className={`auth-role-badge auth-role-${mode === "secretary" ? "secretary" : "doctor"}`}>
+              {mode === "secretary" ? (
+                <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <circle cx="8" cy="5" r="2.6" stroke="currentColor" strokeWidth="1.4"/>
+                  <path d="M3 13c0-2.5 2.2-4.2 5-4.2s5 1.7 5 4.2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                </svg>
+              ) : (
+                <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <path d="M4.5 2v3a3.5 3.5 0 0 0 7 0V2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                  <path d="M8 8.3v2.2a3 3 0 0 0 6 0V9.8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+                  <circle cx="14" cy="8.8" r="1.3" stroke="currentColor" strokeWidth="1.3"/>
+                </svg>
+              )}
+              <span>{t(mode === "secretary" ? "auth.roleSecretary" : "auth.roleDoctor")}</span>
+            </div>
+          )}
+
           <h1 className="auth-title">{titles[mode]}</h1>
           <p className="auth-sub">{subs[mode]}</p>
 

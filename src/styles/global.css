@@ -802,6 +802,13 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 .auth-logo { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
 .auth-logo-mark { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(160deg, var(--blue) 0%, var(--navy) 100%); display: flex; align-items: center; justify-content: center; }
 .auth-logo-text { font-size: 15px; font-weight: 700; color: var(--text); letter-spacing: -0.3px; }
+.auth-role-badge {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 12px; font-weight: 600;
+  padding: 4px 11px; border-radius: 999px; margin-bottom: 14px;
+}
+.auth-role-doctor    { color: var(--blue, #2563EB); background: rgba(37,99,235,0.10); }
+.auth-role-secretary { color: #7c3aed;               background: rgba(124,58,237,0.12); }
 .auth-title { font-size: 18px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
 .auth-sub { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
 .auth-form { display: flex; flex-direction: column; gap: 12px; }
@@ -4191,7 +4198,10 @@ a.wr-card-open:hover {
   background: var(--gold-soft, #FBF3E0);
   border-radius: 12px; padding: 12px 14px; margin-bottom: 16px;
 }
-.fac-toemit-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.fac-toemit-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.fac-toemit-toggle { display: inline-flex; align-items: center; gap: 8px; background: none; border: none; cursor: pointer; padding: 0; color: var(--gold, #B87613); }
+.fac-toemit-dismiss { background: none; border: none; cursor: pointer; color: var(--muted); font-size: 18px; line-height: 1; padding: 0 4px; opacity: .7; }
+.fac-toemit-dismiss:hover { opacity: 1; }
 .fac-toemit-title { font-weight: 800; font-size: 13px; color: var(--gold, #B87613); text-transform: uppercase; letter-spacing: .4px; }
 .fac-toemit-count {
   font-size: 12px; font-weight: 800; color: #fff; background: var(--gold, #D4962A);
@@ -5053,6 +5063,20 @@ a.ana-top-name:hover { color: var(--blue); text-decoration: underline; }
 }
 @media (max-width: 860px) {
   .msg-page { grid-template-columns: 1fr; }
+}
+
+/* Narrow-window fix: the 220px sidebar stays visible until 768px, so between
+   ~768–1024px the main two-column content layouts get squeezed and read as
+   "halved". Stack them to a single column earlier so everything stays readable. */
+@media (max-width: 1024px) {
+  .msg-page,
+  .dash-2col,
+  .stats-page-grid,
+  .patient-dossier-grid,
+  .vitals-charts-grid,
+  .appt-suivi-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Left sidebar */
