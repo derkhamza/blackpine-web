@@ -17,7 +17,19 @@ export interface SecretarySessionRef { ownerUserId: string; ownerName: string; }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const uid = () => Math.random().toString(36).slice(2, 9);
+// Record IDs. crypto.randomUUID() gives a collision-free 128-bit id; the old
+// 7-char Math.random() slug had a real birthday-collision risk across a busy
+// practice's records. Existing ids stay valid (ids are opaque, compared only by
+// equality). Falls back to a high-entropy string where randomUUID is absent
+// (older browsers / insecure contexts).
+const uid = (): string => {
+  try {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+      return crypto.randomUUID();
+    }
+  } catch { /* fall through to the entropy fallback */ }
+  return `id-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+};
 
 function load<T>(key: string, fallback: T): T {
   try {
