@@ -1,4 +1,5 @@
 import type { PageDesign, PaperSize, DocKind, DocumentSettings } from "./cabinetTypes";
+import { resolveDocImage } from "./docImages";
 
 // ── Shared helpers to apply a PageDesign inside the print HTML ────────────────
 //
@@ -100,7 +101,9 @@ export function pageRule(size: string, m: PageMargins): string {
  */
 export function backgroundHtml(d: PageDesign | undefined): string {
   if (!d?.background || !d.printBackground) return "";
-  return `<img src="${d.background}" alt="" style="position:fixed;top:0;left:0;width:100%;height:100%;object-fit:fill;z-index:-1;"/>`;
+  const src = resolveDocImage(d.background);
+  if (!src) return "";
+  return `<img src="${src}" alt="" style="position:fixed;top:0;left:0;width:100%;height:100%;object-fit:fill;z-index:-1;"/>`;
 }
 
 /** True when the doctor hid this block. */
@@ -128,8 +131,10 @@ export function blockStyle(d: PageDesign | undefined, key: string, m: PageMargin
 /** Absolutely-positioned logo image, or empty string when none is set. */
 export function logoHtml(d: PageDesign | undefined, m: PageMargins): string {
   if (!d?.logo) return "";
+  const src = resolveDocImage(d.logo);
+  if (!src) return "";
   const left = (d.logoX ?? m.left) - m.left;
   const top  = (d.logoY ?? m.top)  - m.top;
   const w    = d.logoW ?? 30;
-  return `<img src="${d.logo}" alt="" style="position:absolute;left:${left}mm;top:${top}mm;width:${w}mm;height:auto;"/>`;
+  return `<img src="${src}" alt="" style="position:absolute;left:${left}mm;top:${top}mm;width:${w}mm;height:auto;"/>`;
 }

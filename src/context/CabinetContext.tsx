@@ -6,6 +6,7 @@ import { BLANK_DOCTOR_PROFILE, setApptTypeRegistry } from "../lib/cabinetTypes";
 import { idbGet, idbSet } from "../lib/idbStore";
 import { fullName } from "../lib/nameFormat";
 import { mergeConflict, shouldApplySnapshot } from "../lib/cabinetMerge";
+import { warmDocImages, offloadProfileImages } from "../lib/docImages";
 import {
   getToken, pullCabinet, pushCabinet, CabinetConflictError, type CabinetSnapshot,
   getSecretaryToken, secretaryPull, secretaryPushAppointments, secretaryPushPatients,
@@ -531,6 +532,24 @@ export function CabinetProvider({
     })();
     return () => { cancelled = true; };
   }, [apptDocuments]);
+
+  // Doctor-profile letterhead/logo images: warm any blob-referenced image into the
+  // render cache, and one-time-offload any still-inline data: image to blob — the
+  // letterhead scan was the main localStorage/snapshot bloat source.
+  const profileImgRef = useRef(false);
+  useEffect(() => {
+    const ds = doctorProfile.documentSettings;
+    if (!ds) return;
+    void warmDocImages(ds);
+    if (profileImgRef.current) return;
+    profileImgRef.current = true;
+    let cancelled = false;
+    (async () => {
+      const next = await offloadProfileImages(ds);
+      if (next && !cancelled) setDoctorProfileState(prev => ({ ...prev, documentSettings: next }));
+    })();
+    return () => { cancelled = true; };
+  }, [doctorProfile]);
 
   const setDoctorProfile = useCallback(
     (p: CabinetDoctorProfile) => setDoctorProfileState(p), []);

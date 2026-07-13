@@ -1,10 +1,11 @@
-import { useRef, useState } from "react";
+import { useEffect, useReducer, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { DocumentSettings, PageDesign, DocBlockDesign, PaperSize, DocKind } from "../lib/cabinetTypes";
 import {
   DOC_DEFAULT_MARGINS, DOC_DEFAULT_SIZE, DOC_BLOCKS, isFlowDoc,
   designForKind, resolveMargins, resolvePageSize,
 } from "../lib/docDesign";
+import { resolveDocImage, offloadDocImage, warmDocImages } from "../lib/docImages";
 
 // ── Visual page designer for pre-printed paper ────────────────────────────────
 //
@@ -224,6 +225,13 @@ export function PageDesigner({
 
   const design: PageDesign = designForKind(settings, kind) ?? {};
   const defaults = DOC_DEFAULT_MARGINS[kind];
+  // Letterhead/logo may be a blob: marker — resolve to a data URL for the preview.
+  // Warm the cache on load and force a re-render once resolved (the cache is not
+  // React state). data: URLs resolve to themselves, so nothing else changes.
+  const [, forceRerender] = useReducer(x => x + 1, 0);
+  useEffect(() => { void warmDocImages(settings).then(forceRerender); }, [settings]);
+  const bgSrc   = resolveDocImage(design.background);
+  const logoSrc = resolveDocImage(design.logo);
   const margins = resolveMargins(design, defaults);
   const blocks = DOC_BLOCKS[kind];
   const page = resolvePageSize(design, DOC_DEFAULT_SIZE[kind]);
@@ -344,7 +352,10 @@ export function PageDesigner({
     if (!file) return;
     resizeImageToDataUrl(file, (dataUrl) => {
       if (!dataUrl) return;
-      setDesign({ logo: dataUrl, logoX: design.logoX ?? margins.left, logoY: design.logoY ?? margins.top, logoW: design.logoW ?? 30 });
+      // Offload to blob first (falls back to the inline data URL on failure), then
+      // store the resulting marker in one setDesign — avoids a second stale write.
+      void offloadDocImage(`${kind}-logo`, dataUrl).then(stored =>
+        setDesign({ logo: stored, logoX: design.logoX ?? margins.left, logoY: design.logoY ?? margins.top, logoW: design.logoW ?? 30 }));
     });
   };
 
@@ -352,7 +363,10 @@ export function PageDesigner({
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
-    resizeImageToDataUrl(file, (dataUrl) => { if (dataUrl) setDesign({ background: dataUrl, printBackground: true }); }, MAX_BG_PX, "image/jpeg");
+    resizeImageToDataUrl(file, (dataUrl) => {
+      if (!dataUrl) return;
+      void offloadDocImage(`${kind}-bg`, dataUrl).then(stored => setDesign({ background: stored, printBackground: true }));
+    }, MAX_BG_PX, "image/jpeg");
   };
 
   const cur = designForKind(settings, kind);
@@ -443,8 +457,8 @@ export function PageDesigner({
           onClick={(e) => { if (e.target === pageRef.current) setSelected(null); }}
         >
           {/* letterhead background reference */}
-          {design.background && (
-            <img src={design.background} alt="" className="pd-bg" draggable={false} />
+          {bgSrc && (
+            <img src={bgSrc} alt="" className="pd-bg" draggable={false} />
           )}
 
           {/* margin guides + draggable edges */}
@@ -491,13 +505,13 @@ export function PageDesigner({
           })}
 
           {/* logo */}
-          {design.logo && (
+          {logoSrc && (
             <div
               className={`pd-logo-wrap${selected === "__logo" ? " selected" : ""}`}
               style={{ left: px(design.logoX ?? margins.left), top: px(design.logoY ?? margins.top), width: px(design.logoW ?? 30) }}
               onPointerDown={startLogoMove}
             >
-              <img src={design.logo} alt="logo" className="pd-logo-img" draggable={false} />
+              <img src={logoSrc} alt="logo" className="pd-logo-img" draggable={false} />
               {selected === "__logo" && <span className="pd-resize pd-resize-br" onPointerDown={startLogoResize} />}
             </div>
           )}
