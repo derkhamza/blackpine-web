@@ -1615,6 +1615,7 @@ export function ParametresPage() {
         )}
 
         {/* ── Sécurité & confidentialité ── */}
+        <div className="settings-category">{t("settings.catAccount")}</div>
         <Section icon="security" title={t("settings.securityTitle")} subtitle={t("settings.securitySub")} defaultOpen>
           <SecuritySection />
         </Section>
@@ -1625,6 +1626,7 @@ export function ParametresPage() {
         </Section>
 
         {/* ── Apparence ── */}
+        <div className="settings-category">{t("settings.catCabinet")}</div>
         <Section icon="appearance" title={t("settings.appearance")} subtitle={t("settings.appearanceSub")}>
           <SettingsRow
             label={t("settings.darkTheme")}
@@ -1711,6 +1713,7 @@ export function ParametresPage() {
         </Section>
 
         {/* ── Réservation en ligne ── */}
+        <div className="settings-category">{t("settings.catAgenda")}</div>
         <Section
           icon="booking"
           title={t("settings.bookingTitle")}
@@ -1729,6 +1732,7 @@ export function ParametresPage() {
         </Section>
 
         {/* ── Mode secrétaire ── */}
+        <div className="settings-category">{t("settings.catTeam")}</div>
         <Section
           icon="secretary"
           title={t("settings.secretaryMode")}
@@ -1851,6 +1855,7 @@ export function ParametresPage() {
 
         {/* ── Sauvegarde & Restauration ── */}
         <div id="settings-backup">
+        <div className="settings-category">{t("settings.catData")}</div>
         <Section
           icon="backup"
           title={t("settings.backup")}
@@ -2148,6 +2153,7 @@ export function ParametresPage() {
         </Section>
 
         {/* ── Application mobile / PWA ── */}
+        <div className="settings-category">{t("settings.catApp")}</div>
         <Section
           icon="installApp"
           title={t("settings.installApp")}

@@ -90,6 +90,41 @@ function calcPoidsIdeal(heightCm: number, female: boolean) {
   return { devine: Math.max(0, devine), min: 18.5 * h * h, max: 25 * h * h };
 }
 
+// HbA1c → estimated average glucose (ADAG: eAG mg/dL = 28.7·A1c − 46.7).
+function calcHba1c(a1c: number) {
+  const eagMgDl = 28.7 * a1c - 46.7;
+  const eagGL   = eagMgDl / 100;    // g/L — the unit Moroccan labs report
+  const eagMmol = eagMgDl / 18.0;   // mmol/L
+  const ctrl =
+    a1c < 6.5 ? { label: "calculateurs.hbCtrlGood",      color: "#38a169" }
+    : a1c < 7.0 ? { label: "calculateurs.hbCtrlTarget",   color: "#68d391" }
+    : a1c < 8.0 ? { label: "calculateurs.hbCtrlAbove",    color: "#d69e2e" }
+    : a1c < 9.0 ? { label: "calculateurs.hbCtrlHigh",     color: "#dd6b20" }
+    :             { label: "calculateurs.hbCtrlVeryHigh", color: "#e53e3e" };
+  return { eagGL, eagMgDl, eagMmol, ctrl };
+}
+
+// Cockcroft-Gault creatinine clearance (mL/min) — the estimate drug dosing still
+// uses. Distinct from CKD-EPI/DFG (a GFR estimate) — it needs the patient weight.
+function calcCockcroft(creatUmolL: number, age: number, weightKg: number, female: boolean) {
+  const crMgDl = creatUmolToMgDl(creatUmolL);
+  const clcr = ((140 - age) * weightKg * (female ? 0.85 : 1)) / (72 * crMgDl);
+  const stage =
+    clcr >= 90 ? { label: "calculateurs.ccG1", color: "#38a169" }
+    : clcr >= 60 ? { label: "calculateurs.ccG2", color: "#68d391" }
+    : clcr >= 30 ? { label: "calculateurs.ccG3", color: "#d69e2e" }
+    : clcr >= 15 ? { label: "calculateurs.ccG4", color: "#dd6b20" }
+    :              { label: "calculateurs.ccG5", color: "#e53e3e" };
+  return { clcr, stage };
+}
+
+// Body-surface area — Mosteller (primary) and Du Bois, for dosing (chemo, peds…).
+function calcBsa(weightKg: number, heightCm: number) {
+  const mosteller = Math.sqrt((weightKg * heightCm) / 3600);
+  const dubois    = 0.007184 * Math.pow(weightKg, 0.425) * Math.pow(heightCm, 0.725);
+  return { mosteller, dubois };
+}
+
 // ══════════════════════════════════════════════════════════════════
 // UI HELPERS
 // ══════════════════════════════════════════════════════════════════
@@ -520,11 +555,171 @@ function PoidsIdealCalc() {
   );
 }
 
+function Hba1cCalc() {
+  const { t } = useTranslation();
+  const [a1c, setA1c] = useState("");
+  const v = num(a1c);
+  const valid = v >= 3 && v <= 20;
+  const res = valid ? calcHba1c(v) : null;
+
+  const refRows: [string, string, string][] = [
+    ["< 6.5 %",   t("calculateurs.hbCtrlGood"),     "#38a169"],
+    ["6.5 – 7 %", t("calculateurs.hbCtrlTarget"),   "#68d391"],
+    ["7 – 8 %",   t("calculateurs.hbCtrlAbove"),    "#d69e2e"],
+    ["8 – 9 %",   t("calculateurs.hbCtrlHigh"),     "#dd6b20"],
+    ["≥ 9 %",     t("calculateurs.hbCtrlVeryHigh"), "#e53e3e"],
+  ];
+
+  return (
+    <div className="calc-body">
+      <div className="calc-form">
+        <Field label={t("calculateurs.hbA1c")} hint={t("calculateurs.hbHint")}>
+          <input className="form-input" type="number" min="3" max="20" step="0.1"
+            placeholder="7.5" value={a1c} onChange={e => setA1c(e.target.value)} />
+        </Field>
+      </div>
+
+      {res && (
+        <div className="calc-results">
+          <ResultCard label={t("calculateurs.hbEag")} value={`${res.eagGL.toFixed(2)} g/L`}
+            sub={t(res.ctrl.label)} color={res.ctrl.color} />
+          <ResultCard label={t("calculateurs.hbEagAlt")}
+            value={`${res.eagMmol.toFixed(1)} mmol/L · ${res.eagMgDl.toFixed(0)} mg/dL`} />
+        </div>
+      )}
+
+      <div className="calc-ref">
+        <div className="calc-ref-title">{t("calculateurs.hbRefTitle")}</div>
+        <div className="calc-ref-grid">
+          {refRows.map(([range, label, color]) => (
+            <div key={range} className="calc-ref-row">
+              <span className="calc-ref-range">{range}</span>
+              <span className="calc-ref-label" style={{ color }}>{label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <p className="calc-disclaimer">{t("calculateurs.hbDisclaimer")}</p>
+    </div>
+  );
+}
+
+function CockcroftCalc() {
+  const { t } = useTranslation();
+  const [creat, setCreat] = useState("");
+  const [unit, setUnit] = useState<"umol" | "mgdl">("umol");
+  const [age, setAge] = useState("");
+  const [weight, setWeight] = useState("");
+  const [female, setFemale] = useState(false);
+
+  const rawCr = num(creat), ageVal = num(age), wVal = num(weight);
+  const crUmol = unit === "umol" ? rawCr : creatMgDlToUmol(rawCr);
+  const valid = crUmol > 0 && crUmol < 10000 && ageVal >= 18 && ageVal <= 120 && wVal > 20 && wVal < 300;
+  const res = valid ? calcCockcroft(crUmol, ageVal, wVal, female) : null;
+
+  const refRows: [string, string, string][] = [
+    ["≥ 90",    t("calculateurs.ccG1"), "#38a169"],
+    ["60 – 89", t("calculateurs.ccG2"), "#68d391"],
+    ["30 – 59", t("calculateurs.ccG3"), "#d69e2e"],
+    ["15 – 29", t("calculateurs.ccG4"), "#dd6b20"],
+    ["< 15",    t("calculateurs.ccG5"), "#e53e3e"],
+  ];
+
+  return (
+    <div className="calc-body">
+      <div className="calc-form">
+        <div className="form-row" style={{ alignItems: "flex-end" }}>
+          <Field label={t("calculateurs.ccCreatinine", { unit: unit === "umol" ? "µmol/L" : "mg/dL" })} hint={t("calculateurs.ccHint")}>
+            <input className="form-input" type="number" min="0" step="0.01"
+              placeholder={unit === "umol" ? "80" : "0.9"} value={creat} onChange={e => setCreat(e.target.value)} />
+          </Field>
+          <div className="form-group">
+            <label className="form-label">{t("calculateurs.dfgUnit")}</label>
+            <div style={{ display: "flex", gap: 8 }}>
+              {(["umol", "mgdl"] as const).map(u => (
+                <button key={u} type="button" className={`calc-sex-btn${unit === u ? " active" : ""}`}
+                  onClick={() => { setUnit(u); setCreat(""); }}>{u === "umol" ? "µmol/L" : "mg/dL"}</button>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="form-row">
+          <Field label={t("calculateurs.ccAge")}>
+            <input className="form-input" type="number" min="18" max="120" placeholder="65" value={age} onChange={e => setAge(e.target.value)} />
+          </Field>
+          <Field label={t("calculateurs.ccWeight")}>
+            <input className="form-input" type="number" min="20" max="300" step="0.5" placeholder="70" value={weight} onChange={e => setWeight(e.target.value)} />
+          </Field>
+        </div>
+        <Field label={t("calculateurs.ccSex")}>
+          <SexToggle female={female} onChange={setFemale} />
+        </Field>
+      </div>
+
+      {res && (
+        <div className="calc-results">
+          <ResultCard label={t("calculateurs.ccResult")} value={`${res.clcr.toFixed(0)} mL/min`}
+            sub={t(res.stage.label)} color={res.stage.color} />
+        </div>
+      )}
+
+      <div className="calc-ref">
+        <div className="calc-ref-title">{t("calculateurs.ccRefTitle")}</div>
+        <div className="calc-ref-grid">
+          {refRows.map(([range, label, color]) => (
+            <div key={range} className="calc-ref-row">
+              <span className="calc-ref-range">{range}</span>
+              <span className="calc-ref-label" style={{ color }}>{label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <p className="calc-disclaimer">{t("calculateurs.ccDisclaimer")}</p>
+    </div>
+  );
+}
+
+function BsaCalc() {
+  const { t } = useTranslation();
+  const [weight, setWeight] = useState("");
+  const [height, setHeight] = useState("");
+  const w = num(weight), h = num(height);
+  const valid = w > 0 && w < 500 && h > 30 && h < 280;
+  const res = valid ? calcBsa(w, h) : null;
+
+  return (
+    <div className="calc-body">
+      <div className="calc-form">
+        <div className="form-row">
+          <Field label={t("calculateurs.bsaWeight")}>
+            <input className="form-input" type="number" min="1" max="500" step="0.1"
+              placeholder="70" value={weight} onChange={e => setWeight(e.target.value)} />
+          </Field>
+          <Field label={t("calculateurs.bsaHeight")}>
+            <input className="form-input" type="number" min="30" max="280" step="0.5"
+              placeholder="170" value={height} onChange={e => setHeight(e.target.value)} />
+          </Field>
+        </div>
+      </div>
+
+      {res && (
+        <div className="calc-results">
+          <ResultCard label={t("calculateurs.bsaMosteller")} value={`${res.mosteller.toFixed(2)} m²`}
+            sub={t("calculateurs.bsaMostellerSub")} color="var(--blue)" />
+          <ResultCard label={t("calculateurs.bsaDubois")} value={`${res.dubois.toFixed(2)} m²`}
+            sub={t("calculateurs.bsaDuboisSub")} />
+        </div>
+      )}
+      <p className="calc-disclaimer">{t("calculateurs.bsaDisclaimer")}</p>
+    </div>
+  );
+}
+
 // ══════════════════════════════════════════════════════════════════
 // MAIN PAGE
 // ══════════════════════════════════════════════════════════════════
 
-type CalcKey = "imc" | "dfg" | "cv" | "grossesse" | "poids";
+type CalcKey = "imc" | "dfg" | "cv" | "grossesse" | "poids" | "hba1c" | "cockcroft" | "bsa";
 
 export function CalculateursPage() {
   const { t } = useTranslation();
@@ -536,6 +731,9 @@ export function CalculateursPage() {
     { key: "cv",        label: t("calculateurs.navCv"),        icon: "heart",       subtitle: t("calculateurs.navCvSub") },
     { key: "grossesse", label: t("calculateurs.navGrossesse"), icon: "pregnant",    subtitle: t("calculateurs.navGrossesseSub") },
     { key: "poids",     label: t("calculateurs.navPoids"),     icon: "ruler",       subtitle: t("calculateurs.navPoidsSub") },
+    { key: "hba1c",     label: t("calculateurs.navHba1c"),     icon: "flask",       subtitle: t("calculateurs.navHba1cSub") },
+    { key: "cockcroft", label: t("calculateurs.navCockcroft"), icon: "kidney",      subtitle: t("calculateurs.navCockcroftSub") },
+    { key: "bsa",       label: t("calculateurs.navBsa"),       icon: "ruler",       subtitle: t("calculateurs.navBsaSub") },
   ];
 
   const cur = CALCS.find(c => c.key === active)!;
@@ -571,6 +769,9 @@ export function CalculateursPage() {
           {active === "cv"        && <RisqueCvCalc />}
           {active === "grossesse" && <GrossesseCalc />}
           {active === "poids"     && <PoidsIdealCalc />}
+          {active === "hba1c"     && <Hba1cCalc />}
+          {active === "cockcroft" && <CockcroftCalc />}
+          {active === "bsa"       && <BsaCalc />}
         </div>
       </div>
     </Layout>

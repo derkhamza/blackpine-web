@@ -2997,6 +2997,12 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
 /* ── Settings page ────────────────────────────────────────────────────────── */
 .settings-page { display: flex; flex-direction: column; gap: 20px; max-width: 720px; }
+/* Category header grouping the settings sections into larger buckets */
+.settings-category {
+  font-size: 11px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase;
+  color: var(--muted); margin: 20px 2px 8px;
+}
+.settings-category:first-child { margin-top: 0; }
 .settings-section {
   background: var(--surface); border-radius: var(--r);
   border: 1px solid var(--border); box-shadow: var(--shadow-card);
