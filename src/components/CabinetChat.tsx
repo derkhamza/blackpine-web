@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useCabinet } from "../context/CabinetContext";
 import { useToast } from "./Toast";
 import { chime } from "../lib/chime";
-import { sendChatMessage, pollChat, getToken, getSecretaryToken, type ChatMessage } from "../api/client";
+import { sendChatMessage, pollChat, getToken, getSecretaryToken, emitSignal, type ChatMessage } from "../api/client";
 
 // Persistent doctor↔secretary chat as a floating widget. Polls faster while open,
 // slower in the background (for the unread badge). Available to the doctor (not in
@@ -27,6 +27,14 @@ export function CabinetChat() {
   const hasSession = !!(getToken() || getSecretaryToken());
   const show = hasSession && ((role === "doctor" && !secretaryMode) || role === "secretary");
   const myName = role === "doctor" ? (doctorProfile.fullName || undefined) : undefined;
+
+  // Intercom — the doctor rings the secretary (a one-shot "come in" alert) from
+  // inside the chat, instead of a separate button in the page header.
+  const canRing = role === "doctor" && !secretaryMode;
+  const ring = () => {
+    emitSignal("intercom", {}, doctorProfile.fullName || undefined);
+    toast(t("signals.calledSecretary"), "success");
+  };
 
   const merge = useCallback((incoming: ChatMessage[]) => {
     if (!incoming.length) return;
@@ -117,7 +125,17 @@ export function CabinetChat() {
         <div className="chat-panel" role="dialog" aria-label={t("chat.title")}>
           <div className="chat-head">
             <span className="chat-head-title">{t("chat.title")}</span>
-            <button className="chat-close" onClick={() => setOpen(false)} aria-label={t("common.close")}>×</button>
+            <div className="chat-head-actions">
+              {canRing && (
+                <button className="chat-ring" onClick={ring} title={t("signals.callSecretary")} aria-label={t("signals.callSecretary")}>
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <path d="M8 2a3.4 3.4 0 0 1 3.4 3.4c0 2.4 1 3.3 1.5 3.9a.4.4 0 0 1-.3.7H3.4a.4.4 0 0 1-.3-.7c.5-.6 1.5-1.5 1.5-3.9A3.4 3.4 0 0 1 8 2Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
+                    <path d="M6.5 12.4a1.5 1.5 0 0 0 3 0" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                  </svg>
+                </button>
+              )}
+              <button className="chat-close" onClick={() => setOpen(false)} aria-label={t("common.close")}>×</button>
+            </div>
           </div>
           <div className="chat-list" ref={listRef}>
             {messages.length === 0

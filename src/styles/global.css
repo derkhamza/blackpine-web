@@ -9110,6 +9110,13 @@ html { scroll-behavior: smooth; }
 }
 .chat-head-title { font-weight: 700; font-size: 14px; color: var(--text); }
 .chat-close { border: none; background: none; font-size: 20px; color: var(--muted); cursor: pointer; line-height: 1; }
+.chat-head-actions { display: flex; align-items: center; gap: 4px; }
+.chat-ring {
+  border: none; background: none; cursor: pointer; color: var(--muted);
+  display: inline-flex; padding: 3px; border-radius: 6px;
+  transition: color var(--trans), background var(--trans);
+}
+.chat-ring:hover { color: var(--blue); background: var(--hover); }
 .chat-list { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
 .chat-empty { color: var(--muted); font-size: 13px; text-align: center; margin: auto 0; }
 .chat-msg { display: flex; flex-direction: column; align-items: flex-start; max-width: 82%; }

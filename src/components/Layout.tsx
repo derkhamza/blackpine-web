@@ -2,8 +2,6 @@ import { type ReactNode, useEffect, useLayoutEffect, useMemo, useState } from "r
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 import { useCabinet } from "../context/CabinetContext";
-import { useToast } from "./Toast";
-import { emitSignal } from "../api/client";
 import { BlackpineLogo } from "./Logo";
 import { CommandPalette }  from "./CommandPalette";
 import { TrialGate }       from "./TrialGate";
@@ -352,15 +350,6 @@ export function Layout({ title, subtitle, actions, children }: Props) {
   const { t } = useTranslation();
   const { user, logout, endSecretarySession } = useApp();
   const { appointments, stockItems, doctorProfile, secretaryMode, setSecretaryMode, role, secretaryOwnerName, storagePressure } = useCabinet();
-  const toast = useToast();
-  // Doctor rings the secretary (quick "come in" / patient signal). The reverse
-  // direction is handled by the chat channel, not a one-shot call. Hidden in
-  // secretary preview (the doctor is alone there).
-  const canIntercom = role === "doctor" && !secretaryMode && !isAdminEmail(user?.email);
-  const callSecretary = () => {
-    emitSignal("intercom", {}, doctorProfile.fullName || undefined);
-    toast(t("signals.calledSecretary"), "success");
-  };
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const isRealSecretary = role === "secretary";
@@ -816,20 +805,6 @@ export function Layout({ title, subtitle, actions, children }: Props) {
             <div className="page-title">{title}</div>
             {subtitle && <div className="page-sub">{subtitle}</div>}
           </div>
-          {canIntercom && (
-            <button
-              className="btn btn-ghost call-secretary-btn"
-              onClick={callSecretary}
-              title={t("signals.callSecretary")}
-              aria-label={t("signals.callSecretary")}
-              style={{ flexShrink: 0, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center" }}
-            >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                <path d="M8 2a3.4 3.4 0 0 1 3.4 3.4c0 2.4 1 3.3 1.5 3.9a.4.4 0 0 1-.3.7H3.4a.4.4 0 0 1-.3-.7c.5-.6 1.5-1.5 1.5-3.9A3.4 3.4 0 0 1 8 2Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
-                <path d="M6.5 12.4a1.5 1.5 0 0 0 3 0" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
-              </svg>
-            </button>
-          )}
           {actions && <div style={{ display: "flex", gap: 10, flexShrink: 0 }}>{actions}</div>}
         </div>
         {/* Real secretary session banner (separate login) */}
