@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Layout } from "../components/Layout";
-import { adminGetStats, adminGetEvents, adminGetRetention, adminGetDoctors, adminGetDoctor, adminSetPlan, adminResetTrial, adminExpireAccount, adminDeleteAccount, adminGetConsumption, adminForceLogout, adminSetPassword, adminExtendDays, type AdminStats, type AdminEvents, type AdminRetention, type AdminDoctor, type AdminDoctorDetail, type AdminConsumption } from "../api/client";
+import { adminGetStats, adminGetEvents, adminGetRetention, adminGetDoctors, adminGetDoctor, adminSetPlan, adminResetTrial, adminExpireAccount, adminDeleteAccount, adminGetConsumption, adminForceLogout, adminSetPassword, adminExtendDays, adminGetFinance, type AdminStats, type AdminEvents, type AdminRetention, type AdminDoctor, type AdminDoctorDetail, type AdminConsumption, type AdminFinance } from "../api/client";
 import { AnimatedNumber } from "../components/AnimatedNumber";
 
 // Horizontal bar list for "most used pages/actions".
@@ -192,7 +192,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 // Short date (YYYY-MM-DD) or "—".
 const shortDate = (iso: string | null) => (iso ? iso.slice(0, 10) : "—");
-const PLAN_LABELS: Record<string, string> = { free_trial: "Essai", pro: "Pro", premium: "Premium" };
+const PLAN_LABELS: Record<string, string> = { free_trial: "Essai", pro: "Pro", premium: "Premium", lifetime: "À vie" };
 
 // ── Risks & shortfalls ─────────────────────────────────────────────────────────
 // Synthesises the doctors list + aggregate stats into an actionable "what needs
@@ -627,16 +627,21 @@ function DoctorsSection() {
 // are owner-editable assumptions (persisted locally). Projects 12 months forward.
 const FIN_KEY = "bp.admin.finance";
 interface FinanceCfg {
-  arpu: number;              // MAD collected per paying subscriber / month
+  arpu: number;              // MAD collected per paying (recurring) subscriber / month
   growthPct: number;         // monthly gross subscriber growth (%)
-  churnPct: number;          // monthly churn (%)
+  churnPct: number;          // monthly churn (%) — projection assumption
   conversionPct: number;     // % of the CURRENT trial pool that converts to paying
   variablePerUser: number;   // MAD infra cost per active cabinet / month
   oneOff: number;            // one-time cost booked in month 1 (MAD)
+  // Prices used to IMPUTE booked revenue from redeemed activation codes.
+  priceMonthly: number;      // MAD — a ≤31-day code
+  priceYearly: number;       // MAD — a ≥300-day code
+  priceLifetime: number;     // MAD — a lifetime code
   costs: { label: string; monthly: number }[]; // fixed monthly costs (MAD)
 }
 const DEFAULT_FINANCE: FinanceCfg = {
   arpu: 249, growthPct: 8, churnPct: 3, conversionPct: 20, variablePerUser: 3, oneOff: 0,
+  priceMonthly: 299, priceYearly: 2990, priceLifetime: 4990,
   costs: [
     { label: "Hébergement (Vercel)", monthly: 200 },
     { label: "Base de données (Neon)", monthly: 190 },
@@ -647,6 +652,104 @@ const DEFAULT_FINANCE: FinanceCfg = {
 function loadFinance(): FinanceCfg {
   try { const r = localStorage.getItem(FIN_KEY); if (r) return { ...DEFAULT_FINANCE, ...JSON.parse(r) }; } catch { /* ignore */ }
   return DEFAULT_FINANCE;
+}
+
+// Derived business metrics shared by the Direction cockpit and the Finances tab.
+// Revenue is real (imputed from redeemed activation codes); MRR/ARR from the
+// current active recurring base × ARPU; churn/conversion from the actual states.
+function financeMetrics(fin: AdminFinance, cfg: FinanceCfg) {
+  const recurringActive = Math.max(0, fin.subs.activePaid - fin.subs.activeLifetime);
+  const mrr = recurringActive * cfg.arpu;
+  const everPaid = fin.subs.activePaid + fin.subs.expiredPaid;
+  const conversion = fin.subs.total > 0 ? (everPaid / fin.subs.total) * 100 : 0;
+  const churnBase = fin.subs.activePaid + fin.expiredThisMonth;
+  const churn = churnBase > 0 ? (fin.expiredThisMonth / churnBase) * 100 : 0;
+  const ltv = churn > 0 ? cfg.arpu / (churn / 100) : cfg.arpu * 24;
+  const su = fin.signupsByMonth;
+  const suThis = su.length ? su[su.length - 1].count : 0;
+  const suPrev = su.length > 1 ? su[su.length - 2].count : 0;
+  const suGrowth = suPrev > 0 ? ((suThis - suPrev) / suPrev) * 100 : (suThis > 0 ? 100 : 0);
+  const priceOf = (plan: string, dur: number) =>
+    plan === "lifetime" ? cfg.priceLifetime : dur >= 300 ? cfg.priceYearly : cfg.priceMonthly;
+  const revMap: Record<string, number> = {};
+  for (const b of fin.codes.redeemedBuckets) revMap[b.month] = (revMap[b.month] || 0) + b.count * priceOf(b.plan, b.durationDays);
+  const revByMonth = fin.codes.redeemedByMonth.map(mm => ({ date: mm.month, count: revMap[mm.month] || 0 }));
+  const bookedTotal = fin.codes.redeemedBuckets.reduce((s, b) => s + b.count * priceOf(b.plan, b.durationDays), 0);
+  const revThis = revByMonth.length ? revByMonth[revByMonth.length - 1].count : 0;
+  return { recurringActive, mrr, arr: mrr * 12, conversion, churn, ltv, suThis, suPrev, suGrowth, revByMonth, bookedTotal, revThis };
+}
+const fmtMAD = (n: number) => `${Math.round(n).toLocaleString("fr-FR")} MAD`;
+
+// ── Executive cockpit (the CEO's one-screen read) ─────────────────────────────
+function ExecutiveTab({ stats, finance, retention, onGoto }: {
+  stats: AdminStats;
+  finance: AdminFinance | null;
+  retention: AdminRetention | null;
+  onGoto: (t: AdminTab) => void;
+}) {
+  if (!finance) return <Section title="Direction"><div className="admin-empty">Chargement des indicateurs…</div></Section>;
+  const cfg = loadFinance();
+  const m = financeMetrics(finance, cfg);
+  const stick = retention ? Math.round(retention.stickiness.ratio * 100) : 0;
+
+  return (<>
+    <div className="admin-exec-summary">
+      <strong>{finance.subs.activePaid}</strong> abonnés payants · MRR <strong>{fmtMAD(m.mrr)}</strong> · {finance.subs.activeTrials} essais en cours · {stats.trialsExpiring7} expirent sous 7 j · {stats.active.wau} cabinets actifs cette semaine.
+    </div>
+
+    <div className="admin-grid">
+      <Tile label="MRR (mensuel)" value={fmtMAD(m.mrr)} accent="var(--green)" />
+      <Tile label="ARR (annualisé)" value={fmtMAD(m.arr)} accent="var(--blue)" />
+      <Tile label="Abonnés payants" value={finance.subs.activePaid} accent="var(--green)" />
+      <Tile label="Comptes total" value={finance.subs.total} accent="var(--blue)" />
+      <Tile label="Conversion payants" value={`${m.conversion.toFixed(0)} %`} accent="var(--gold)" />
+      <Tile label="Churn (ce mois)" value={`${m.churn.toFixed(1)} %`} accent={m.churn > 5 ? "var(--coral)" : "var(--muted)"} />
+    </div>
+
+    <div className="admin-two-col">
+      <Section title="Revenu encaissé — 12 mois">
+        <AreaChart data={m.revByMonth} color="var(--green)" />
+        <div className="admin-sub">Imputé depuis les codes d'activation utilisés · encaissé cumulé <strong>{fmtMAD(m.bookedTotal)}</strong></div>
+      </Section>
+      <Section title="Inscriptions — 12 mois">
+        <AreaChart data={finance.signupsByMonth.map(s => ({ date: s.month, count: s.count }))} color="var(--blue)" />
+        <div className="admin-sub">Ce mois : <strong>{m.suThis}</strong> · {m.suGrowth >= 0 ? "+" : ""}{m.suGrowth.toFixed(0)} % vs mois précédent</div>
+      </Section>
+    </div>
+
+    <Section title="Abonnements actifs par formule">
+      <div className="admin-grid">
+        {Object.entries(finance.subs.activeByPlan).map(([plan, n]) => (
+          <Tile key={plan} label={PLAN_LABELS[plan] ?? plan} value={n as number} accent="var(--blue)" />
+        ))}
+        <Tile label="Essais actifs" value={finance.subs.activeTrials} accent="var(--gold)" />
+        <Tile label="À vie" value={finance.subs.activeLifetime} />
+      </div>
+    </Section>
+
+    <div className="admin-two-col">
+      <Section title="Cabinets actifs">
+        <div className="admin-grid">
+          <Tile label="Aujourd'hui" value={stats.active.dau} accent="var(--green)" />
+          <Tile label="7 jours" value={stats.active.wau} />
+          <Tile label="30 jours" value={stats.active.mau} />
+          <Tile label="Adhérence (DAU/MAU)" value={`${stick} %`} accent="var(--blue)" />
+        </div>
+      </Section>
+      <Section title="À surveiller">
+        <div className="admin-grid">
+          <Tile label="Essais → 7 j" value={stats.trialsExpiring7} accent="var(--gold)" />
+          <Tile label="Payants expirés" value={finance.subs.expiredPaid} accent="var(--coral)" />
+          <Tile label="LTV estimée" value={fmtMAD(m.ltv)} accent="var(--blue)" />
+          <Tile label="Codes non utilisés" value={finance.codes.unused} />
+        </div>
+        <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+          <button className="admin-btn" onClick={() => onGoto("finances")}>Finances détaillées →</button>
+          <button className="admin-btn" onClick={() => onGoto("doctors")}>Comptes & contrôles →</button>
+        </div>
+      </Section>
+    </div>
+  </>);
 }
 
 // Revenue / cost / net over 12 months as a layered SVG chart (revenue area,
@@ -678,18 +781,22 @@ function FinChart({ data }: { data: { m: number; rev: number; cost: number; net:
   );
 }
 
-function FinancialDashboard({ stats }: { stats: AdminStats }) {
+function FinancialDashboard({ stats, finance }: { stats: AdminStats; finance: AdminFinance | null }) {
   const [cfg, setCfg] = useState<FinanceCfg>(loadFinance);
   const save = (next: FinanceCfg) => { setCfg(next); try { localStorage.setItem(FIN_KEY, JSON.stringify(next)); } catch { /* ignore */ } };
 
-  // Paying subscribers = everyone not on the free trial.
+  const m = finance ? financeMetrics(finance, cfg) : null;
+  // Paying = REAL active-paid (excludes expired) when finance is loaded; the
+  // stats fallback (which counts expired too) only shows before /finance resolves.
   const subEntries = Object.entries(stats.subscriptions);
-  const paying = subEntries.filter(([p]) => p !== "free_trial").reduce((s, [, n]) => s + (n as number), 0);
-  const trial  = (stats.subscriptions as Record<string, number>)["free_trial"] ?? 0;
+  const payingFallback = subEntries.filter(([p]) => p !== "free_trial").reduce((s, [, n]) => s + (n as number), 0);
+  const paying   = finance ? finance.subs.activePaid : payingFallback;
+  const recurring = finance && m ? m.recurringActive : paying;
+  const trial    = finance ? finance.subs.activeTrials : ((stats.subscriptions as Record<string, number>)["free_trial"] ?? 0);
   const activeCabinets = stats.volumes.snapshots;
 
   const fixedCosts = cfg.costs.reduce((s, c) => s + c.monthly, 0);
-  const mrr = paying * cfg.arpu;
+  const mrr = recurring * cfg.arpu;
   const monthlyCost = fixedCosts + activeCabinets * cfg.variablePerUser;
   const net = mrr - monthlyCost;
   const margin = mrr > 0 ? Math.round((net / mrr) * 100) : 0;
@@ -698,7 +805,7 @@ function FinancialDashboard({ stats }: { stats: AdminStats }) {
   // 12-month projection. Base = today's payers + expected trial conversions; the
   // sub base then compounds at (growth − churn); costs = fixed + variable × subs
   // (+ a one-off in month 1).
-  const base = paying + Math.round(trial * cfg.conversionPct / 100);
+  const base = recurring + Math.round(trial * cfg.conversionPct / 100);
   const netG = (cfg.growthPct - cfg.churnPct) / 100;
   const projection = Array.from({ length: 12 }, (_, i) => {
     const m = i + 1;
@@ -716,7 +823,27 @@ function FinancialDashboard({ stats }: { stats: AdminStats }) {
   const removeCost = (i: number) => save({ ...cfg, costs: cfg.costs.filter((_, idx) => idx !== i) });
 
   return (<>
-    <Section title="Revenus & rentabilité (mensuel)">
+    {finance && m && (
+      <Section title="Situation réelle (données actuelles)">
+        <div className="admin-grid">
+          <Tile label="Abonnés payants actifs" value={finance.subs.activePaid} accent="var(--green)" />
+          <Tile label="dont récurrents" value={m.recurringActive} />
+          <Tile label="À vie" value={finance.subs.activeLifetime} />
+          <Tile label="Payants expirés" value={finance.subs.expiredPaid} accent="var(--coral)" />
+          <Tile label="Conversion payants" value={`${m.conversion.toFixed(0)} %`} accent="var(--gold)" />
+          <Tile label="Churn (ce mois)" value={`${m.churn.toFixed(1)} %`} accent={m.churn > 5 ? "var(--coral)" : "var(--muted)"} />
+          <Tile label="LTV estimée" value={fmtMAD(m.ltv)} accent="var(--blue)" />
+          <Tile label="Encaissé (12 mois)" value={fmtMAD(m.bookedTotal)} accent="var(--green)" />
+        </div>
+        <div style={{ marginTop: 12 }}>
+          <div className="admin-doc-subtitle" style={{ marginBottom: 6 }}>Revenu encaissé par mois (codes d'activation utilisés)</div>
+          <AreaChart data={m.revByMonth} color="var(--green)" />
+        </div>
+        <div className="admin-sub">Codes d'activation : {finance.codes.redeemed} utilisés / {finance.codes.issued} émis · {finance.codes.unused} en attente.</div>
+      </Section>
+    )}
+
+    <Section title="Revenus & rentabilité (projection)">
       <div className="admin-grid">
         <Tile label="Abonnés payants" value={paying} accent="var(--green)" />
         <Tile label="En essai (à convertir)" value={trial} accent="var(--gold)" />
@@ -764,6 +891,15 @@ function FinancialDashboard({ stats }: { stats: AdminStats }) {
         </label>
         <label className="admin-fin-field">Coût unique (M+1)
           <input className="admin-select" type="number" min="0" value={cfg.oneOff} onChange={(e) => save({ ...cfg, oneOff: +e.target.value || 0 })} /> MAD
+        </label>
+        <label className="admin-fin-field">Prix mensuel (code 30 j)
+          <input className="admin-select" type="number" min="0" value={cfg.priceMonthly} onChange={(e) => save({ ...cfg, priceMonthly: +e.target.value || 0 })} /> MAD
+        </label>
+        <label className="admin-fin-field">Prix annuel (code 365 j)
+          <input className="admin-select" type="number" min="0" value={cfg.priceYearly} onChange={(e) => save({ ...cfg, priceYearly: +e.target.value || 0 })} /> MAD
+        </label>
+        <label className="admin-fin-field">Prix à vie
+          <input className="admin-select" type="number" min="0" value={cfg.priceLifetime} onChange={(e) => save({ ...cfg, priceLifetime: +e.target.value || 0 })} /> MAD
         </label>
       </div>
       <div className="admin-fin-costs">
@@ -864,8 +1000,9 @@ function ConsumptionSection() {
   </>);
 }
 
-type AdminTab = "overview" | "growth" | "usage" | "finances" | "doctors" | "system";
+type AdminTab = "direction" | "overview" | "growth" | "usage" | "finances" | "doctors" | "system";
 const ADMIN_TABS: { key: AdminTab; label: string }[] = [
+  { key: "direction", label: "Direction" },
   { key: "overview", label: "Vue d'ensemble" },
   { key: "growth",   label: "Croissance" },
   { key: "usage",    label: "Usage" },
@@ -878,14 +1015,16 @@ export function AdminPage() {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [events, setEvents] = useState<AdminEvents | null>(null);
   const [retention, setRetention] = useState<AdminRetention | null>(null);
+  const [finance, setFinance] = useState<AdminFinance | null>(null);
   const [range, setRange] = useState<number>(30);   // behavioural window in days
   const [err, setErr] = useState<string | null>(null);
-  const [tab, setTab] = useState<AdminTab>("overview");
+  const [tab, setTab] = useState<AdminTab>("direction");
 
-  // Stats + retention use fixed multi-windows (DAU/WAU/MAU, etc.) → load once.
+  // Stats + retention + finance use fixed windows → load once.
   useEffect(() => {
     adminGetStats().then(setStats).catch((e) => setErr((e as Error).message));
     adminGetRetention().then(setRetention).catch(() => { /* retention optional */ });
+    adminGetFinance().then(setFinance).catch(() => { /* finance optional */ });
   }, []);
 
   // Behavioural block is range-driven → refetch when the period changes.
@@ -924,6 +1063,8 @@ export function AdminPage() {
           </button>
         ))}
       </div>
+
+      {tab === "direction" && <ExecutiveTab stats={stats} finance={finance} retention={retention} onGoto={setTab} />}
 
       {tab === "overview" && (<>
       {/* ── Headline KPIs ── */}
@@ -1085,7 +1226,7 @@ export function AdminPage() {
       <ConsumptionSection />
       </>)}
 
-      {tab === "finances" && <FinancialDashboard stats={stats} />}
+      {tab === "finances" && <FinancialDashboard stats={stats} finance={finance} />}
 
       {tab === "doctors" && <DoctorsSection />}
 

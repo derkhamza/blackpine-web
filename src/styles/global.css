@@ -8622,6 +8622,14 @@ html { scroll-behavior: smooth; }
 .admin-grid {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;
 }
+/* Executive cockpit */
+.admin-exec-summary {
+  padding: 12px 16px; margin-bottom: 16px; border-radius: var(--r-lg);
+  border: 1px solid var(--border); background: var(--surface-alt, rgba(37,99,235,0.05));
+  font-size: 14px; line-height: 1.6; color: var(--text);
+}
+.admin-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 760px) { .admin-two-col { grid-template-columns: 1fr; } }
 .admin-tile {
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg);
   padding: 14px 16px; box-shadow: var(--shadow-card);

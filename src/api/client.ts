@@ -863,6 +863,34 @@ export async function adminGetConsumption(): Promise<AdminConsumption> {
   return res.json();
 }
 
+// Derived business/finance metrics for the executive view.
+export interface AdminFinance {
+  generatedAt: string;
+  subs: {
+    total: number;
+    activePaid: number;      // non-trial, not expired (lifetime always counts)
+    expiredPaid: number;
+    activeByPlan: Record<string, number>;
+    activeTrials: number;
+    expiredTrials: number;
+    activeLifetime: number;
+  };
+  signupsByMonth: { month: string; count: number }[];
+  codes: {
+    issued: number; redeemed: number; unused: number;
+    redeemedByMonth: { month: string; count: number }[];
+    redeemedBuckets: { month: string; plan: string; durationDays: number; count: number }[];
+    byPlan: Record<string, number>;
+  };
+  expiredThisMonth: number;
+}
+export async function adminGetFinance(): Promise<AdminFinance> {
+  const res = await request(`/admin/finance`);
+  if (res.status === 403) throw new Error("FORBIDDEN");
+  if (!res.ok) throw new Error("Erreur");
+  return res.json();
+}
+
 async function adminWrite(path: string, method: string, body?: unknown): Promise<void> {
   const res = await request(path, { method, ...(body ? { body: JSON.stringify(body) } : {}) });
   if (res.ok) return;
