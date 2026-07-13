@@ -240,4 +240,129 @@ export const ACTE_CATALOG: ActeCatalogGroup[] = [
       { code: "Z", label: "Cone beam (CBCT)" },
     ],
   },
+  {
+    specialty: "Allergologie",
+    items: [
+      { code: "K", label: "Tests cutanés allergologiques (prick-tests)" },
+      { code: "K", label: "Patch-tests (allergie de contact)" },
+      { code: "K", label: "Test de provocation" },
+      { code: "K", label: "Immunothérapie / désensibilisation" },
+      { code: "K", label: "Spirométrie avec test de réversibilité" },
+    ],
+  },
+  {
+    specialty: "Angiologie – Médecine vasculaire",
+    items: [
+      { code: "Z", label: "Écho-Doppler veineux des membres inférieurs" },
+      { code: "Z", label: "Écho-Doppler artériel des membres" },
+      { code: "K", label: "Mesure de l'index de pression systolique (IPS)" },
+      { code: "K", label: "Sclérothérapie de varices" },
+      { code: "K", label: "Capillaroscopie" },
+      { code: "K", label: "Contention / bandage veineux" },
+    ],
+  },
+  {
+    specialty: "Anesthésie – Réanimation",
+    items: [
+      { code: "C", label: "Consultation pré-anesthésique" },
+      { code: "K", label: "Anesthésie générale" },
+      { code: "K", label: "Anesthésie locorégionale / péridurale" },
+      { code: "K", label: "Rachianesthésie" },
+      { code: "K", label: "Bloc nerveux périphérique" },
+      { code: "K", label: "Prise en charge de la douleur (algologie)" },
+    ],
+  },
+  {
+    specialty: "Chirurgie générale – Viscérale",
+    items: [
+      { code: "KC", label: "Cure de hernie (inguinale / ombilicale)" },
+      { code: "KC", label: "Cholécystectomie" },
+      { code: "KC", label: "Appendicectomie" },
+      { code: "KC", label: "Chirurgie de la paroi abdominale (éventration)" },
+      { code: "KC", label: "Thyroïdectomie" },
+      { code: "KC", label: "Chirurgie du sein" },
+    ],
+  },
+  {
+    specialty: "Chirurgie orthopédique – Traumatologie",
+    items: [
+      { code: "K",  label: "Réduction de fracture + immobilisation plâtrée" },
+      { code: "K",  label: "Pose / ablation de plâtre ou résine" },
+      { code: "K",  label: "Infiltration articulaire" },
+      { code: "K",  label: "Ponction articulaire" },
+      { code: "KC", label: "Arthroscopie" },
+      { code: "KC", label: "Ostéosynthèse de fracture" },
+      { code: "KC", label: "Prothèse articulaire (hanche / genou)" },
+    ],
+  },
+  {
+    specialty: "Proctologie",
+    items: [
+      { code: "K",  label: "Anuscopie" },
+      { code: "KC", label: "Ligature élastique d'hémorroïdes" },
+      { code: "KC", label: "Traitement de fissure anale" },
+      { code: "KC", label: "Cure de fistule anale" },
+    ],
+  },
+  {
+    specialty: "Nutrition – Diététique",
+    items: [
+      { code: "C", label: "Consultation diététique" },
+      { code: "K", label: "Bilan nutritionnel / impédancemétrie" },
+      { code: "C", label: "Éducation nutritionnelle" },
+      { code: "C", label: "Suivi de chirurgie bariatrique" },
+    ],
+  },
+  {
+    specialty: "Médecine du travail",
+    items: [
+      { code: "C", label: "Visite d'embauche" },
+      { code: "C", label: "Visite périodique" },
+      { code: "C", label: "Visite de reprise" },
+      { code: "C", label: "Visite de pré-reprise" },
+      { code: "K", label: "Audiométrie professionnelle" },
+      { code: "K", label: "Spirométrie professionnelle" },
+    ],
+  },
+  {
+    specialty: "Sage-femme – Obstétrique",
+    items: [
+      { code: "C", label: "Consultation prénatale" },
+      { code: "K", label: "Monitoring fœtal (rythme cardiaque fœtal)" },
+      { code: "K", label: "Surveillance du travail / accouchement" },
+      { code: "K", label: "Rééducation périnéale" },
+      { code: "Z", label: "Échographie de datation" },
+      { code: "C", label: "Consultation post-natale" },
+    ],
+  },
+  {
+    specialty: "Hématologie – Oncologie",
+    items: [
+      { code: "K",  label: "Séance de chimiothérapie" },
+      { code: "KC", label: "Myélogramme / ponction médullaire" },
+      { code: "KC", label: "Biopsie ostéo-médullaire" },
+      { code: "K",  label: "Transfusion sanguine / surveillance" },
+      { code: "K",  label: "Saignée thérapeutique" },
+    ],
+  },
+  {
+    specialty: "Médecine esthétique",
+    items: [
+      { code: "K", label: "Injection de toxine botulique" },
+      { code: "K", label: "Injection d'acide hyaluronique (comblement)" },
+      { code: "K", label: "Mésothérapie" },
+      { code: "K", label: "Peeling chimique" },
+      { code: "K", label: "Épilation au laser" },
+      { code: "K", label: "Traitement laser vasculaire / pigmentaire" },
+    ],
+  },
+  {
+    specialty: "Infectiologie – Vaccination",
+    items: [
+      { code: "K", label: "Intradermo-réaction à la tuberculine (IDR)" },
+      { code: "K", label: "Test antigénique / PCR (dépistage)" },
+      { code: "K", label: "Vaccination internationale (fièvre jaune…)" },
+      { code: "C", label: "Consultation du voyageur" },
+    ],
+  },
 ];

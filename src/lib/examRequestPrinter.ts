@@ -103,12 +103,13 @@ export function printExamRequest(opts: {
         ${ds.showInpe && doc.inpe ? "INPE : " + esc(doc.inpe) : ""}
       </div>
     </div>`}
-    <div class="date-bloc" style="${bs("date")}">${cityPart ? esc(cityPart) + "<br/>" : ""}Le ${dateLabel}</div>
+    ${cityPart ? `<div class="date-bloc" style="${bs("city")}">${esc(cityPart)}</div>` : ""}
+    <div class="date-bloc" style="${bs("date")}">Le ${dateLabel}</div>
   </div>
 
   <div class="title">Demande d'examens</div>
 
-  <div class="patient-line" style="${bs("patient")}">Patient(e) : <strong>${esc(patientName)}</strong></div>
+  <div class="patient-line" style="${bs("patient")}"><strong>${esc(patientName)}</strong></div>
 
   ${indication ? `<div class="indication" style="${bs("indication")}"><strong>Renseignements cliniques :</strong> ${esc(indication)}</div>` : ""}
 

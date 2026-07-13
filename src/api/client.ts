@@ -147,6 +147,131 @@ async function secretaryRequest(path: string, opts: RequestInit = {}): Promise<R
   return fetchWithRetry(`${API_BASE}${path}`, opts, headers);
 }
 
+// ── Live signal bus (doctor ↔ secretary) ────────────────────────────────────
+
+export interface CabinetSignal {
+  id:        string;
+  fromRole:  "doctor" | "secretary";
+  fromName?: string | null;
+  type:      string;
+  payload:   Record<string, any>;
+  createdAt: string;
+}
+
+// Route through whichever session is active — a real secretary session uses the
+// secretary token, everything else (doctor, or the doctor's secretary preview)
+// uses the doctor token. Mirrors the existing request/secretaryRequest split.
+function signalRequest(path: string, opts: RequestInit = {}): Promise<Response> {
+  return getSecretaryToken() ? secretaryRequest(path, opts) : request(path, opts);
+}
+
+/** Fire a live signal to the other side of the cabinet. Best-effort. */
+export async function emitSignal(
+  type: string,
+  payload: Record<string, unknown> = {},
+  fromName?: string,
+): Promise<void> {
+  try {
+    await signalRequest("/cabinet/signal", {
+      method: "POST",
+      body: JSON.stringify({ type, payload, fromName }),
+    });
+  } catch { /* a dropped ring must never break the originating click */ }
+}
+
+/** Poll for signals from the other role since `since` (server `now` cursor). */
+export async function pollSignals(
+  since: string | null,
+): Promise<{ now: string; signals: CabinetSignal[] } | null> {
+  try {
+    const q = since ? `?since=${encodeURIComponent(since)}` : "";
+    const res = await signalRequest(`/cabinet/signals${q}`, { method: "GET" });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch { return null; }
+}
+
+/** The server's public VAPID key (needed to create a browser push subscription). */
+export async function getVapidKey(): Promise<string | null> {
+  try {
+    const res = await signalRequest("/cabinet/vapid-key", { method: "GET" });
+    if (!res.ok) return null;
+    return (await res.json()).key ?? null;
+  } catch { return null; }
+}
+
+/** Register this browser's push subscription for the active session's cabinet. */
+export async function webPushSubscribe(subscription: unknown): Promise<boolean> {
+  try {
+    const res = await signalRequest("/cabinet/web-subscribe", {
+      method: "POST",
+      body: JSON.stringify({ subscription }),
+    });
+    return res.ok;
+  } catch { return false; }
+}
+
+// ── Doctor ↔ secretary chat ──────────────────────────────────────────────────
+
+export interface ChatMessage {
+  id:        string;
+  fromRole:  "doctor" | "secretary";
+  fromName?: string | null;
+  body:      string;
+  createdAt: string;
+}
+
+/** Send a chat message from the active session. */
+export async function sendChatMessage(body: string, fromName?: string): Promise<boolean> {
+  try {
+    const res = await signalRequest("/cabinet/chat", { method: "POST", body: JSON.stringify({ body, fromName }) });
+    return res.ok;
+  } catch { return false; }
+}
+
+/** Fetch chat: without `since`, the last 50; with `since`, only newer messages. */
+export async function pollChat(since: string | null): Promise<{ now: string; messages: ChatMessage[] } | null> {
+  try {
+    const q = since ? `?since=${encodeURIComponent(since)}` : "";
+    const res = await signalRequest(`/cabinet/chat${q}`, { method: "GET" });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch { return null; }
+}
+
+// ── Attachment object storage (opt-in; inline fallback when unconfigured) ──────
+let _storageModeCache: { blob: boolean } | null = null;
+export async function getStorageMode(): Promise<{ blob: boolean }> {
+  if (_storageModeCache) return _storageModeCache;
+  try {
+    const res = await signalRequest("/cabinet/storage-mode", { method: "GET" });
+    if (res.ok) { _storageModeCache = await res.json(); return _storageModeCache!; }
+  } catch { /* ignore */ }
+  return { blob: false };
+}
+/** Upload an attachment's base64 to object storage; returns the blob URL or null. */
+export async function uploadAttachment(id: string, data: string): Promise<string | null> {
+  try {
+    const res = await signalRequest("/cabinet/attachments", { method: "POST", body: JSON.stringify({ id, data }) });
+    if (!res.ok) return null;
+    const j = await res.json();
+    return typeof j.url === "string" ? j.url : null;
+  } catch { return null; }
+}
+/** Fetch + decrypt a blob-stored attachment → base64 data URL, or null. */
+export async function fetchAttachment(url: string): Promise<string | null> {
+  try {
+    const res = await signalRequest("/cabinet/attachments/get", { method: "POST", body: JSON.stringify({ url }) });
+    if (!res.ok) return null;
+    const j = await res.json();
+    return typeof j.data === "string" ? j.data : null;
+  } catch { return null; }
+}
+/** Best-effort delete of a blob-stored attachment. */
+export async function deleteAttachment(url: string): Promise<void> {
+  try { await signalRequest("/cabinet/attachments/del", { method: "POST", body: JSON.stringify({ url }) }); } catch { /* ignore */ }
+}
+
 // ── Auth types ─────────────────────────────────────────────────────────────
 
 export interface AuthUser { id: string; email: string; }
@@ -681,6 +806,22 @@ export async function adminGetDoctor(id: string): Promise<AdminDoctorDetail> {
   return res.json();
 }
 
+export interface AdminConsumption {
+  generatedAt: string;
+  storage: {
+    totalBytes: number; cabinets: number; avgBytes: number;
+    users: { email: string; bytes: number; pct: number }[];
+  };
+  usage: { users: { email: string; events: number; activeDays: number; activeHours: number; lastEvent: string }[] };
+  countries: { country: string; events: number; users: number }[];
+}
+export async function adminGetConsumption(): Promise<AdminConsumption> {
+  const res = await request(`/admin/consumption`);
+  if (res.status === 403) throw new Error("FORBIDDEN");
+  if (!res.ok) throw new Error("Erreur");
+  return res.json();
+}
+
 async function adminWrite(path: string, method: string, body?: unknown): Promise<void> {
   const res = await request(path, { method, ...(body ? { body: JSON.stringify(body) } : {}) });
   if (res.ok) return;
@@ -695,6 +836,12 @@ export const adminExpireAccount = (id: string) =>
   adminWrite(`/admin/doctors/${encodeURIComponent(id)}/expire`, "POST");
 export const adminDeleteAccount = (id: string, confirmEmail: string) =>
   adminWrite(`/admin/doctors/${encodeURIComponent(id)}`, "DELETE", { confirmEmail });
+export const adminForceLogout = (id: string) =>
+  adminWrite(`/admin/doctors/${encodeURIComponent(id)}/logout`, "POST");
+export const adminSetPassword = (id: string, password: string) =>
+  adminWrite(`/admin/doctors/${encodeURIComponent(id)}/password`, "POST", { password });
+export const adminExtendDays = (id: string, days: number) =>
+  adminWrite(`/admin/doctors/${encodeURIComponent(id)}/extend`, "POST", { days });
 
 /** Best-effort: log behavioural event names (no PII). Never throws. */
 export async function postEvents(names: string[]): Promise<void> {

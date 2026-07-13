@@ -1,4 +1,4 @@
-import type { ExamRequestCategory } from "./cabinetTypes";
+import type { ExamRequestCategory, ExamRequestLine } from "./cabinetTypes";
 
 // Category labels are localised at render time via i18n; these are the French
 // defaults used by the printed document (which is always French in Morocco).
@@ -130,3 +130,110 @@ export const EXAM_CATALOG: Record<ExamRequestCategory, string[]> = {
     "Fond d'œil",
   ],
 };
+
+// ── Built-in exam-request models ──────────────────────────────────────────────
+// Ready-made bundles of frequently-prescribed exams the doctor can drop into a
+// demande d'examens in one click, then adjust. The doctor can also save their own
+// (stored on doctorProfile.examRequestTemplates). Labels match EXAM_CATALOG so the
+// datalists still recognise them.
+export interface ExamRequestModel { name: string; lines: ExamRequestLine[]; indication?: string; }
+
+export const EXAM_REQUEST_MODELS: ExamRequestModel[] = [
+  {
+    name: "Bilan standard / systématique",
+    lines: [
+      { category: "biologie", label: "NFS (Numération Formule Sanguine)" },
+      { category: "biologie", label: "Glycémie à jeun" },
+      { category: "biologie", label: "Créatininémie" },
+      { category: "biologie", label: "Bilan lipidique (Cholestérol, Triglycérides)" },
+      { category: "biologie", label: "Bilan hépatique (ASAT, ALAT, GGT, PAL)" },
+    ],
+  },
+  {
+    name: "Bilan diabète (suivi)",
+    lines: [
+      { category: "biologie", label: "Hémoglobine glyquée (HbA1c)" },
+      { category: "biologie", label: "Glycémie à jeun" },
+      { category: "biologie", label: "Créatininémie" },
+      { category: "biologie", label: "Bilan lipidique (Cholestérol, Triglycérides)" },
+      { category: "biologie", label: "Microalbuminurie" },
+    ],
+    indication: "Suivi du diabète.",
+  },
+  {
+    name: "Bilan pré-opératoire",
+    lines: [
+      { category: "biologie", label: "NFS (Numération Formule Sanguine)" },
+      { category: "biologie", label: "Groupe sanguin / Rhésus" },
+      { category: "biologie", label: "TP / INR" },
+      { category: "biologie", label: "TCA" },
+      { category: "biologie", label: "Ionogramme sanguin" },
+      { category: "biologie", label: "Créatininémie" },
+      { category: "radiologie", label: "Radiographie thoracique (face)" },
+      { category: "autre", label: "Électrocardiogramme (ECG)" },
+    ],
+    indication: "Bilan pré-opératoire.",
+  },
+  {
+    name: "Bilan thyroïdien",
+    lines: [
+      { category: "biologie", label: "TSH" },
+      { category: "biologie", label: "T4 libre" },
+      { category: "echographie", label: "Échographie thyroïdienne" },
+    ],
+  },
+  {
+    name: "Bilan hypertension (HTA)",
+    lines: [
+      { category: "biologie", label: "Ionogramme sanguin" },
+      { category: "biologie", label: "Créatininémie" },
+      { category: "biologie", label: "Glycémie à jeun" },
+      { category: "biologie", label: "Bilan lipidique (Cholestérol, Triglycérides)" },
+      { category: "autre", label: "Électrocardiogramme (ECG)" },
+      { category: "autre", label: "Holter tensionnel (MAPA)" },
+    ],
+    indication: "Bilan initial d'hypertension artérielle.",
+  },
+  {
+    name: "Bilan infectieux / fièvre",
+    lines: [
+      { category: "biologie", label: "NFS (Numération Formule Sanguine)" },
+      { category: "biologie", label: "CRP (Protéine C-réactive)" },
+      { category: "biologie", label: "Vitesse de sédimentation (VS)" },
+      { category: "biologie", label: "ECBU (Examen cytobactériologique des urines)" },
+    ],
+  },
+  {
+    name: "Bilan anémie",
+    lines: [
+      { category: "biologie", label: "NFS (Numération Formule Sanguine)" },
+      { category: "biologie", label: "Ferritinémie" },
+      { category: "biologie", label: "Fer sérique" },
+      { category: "biologie", label: "Bilan martial" },
+      { category: "biologie", label: "Vitamine B12" },
+    ],
+  },
+  {
+    name: "Suivi grossesse (1er trimestre)",
+    lines: [
+      { category: "biologie", label: "NFS (Numération Formule Sanguine)" },
+      { category: "biologie", label: "Groupe sanguin / Rhésus" },
+      { category: "biologie", label: "Glycémie à jeun" },
+      { category: "biologie", label: "Sérologie hépatite B (Ag HBs)" },
+      { category: "biologie", label: "Sérologie VIH" },
+      { category: "biologie", label: "ECBU (Examen cytobactériologique des urines)" },
+      { category: "echographie", label: "Échographie obstétricale" },
+    ],
+    indication: "Suivi de grossesse — premier trimestre.",
+  },
+  {
+    name: "Douleur abdominale",
+    lines: [
+      { category: "biologie", label: "NFS (Numération Formule Sanguine)" },
+      { category: "biologie", label: "CRP (Protéine C-réactive)" },
+      { category: "biologie", label: "Amylasémie / Lipasémie" },
+      { category: "biologie", label: "ECBU (Examen cytobactériologique des urines)" },
+      { category: "echographie", label: "Échographie abdominale" },
+    ],
+  },
+];

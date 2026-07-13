@@ -3,7 +3,7 @@ import type {
   Prescription, ExamResult, Certificate,
 } from "./cabinetTypes";
 import {
-  APPT_TYPE_LABELS, EXAM_TYPE_LABELS, CERT_TYPE_LABELS,
+  apptTypeLabel, EXAM_TYPE_LABELS, CERT_TYPE_LABELS,
 } from "./cabinetTypes";
 import { calcAge } from "./format";
 import { fullName as fmtFullName } from "./nameFormat";
@@ -83,7 +83,7 @@ function standalonePrescriptionsSection(prescriptions: Prescription[]): string {
   if (prescriptions.length === 0) return "";
   const sorted = [...prescriptions].sort((a, b) => b.date.localeCompare(a.date));
   const items = sorted.map(p => {
-    const rows = p.lines.map((l, i) => `
+    const rows = (p.lines ?? []).map((l, i) => `
       <tr>
         <td class="ord-n">${i + 1}.</td>
         <td><strong>${escHtml(l.drug)}</strong>${l.dosage ? " — " + escHtml(l.dosage) : ""}</td>
@@ -227,7 +227,7 @@ export function printPatientReport(opts: {
     return `
     <tr>
       <td class="no-wrap">${fmtDate(a.date)}</td>
-      <td>${APPT_TYPE_LABELS[a.type] ?? a.type}</td>
+      <td>${apptTypeLabel(a.type)}</td>
       <td><span class="${statusClass}">${a.status === "completed" ? "Terminé" : a.status === "cancelled" ? "Annulé" : a.status === "no_show" ? "Absent" : "Planifié"}</span></td>
       <td class="note-cell">${hasNote ? escHtml(noteText) + (noteText.length >= 80 ? "…" : "") : "—"}</td>
       <td class="amount-cell">${billedCell}</td>

@@ -353,6 +353,7 @@ export function AuthPage() {
                   value={password}
                   onChange={setPass}
                   autoComplete={mode === "login" || mode === "secretary" ? "current-password" : "new-password"}
+                  minLength={mode === "signup" ? 8 : 6}
                 />
               </div>
             )}
@@ -380,6 +381,7 @@ export function AuthPage() {
                     value={newPass}
                     onChange={setNewPass}
                     autoComplete="new-password"
+                    minLength={8}
                   />
                 </div>
                 <div className="form-group">
@@ -389,6 +391,7 @@ export function AuthPage() {
                     value={newPass2}
                     onChange={setNewPass2}
                     autoComplete="new-password"
+                    minLength={8}
                   />
                 </div>
               </>
@@ -427,8 +430,17 @@ export function AuthPage() {
             {mode === "secretary" && (
               <button className="auth-link" onClick={() => switchMode("login")}>{t("auth.backToLogin")}</button>
             )}
-            {(mode === "forgot" || mode === "reset-verify" || mode === "signup-verify") && (
+            {(mode === "forgot" || mode === "reset-verify") && (
               <button className="auth-link" onClick={() => switchMode("login")}>{t("auth.backToLogin")}</button>
+            )}
+            {/* At the signup code step an existing-account user won't receive a
+                code (they get a "you already have an account" email instead), so
+                surface a clear path to sign in rather than a generic back link. */}
+            {mode === "signup-verify" && (
+              <>
+                <span className="auth-switch-hint">{t("auth.alreadyHaveAccount")}</span>{" "}
+                <button className="auth-link" onClick={() => switchMode("login")}>{t("auth.loginLink")}</button>
+              </>
             )}
           </div>
 

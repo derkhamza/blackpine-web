@@ -210,7 +210,7 @@ export function printFacture(opts: FactureOptions): void {
     <div class="inv-block" style="${bs("invoice")}">
       <div class="inv-title">FACTURE</div>
       <div class="inv-num">N° ${esc(invoiceNumber)}</div>
-      <div class="inv-date">Date : ${fmtDateLong(invoiceDate)}</div>
+      <div class="inv-date">${fmtDateLong(invoiceDate)}</div>
     </div>
   </div>
 
@@ -235,8 +235,7 @@ export function printFacture(opts: FactureOptions): void {
       <div class="party-label">Destinataire</div>
       <div class="party-name">${esc(patientName)}</div>
       <div class="party-detail">
-        ${patientCnops ? "N° AMO / CNOPS : " + esc(patientCnops) + "<br/>" : ""}
-        Patient(e)
+        ${patientCnops ? "N° AMO / CNOPS : " + esc(patientCnops) : ""}
       </div>
     </div>
   </div>

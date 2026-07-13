@@ -1,21 +1,24 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import { useToast } from "../components/Toast";
 import { useCabinet } from "../context/CabinetContext";
 import { useApp } from "../context/AppContext";
 import { useDarkMode } from "../lib/useDarkMode";
+import { enableWebPush, webPushPermission, webPushSupported } from "../lib/webPush";
 import { exportPatientsCsv, exportAppointmentsCsv } from "../lib/csvExport";
 import { exportAgendaIcal } from "../lib/icalExport";
 import { useInstallPWA } from "../components/PWAPrompts";
 import { useTranslation } from "react-i18next";
-import type { CabinetLocation, AppointmentType, SecretaryPermissions, ActeCode, DocumentSettings, DocumentLayout, CabinetDoctorProfile } from "../lib/cabinetTypes";
-import { APPT_TYPE_COLORS, DEFAULT_SECRETARY_PERMISSIONS, DEFAULT_DOCUMENT_SETTINGS, DOCUMENT_LAYOUT_LABELS } from "../lib/cabinetTypes";
+import i18n from "../i18n";
+import type { CabinetLocation, SecretaryPermissions, ActeCode, DocumentSettings, DocumentLayout, CabinetDoctorProfile, CustomApptType, ApptLabel } from "../lib/cabinetTypes";
+import { APPT_TYPE_LABELS, APPT_TYPE_COLORS, BUILTIN_APPT_TYPES, DEFAULT_SECRETARY_PERMISSIONS, DEFAULT_DOCUMENT_SETTINGS, DOCUMENT_LAYOUT_LABELS } from "../lib/cabinetTypes";
 import { COMMON_DRUGS } from "../lib/ordonnancePrinter";
 import { ActeCatalogModal } from "../components/ActeCatalogModal";
 import { BlackpineLogo } from "../components/Logo";
 import { PRICING } from "../lib/pricing";
 import { PageDesigner } from "../components/PageDesigner";
+import { generateDemoData, isDemoAccount, EMPTY_CABINET_JSON, EMPTY_FINANCES_JSON } from "../lib/demoData";
 import QRCode from "qrcode";
 import {
   type CabinetBackup,
@@ -161,6 +164,34 @@ function SettingsRow({ label, hint, children }: {
   );
 }
 
+// ── Browser notifications (web push) opt-in ────────────────────────────────────
+
+function WebPushRow() {
+  const { t } = useTranslation();
+  const toast = useToast();
+  const [perm, setPerm] = useState<string>(() => webPushPermission());
+  const enable = async () => {
+    const r = await enableWebPush(true);
+    setPerm(webPushPermission());
+    toast(
+      t(r === "ok" ? "settings.notifEnabled"
+        : r === "denied" ? "settings.notifDenied"
+        : r === "unsupported" ? "settings.notifUnsupported"
+        : "settings.notifError"),
+      r === "ok" ? "success" : "info",
+    );
+  };
+  return (
+    <SettingsRow label={t("settings.notifTitle")} hint={t("settings.notifHint")}>
+      {!webPushSupported()
+        ? <span className="settings-theme-label">{t("settings.notifUnsupported")}</span>
+        : perm === "granted"
+          ? <span className="settings-theme-label">✓ {t("settings.notifOn")}</span>
+          : <button className="btn btn-navy" onClick={enable}>{t("settings.notifEnable")}</button>}
+    </SettingsRow>
+  );
+}
+
 // ── Dark mode toggle ───────────────────────────────────────────────────────────
 
 function DarkToggle({ dark, toggle }: { dark: boolean; toggle: () => void }) {
@@ -186,6 +217,43 @@ function DarkToggle({ dark, toggle }: { dark: boolean; toggle: () => void }) {
         }
       </span>
     </button>
+  );
+}
+
+// ── Agenda colour palette ──────────────────────────────────────────────────────
+// A single, finite, harmonious set of colours for BOTH agenda dimensions
+// (consultation types + the label axis), so the calendar never turns garish and
+// the two axes stay visually coherent. Editors pick from these swatches only.
+export const AGENDA_PALETTE = [
+  "#2563EB", "#0EA5E9", "#06B6D4", "#14B8A6", "#10B981", "#84CC16",
+  "#F59E0B", "#F97316", "#EF4444", "#EC4899", "#A855F7", "#6366F1", "#64748B",
+];
+
+// Compact colour picker: a dot that opens a small popover of the palette swatches.
+function ColorPalettePicker({ value, onChange, title }: { value: string; onChange: (c: string) => void; title?: string }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [open]);
+  return (
+    <div ref={ref} className="color-pal">
+      <button type="button" className="color-pal-dot" title={title} aria-label={title}
+        style={{ background: value }} onClick={() => setOpen(o => !o)} />
+      {open && (
+        <div className="color-pal-pop">
+          {AGENDA_PALETTE.map(c => (
+            <button type="button" key={c}
+              className={`color-pal-swatch${value.toLowerCase() === c.toLowerCase() ? " sel" : ""}`}
+              style={{ background: c }} title={c} aria-label={c}
+              onClick={() => { onChange(c); setOpen(false); }} />
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -374,11 +442,13 @@ function OnlineBookingSection({
   // Printable poster for the waiting room: title, doctor identity, big QR, link.
   const printPoster = () => {
     if (!qrUrl) return;
+    // Printed documents are always in French regardless of the UI language.
+    const frT = i18n.getFixedT("fr");
     const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     const win = window.open("", "_blank", "width=720,height=980");
     if (!win) return;
     win.document.write(`<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"/>
-      <title>${esc(t("settings.bookingQrPosterTitle"))}</title>
+      <title>${esc(frT("settings.bookingQrPosterTitle"))}</title>
       <style>
         @page { size: A4 portrait; margin: 18mm; }
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -393,12 +463,12 @@ function OnlineBookingSection({
       </style></head>
       <body>
         <div class="poster">
-          <div class="kicker">${esc(t("settings.bookingQrPosterKicker"))}</div>
-          <div class="title">${esc(t("settings.bookingQrPosterHeadline"))}</div>
+          <div class="kicker">${esc(frT("settings.bookingQrPosterKicker"))}</div>
+          <div class="title">${esc(frT("settings.bookingQrPosterHeadline"))}</div>
           <div class="doc">${esc(doctorProfile.fullName || "")}${doctorProfile.specialtyLabel ? " · " + esc(doctorProfile.specialtyLabel) : ""}</div>
           <img class="qr" src="${qrUrl}" alt="QR"/>
           <div class="link">${esc(link)}</div>
-          <div class="foot">${esc(t("settings.bookingQrPosterFoot"))}</div>
+          <div class="foot">${esc(frT("settings.bookingQrPosterFoot"))}</div>
         </div>
         <script>window.onload = function(){ window.print(); };<\/script>
       </body></html>`);
@@ -626,10 +696,6 @@ function SmsRemindersSection({
   );
 }
 
-// ── Consultation types manager ────────────────────────────────────────────────
-
-const ALL_TYPES: AppointmentType[] = ["consultation", "controle", "suivi", "procedure", "urgence", "autre"];
-
 // ── Subscription & pricing ──────────────────────────────────────────────────────
 // Always-available view of the plan status and prices, so the doctor is never
 // surprised by the cost (the TrialGate modal only appears near/after expiry).
@@ -750,78 +816,178 @@ function SecretaryPermissionsSection({
 }
 
 function ConsultationTypesSection({
-  hidden,
+  profile,
   onChange,
-  prices,
-  onPriceChange,
 }: {
-  hidden: AppointmentType[];
-  onChange: (h: AppointmentType[]) => void;
-  prices: Partial<Record<AppointmentType, number>>;
-  onPriceChange: (p: Partial<Record<AppointmentType, number>>) => void;
+  profile: CabinetDoctorProfile;
+  onChange: (p: CabinetDoctorProfile) => void;
 }) {
   const { t } = useTranslation();
-  const toggle = (type: AppointmentType) => {
-    if (hidden.includes(type)) {
-      onChange(hidden.filter(h => h !== type));
+
+  const hidden    = profile.hiddenConsultationTypes ?? [];
+  const prices    = profile.appointmentPrices ?? {};
+  const overrides = profile.apptTypeOverrides ?? {};
+  const customs   = profile.customApptTypes ?? [];
+
+  // Resolved rows: built-ins (with any rename/recolour applied), then custom.
+  const rows: { id: string; label: string; color: string; builtin: boolean }[] = [
+    ...BUILTIN_APPT_TYPES.map(id => ({
+      id, builtin: true,
+      label: overrides[id]?.label || APPT_TYPE_LABELS[id],
+      color: overrides[id]?.color || APPT_TYPE_COLORS[id],
+    })),
+    ...customs.map(c => ({ id: c.id, builtin: false, label: c.label, color: c.color })),
+  ];
+  const visibleCount = rows.filter(r => !hidden.includes(r.id)).length;
+
+  const toggleHidden = (id: string) => {
+    if (hidden.includes(id)) {
+      onChange({ ...profile, hiddenConsultationTypes: hidden.filter(h => h !== id) });
     } else {
-      // don't hide all types — keep at least one visible
-      if (hidden.length >= ALL_TYPES.length - 1) return;
-      onChange([...hidden, type]);
+      if (visibleCount <= 1) return; // always keep at least one type visible
+      onChange({ ...profile, hiddenConsultationTypes: [...hidden, id] });
     }
   };
-  const setPrice = (type: AppointmentType, raw: string) => {
+
+  const setPrice = (id: string, raw: string) => {
     const n = parseFloat(raw);
     const next = { ...prices };
-    // 0 is a valid fee (free check-up / contrôle gratuit) — only clear the
-    // price when the field is emptied or invalid.
-    if (!raw.trim() || Number.isNaN(n) || n < 0) delete next[type];
-    else next[type] = n;
-    onPriceChange(next);
+    // 0 is a valid fee (free contrôle) — only clear when emptied / invalid.
+    if (!raw.trim() || Number.isNaN(n) || n < 0) delete next[id];
+    else next[id] = n;
+    onChange({ ...profile, appointmentPrices: Object.keys(next).length ? next : undefined });
   };
+
+  // Renaming/recolouring a BUILT-IN stores an override; setting it back to the
+  // default label/colour drops the override (so it stays translatable).
+  const setBuiltinOverride = (id: string, patch: { label?: string; color?: string }) => {
+    const cur = { ...(overrides[id] ?? {}) };
+    if (patch.label !== undefined) {
+      if (!patch.label.trim() || patch.label.trim() === APPT_TYPE_LABELS[id as keyof typeof APPT_TYPE_LABELS]) delete cur.label;
+      else cur.label = patch.label;
+    }
+    if (patch.color !== undefined) {
+      if (!patch.color || patch.color.toLowerCase() === APPT_TYPE_COLORS[id as keyof typeof APPT_TYPE_COLORS].toLowerCase()) delete cur.color;
+      else cur.color = patch.color;
+    }
+    const nextOv = { ...overrides };
+    if (Object.keys(cur).length) nextOv[id] = cur; else delete nextOv[id];
+    onChange({ ...profile, apptTypeOverrides: Object.keys(nextOv).length ? nextOv : undefined });
+  };
+
+  const setCustom = (id: string, patch: Partial<CustomApptType>) =>
+    onChange({ ...profile, customApptTypes: customs.map(c => (c.id === id ? { ...c, ...patch } : c)) });
+
+  const addCustom = () => {
+    const id = "t_" + Math.random().toString(36).slice(2, 8);
+    onChange({ ...profile, customApptTypes: [...customs, { id, label: t("settings.newTypeName"), color: AGENDA_PALETTE[customs.length % AGENDA_PALETTE.length] }] });
+  };
+
+  const removeCustom = (id: string) => {
+    if (!window.confirm(t("settings.removeTypeConfirm"))) return;
+    const nextPrices = { ...prices }; delete nextPrices[id];
+    const nextHidden = hidden.filter(h => h !== id);
+    onChange({
+      ...profile,
+      customApptTypes: customs.filter(c => c.id !== id),
+      hiddenConsultationTypes: nextHidden.length ? nextHidden : undefined,
+      appointmentPrices: Object.keys(nextPrices).length ? nextPrices : undefined,
+    });
+  };
+
   return (
     <div className="consult-types-list">
-      {ALL_TYPES.map((type) => {
-        const visible = !hidden.includes(type);
-        const color = APPT_TYPE_COLORS[type];
+      {rows.map((row) => {
+        const visible = !hidden.includes(row.id);
         return (
-          <div key={type} className={`consult-type-row${visible ? " visible" : ""}`}>
+          <div key={row.id} className={`consult-type-row${visible ? " visible" : ""}`} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <ColorPalettePicker
+              value={row.color}
+              title={t("settings.typeColor")}
+              onChange={(c) => row.builtin ? setBuiltinOverride(row.id, { color: c }) : setCustom(row.id, { color: c })}
+            />
+            <input
+              className="form-input"
+              value={row.label}
+              onChange={(e) => row.builtin ? setBuiltinOverride(row.id, { label: e.target.value }) : setCustom(row.id, { label: e.target.value })}
+              style={{ flex: 1, minWidth: 0, color: visible ? "var(--text)" : "var(--tertiary)" }}
+            />
+            <span className="consult-type-price" style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <input
+                className="form-input"
+                type="number" min="0" step="10"
+                style={{ width: 84, textAlign: "right" }}
+                placeholder={t("settings.pricePlaceholder")}
+                value={prices[row.id] ?? ""}
+                onChange={(e) => setPrice(row.id, e.target.value)}
+              />
+              <span style={{ color: "var(--muted)", fontSize: 12 }}>MAD</span>
+            </span>
             <button
-              className="consult-type-main"
-              onClick={() => toggle(type)}
               type="button"
-              style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, background: "none", border: "none", cursor: "pointer", padding: 0 }}
+              onClick={() => toggleHidden(row.id)}
+              title={visible ? t("settings.typeVisible") : t("settings.typeHidden")}
+              style={{ background: "none", border: "1px solid var(--border)", borderRadius: 6, padding: "3px 8px", cursor: "pointer", fontSize: 11, color: "var(--muted)", flexShrink: 0 }}
             >
-              <span className="consult-type-dot" style={{ background: visible ? color : "var(--border)" }} />
-              <span className="consult-type-label" style={{ color: visible ? "var(--text)" : "var(--tertiary)" }}>
-                {t(`apptType.${type}`)}
-              </span>
-              <span className="consult-type-toggle">
-                {visible ? t("settings.typeVisible") : t("settings.typeHidden")}
-              </span>
+              {visible ? t("settings.typeVisible") : t("settings.typeHidden")}
             </button>
-            {visible && (
-              <span className="consult-type-price" style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                <input
-                  className="form-input"
-                  type="number" min="0" step="10"
-                  style={{ width: 90, textAlign: "right" }}
-                  placeholder={t("settings.pricePlaceholder")}
-                  value={prices[type] ?? ""}
-                  onChange={(e) => setPrice(type, e.target.value)}
-                />
-                <span style={{ color: "var(--muted)", fontSize: 12 }}>MAD</span>
-              </span>
+            {!row.builtin && (
+              <button
+                type="button"
+                onClick={() => removeCustom(row.id)}
+                title={t("common.delete")}
+                style={{ background: "none", border: "none", color: "var(--coral)", cursor: "pointer", fontSize: 18, lineHeight: 1, flexShrink: 0 }}
+              >
+                ×
+              </button>
             )}
           </div>
         );
       })}
+      <button type="button" className="btn btn-ghost" style={{ fontSize: 13, alignSelf: "flex-start", marginTop: 4 }} onClick={addCustom}>
+        + {t("settings.addType")}
+      </button>
       {hidden.length > 0 && (
         <div className="consult-types-hint">
           {t("settings.typesHiddenCount", { n: hidden.length })}
         </div>
       )}
       <div className="consult-types-hint">{t("settings.priceHint")}</div>
+    </div>
+  );
+}
+
+// ── Agenda labels manager (second differentiation axis) ─────────────────────────
+
+function ApptLabelsSection({
+  labels,
+  onChange,
+}: {
+  labels: ApptLabel[];
+  onChange: (l: ApptLabel[]) => void;
+}) {
+  const { t } = useTranslation();
+  const setLabel = (id: string, patch: Partial<ApptLabel>) =>
+    onChange(labels.map(l => (l.id === id ? { ...l, ...patch } : l)));
+  const addLabel = () => {
+    const id = "l_" + Math.random().toString(36).slice(2, 8);
+    onChange([...labels, { id, label: t("settings.newLabelName"), color: AGENDA_PALETTE[labels.length % AGENDA_PALETTE.length] }]);
+  };
+  const removeLabel = (id: string) => onChange(labels.filter(l => l.id !== id));
+  return (
+    <div className="consult-types-list">
+      {labels.map((lb) => (
+        <div key={lb.id} className="consult-type-row visible" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <ColorPalettePicker value={lb.color} title={t("settings.typeColor")} onChange={(c) => setLabel(lb.id, { color: c })} />
+          <input className="form-input" value={lb.label} onChange={(e) => setLabel(lb.id, { label: e.target.value })} style={{ flex: 1, minWidth: 0 }} />
+          <button type="button" onClick={() => removeLabel(lb.id)} title={t("common.delete")}
+            style={{ background: "none", border: "none", color: "var(--coral)", cursor: "pointer", fontSize: 18, lineHeight: 1, flexShrink: 0 }}>×</button>
+        </div>
+      ))}
+      <button type="button" className="btn btn-ghost" style={{ fontSize: 13, alignSelf: "flex-start", marginTop: 4 }} onClick={addLabel}>
+        + {t("settings.addLabel")}
+      </button>
+      <div className="consult-types-hint">{t("settings.labelsHint")}</div>
     </div>
   );
 }
@@ -970,6 +1136,7 @@ function DocumentSettingsSection({
   const LAYOUTS: DocumentLayout[] = ["classic", "compact", "letterhead"];
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div className="secretary-info-title">{t("settings.docPreviewTitle")}</div>
       <DocumentPreview s={s} doc={doctorProfile} />
       <div className="form-group">
         <label className="form-label">{t("settings.docLayout")}</label>
@@ -1204,12 +1371,13 @@ export function ParametresPage() {
   const {
     appointments, patients, employees,
     examResults, prescriptions, certificates, teleSessions,
-    doctorProfile, setDoctorProfile,
+    doctorProfile, setDoctorProfile, setSecretaryMode,
     exportCabinetJSON, importCabinetJSON,
     clearAppointments, clearPatients,
     listCabinetBackups, restoreCabinetBackup,
   } = useCabinet();
-  const { transactions, exportFinancesJSON, importFinancesJSON } = useApp();
+  const { user, transactions, exportFinancesJSON, importFinancesJSON } = useApp();
+  const navigate = useNavigate();
 
   const { dark, toggle } = useDarkMode();
   const { canInstall, installed, install } = useInstallPWA();
@@ -1221,34 +1389,29 @@ export function ParametresPage() {
   const [importing, setImporting] = useState(false);
   const [confirmClear, setConfirmClear] = useState<"appointments" | "patients" | null>(null);
 
-  // ── Secretary PIN ──────────────────────────────────────────────────────────
-  const [pinInput,    setPinInput]    = useState("");
-  const [pinConfirm,  setPinConfirm]  = useState("");
-  const [showPinForm, setShowPinForm] = useState(false);
-  const [pinError,    setPinError]    = useState("");
-
   const showToast = useToast();
 
-  // ── Secretary PIN helpers ───────────────────────────────────────────────────
-  const handleSavePin = () => {
-    if (!/^\d{4}$/.test(pinInput)) {
-      setPinError(t("settings.pinError4digits"));
-      return;
-    }
-    if (pinInput !== pinConfirm) {
-      setPinError(t("settings.pinMismatch"));
-      return;
-    }
-    setDoctorProfile({ ...doctorProfile, secretaryPin: pinInput });
-    setPinInput(""); setPinConfirm(""); setPinError(""); setShowPinForm(false);
-    showToast(t("settings.pinSaved"));
+  // ── Demonstration data (demo account only) ──────────────────────────────────
+  const demoAccount = isDemoAccount(user?.email);
+  const [demoBusy, setDemoBusy] = useState(false);
+  const loadDemoData = () => {
+    if (!window.confirm(t("settings.demoLoadConfirm"))) return;
+    setDemoBusy(true);
+    try {
+      const { cabinetJSON, financesJSON, summary } = generateDemoData();
+      importCabinetJSON(cabinetJSON);
+      importFinancesJSON(financesJSON);
+      showToast(t("settings.demoLoaded", { summary }));
+    } finally { setDemoBusy(false); }
   };
-  const handleRemovePin = () => {
-    if (!confirm(t("settings.pinRemoveConfirm"))) return;
-    const next = { ...doctorProfile };
-    delete next.secretaryPin;
-    setDoctorProfile(next);
-    showToast(t("settings.pinRemoved"));
+  const clearDemoData = () => {
+    if (!window.confirm(t("settings.demoClearConfirm"))) return;
+    setDemoBusy(true);
+    try {
+      importCabinetJSON(EMPTY_CABINET_JSON);
+      importFinancesJSON(EMPTY_FINANCES_JSON);
+      showToast(t("settings.demoCleared"));
+    } finally { setDemoBusy(false); }
   };
 
   // ── Persistent secretary accounts (username + password, revocable) ──────────
@@ -1415,6 +1578,29 @@ export function ParametresPage() {
     <Layout title={t("settings.title")} subtitle={t("settings.subtitle")}>
       <div className="settings-page">
 
+        {/* ── Données de démonstration (compte démo uniquement) ── */}
+        {demoAccount && (
+          <Section icon="security" title={t("settings.demoTitle")} subtitle={t("settings.demoSub")} defaultOpen>
+            <div className="settings-secretary-info">
+              <div className="settings-secretary-info-row">
+                <span className="secretary-info-icon">🎬</span>
+                <div>
+                  <div className="secretary-info-title">{t("settings.demoTitle")}</div>
+                  <div className="secretary-info-desc">{t("settings.demoDesc")}</div>
+                </div>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 12 }}>
+              <button className="btn btn-primary" disabled={demoBusy} onClick={loadDemoData}>
+                {t("settings.demoLoad")}
+              </button>
+              <button className="btn btn-ghost" style={{ color: "var(--coral)", borderColor: "var(--coral)" }} disabled={demoBusy} onClick={clearDemoData}>
+                {t("settings.demoClear")}
+              </button>
+            </div>
+          </Section>
+        )}
+
         {/* ── Sécurité & confidentialité ── */}
         <Section icon="security" title={t("settings.securityTitle")} subtitle={t("settings.securitySub")} defaultOpen>
           <SecuritySection />
@@ -1436,6 +1622,7 @@ export function ParametresPage() {
               <DarkToggle dark={dark} toggle={toggle} />
             </div>
           </SettingsRow>
+          <WebPushRow />
         </Section>
 
         {/* ── Emplacements du cabinet ── */}
@@ -1457,10 +1644,20 @@ export function ParametresPage() {
           subtitle={t("settings.consultationTypesSub")}
         >
           <ConsultationTypesSection
-            hidden={doctorProfile?.hiddenConsultationTypes ?? []}
-            onChange={h => setDoctorProfile({ ...doctorProfile, hiddenConsultationTypes: h.length ? h : undefined })}
-            prices={doctorProfile?.appointmentPrices ?? {}}
-            onPriceChange={p => setDoctorProfile({ ...doctorProfile, appointmentPrices: Object.keys(p).length ? p : undefined })}
+            profile={doctorProfile}
+            onChange={setDoctorProfile}
+          />
+        </Section>
+
+        {/* ── Étiquettes d'agenda (2e axe de différenciation) ── */}
+        <Section
+          icon="consultationTypes"
+          title={t("settings.apptLabels")}
+          subtitle={t("settings.apptLabelsSub")}
+        >
+          <ApptLabelsSection
+            labels={doctorProfile?.apptLabels ?? []}
+            onChange={l => setDoctorProfile({ ...doctorProfile, apptLabels: l.length ? l : undefined })}
           />
         </Section>
 
@@ -1539,68 +1736,25 @@ export function ParametresPage() {
             onChange={(p) => setDoctorProfile({ ...doctorProfile, secretaryPermissions: p })}
           />
 
-          {doctorProfile?.secretaryPin ? (
-            <SettingsRow
-              label={t("settings.secretaryPin")}
-              hint={t("settings.secretaryPinHint")}
-            >
-              <div style={{ display: "flex", gap: 8 }}>
-                <button className="btn btn-ghost" onClick={() => { setShowPinForm(f => !f); setPinError(""); setPinInput(""); setPinConfirm(""); }}>
-                  {showPinForm ? t("common.cancel") : t("settings.modifyPin")}
-                </button>
-                <button className="btn btn-danger-ghost" onClick={handleRemovePin}>
-                  {t("settings.removePin")}
-                </button>
+          {/* Secretary preview — the doctor sees exactly what a secretary can
+              access, from their own account (no PIN). Lives here, not in the
+              sidebar. Exit via the banner shown while previewing. */}
+          <div className="settings-secretary-info" style={{ marginTop: 14 }}>
+            <div className="settings-secretary-info-row">
+              <span className="secretary-info-icon">👁️</span>
+              <div style={{ flex: 1 }}>
+                <div className="secretary-info-title">{t("settings.secretaryPreviewTitle")}</div>
+                <div className="secretary-info-desc">{t("settings.secretaryPreviewHint")}</div>
               </div>
-            </SettingsRow>
-          ) : (
-            <SettingsRow
-              label={t("settings.enablePin")}
-              hint={t("settings.enablePinHint")}
-            >
-              <button className="btn btn-primary" onClick={() => { setShowPinForm(true); setPinError(""); }}>
-                {t("settings.setPin")}
+              <button
+                className="btn btn-ghost"
+                style={{ flexShrink: 0, fontSize: 13 }}
+                onClick={() => { setSecretaryMode(true); navigate("/agenda"); }}
+              >
+                {t("sidebar.secretaryEnter")}
               </button>
-            </SettingsRow>
-          )}
-
-          {showPinForm && (
-            <div className="secretary-pin-form">
-              <div className="secretary-pin-form-row">
-                <label className="secretary-pin-label">{t("settings.newPin")}</label>
-                <input
-                  className="secretary-pin-input"
-                  type="password"
-                  inputMode="numeric"
-                  maxLength={4}
-                  value={pinInput}
-                  placeholder="••••"
-                  onChange={e => { setPinInput(e.target.value.replace(/\D/g, "").slice(0, 4)); setPinError(""); }}
-                />
-              </div>
-              <div className="secretary-pin-form-row">
-                <label className="secretary-pin-label">{t("settings.confirmPin")}</label>
-                <input
-                  className="secretary-pin-input"
-                  type="password"
-                  inputMode="numeric"
-                  maxLength={4}
-                  value={pinConfirm}
-                  placeholder="••••"
-                  onChange={e => { setPinConfirm(e.target.value.replace(/\D/g, "").slice(0, 4)); setPinError(""); }}
-                />
-              </div>
-              {pinError && <div className="secretary-pin-error">{pinError}</div>}
-              <div className="secretary-pin-form-actions">
-                <button className="btn btn-ghost" onClick={() => { setShowPinForm(false); setPinInput(""); setPinConfirm(""); setPinError(""); }}>
-                  {t("common.cancel")}
-                </button>
-                <button className="btn btn-primary" onClick={handleSavePin}>
-                  {t("common.save")}
-                </button>
-              </div>
             </div>
-          )}
+          </div>
 
           {/* ── Remote secretary login (separate device) ── */}
           <div className="settings-secretary-info" style={{ marginTop: 18 }}>

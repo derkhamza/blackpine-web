@@ -13,10 +13,26 @@ import type { RecurringRule } from "../lib/recurringTransactions";
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
-const SUBCATEGORY_SUGGESTIONS = [
-  "Matériel médical", "Matériel informatique", "Mobilier et bureau",
-  "Agencements / travaux", "Véhicule", "Logiciel", "Constructions",
+// Taux d'amortissement usuels admis par l'administration fiscale marocaine —
+// utilisés comme référence lors d'un contrôle (barème DGI / usages professionnels).
+// Chaque entrée porte le taux conseillé, la fourchette admise et sa base.
+// Le médecin peut toujours saisir un autre taux.
+interface AmortSuggestion { subcat: string; rate: number; note: string; }
+const AMORT_SUGGESTIONS: AmortSuggestion[] = [
+  { subcat: "Matériel médical",      rate: 0.15, note: "Matériel & outillage — usuel 10 à 15 %" },
+  { subcat: "Matériel informatique", rate: 0.15, note: "Micro-ordinateurs, périphériques & logiciels — 15 % (gros matériel 10 %)" },
+  { subcat: "Mobilier et bureau",    rate: 0.10, note: "Mobilier de bureau — usuel 10 % (jusqu'à 20 %)" },
+  { subcat: "Agencements / travaux", rate: 0.10, note: "Installations, aménagements & agencements — usuel 10 %" },
+  { subcat: "Véhicule",              rate: 0.20, note: "Matériel de transport — 20 à 25 % · base plafonnée à 300 000 MAD (Art. 10-II CGI)" },
+  { subcat: "Logiciel",              rate: 0.20, note: "Logiciels — 20 à 33 % (amortis sur 3 à 5 ans)" },
+  { subcat: "Constructions",         rate: 0.05, note: "Construction — 4 % (habitation/commerce), 5 % (industriel dur), 10 % (léger)" },
 ];
+const SUBCATEGORY_SUGGESTIONS = AMORT_SUGGESTIONS.map(s => s.subcat);
+
+function amortSuggestionFor(subcat: string): AmortSuggestion | undefined {
+  const q = subcat.trim().toLowerCase();
+  return AMORT_SUGGESTIONS.find(s => s.subcat.toLowerCase() === q);
+}
 
 const FREQ_MULTIPLIER: Record<RecurringRule["frequency"], number> = {
   monthly: 12, quarterly: 4, yearly: 1,
@@ -97,7 +113,14 @@ function AssetModal({ initial, onSave, onClose }: AssetModalProps) {
               </div>
               <div className="form-group">
                 <label className="form-label">{t("comptabilite.subcategoryField")}</label>
-                <input className="form-input" value={subcat} onChange={e => setSubcat(e.target.value)}
+                <input className="form-input" value={subcat}
+                  onChange={e => {
+                    const v = e.target.value;
+                    setSubcat(v);
+                    // Pick an asset type → apply its legally-usual rate as a suggestion.
+                    const s = amortSuggestionFor(v);
+                    if (s) setRate(String(Math.round(s.rate * 100)));
+                  }}
                   placeholder="Matériel médical" list="subcat-list" />
                 <datalist id="subcat-list">
                   {SUBCATEGORY_SUGGESTIONS.map(s => <option key={s} value={s} />)}
@@ -135,6 +158,23 @@ function AssetModal({ initial, onSave, onClose }: AssetModalProps) {
                   = {rate ? `${Math.round(100 / parseFloat(rate))} ${t("comptabilite.amortYears")}` : "—"}
                 </span>
               </div>
+              {(() => {
+                const s = amortSuggestionFor(subcat);
+                if (!s) return null;
+                const applied = Math.round(parseFloat(rate)) === Math.round(s.rate * 100);
+                return (
+                  <div className="asset-amort-hint">
+                    <span className="asset-amort-hint-badge">{t("comptabilite.amortLegalRate")}</span>
+                    <span>{s.note}.</span>
+                    {!applied && (
+                      <button type="button" className="asset-amort-hint-apply"
+                        onClick={() => setRate(String(Math.round(s.rate * 100)))}>
+                        {t("comptabilite.amortApply", { rate: Math.round(s.rate * 100) })}
+                      </button>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
             <div className="form-group">
               <label className="form-label">{t("comptabilite.notesField")}</label>

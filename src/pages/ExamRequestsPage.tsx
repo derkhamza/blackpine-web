@@ -16,7 +16,7 @@ export function ExamRequestsPage({ noLayout = false }: { noLayout?: boolean } = 
                : i18n.language?.slice(0, 2) === "en" ? "en-US" : "fr-FR";
   const {
     examRequests, addExamRequest, deleteExamRequest,
-    patients, doctorProfile, role,
+    patients, doctorProfile, setDoctorProfile, role,
   } = useCabinet();
   const readOnly = role === "secretary";
 
@@ -79,7 +79,7 @@ export function ExamRequestsPage({ noLayout = false }: { noLayout?: boolean } = 
                 <div className="exr-card-date">{fmtDate(r.date)}</div>
               </div>
               <div className="exr-card-chips">
-                {r.lines.map((l, i) => (
+                {(r.lines ?? []).map((l, i) => (
                   <span key={i} className="exr-chip" style={{ borderColor: EXAM_REQ_CATEGORY_COLORS[l.category] }}>
                     {l.label}{l.detail ? ` (${l.detail})` : ""}
                   </span>
@@ -105,6 +105,12 @@ export function ExamRequestsPage({ noLayout = false }: { noLayout?: boolean } = 
           date={todayIso()}
           doctorProfile={doctorProfile}
           patients={patientsList}
+          savedTemplates={doctorProfile.examRequestTemplates}
+          onSaveTemplate={readOnly ? undefined : (name, lines, indication) => {
+            const tpl = { id: Math.random().toString(36).slice(2, 9), name, lines, indication };
+            setDoctorProfile({ ...doctorProfile, examRequestTemplates: [...(doctorProfile.examRequestTemplates ?? []), tpl] });
+          }}
+          onDeleteTemplate={readOnly ? undefined : (id) => setDoctorProfile({ ...doctorProfile, examRequestTemplates: (doctorProfile.examRequestTemplates ?? []).filter(x => x.id !== id) })}
           onSave={({ lines, indication, patientName, patientId }) => {
             addExamRequest({
               patientId, patientName, date: todayIso(),

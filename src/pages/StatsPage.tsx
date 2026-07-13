@@ -5,7 +5,7 @@ import { useCabinet } from "../context/CabinetContext";
 import { useApp } from "../context/AppContext";
 import { formatMAD } from "../lib/format";
 import { AnimatedNumber } from "../components/AnimatedNumber";
-import { APPT_TYPE_LABELS, APPT_TYPE_COLORS } from "../lib/cabinetTypes";
+import { apptTypeLabel, apptTypeColor } from "../lib/cabinetTypes";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -293,7 +293,7 @@ export function StatsPage({ noLayout = false }: { noLayout?: boolean } = {}) {
                   <RecordRow
                     icon="🩺"
                     label={t("stats.topAct")}
-                    value={APPT_TYPE_LABELS[topType[0] as keyof typeof APPT_TYPE_LABELS] ?? topType[0]}
+                    value={apptTypeLabel(topType[0])}
                     sub={t("stats.topActSub", { n: topType[1] })}
                   />
                 </>
@@ -405,7 +405,7 @@ export function StatsPage({ noLayout = false }: { noLayout?: boolean } = {}) {
             <SectionCard title={t("stats.byType")}>
               <div className="stats-type-list">
                 {typeBreakdown.map(([type, count], idx) => {
-                  const color = (APPT_TYPE_COLORS as Record<string, string>)[type] ?? "var(--blue)";
+                  const color = apptTypeColor(type);
                   const pct   = Math.round((count / maxTypeCount) * 100);
                   return (
                     <div key={type}>
@@ -413,7 +413,7 @@ export function StatsPage({ noLayout = false }: { noLayout?: boolean } = {}) {
                       <div className="stats-type-row">
                         <div className="stats-type-dot" style={{ background: color }} />
                         <span className="stats-type-label">
-                          {APPT_TYPE_LABELS[type as keyof typeof APPT_TYPE_LABELS] ?? type}
+                          {apptTypeLabel(type)}
                         </span>
                         <div className="stats-type-bar-track">
                           <div

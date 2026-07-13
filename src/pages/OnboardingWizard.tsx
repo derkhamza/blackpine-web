@@ -130,16 +130,18 @@ export function OnboardingWizard({ onDone }: { onDone: () => void }) {
 
               <label className="ob-label">
                 {t("onboarding.specialtyLabel")}
-                <select
-                  className="ob-input ob-select"
+                <input
+                  className="ob-input"
+                  list="ob-specialty-options"
+                  placeholder={t("onboarding.specialtyDefault")}
                   value={specialtyLabel}
                   onChange={e => setSpecialtyLabel(e.target.value)}
-                >
-                  <option value="">{t("onboarding.specialtyDefault")}</option>
+                />
+                <datalist id="ob-specialty-options">
                   {SPECIALTIES.map(s => (
-                    <option key={s.id} value={s.label}>{s.label}</option>
+                    <option key={s.id} value={s.label} />
                   ))}
-                </select>
+                </datalist>
               </label>
 
               <label className="ob-label">

@@ -6,15 +6,18 @@ import { DictationButton } from "../components/DictationButton";
 import { useCabinet } from "../context/CabinetContext";
 import { useApp } from "../context/AppContext";
 import { useToast } from "../components/Toast";
+import { ActionIcon } from "../components/ActionIcon";
+import { AttachmentLink } from "../components/AttachmentLink";
 import { findOrphanAppts } from "../lib/orphanAppts";
 import { fullName as fmtFullName } from "../lib/nameFormat";
 import type {
-  Appointment, AppointmentStatus, AppointmentType, Patient, CustomMeasure,
+  Appointment, AppointmentStatus, Patient, CustomMeasure,
   ConsultationNote, VitalSigns, OrdonnanceLine, SavedCertificate, BillingLine, PaymentMethod,
 } from "../lib/cabinetTypes";
 import { paymentSummary, billSubtotal as calcSubtotal, billLineDiscounts, billNet, lineDiscount, lineNet } from "../lib/billing";
 import {
-  APPT_TYPE_LABELS, APPT_TYPE_COLORS, APPT_STATUS_LABELS, DEFAULT_SECRETARY_PERMISSIONS,
+  APPT_STATUS_LABELS, DEFAULT_SECRETARY_PERMISSIONS,
+  apptTypeLabel, apptTypeColor, resolveApptTypes, apptLabelById,
 } from "../lib/cabinetTypes";
 import { NOTE_TEMPLATES, TEMPLATE_CATEGORIES } from "../lib/noteTemplates";
 import { todayIso, formatMAD, formatDateShort, bmiClassify, calcAge } from "../lib/format";
@@ -26,7 +29,7 @@ import { CertificateModal } from "../components/CertificateModal";
 import { ExamRequestModal } from "../components/ExamRequestModal";
 import { Icd10Picker }      from "../components/Icd10Picker";
 import type { Icd10Entry }  from "../lib/icd10";
-import { getSpecialtyGroups, getSpecialtyBilans, DEFAULT_BILANS, BILAN_CATALOG } from "../lib/specialtyFields";
+import { getSpecialtyGroups, getSpecialtyBilans, DEFAULT_BILANS, BILAN_CATALOG, fieldMeta } from "../lib/specialtyFields";
 import type { SpecialtyField } from "../lib/specialtyFields";
 import type { CustomNoteTemplate } from "../lib/cabinetTypes";
 
@@ -35,10 +38,10 @@ import type { CustomNoteTemplate } from "../lib/cabinetTypes";
 const STATUS_OPTS: AppointmentStatus[] = [
   "scheduled", "arrived", "in_consultation", "completed", "cancelled", "no_show",
 ];
-// Only these three types are offered for new appointments; legacy types
-// (suivi, procédure, urgence) remain displayable on existing records and are
-// preserved per-appointment via seenTypes.
-const STANDARD_TYPES: AppointmentType[] = ["consultation", "controle", "autre"];
+// Core types always offered for reclassification; the full resolved list (incl.
+// the doctor's custom types) is merged in at render time. Legacy types remain
+// displayable on existing records and are preserved per-appointment via seenTypes.
+const STANDARD_TYPES: string[] = ["consultation", "controle", "autre"];
 
 function fmtDate(iso: string, locale = "fr-FR") {
   return new Date(iso + "T12:00:00").toLocaleDateString(locale, {
@@ -217,7 +220,7 @@ function LinkPatientModal({
                   style={{
                     display: "flex", alignItems: "center", gap: 10, width: "100%",
                     padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 9,
-                    background: "var(--surface)", cursor: "pointer", textAlign: "left",
+                    background: "var(--surface)", cursor: "pointer", textAlign: "start",
                   }}
                 >
                   <span style={{
@@ -255,7 +258,7 @@ export function AppointmentDetailPage() {
     addPatient, updatePatient, addAppointment, doctorProfile, setDoctorProfile, role,
     examRequests, addExamRequest, updateExamRequest,
     apptDocuments, addApptDocument, deleteApptDocument,
-    examResults, prescriptions,
+    examResults, addExamResult, prescriptions,
   } = useCabinet();
   const { addTransaction } = useApp();
   const toast = useToast();
@@ -305,10 +308,38 @@ export function AppointmentDetailPage() {
   const patientSex: Sex | null =
     patient?.gender === "M" ? "male" : patient?.gender === "F" ? "female" : null;
   const canAutoDfg = patientAge != null && patientAge > 0 && patientSex != null;
-  // Maps a creatinine field to the eGFR field it feeds (bilan rénal + néphro).
-  const DFG_FROM_CREAT: Record<string, string> = { bl_ren_creat: "bl_ren_dfg", creatinine: "dfg" };
-  const computeDfg = (creatValue: string): number | null =>
-    canAutoDfg ? ckdEpiFromMgL(creatValue, patientAge as number, patientSex as Sex) : null;
+
+  // ── Auto-computed (derived) fields ──────────────────────────────────────────
+  // Fields that are computed from OTHER entered fields rather than measured, so
+  // whenever their inputs are present they are (re)computed automatically and the
+  // field is shown locked ("· auto"). eGFR is only included when the patient's
+  // age + sex are known (the CKD-EPI formula needs them); VEMS/CVF ratio always.
+  const numOf = (s?: string) => { const n = parseFloat(String(s ?? "").replace(",", ".")); return isFinite(n) ? n : null; };
+  const DERIVED_FIELDS: Record<string, { inputs: string[]; compute: (f: Record<string, string>) => number | null }> = {
+    ...(canAutoDfg ? {
+      bl_ren_dfg: { inputs: ["bl_ren_creat"], compute: (f) => ckdEpiFromMgL(f.bl_ren_creat ?? "", patientAge as number, patientSex as Sex) },
+      dfg:        { inputs: ["creatinine"],   compute: (f) => ckdEpiFromMgL(f.creatinine ?? "", patientAge as number, patientSex as Sex) },
+    } : {}),
+    // Tiffeneau ratio = VEMS / CVF × 100 (%).
+    ratio: { inputs: ["vems", "cvf"], compute: (f) => { const v = numOf(f.vems), c = numOf(f.cvf); return v != null && c != null && c > 0 ? Math.round((v / c) * 100) : null; } },
+  };
+  const isDerivedField = (key: string) => key in DERIVED_FIELDS;
+  const derivedValue = (key: string, f: Record<string, string>): number | null =>
+    isDerivedField(key) ? DERIVED_FIELDS[key].compute(f) : null;
+  // Recompute every derived field for persistence. A derived key is set when it
+  // can be computed, cleared when its inputs are present but no longer yield a
+  // value, and left untouched when it has no inputs at all (never clobbers a
+  // manually-entered value on a field the doctor is using directly).
+  const deriveExtraFields = (f: Record<string, string>): Record<string, string> => {
+    const out = { ...f };
+    for (const key of Object.keys(DERIVED_FIELDS)) {
+      const d = DERIVED_FIELDS[key];
+      const v = d.compute(out);
+      if (v != null) out[key] = String(v);
+      else if (d.inputs.some((k) => (out[k] ?? "").trim() !== "")) delete out[key];
+    }
+    return out;
+  };
 
   // ── Tabs ──────────────────────────────────────────────────────────────────
   const [tab, setTab] = useState<"notes" | "vitals" | "history" | "suivi">("notes");
@@ -317,7 +348,7 @@ export function AppointmentDetailPage() {
   // reclassifying (e.g. Suivi → Consultation) never drops the previous type's
   // pill — the doctor can always switch back. Without this, a non-standard type
   // (suivi/procédure/urgence on older records), once left, cannot be reselected.
-  const [seenTypes, setSeenTypes] = useState<AppointmentType[]>([]);
+  const [seenTypes, setSeenTypes] = useState<string[]>([]);
 
   // ── Clinical notes (local → auto-save on blur) ────────────────────────────
   const [motif,       setMotif]       = useState("");
@@ -411,7 +442,7 @@ export function AppointmentDetailPage() {
   // "Fixer le prochain rendez-vous" — schedule the follow-up RDV in-flow.
   const [nextDate, setNextDate] = useState("");
   const [nextTime, setNextTime] = useState("09:00");
-  const [nextType, setNextType] = useState<AppointmentType>("controle");
+  const [nextType, setNextType] = useState<string>("controle");
 
   const handleDocUpload = (category?: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
@@ -500,11 +531,7 @@ export function AppointmentDetailPage() {
       <span className="appt-doc-icon">{docIcon(doc.mimeType)}</span>
       <div className="appt-doc-info">
         <div className="appt-doc-name">
-          {doc.mimeType.startsWith("image/") ? (
-            <a href={doc.data} target="_blank" rel="noopener noreferrer" className="appt-doc-link">{doc.filename}</a>
-          ) : (
-            <a href={doc.data} download={doc.filename} className="appt-doc-link">{doc.filename}</a>
-          )}
+          <AttachmentLink doc={doc} download={!doc.mimeType.startsWith("image/")} className="appt-doc-link">{doc.filename}</AttachmentLink>
         </div>
         <div className="appt-doc-meta">
           {fmtBytes(doc.sizeBytes)} · {new Date(doc.uploadedAt).toLocaleDateString(locale)}
@@ -667,14 +694,8 @@ export function AppointmentDetailPage() {
   };
 
   const saveExtraField = (key: string, value: string) => {
-    const updated = { ...extraFields, [key]: value };
-    // Auto-compute eGFR (CKD-EPI) whenever serum creatinine is entered.
-    const dfgKey = DFG_FROM_CREAT[key];
-    if (dfgKey) {
-      const dfg = computeDfg(value);
-      if (dfg != null) updated[dfgKey] = String(dfg);
-      else if (!value.trim()) delete updated[dfgKey]; // creatinine cleared → clear derived
-    }
+    // Recompute all derived fields (eGFR, VEMS/CVF ratio…) from the new inputs.
+    const updated = deriveExtraFields({ ...extraFields, [key]: value });
     setExtraFields(updated);
     saveNotes(updated);
   };
@@ -900,7 +921,7 @@ export function AppointmentDetailPage() {
       total = billNet(appt.preparedItems, appt.preparedReduction ?? 0);
     } else {
       const base = doctorProfile.appointmentPrices?.[appt.type] ?? appt.billedAmount ?? 200;
-      setBillItems([{ label: APPT_TYPE_LABELS[appt.type], qty: 1, unitPrice: Number(base) || 0 }]);
+      setBillItems([{ label: apptTypeLabel(appt.type), qty: 1, unitPrice: Number(base) || 0 }]);
       setBillReduction("");
       total = Number(base) || 0;
     }
@@ -959,7 +980,7 @@ export function AppointmentDetailPage() {
         type: "RECETTE", amount: collected, date: appt.date,
         category: appt.type === "procedure" ? "acte_chirurgical" : "consultation",
         deductibilityStatus: "FULLY_DEDUCTIBLE", professionalUseRatio: 1,
-        description: `${APPT_TYPE_LABELS[appt.type]} – ${appt.patientName}`,
+        description: `${apptTypeLabel(appt.type)} – ${appt.patientName}`,
       });
     }
     updateAppointment({
@@ -1022,11 +1043,11 @@ export function AppointmentDetailPage() {
   const bmiClass = bmi === null ? null : bmiClassify(bmi);
   const bmiLabel = bmiClass?.label ?? null;
 
-  const typeColor   = APPT_TYPE_COLORS[appt.type];
+  const typeColor   = apptTypeColor(appt.type);
   const hasNotes    = motif || exam || diag || treatment || Object.keys(extraFields).some((k) => extraFields[k]?.trim());
   const templatesByCat = NOTE_TEMPLATES.filter((t) => t.category === templateCat);
 
-  const handleTypeChange = (newType: AppointmentType) => {
+  const handleTypeChange = (newType: string) => {
     updateAppointment({ ...appt, type: newType });
   };
 
@@ -1034,8 +1055,9 @@ export function AppointmentDetailPage() {
   // set to Consultation/Contrôle/Autre), plus any legacy/other type this RDV has
   // carried this session. `hiddenConsultationTypes` only trims the *new-RDV*
   // form — it must not remove a target you may need to reclassify to.
-  const visibleTypes = Array.from(new Set<AppointmentType>([
+  const visibleTypes = Array.from(new Set<string>([
     ...STANDARD_TYPES,
+    ...resolveApptTypes().map((rt) => rt.id),
     ...seenTypes,
     appt.type,
   ]));
@@ -1075,6 +1097,26 @@ export function AppointmentDetailPage() {
   })();
   const customFilled = customLocal.filter(m => m.label.trim() || m.value.trim());
 
+  // Link the two "results" surfaces: push the measures/bilan entered here into a
+  // structured Examens & Bio record, so the doctor enters lab values ONCE. Pulls
+  // every filled bilan field + custom measure (value + unit) into an ExamResult.
+  const saveBilanAsExamResult = () => {
+    const values = [
+      ...filledBilan.map(({ field }) => ({ label: field.label, value: String(extraFields[field.key] ?? ""), unit: field.unit })),
+      ...customFilled.map(m => ({ label: m.label, value: m.value, unit: m.unit || undefined })),
+    ].filter(v => v.label.trim() && v.value.trim());
+    if (!values.length) return;
+    addExamResult({
+      patientId:   appt.patientId,
+      patientName: appt.patientName,
+      type:        "biologie",
+      date:        appt.date,
+      title:       t("apptDetail.bilanExamTitle", { date: formatDateShort(appt.date) }),
+      values,
+    });
+    toast(t("apptDetail.bilanSavedAsExam", { n: values.length }), "success");
+  };
+
   return (
     <Layout
       title={appt.patientName}
@@ -1093,7 +1135,7 @@ export function AppointmentDetailPage() {
           {/* Inline consultation type selector */}
           <div className="appt-type-pills" title={t("apptDetail.typeLabel")}>
             {visibleTypes.map((type) => {
-              const c = APPT_TYPE_COLORS[type];
+              const c = apptTypeColor(type);
               const active = appt.type === type;
               return (
                 <button
@@ -1103,7 +1145,7 @@ export function AppointmentDetailPage() {
                   onClick={() => handleTypeChange(type)}
                   type="button"
                 >
-                  {t(`apptType.${type}`)}
+                  {apptTypeLabel(type)}
                 </button>
               );
             })}
@@ -1266,6 +1308,45 @@ export function AppointmentDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* ── Persistent patient medical context ──
+          Shown above every tab so the doctor always has the safety-critical
+          clinical facts in view while working — allergies first (EHR "patient
+          banner" pattern), then durable antécédents and traitement de fond. All
+          the standing medical information, on the medical screen, at all times. */}
+      {patient && (
+        <div className="appt-med-banner">
+          <div className="appt-med-demo">
+            {patientAge != null && <span className="appt-med-demo-item">{t("apptDetail.ageYears", { n: patientAge })}</span>}
+            {patient.gender && <span className="appt-med-demo-item">{patient.gender === "M" ? t("apptDetail.sexM") : t("apptDetail.sexF")}</span>}
+            {patient.bloodType && <span className="appt-med-demo-item appt-med-blood">{patient.bloodType}</span>}
+          </div>
+          <div className="appt-med-facts">
+            {patient.allergies ? (
+              <span className="appt-med-chip appt-med-allergy" title={patient.allergies}>
+                <b>⚠ {t("apptDetail.allergiesLabel")}</b> {patient.allergies}
+              </span>
+            ) : (
+              <span className="appt-med-chip appt-med-ok">{t("apptDetail.noKnownAllergy")}</span>
+            )}
+            {patient.antecedents && (
+              <span className="appt-med-chip" title={patient.antecedents}>
+                <b>{t("apptDetail.antecedents")}</b> {patient.antecedents}
+              </span>
+            )}
+            {patient.currentMedications && (
+              <span className="appt-med-chip" title={patient.currentMedications}>
+                <b>{t("apptDetail.currentMeds")}</b> {patient.currentMedications}
+              </span>
+            )}
+          </div>
+          {patient.id && (
+            <Link to={`/patients/${patient.id}`} className="appt-med-dossier">
+              {t("apptDetail.openDossier")}
+            </Link>
+          )}
+        </div>
+      )}
 
       {/* ── Tab bar ── */}
       <div className="appt-tabs">
@@ -1604,8 +1685,10 @@ export function AppointmentDetailPage() {
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
                 <input className="form-input" type="date" style={{ maxWidth: 170 }} min={todayIso()} value={nextDate} onChange={(e) => setNextDate(e.target.value)} />
                 <input className="form-input" type="time" style={{ maxWidth: 120 }} value={nextTime} onChange={(e) => setNextTime(e.target.value)} />
-                <select className="form-select" style={{ maxWidth: 160 }} value={nextType} onChange={(e) => setNextType(e.target.value as AppointmentType)}>
-                  {STANDARD_TYPES.map((tp) => <option key={tp} value={tp}>{t(`apptType.${tp}`)}</option>)}
+                <select className="form-select" style={{ maxWidth: 160 }} value={nextType} onChange={(e) => setNextType(e.target.value)}>
+                  {resolveApptTypes()
+                    .filter((rt) => !(doctorProfile.hiddenConsultationTypes ?? []).includes(rt.id) || rt.id === nextType)
+                    .map((rt) => <option key={rt.id} value={rt.id}>{rt.label}</option>)}
                 </select>
                 <button className="btn btn-primary" type="button" disabled={!nextDate || !appt.patientId} onClick={scheduleNextAppt}>
                   {t("apptDetail.nextApptCreate")}
@@ -1644,10 +1727,19 @@ export function AppointmentDetailPage() {
                 {doctorProfile.specialtyLabel && (
                   <span className="specialty-fields-badge">{doctorProfile.specialtyLabel}</span>
                 )}
+                {/* Link to Examens & Bio: save the measures entered here as a
+                    structured lab result (single source, no double entry). */}
+                {!readOnly && (filledBilan.length > 0 || customFilled.length > 0) && (
+                  <button type="button" className="btn btn-ghost"
+                    style={{ marginLeft: "auto", fontSize: 12, padding: "3px 10px" }}
+                    onClick={saveBilanAsExamResult} title={t("apptDetail.bilanToExamTitle")}>
+                    <ActionIcon name="flask" /> {t("apptDetail.bilanToExam")}
+                  </button>
+                )}
                 {/* Doctor promotes this appointment's arrangement to their default. */}
                 {!readOnly && (
                   <button type="button" className="btn btn-ghost"
-                    style={{ marginLeft: "auto", fontSize: 12, padding: "3px 10px" }}
+                    style={{ marginLeft: (filledBilan.length > 0 || customFilled.length > 0) ? undefined : "auto", fontSize: 12, padding: "3px 10px" }}
                     onClick={savePreferred} title={t("apptDetail.savePreferredTitle")}>
                     ★ {t("apptDetail.savePreferred")}
                   </button>
@@ -1686,8 +1778,8 @@ export function AppointmentDetailPage() {
                 const groups     = enabledGroups.filter(g => bilanSourceFor(g.key) === src);
                 const customForSrc = customLocal.filter(m => m.source === src);
                 return (
-                  <div key={src} className="bilan-split-section" style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--border)" }}>
-                    <div className="specialty-group-title" style={{ fontWeight: 800, color: "var(--primary, #0A4E7E)" }}>
+                  <div key={src} className="bilan-src-card">
+                    <div className="bilan-src-title">
                       {src === "office" ? t("apptDetail.bilanOffice") : t("apptDetail.bilanExternal")}
                     </div>
 
@@ -1706,6 +1798,17 @@ export function AppointmentDetailPage() {
                           <VsInput label={t("apptDetail.hrLabel")}     unit="bpm"  value={hr}     onChange={setHr}     onBlur={saveVitals} vsKey="hr"   readOnly={vitalsReadOnly} />
                           <VsInput label={t("apptDetail.tempLabel")}   unit="°C"   value={temp}   onChange={setTemp}   onBlur={saveVitals} vsKey="temp" readOnly={vitalsReadOnly} />
                           <VsInput label={t("apptDetail.spo2Label")}   unit="%"    value={spo2}   onChange={setSpo2}   onBlur={saveVitals} vsKey="spo2" readOnly={vitalsReadOnly} />
+                        </div>
+                        {renderCustomMeasures("__vitals", "office")}
+                      </div>
+                    )}
+
+                    {/* Anthropométrie — weight/height are measurements, NOT vital
+                        signs; kept in their own group (they still drive the IMC). */}
+                    {src === "office" && (
+                      <div className="specialty-group">
+                        <div className="specialty-group-title">{t("apptDetail.anthropometry")}</div>
+                        <div className="vs-grid">
                           <VsInput label={t("apptDetail.weightLabel")} unit="kg"   value={weight} onChange={setWeight} onBlur={saveVitals} readOnly={vitalsReadOnly} />
                           <VsInput label={t("apptDetail.heightLabel")} unit="cm"   value={height} onChange={setHeight} onBlur={saveVitals} readOnly={vitalsReadOnly} />
                         </div>
@@ -1715,7 +1818,6 @@ export function AppointmentDetailPage() {
                             <div className="vs-bmi-label" style={{ color: bmiClass?.color ?? "var(--text)" }}>{bmiLabel}</div>
                           </div>
                         )}
-                        {renderCustomMeasures("__vitals", "office")}
                       </div>
                     )}
 
@@ -1749,18 +1851,17 @@ export function AppointmentDetailPage() {
                             <>
                               <div className="specialty-fields-grid">
                                 {group.fields.map((field: SpecialtyField) => {
-                                  // eGFR is derived from creatinine — lock it and label it "auto".
-                                  const isDfg    = field.key === "bl_ren_dfg" || field.key === "dfg";
-                                  const creatKey = field.key === "bl_ren_dfg" ? "bl_ren_creat" : "creatinine";
-                                  const dfgAuto  = isDfg && canAutoDfg && (extraFields[creatKey] ?? "").trim() !== "";
-                                  const dfgVal = dfgAuto ? computeDfg(extraFields[creatKey] ?? "") : null;
+                                  // Derived fields (eGFR, VEMS/CVF ratio…) auto-compute from their
+                                  // inputs and are shown locked + labelled "auto".
+                                  const dVal = derivedValue(field.key, extraFields);
+                                  const auto = dVal != null;
                                   return (
                                     <SpecialtyFieldInput key={field.key}
-                                      field={dfgAuto ? { ...field, label: `${field.label} · auto` } : field}
-                                      value={dfgAuto ? (dfgVal != null ? String(dfgVal) : "") : (extraFields[field.key] ?? "")}
+                                      field={auto ? { ...field, label: `${field.label} · auto` } : field}
+                                      value={auto ? String(dVal) : (extraFields[field.key] ?? "")}
                                       onChange={(v) => setExtraField(field.key, v)}
                                       onBlur={(v) => saveExtraField(field.key, v)}
-                                      readOnly={bilanReadOnly || dfgAuto} />
+                                      readOnly={bilanReadOnly || auto} />
                                   );
                                 })}
                               </div>
@@ -1888,24 +1989,75 @@ export function AppointmentDetailPage() {
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   {historyAppts.slice(0, 40).map(a => {
                     const n = a.consultationNote; const vs = a.vitalSigns;
-                    const vitalsStr = vs ? [
-                      vs.bpSys != null && vs.bpDia != null ? `TA ${vs.bpSys}/${vs.bpDia}` : "",
-                      vs.hr != null ? `FC ${vs.hr}` : "",
-                      vs.temp != null ? `T° ${vs.temp}` : "",
-                      vs.weight != null ? `${vs.weight} kg` : "",
-                    ].filter(Boolean).join(" · ") : "";
+                    // Every captured vital, incl. computed BMI — nothing hidden.
+                    const vChips: string[] = [];
+                    if (vs) {
+                      if (vs.bpSys != null && vs.bpDia != null) vChips.push(`TA ${vs.bpSys}/${vs.bpDia} mmHg`);
+                      if (vs.hr != null)     vChips.push(`FC ${vs.hr} bpm`);
+                      if (vs.temp != null)   vChips.push(`T° ${vs.temp} °C`);
+                      if (vs.spo2 != null)   vChips.push(`SpO₂ ${vs.spo2} %`);
+                      if (vs.weight != null) vChips.push(`${vs.weight} kg`);
+                      if (vs.height != null) vChips.push(`${vs.height} cm`);
+                      if (vs.weight != null && vs.height) {
+                        const bmi = vs.weight / Math.pow(vs.height / 100, 2);
+                        if (isFinite(bmi)) vChips.push(`IMC ${bmi.toFixed(1)}`);
+                      }
+                    }
+                    // Every specialty / bilan measure stored on the note.
+                    const extra = n?.extraFields ? Object.entries(n.extraFields).filter(([, v]) => v != null && String(v).trim()) : [];
+                    // Ad-hoc measures typed at the desk.
+                    const custom = a.customMeasures ?? [];
+                    const docs = apptDocuments.filter(d => d.appointmentId === a.id);
+                    const hasFoot = (a.savedOrdonnance && (a.savedOrdonnance.lines?.length ?? 0) > 0)
+                      || (a.savedCertificates?.length ?? 0) > 0 || docs.length > 0;
                     return (
-                      <div key={a.id} style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "8px 12px" }}>
-                        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4 }}>
-                          <Link to={`/agenda/${a.id}`} className="appt-doc-link" style={{ fontWeight: 700 }}>{formatDateShort(a.date)}</Link>
-                          <span style={{ fontSize: 11, fontWeight: 700, color: APPT_TYPE_COLORS[a.type] }}>{t(`apptType.${a.type}`)}</span>
+                      <div key={a.id} className="hist-visit">
+                        <div className="hist-visit-head">
+                          <Link to={`/agenda/${a.id}`} className="hist-visit-date">{formatDateShort(a.date)}</Link>
+                          <span className="hist-visit-type" style={{ color: apptTypeColor(a.type), background: apptTypeColor(a.type) + "18" }}>{apptTypeLabel(a.type)}</span>
+                          {apptLabelById(a.labelId) && (
+                            <span className="hist-visit-tag" style={{ background: apptLabelById(a.labelId)!.color + "22", color: apptLabelById(a.labelId)!.color }}>{apptLabelById(a.labelId)!.label}</span>
+                          )}
                         </div>
-                        {n?.motif && <div style={{ fontSize: 12.5 }}><b>{t("apptDetail.motif")} :</b> {n.motif}</div>}
-                        {n?.diagnosis && <div style={{ fontSize: 12.5 }}><b>{t("apptDetail.diagnosis")} :</b> {n.diagnosis}</div>}
-                        {n?.treatment && <div style={{ fontSize: 12.5 }}><b>{t("apptDetail.treatment")} :</b> {n.treatment}</div>}
-                        {vitalsStr && <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>{vitalsStr}</div>}
-                        {a.savedOrdonnance && a.savedOrdonnance.lines.length > 0 && (
-                          <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>℞ {a.savedOrdonnance.lines.map(l => l.drug).join(", ")}</div>
+                        {n?.motif && <div className="hist-note"><span className="hist-note-label">{t("apptDetail.motif")}</span><span className="hist-note-text">{n.motif}</span></div>}
+                        {n?.examination && <div className="hist-note"><span className="hist-note-label">{t("apptDetail.examination")}</span><span className="hist-note-text">{n.examination}</span></div>}
+                        {n?.diagnosis && <div className="hist-note"><span className="hist-note-label">{t("apptDetail.diagnosis")}</span><span className="hist-note-text">{n.diagnosis}</span></div>}
+                        {n?.treatment && <div className="hist-note"><span className="hist-note-label">{t("apptDetail.treatment")}</span><span className="hist-note-text">{n.treatment}</span></div>}
+                        {vChips.length > 0 && (
+                          <div className="hist-measures">
+                            {vChips.map((c, i) => <span key={i} className="hist-measure-chip">{c}</span>)}
+                          </div>
+                        )}
+                        {(extra.length > 0 || custom.length > 0) && (
+                          <div className="hist-measures">
+                            {extra.map(([k, v]) => {
+                              const m = fieldMeta(k);
+                              return <span key={k} className="hist-measure-chip"><b>{m.label}:</b> {v}{m.unit ? ` ${m.unit}` : ""}</span>;
+                            })}
+                            {custom.map((cm) => (
+                              <span key={cm.id} className="hist-measure-chip"><b>{cm.label}:</b> {cm.value}{cm.unit ? ` ${cm.unit}` : ""}</span>
+                            ))}
+                          </div>
+                        )}
+                        {hasFoot && (
+                          <div className="hist-visit-foot">
+                            {a.savedOrdonnance && (a.savedOrdonnance.lines?.length ?? 0) > 0 && (
+                              <span className="hist-foot-item">℞ {(a.savedOrdonnance.lines ?? []).map(l => l.drug).join(", ")}</span>
+                            )}
+                            {(a.savedCertificates?.length ?? 0) > 0 && (
+                              <span className="hist-foot-item">📜 {t("apptDetail.certificate")} ({a.savedCertificates!.length})</span>
+                            )}
+                            {docs.length > 0 && (
+                              <div className="hist-docs">
+                                <span className="hist-docs-label">📎 {t("apptDetail.attachments")} ({docs.length})</span>
+                                <div className="hist-docs-list">
+                                  {docs.map(doc => (
+                                    <AttachmentLink key={doc.id} doc={doc} download={!doc.mimeType.startsWith("image/")} className="hist-doc-chip">{docIcon(doc.mimeType)} {doc.filename}</AttachmentLink>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         )}
                       </div>
                     );
@@ -1947,7 +2099,7 @@ export function AppointmentDetailPage() {
                     {historyRx.slice(0, 20).map(p => (
                       <div key={p.id} style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "8px 12px" }}>
                         <div style={{ fontWeight: 700, fontSize: 12.5, marginBottom: 2 }}>{formatDateShort(p.date)}</div>
-                        <div style={{ fontSize: 12.5 }}>℞ {p.lines.map(l => l.drug).join(", ")}</div>
+                        <div style={{ fontSize: 12.5 }}>℞ {(p.lines ?? []).map(l => l.drug).join(", ")}</div>
                         {p.notes && <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>{p.notes}</div>}
                       </div>
                     ))}
@@ -2061,7 +2213,7 @@ export function AppointmentDetailPage() {
                 className="btn btn-ghost receipt-print-btn"
                 onClick={() => printReceipt({
                   patientName:      appt.patientName,
-                  consultationType: APPT_TYPE_LABELS[appt.type],
+                  consultationType: apptTypeLabel(appt.type),
                   appointmentDate:  appt.date,
                   appointmentTime:  appt.startTime,
                   amount:           pay.paid,
@@ -2093,7 +2245,7 @@ export function AppointmentDetailPage() {
                         : appt.date,
                       patientName:    appt.patientName,
                       patientCnops:   pt?.cnopsNumber,
-                      serviceLabel:   APPT_TYPE_LABELS[appt.type] + " médicale",
+                      serviceLabel:   apptTypeLabel(appt.type) + " médicale",
                       serviceDate:    appt.date,
                       amount:         appt.billedAmount ?? 0,
                       items:          appt.billedItems,
@@ -2119,7 +2271,7 @@ export function AppointmentDetailPage() {
                       patientId:     appt.patientId,
                       patientName:   appt.patientName,
                       amount:        appt.billedAmount ?? 0,
-                      actLabel:      APPT_TYPE_LABELS[appt.type] + " médicale",
+                      actLabel:      apptTypeLabel(appt.type) + " médicale",
                       invoiceNumber: invNum,
                       issuedAt,
                       cnopsNumber:   pt?.cnopsNumber,
@@ -2129,7 +2281,7 @@ export function AppointmentDetailPage() {
                       invoiceDate:    issuedAt.slice(0, 10),
                       patientName:    appt.patientName,
                       patientCnops:   pt?.cnopsNumber,
-                      serviceLabel:   APPT_TYPE_LABELS[appt.type] + " médicale",
+                      serviceLabel:   apptTypeLabel(appt.type) + " médicale",
                       serviceDate:    appt.date,
                       amount:         appt.billedAmount ?? 0,
                       items:          appt.billedItems,
@@ -2215,7 +2367,7 @@ export function AppointmentDetailPage() {
             </div>
             <div className="modal-body">
               <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 10 }}>
-                {t("apptDetail.billPatient", { name: appt.patientName, type: APPT_TYPE_LABELS[appt.type] })}
+                {t("apptDetail.billPatient", { name: appt.patientName, type: apptTypeLabel(appt.type) })}
               </div>
 
               {/* Itemized lines: consultation base + each act performed.
@@ -2267,7 +2419,13 @@ export function AppointmentDetailPage() {
                           className="bill-line-remise-btn"
                           onClick={() => updateBillLine(i, { remise: 0, remiseType: l.remiseType ?? "mad" })}
                           title={t("apptDetail.billApplyRemise")}
-                        >%</button>
+                        >
+                          <svg width="11" height="11" viewBox="0 0 14 14" fill="none" style={{ marginInlineEnd: 4, flexShrink: 0 }} aria-hidden>
+                            <path d="M2 7.4V3a1 1 0 0 1 1-1h4.4a1 1 0 0 1 .7.3l4.6 4.6a1 1 0 0 1 0 1.4l-4 4a1 1 0 0 1-1.4 0L2.3 8.1A1 1 0 0 1 2 7.4Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
+                            <circle cx="5" cy="5" r="1" fill="currentColor"/>
+                          </svg>
+                          {t("apptDetail.billRemiseShort")}
+                        </button>
                       ) : (
                         <>
                           <input
@@ -2289,7 +2447,8 @@ export function AppointmentDetailPage() {
                             className="bill-line-remise-clear"
                             onClick={() => updateBillLine(i, { remise: undefined, remiseType: undefined })}
                             title={t("apptDetail.billRemoveRemise")}
-                          >↩</button>
+                            aria-label={t("apptDetail.billRemoveRemise")}
+                          >×</button>
                         </>
                       )}
                       <button
@@ -2520,6 +2679,13 @@ export function AppointmentDetailPage() {
           doctorProfile={doctorProfile}
           initialLines={apptExamRequests[0]?.lines}
           initialIndication={apptExamRequests[0]?.indication}
+          savedTemplates={doctorProfile.examRequestTemplates}
+          onSaveTemplate={(name, lines, indication) => {
+            const tpl = { id: Math.random().toString(36).slice(2, 9), name, lines, indication };
+            setDoctorProfile({ ...doctorProfile, examRequestTemplates: [...(doctorProfile.examRequestTemplates ?? []), tpl] });
+            toast(t("examReq.modelSaved", { name }), "success");
+          }}
+          onDeleteTemplate={(id) => setDoctorProfile({ ...doctorProfile, examRequestTemplates: (doctorProfile.examRequestTemplates ?? []).filter(x => x.id !== id) })}
           onSave={({ lines, indication }) => {
             const existing = apptExamRequests[0];
             if (existing) {

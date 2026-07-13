@@ -16,6 +16,7 @@ export function TrialGate() {
   const { t } = useTranslation();
   const { trial, applyActivation, isAuthenticated, isSecretary, user } = useApp();
   const [modalOpen, setModalOpen] = useState(false);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -27,7 +28,7 @@ export function TrialGate() {
   if (user && OWNER_EMAILS.includes(user.email.toLowerCase())) return null;
 
   const expired = trial.expired;
-  const showBanner = !expired && trial.active && trial.daysLeft != null &&
+  const showBanner = !expired && !bannerDismissed && trial.active && trial.daysLeft != null &&
     ((trial.isTrial && trial.daysLeft <= 14) || (!trial.isTrial && trial.daysLeft <= 7));
   const showModal = expired || modalOpen;
   const supportEmail = t("trial.supportEmail");
@@ -58,6 +59,11 @@ export function TrialGate() {
           </span>
           <button className="trial-banner-btn" onClick={() => { setErr(null); setModalOpen(true); }}>
             {t("trial.activate")}
+          </button>
+          <button className="trial-banner-close" onClick={() => setBannerDismissed(true)} aria-label={t("common.close")}>
+            <svg width="12" height="12" viewBox="0 0 10 10" fill="none">
+              <path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+            </svg>
           </button>
         </div>
       )}

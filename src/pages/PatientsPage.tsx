@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import { useToast } from "../components/Toast";
 import { useContextMenu, type CtxItem } from "../components/ContextMenu";
+import { ActionIcon } from "../components/ActionIcon";
 import { useCabinet } from "../context/CabinetContext";
 import { CsvImportModal } from "../components/CsvImportModal";
 import { exportPatientsCsv } from "../lib/csvExport";
@@ -411,12 +412,12 @@ export function PatientsPage() {
                   }
                 };
                 const menu: CtxItem[] = [
-                  { label: t("ctx.openFile"), icon: "📂", onClick: openFile },
-                  { label: t("ctx.newAppt"), icon: "📅", onClick: () => navigate(`/agenda?newAppt=${p.id}`) },
-                  { label: t("ctx.edit"), icon: "✏️", onClick: doEdit },
+                  { label: t("ctx.openFile"), icon: <ActionIcon name="folder" />, onClick: openFile },
+                  { label: t("ctx.newAppt"), icon: <ActionIcon name="calendar" />, onClick: () => navigate(`/agenda?newAppt=${p.id}`) },
+                  { label: t("ctx.edit"), icon: <ActionIcon name="edit" />, onClick: doEdit },
                   ...(p.phone
-                    ? [{ label: t("ctx.call"), icon: "📞", onClick: () => { window.location.href = `tel:${p.phone}`; } }] : []),
-                  { label: t("ctx.deletePatient"), icon: "🗑", onClick: doDelete, danger: true, divider: true },
+                    ? [{ label: t("ctx.call"), icon: <ActionIcon name="phone" />, onClick: () => { window.location.href = `tel:${p.phone}`; } }] : []),
+                  { label: t("ctx.deletePatient"), icon: <ActionIcon name="trash" />, onClick: doDelete, danger: true, divider: true },
                 ];
                 return (
                   <PatientCard

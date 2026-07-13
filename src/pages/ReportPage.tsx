@@ -5,6 +5,7 @@ import { useApp } from "../context/AppContext";
 import { useCabinet } from "../context/CabinetContext";
 import { formatMAD } from "../lib/format";
 import { getMonthlyData, getCategoryBreakdown } from "../lib/chartHelpers";
+import { printFiscalReport } from "../lib/fiscalReportPrinter";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -61,6 +62,34 @@ export function ReportPage({ noLayout = false }: { noLayout?: boolean } = {}) {
     return "";
   };
 
+  // Printed documents are always in French, regardless of the UI language, so
+  // build a standalone French document instead of window.print()-ing the live,
+  // localized DOM.
+  const handlePrint = () => {
+    printFiscalReport({
+      doctorProfile,
+      fiscalYear,
+      totals: rawTotals,
+      breakdown: {
+        totalRecettes: result.breakdown.totalRecettes,
+        totalChargesDeductibles: result.breakdown.totalChargesDeductibles,
+        totalReintegrations: result.breakdown.totalReintegrations,
+        resultatFiscal: result.breakdown.resultatFiscal,
+      },
+      tax: {
+        grossIR: result.tax.ir.grossIR,
+        familyDeduction: result.tax.familyDeduction,
+        irNet,
+        cmDue: result.tax.cm.cmDue,
+        taxDue: result.tax.taxDue,
+        regime: String(result.tax.regime),
+        payableRule: String(result.tax.payableRule),
+      },
+      monthly,
+      categories,
+    });
+  };
+
   const handleExportCSV = () => {
     const rows: string[][] = [
       ["Date", t("report.colRec"), "Catégorie", "Description", "Montant MAD", "Déductibilité", "Usage pro %"],
@@ -101,7 +130,7 @@ export function ReportPage({ noLayout = false }: { noLayout?: boolean } = {}) {
         </svg>
         {t("report.exportCsvBtn")}
       </button>
-      <button className="btn btn-primary" onClick={() => window.print()}>
+      <button className="btn btn-primary" onClick={handlePrint}>
         <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 5 }}>
           <rect x="2" y="5" width="10" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
           <path d="M4 5V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" stroke="currentColor" strokeWidth="1.5"/>
@@ -120,7 +149,7 @@ export function ReportPage({ noLayout = false }: { noLayout?: boolean } = {}) {
         </svg>
         {t("report.exportCsvBtn")}
       </button>
-      <button className="btn btn-primary" onClick={() => window.print()}>
+      <button className="btn btn-primary" onClick={handlePrint}>
         <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 5 }}>
           <rect x="2" y="5" width="10" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
           <path d="M4 5V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" stroke="currentColor" strokeWidth="1.5"/>

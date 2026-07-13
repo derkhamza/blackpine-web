@@ -12,7 +12,7 @@ export const ORDONNANCE_DEFAULT_MARGINS: PageMargins = { top: 13, right: 15, bot
 export const FACTURE_DEFAULT_MARGINS:    PageMargins = { top: 16, right: 18, bottom: 16, left: 18 };
 
 // Block keys per document (labels live in the designer component's i18n).
-export const ORDONNANCE_BLOCKS = ["header", "date", "patient", "body", "signature", "footer"] as const;
+export const ORDONNANCE_BLOCKS = ["header", "city", "date", "patient", "body", "signature", "footer"] as const;
 export const FACTURE_BLOCKS    = ["header", "invoice", "parties", "items", "signature", "footer"] as const;
 
 // ── Per-kind layout tables (drive the designer + printers) ────────────────────
@@ -41,7 +41,7 @@ export const DOC_BLOCKS: Record<DocKind, readonly string[]> = {
   ordonnance:  ORDONNANCE_BLOCKS,
   facture:     FACTURE_BLOCKS,
   certificate: ["header", "body", "signature", "footer"],
-  examRequest: ["header", "date", "patient", "indication", "body", "signature", "footer"],
+  examRequest: ["header", "city", "date", "patient", "indication", "body", "signature", "footer"],
   receipt:     ["header", "title", "info", "amount", "signature", "footer"],
   report:      ["header", "footer"],
   payroll:     ["header", "title", "info", "body", "amount", "signature", "footer"],
@@ -116,12 +116,13 @@ export function blockStyle(d: PageDesign | undefined, key: string, m: PageMargin
   const b = d?.blocks?.[key];
   if (!b) return "";
   if (b.show === false) return "display:none;";
-  const width = b.w != null ? `width:${b.w}mm;` : "";
-  // No position set → keep natural flow, but still honour a custom width.
-  if (b.x == null && b.y == null) return width;
+  const width  = b.w != null ? `width:${b.w}mm;` : "";
+  const height = b.h != null ? `min-height:${b.h}mm;` : "";
+  // No position set → keep natural flow, but still honour a custom width/height.
+  if (b.x == null && b.y == null) return width + height;
   const left = (b.x ?? m.left) - m.left;
   const top  = (b.y ?? m.top)  - m.top;
-  return `position:absolute;left:${left}mm;top:${top}mm;right:auto;margin:0;${width}`;
+  return `position:absolute;left:${left}mm;top:${top}mm;right:auto;margin:0;${width}${height}`;
 }
 
 /** Absolutely-positioned logo image, or empty string when none is set. */

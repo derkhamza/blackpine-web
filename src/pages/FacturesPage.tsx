@@ -3,10 +3,11 @@ import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import { useContextMenu, type CtxItem } from "../components/ContextMenu";
+import { ActionIcon } from "../components/ActionIcon";
 import { useCabinet } from "../context/CabinetContext";
-import { APPT_TYPE_LABELS } from "../lib/cabinetTypes";
+import { apptTypeLabel } from "../lib/cabinetTypes";
 import { nextInvoiceNumber, printFacture } from "../lib/facturePrinter";
-import { paymentSummary } from "../lib/billing";
+import { paymentSummary, lineGross, lineDiscount, billLineDiscounts } from "../lib/billing";
 import { todayIso, formatMAD } from "../lib/format";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -133,7 +134,7 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
       invoiceDate:   today,
       patientName:   appt.patientName,
       patientCnops:  patient?.cnopsNumber,
-      serviceLabel:  APPT_TYPE_LABELS[appt.type] + " médicale",
+      serviceLabel:  apptTypeLabel(appt.type) + " médicale",
       serviceDate:   appt.date,
       amount:        appt.billedAmount ?? 0,
       items:         appt.billedItems,
@@ -151,7 +152,7 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
       invoiceDate:   appt.invoiceIssuedAt ? appt.invoiceIssuedAt.slice(0, 10) : appt.date,
       patientName:   appt.patientName,
       patientCnops:  patient?.cnopsNumber,
-      serviceLabel:  APPT_TYPE_LABELS[appt.type] + " médicale",
+      serviceLabel:  apptTypeLabel(appt.type) + " médicale",
       serviceDate:   appt.date,
       amount:        appt.billedAmount ?? 0,
       items:         appt.billedItems,
@@ -194,7 +195,7 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
                   {a.patientId
                     ? <Link to={`/patients/${a.patientId}`} className="fac-patient-link">{a.patientName}</Link>
                     : <span className="fac-toemit-name">{a.patientName || t("factures.walkIn")}</span>}
-                  <span className="fac-toemit-meta">{APPT_TYPE_LABELS[a.type]} · {fmtDate(a.date)}</span>
+                  <span className="fac-toemit-meta">{apptTypeLabel(a.type)} · {fmtDate(a.date)}</span>
                 </div>
                 <span className="fac-toemit-amount">{formatMAD(preparedNet(a))}</span>
                 <Link to={`/agenda/${a.id}`} className="fac-emit-btn">{t("factures.collect")}</Link>
@@ -322,16 +323,16 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
               {filtered.map(a => {
                 const items = a.billedItems && a.billedItems.length > 0
                   ? a.billedItems
-                  : [{ label: APPT_TYPE_LABELS[a.type], qty: 1, unitPrice: a.billedAmount ?? 0 }];
+                  : [{ label: apptTypeLabel(a.type), qty: 1, unitPrice: a.billedAmount ?? 0 }];
                 const isOpen = expanded.has(a.id);
                 const menu: CtxItem[] = [
                   a.invoiceNumber
-                    ? { label: t("ctx.reprintInvoice"), icon: "🖨", onClick: () => reprintInvoice(a.id) }
-                    : { label: t("ctx.emitInvoice"), icon: "📄", onClick: () => emitInvoice(a.id) },
-                  { label: t("ctx.openAppt"), icon: "📋", onClick: () => navigate(`/agenda/${a.id}`) },
+                    ? { label: t("ctx.reprintInvoice"), icon: <ActionIcon name="print" />, onClick: () => reprintInvoice(a.id) }
+                    : { label: t("ctx.emitInvoice"), icon: <ActionIcon name="file" />, onClick: () => emitInvoice(a.id) },
+                  { label: t("ctx.openAppt"), icon: <ActionIcon name="clipboard" />, onClick: () => navigate(`/agenda/${a.id}`) },
                   ...(a.patientId
-                    ? [{ label: t("ctx.patientFile"), icon: "👤", onClick: () => navigate(`/patients/${a.patientId}`) }] : []),
-                  { label: t("factures.remove"), icon: "🗑", danger: true, divider: true, onClick: () => removeInvoice(a.id) },
+                    ? [{ label: t("ctx.patientFile"), icon: <ActionIcon name="user" />, onClick: () => navigate(`/patients/${a.patientId}`) }] : []),
+                  { label: t("factures.remove"), icon: <ActionIcon name="trash" />, danger: true, divider: true, onClick: () => removeInvoice(a.id) },
                 ];
                 return (
                 <Fragment key={a.id}>
@@ -362,7 +363,7 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
                   </td>
                   <td className="fac-date">{fmtDate(a.date)}</td>
                   <td>
-                    <span className="fac-type-chip">{APPT_TYPE_LABELS[a.type]}</span>
+                    <span className="fac-type-chip">{apptTypeLabel(a.type)}</span>
                   </td>
                   <td className="fac-r fac-amount">
                     {a.billedAmount != null ? formatMAD(a.billedAmount) : "—"}
@@ -400,14 +401,40 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
                         <div className="fac-acts-title">{t("factures.actsTitle")}</div>
                         <table className="fac-acts-table">
                           <tbody>
-                            {items.map((it, i) => (
-                              <tr key={i}>
-                                <td className="fac-acts-label">{it.label}</td>
-                                <td className="fac-acts-qty">×{it.qty}</td>
-                                <td className="fac-acts-unit">{formatMAD(it.unitPrice)}</td>
-                                <td className="fac-acts-sub fac-r">{formatMAD(it.unitPrice * it.qty)}</td>
+                            {/* Each line shows its GROSS amount; per-act and global
+                                discounts are subtracted in the subtotal rows below,
+                                mirroring the printed facture so the two reconcile. */}
+                            {items.map((it, i) => {
+                              const disc = lineDiscount(it);
+                              return (
+                                <tr key={i}>
+                                  <td className="fac-acts-label">
+                                    {it.label}
+                                    {disc > 0 && (
+                                      <span className="fac-acts-remise-tag">
+                                        {t("factures.remiseTag", {
+                                          detail: it.remiseType === "pct"
+                                            ? `${it.remise}%`
+                                            : formatMAD(it.remise ?? 0),
+                                        })}
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td className="fac-acts-qty">×{it.qty}</td>
+                                  <td className="fac-acts-unit">{formatMAD(it.unitPrice)}</td>
+                                  <td className="fac-acts-sub fac-r">{formatMAD(lineGross(it))}</td>
+                                </tr>
+                              );
+                            })}
+                            {billLineDiscounts(items) > 0 ? (
+                              <tr className="fac-acts-reduction">
+                                <td className="fac-acts-label">{t("factures.actsRemise")}</td>
+                                <td></td><td></td>
+                                <td className="fac-acts-sub fac-r" style={{ color: "var(--coral)" }}>
+                                  −{formatMAD(billLineDiscounts(items))}
+                                </td>
                               </tr>
-                            ))}
+                            ) : null}
                             {a.billedReduction ? (
                               <tr className="fac-acts-reduction">
                                 <td className="fac-acts-label">{t("factures.reduction")}</td>

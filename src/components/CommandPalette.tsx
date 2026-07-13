@@ -6,7 +6,7 @@ import { useCabinet } from "../context/CabinetContext";
 import { formatMAD, formatDateShort } from "../lib/format";
 import { fullName as fmtFullName } from "../lib/nameFormat";
 import {
-  APPT_TYPE_LABELS, APPT_STATUS_LABELS,
+  apptTypeLabel, APPT_STATUS_LABELS,
   EXAM_TYPE_LABELS, CERT_TYPE_LABELS,
 } from "../lib/cabinetTypes";
 
@@ -115,7 +115,7 @@ export function CommandPalette({ onClose }: Props) {
           id:       a.id,
           kind:     "appointment",
           title:    a.patientName,
-          subtitle: `${formatDateShort(a.date)} · ${APPT_TYPE_LABELS[a.type]} · ${APPT_STATUS_LABELS[a.status]}`,
+          subtitle: `${formatDateShort(a.date)} · ${apptTypeLabel(a.type)} · ${APPT_STATUS_LABELS[a.status]}`,
           path:     `/agenda/${a.id}`,
           accent:   "var(--gold)",
         });
@@ -168,7 +168,7 @@ export function CommandPalette({ onClose }: Props) {
 
     // Standalone prescriptions
     for (const p of prescriptions) {
-      const drugs = p.lines.map(l => l.drug.toLowerCase()).join(" ");
+      const drugs = (p.lines ?? []).map(l => l.drug.toLowerCase()).join(" ");
       if (
         p.patientName.toLowerCase().includes(q) ||
         drugs.includes(q) ||

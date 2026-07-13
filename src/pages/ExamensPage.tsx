@@ -56,13 +56,20 @@ const COMMON_LABS: Array<{ label: string; unit: string; refMin: number; refMax: 
 
 // Print function — intentionally kept in French (official medical document)
 function printExam(exam: ExamResult, doctorName?: string) {
+  // Escape free-text before interpolating into the print HTML: values can be
+  // patient/secretary-supplied, so unescaped they inject script into the same-
+  // origin print window and steal the session token. The numeric abnormal-check
+  // runs on the RAW value, so escape only at the display points.
+  const esc = (s: unknown) =>
+    String(s ?? "").replace(/[&<>"']/g, (m) =>
+      (({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }) as Record<string, string>)[m]);
   const abnormal = exam.values.filter(v => isValueAbnormal(v));
   const valRows = exam.values.map(v => {
     const abn = isValueAbnormal(v);
     return `<tr style="${abn ? "background:#FFF0F0;" : ""}">
-      <td style="padding:6px 10px;border-bottom:1px solid #eee;font-weight:600">${v.label}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #eee;font-weight:600">${esc(v.label)}</td>
       <td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right;font-weight:700;color:${abn ? "#E85B5B" : "#111"}">
-        ${v.value}${v.unit ? " " + v.unit : ""}${abn ? " ⚠" : ""}
+        ${esc(v.value)}${v.unit ? " " + esc(v.unit) : ""}${abn ? " ⚠" : ""}
       </td>
       <td style="padding:6px 10px;border-bottom:1px solid #eee;color:#888;font-size:12px;text-align:right">
         ${v.refMin !== undefined && v.refMax !== undefined
@@ -83,15 +90,15 @@ function printExam(exam: ExamResult, doctorName?: string) {
   .footer { margin-top: 20px; font-size: 12px; color: #888; border-top: 1px solid #eee; padding-top: 10px; }
 </style>
 </head><body>
-<h1>${exam.title}</h1>
+<h1>${esc(exam.title)}</h1>
 <div class="sub">
-  Patient : <strong>${exam.patientName}</strong> &nbsp;|&nbsp;
+  Patient : <strong>${esc(exam.patientName)}</strong> &nbsp;|&nbsp;
   Date : <strong>${new Date(exam.date + "T12:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</strong> &nbsp;|&nbsp;
   Type : ${EXAM_TYPE_LABELS[exam.type]}
-  ${exam.labName ? " &nbsp;|&nbsp; Labo : " + exam.labName : ""}
+  ${exam.labName ? " &nbsp;|&nbsp; Labo : " + esc(exam.labName) : ""}
 </div>
 ${abnormal.length > 0
-  ? `<div class="alert">⚠ ${abnormal.length} résultat${abnormal.length > 1 ? "s" : ""} anormal${abnormal.length > 1 ? "aux" : ""} : ${abnormal.map(v => v.label).join(", ")}</div>`
+  ? `<div class="alert">⚠ ${abnormal.length} résultat${abnormal.length > 1 ? "s" : ""} anormal${abnormal.length > 1 ? "aux" : ""} : ${abnormal.map(v => esc(v.label)).join(", ")}</div>`
   : ""}
 <table>
   <thead><tr>
@@ -101,9 +108,9 @@ ${abnormal.length > 0
   </tr></thead>
   <tbody>${valRows}</tbody>
 </table>
-${exam.notes ? `<div style="background:#f9f9f9;border-radius:6px;padding:10px 14px;font-size:13px;margin-bottom:14px"><strong>Observations :</strong> ${exam.notes}</div>` : ""}
+${exam.notes ? `<div style="background:#f9f9f9;border-radius:6px;padding:10px 14px;font-size:13px;margin-bottom:14px"><strong>Observations :</strong> ${esc(exam.notes)}</div>` : ""}
 <div class="footer">
-  Médecin : ${doctorName ?? "—"} &nbsp;|&nbsp; Imprimé le ${new Date().toLocaleDateString("fr-FR")}
+  Médecin : ${esc(doctorName ?? "—")} &nbsp;|&nbsp; Imprimé le ${new Date().toLocaleDateString("fr-FR")}
 </div>
 <script>window.onload = () => window.print();</script>
 </body></html>`;

@@ -5,51 +5,45 @@ import { useApp } from "./context/AppContext";
 import { useCabinet } from "./context/CabinetContext";
 import type { SecretaryPermissions } from "./lib/cabinetTypes";
 import { DEFAULT_SECRETARY_PERMISSIONS } from "./lib/cabinetTypes";
+import { isAdminEmail } from "./lib/owner";
 import { OnboardingWizard } from "./pages/OnboardingWizard";
 import { WelcomeTour, hasSeenTour } from "./components/WelcomeTour";
+import { SignalBus } from "./components/SignalBus";
+import { CabinetChat } from "./components/CabinetChat";
+import { WhatsNew } from "./components/WhatsNew";
 import { HelpPage }              from "./pages/HelpPage";
 import { AuthPage }              from "./pages/AuthPage";
 import { BookingPage }           from "./pages/BookingPage";
 import { DeleteAccountPage }     from "./pages/DeleteAccountPage";
 import { AdminPage }             from "./pages/AdminPage";
 import { DashboardPage }         from "./pages/DashboardPage";
-import { ExplainPage }           from "./pages/ExplainPage";
 import { ProfilePage }           from "./pages/ProfilePage";
 import { AgendaPage }            from "./pages/AgendaPage";
 import { AppointmentDetailPage } from "./pages/AppointmentDetailPage";
 import { PatientsPage }          from "./pages/PatientsPage";
 import { PatientDetailPage }     from "./pages/PatientDetailPage";
-import { StatsPage }             from "./pages/StatsPage";
 import { PayrollPage }           from "./pages/PayrollPage";
-import { RemboursementsPage }    from "./pages/RemboursementsPage";
 import { WaitingRoomPage }       from "./pages/WaitingRoomPage";
-import { FacturesPage }          from "./pages/FacturesPage";
 import { StocksSupplyPage }      from "./pages/StocksSupplyPage";
-import { StockPage }             from "./pages/StockPage";
 import { CalculateursPage }      from "./pages/CalculateursPage";
-import { MessagesPage }          from "./pages/MessagesPage";
-import { TeleconsultPage }       from "./pages/TeleconsultPage";
 import { NotesPage }             from "./pages/NotesPage";
-import { FournisseursPage }      from "./pages/FournisseursPage";
 import { ExamensPage }           from "./pages/ExamensPage";
-import { OrdonancesPage }        from "./pages/OrdonancesPage";
-import { CertificatsPage }       from "./pages/CertificatsPage";
-import { ReportPage }            from "./pages/ReportPage";
 import { ComptabilitePage }      from "./pages/ComptabilitePage";
-import { OptimisationPage }      from "./pages/OptimisationPage";
 import { ParametresPage }        from "./pages/ParametresPage";
-// ── Combined/merged pages ─────────────────────────────────────────────────────
+// ── Combined/merged pages (each hosts the former standalone pages as tabs;
+//    the old standalone routes now redirect here, so they aren't imported) ────
 import { DocumentsPage }         from "./pages/DocumentsPage";
 import { CommunicationPage }     from "./pages/CommunicationPage";
 import { RapportsPage }          from "./pages/RapportsPage";
 import { FacturationPage }       from "./pages/FacturationPage";
 
-function RequireAuth({ children, secretaryOk = false, perm }: {
+function RequireAuth({ children, secretaryOk = false, perm, adminOk = false }: {
   children: JSX.Element;
   secretaryOk?: boolean;
   perm?: keyof SecretaryPermissions;
+  adminOk?: boolean;
 }) {
-  const { isAuthenticated, isSecretary } = useApp();
+  const { isAuthenticated, isSecretary, user } = useApp();
   const { doctorProfile } = useCabinet();
   // A secretary may only reach explicitly-allowed routes; everything else
   // bounces them to their home (the agenda). Routes flagged with a `perm` are
@@ -62,7 +56,12 @@ function RequireAuth({ children, secretaryOk = false, perm }: {
     }
     return children;
   }
-  return isAuthenticated ? children : <Navigate to="/login" replace />;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  // Product-owner accounts get a PURE admin console: every clinical route folds
+  // back to /admin. Only routes explicitly flagged adminOk (the console itself)
+  // are reachable. Keeps the operator login free of clinical clutter.
+  if (isAdminEmail(user?.email) && !adminOk) return <Navigate to="/admin" replace />;
+  return children;
 }
 
 function OnboardingGate() {
@@ -163,12 +162,20 @@ function ModalDragGuard() {
 }
 
 export function App() {
+  const { user, isSecretary } = useApp();
+  // Product-owner accounts run a pure admin console — none of the clinical
+  // overlays (onboarding wizard, feature tour, doctor↔secretary signals & chat)
+  // apply to them.
+  const isAdmin = !isSecretary && isAdminEmail(user?.email);
   return (
     <>
     <RouteTracker />
     <ModalDragGuard />
-    <OnboardingGate />
-    <TourGate />
+    {!isAdmin && <OnboardingGate />}
+    {!isAdmin && <TourGate />}
+    {!isAdmin && <SignalBus />}
+    {!isAdmin && <CabinetChat />}
+    {!isAdmin && <WhatsNew />}
     <Routes>
       <Route path="/login" element={<AuthPage />} />
       {/* Public patient self-booking — no auth */}
@@ -181,7 +188,7 @@ export function App() {
       } />
       <Route path="/transactions" element={<Navigate to="/facturation" replace />} />
       <Route path="/admin" element={
-        <RequireAuth><AdminPage /></RequireAuth>
+        <RequireAuth adminOk><AdminPage /></RequireAuth>
       } />
       {/* ── Combined pages (new primary routes) ── */}
       <Route path="/documents" element={
@@ -220,26 +227,14 @@ export function App() {
       <Route path="/patients/:patientId" element={
         <RequireAuth secretaryOk><PatientDetailPage /></RequireAuth>
       } />
-      <Route path="/rapport" element={
-        <RequireAuth><ReportPage /></RequireAuth>
-      } />
       <Route path="/comptabilite" element={
         <RequireAuth perm="viewFinances"><ComptabilitePage /></RequireAuth>
-      } />
-      <Route path="/optimisation" element={
-        <RequireAuth><OptimisationPage /></RequireAuth>
       } />
       <Route path="/salaires" element={
         <RequireAuth perm="managePayroll"><PayrollPage /></RequireAuth>
       } />
-      <Route path="/remboursements" element={
-        <RequireAuth><RemboursementsPage /></RequireAuth>
-      } />
       <Route path="/salle-attente" element={
         <RequireAuth secretaryOk><WaitingRoomPage /></RequireAuth>
-      } />
-      <Route path="/factures" element={
-        <RequireAuth><FacturesPage /></RequireAuth>
       } />
       <Route path="/rappels" element={<Navigate to="/communication" replace />} />
       <Route path="/analytiques" element={<Navigate to="/rapports" replace />} />
@@ -249,26 +244,11 @@ export function App() {
       <Route path="/calculateurs" element={
         <RequireAuth perm="useCalculators"><CalculateursPage /></RequireAuth>
       } />
-      <Route path="/messages" element={
-        <RequireAuth><MessagesPage /></RequireAuth>
-      } />
-      <Route path="/teleconsult" element={
-        <RequireAuth><TeleconsultPage /></RequireAuth>
-      } />
       <Route path="/notes" element={
         <RequireAuth perm="useNotes"><NotesPage /></RequireAuth>
       } />
-      <Route path="/fournisseurs" element={
-        <RequireAuth><FournisseursPage /></RequireAuth>
-      } />
       <Route path="/examens" element={
         <RequireAuth perm="viewClinical"><ExamensPage /></RequireAuth>
-      } />
-      <Route path="/ordonnances" element={
-        <RequireAuth><OrdonancesPage /></RequireAuth>
-      } />
-      <Route path="/certificats" element={
-        <RequireAuth><CertificatsPage /></RequireAuth>
       } />
       <Route path="/profil" element={
         <RequireAuth><ProfilePage /></RequireAuth>

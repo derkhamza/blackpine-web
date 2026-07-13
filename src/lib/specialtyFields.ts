@@ -775,6 +775,94 @@ export const BILAN_CATALOG: BilanGroup[] = [
     ],
   },
   {
+    key: "epp",
+    title: "Électrophorèse des protéines sériques (EPP)",
+    fields: [
+      { key: "bl_epp_prot",   label: "Protéines totales",  type: "number", unit: "g/L", placeholder: "70" },
+      { key: "bl_epp_alb",    label: "Albumine",           type: "number", unit: "g/L", placeholder: "45" },
+      { key: "bl_epp_a1",     label: "α1-globulines",      type: "number", unit: "g/L", placeholder: "3" },
+      { key: "bl_epp_a2",     label: "α2-globulines",      type: "number", unit: "g/L", placeholder: "7" },
+      { key: "bl_epp_beta",   label: "β-globulines",       type: "number", unit: "g/L", placeholder: "9" },
+      { key: "bl_epp_gamma",  label: "γ-globulines",       type: "number", unit: "g/L", placeholder: "12" },
+      { key: "bl_epp_pic",    label: "Pic monoclonal",     type: "text",   placeholder: "Absent / présent — localisation, taux" },
+    ],
+  },
+  {
+    key: "electro_hb",
+    title: "Électrophorèse de l'hémoglobine",
+    fields: [
+      { key: "bl_ehb_hba",    label: "HbA",       type: "number", unit: "%", placeholder: "97" },
+      { key: "bl_ehb_hba2",   label: "HbA2",      type: "number", unit: "%", placeholder: "2.5" },
+      { key: "bl_ehb_hbf",    label: "HbF",       type: "number", unit: "%", placeholder: "0.5" },
+      { key: "bl_ehb_hbs",    label: "HbS",       type: "number", unit: "%", placeholder: "0" },
+      { key: "bl_ehb_hbc",    label: "HbC / autre", type: "text", placeholder: "" },
+      { key: "bl_ehb_concl",  label: "Interprétation", type: "text", placeholder: "Profil normal / trait drépanocytaire / β-thalassémie…" },
+    ],
+  },
+  {
+    key: "hemolyse",
+    title: "Bilan d'hémolyse / anémie",
+    fields: [
+      { key: "bl_hemo_retic",  label: "Réticulocytes",  type: "number", unit: "G/L",    placeholder: "80" },
+      { key: "bl_hemo_hapto",  label: "Haptoglobine",   type: "number", unit: "g/L",    placeholder: "1.2" },
+      { key: "bl_hemo_ldh",    label: "LDH",            type: "number", unit: "UI/L",   placeholder: "200" },
+      { key: "bl_hemo_bili",   label: "Bilirubine libre", type: "number", unit: "mg/L", placeholder: "5" },
+      { key: "bl_hemo_coombs", label: "Test de Coombs direct", type: "select", options: ["Non fait", "Négatif", "Positif"] },
+    ],
+  },
+  {
+    key: "selles",
+    title: "Coproculture & parasitologie des selles",
+    fields: [
+      { key: "bl_sel_aspect",  label: "Aspect",          type: "text", placeholder: "Moulées / liquides / glaireuses…" },
+      { key: "bl_sel_culture", label: "Coproculture",    type: "text", placeholder: "Flore normale / Salmonella / Shigella…" },
+      { key: "bl_sel_para",    label: "Parasitologie (EPS)", type: "text", placeholder: "Absence de kystes / œufs — Giardia, amibes…" },
+      { key: "bl_sel_sang",    label: "Sang occulte",    type: "select", options: ["Non fait", "Négatif", "Positif"] },
+      { key: "bl_sel_calpro",  label: "Calprotectine fécale", type: "number", unit: "µg/g", placeholder: "50" },
+    ],
+  },
+  {
+    key: "lcr",
+    title: "Analyse du liquide céphalo-rachidien (LCR)",
+    fields: [
+      { key: "bl_lcr_aspect",  label: "Aspect",          type: "select", options: ["Eau de roche", "Trouble", "Hématique", "Xanthochromique"] },
+      { key: "bl_lcr_cellules", label: "Éléments / cellularité", type: "text", placeholder: "5 /mm³ — lymphocytes" },
+      { key: "bl_lcr_prot",    label: "Protéinorachie",  type: "number", unit: "g/L",   placeholder: "0.4" },
+      { key: "bl_lcr_gly",     label: "Glycorachie",     type: "number", unit: "g/L",   placeholder: "0.6" },
+      { key: "bl_lcr_direct",  label: "Examen direct / culture", type: "text", placeholder: "Absence de germe" },
+    ],
+  },
+  {
+    key: "spermogramme",
+    title: "Spermogramme",
+    fields: [
+      { key: "bl_sperm_vol",    label: "Volume",           type: "number", unit: "mL",     placeholder: "3" },
+      { key: "bl_sperm_conc",   label: "Concentration",    type: "number", unit: "M/mL",   placeholder: "40" },
+      { key: "bl_sperm_mobil",  label: "Mobilité progressive", type: "number", unit: "%",  placeholder: "40" },
+      { key: "bl_sperm_typiq",  label: "Formes typiques",  type: "number", unit: "%",      placeholder: "5" },
+      { key: "bl_sperm_vita",   label: "Vitalité",         type: "number", unit: "%",      placeholder: "60" },
+      { key: "bl_sperm_ph",     label: "pH",               type: "number",                 placeholder: "7.5" },
+    ],
+  },
+  {
+    key: "hpylori",
+    title: "Helicobacter pylori",
+    fields: [
+      { key: "bl_hp_methode",  label: "Méthode",          type: "select", options: ["Test respiratoire à l'urée", "Antigène fécal", "Sérologie", "Biopsie (test uréase)"] },
+      { key: "bl_hp_resultat", label: "Résultat",         type: "select", options: ["Non fait", "Négatif", "Positif"] },
+    ],
+  },
+  {
+    key: "hgpo",
+    title: "Hyperglycémie provoquée orale (HGPO 75 g)",
+    fields: [
+      { key: "bl_hgpo_t0",   label: "Glycémie à jeun (T0)", type: "number", unit: "g/L", placeholder: "0.90" },
+      { key: "bl_hgpo_t60",  label: "Glycémie à 60 min",    type: "number", unit: "g/L", placeholder: "1.50" },
+      { key: "bl_hgpo_t120", label: "Glycémie à 120 min",   type: "number", unit: "g/L", placeholder: "1.30" },
+      { key: "bl_hgpo_concl", label: "Interprétation",      type: "select", options: ["Normale", "Intolérance au glucose", "Diabète", "Diabète gestationnel"] },
+    ],
+  },
+  {
     key: "specialise",
     title: "Bilan spécialisé",
     fields: [
@@ -866,4 +954,20 @@ export const SPECIALTY_BILANS: Record<string, string[]> = {
 export function getSpecialtyBilans(specialtyLabel?: string): string[] {
   const id = specialtyIdFromLabel(specialtyLabel);
   return (id && SPECIALTY_BILANS[id]) || DEFAULT_BILANS;
+}
+
+// ── Flat field metadata (label + unit) across every specialty & bilan field ────
+// Lets read-only surfaces (e.g. the appointment History tab) turn a stored
+// consultationNote.extraFields key back into a human label + unit.
+let FLAT_FIELD_META: Record<string, { label: string; unit?: string }> | null = null;
+export function fieldMeta(key: string): { label: string; unit?: string } {
+  if (!FLAT_FIELD_META) {
+    const map: Record<string, { label: string; unit?: string }> = {};
+    for (const groups of Object.values(SPECIALTY_FIELD_MAP))
+      for (const g of groups) for (const f of g.fields) map[f.key] = { label: f.label, unit: f.unit };
+    for (const g of BILAN_CATALOG)
+      for (const f of g.fields) map[f.key] = { label: f.label, unit: f.unit };
+    FLAT_FIELD_META = map;
+  }
+  return FLAT_FIELD_META[key] ?? { label: key };
 }

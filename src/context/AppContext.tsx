@@ -169,10 +169,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     warmup()
       .then(() => pullData(false))
       .then((d) => {
-        if (d.profile)            setProfileState(d.profile);
-        if (d.transactions.length) setTx(d.transactions);
-        if (d.assets.length)       setAssets(d.assets);
-        if (d.recurringRules.length) setRules(d.recurringRules);
+        // Apply unconditionally — this is the authoritative server copy for the
+        // restored account; an empty field must not fall back to stale state.
+        setProfileState(d.profile ?? DEFAULT_PROFILE);
+        setTx(d.transactions);
+        setAssets(d.assets);
+        setRules(d.recurringRules);
         if (d.serverSubscription) setSubscription(d.serverSubscription);
         hydratedRef.current = true;
         setSyncStatus("synced");
@@ -225,6 +227,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // ── Trigger sync whenever data changes ────────────────────────────────
   useEffect(() => { triggerSync(); }, [profile, transactions, assets, recurringRules, triggerSync]);
 
+  // Reset every piece of account-scoped finance state back to empty. Used on
+  // logout and on every account switch so one account's finances/comptabilité
+  // (transactions, assets, recurring rules, doctor identity on invoices) can
+  // never bleed into another. Keep this in lockstep with the state above.
+  const resetFinances = useCallback(() => {
+    setProfileState(DEFAULT_PROFILE);
+    setTx([]); setAssets([]); setRules([]);
+    setSubscription(null);
+    hydratedRef.current = false;
+  }, []);
+
   // ── Auth ───────────────────────────────────────────────────────────────
   const login = useCallback(async (email: string, pass: string) => {
     // Auth is the only step that must succeed for login. The initial data
@@ -235,43 +248,52 @@ export function AppProvider({ children }: { children: ReactNode }) {
     clearSecretarySession(); setSecretaryOwner(null);
     const u = await apiLogin(email, pass);
     setUser(u); setIsAuth(true);
+    // Wipe the OUTGOING account's finances the moment the new account is
+    // authenticated, so nothing from the previous session can be shown against
+    // this one — critical when switching accounts without an explicit logout,
+    // or when the new account has no finances yet (the pull below would then
+    // leave the old data in place). The pull repopulates immediately after.
+    resetFinances();
     setSyncStatus("syncing");
     try {
       const d = await pullData();
-      if (d.profile)             setProfileState(d.profile);
-      if (d.transactions.length)  setTx(d.transactions);
-      if (d.assets.length)        setAssets(d.assets);
-      if (d.recurringRules.length) setRules(d.recurringRules);
-      if (d.serverSubscription) setSubscription(d.serverSubscription);
+      // Apply UNCONDITIONALLY: an empty result must overwrite (show nothing),
+      // never preserve the previous account's data.
+      setProfileState(d.profile ?? DEFAULT_PROFILE);
+      setTx(d.transactions);
+      setAssets(d.assets);
+      setRules(d.recurringRules);
+      setSubscription(d.serverSubscription ?? null);
       hydratedRef.current = true;
       setSyncStatus("synced");
       setLastSyncedAt(new Date().toISOString());
     } catch {
-      // Already authenticated; data will load on the next sync / reload.
+      // Already authenticated; data will load on the next sync / reload. The
+      // finances stay CLEARED (not the previous account's) until then.
       setSyncStatus("error");
     }
-  }, []);
+  }, [resetFinances]);
 
   const signup = useCallback(async (email: string, pass: string, code: string) => {
     clearSecretarySession(); setSecretaryOwner(null);
     const u = await apiSignup(email, pass, code);
     setUser(u); setIsAuth(true);
-    // Brand-new account: nothing on the server to clobber, so allow pushes.
+    // Brand-new account: clear any finances still in memory from a prior session
+    // so the new account starts truly empty (and we never push the old account's
+    // data to it). Nothing on the server to clobber, so allow pushes after.
+    resetFinances();
     hydratedRef.current = true;
     // Start the 30-day free trial immediately (server set trial_start at signup).
     setSubscription({ trialStart: new Date().toISOString(), plan: "free_trial", expiresAt: null });
     setSyncStatus("synced");
-  }, []);
+  }, [resetFinances]);
 
   const logout = useCallback(() => {
     apiLogout();
-    hydratedRef.current = false;
     setUser(null); setIsAuth(false);
-    setProfileState(DEFAULT_PROFILE);
-    setTx([]); setAssets([]); setRules([]);
-    setSubscription(null);
+    resetFinances();
     setSyncStatus("idle");
-  }, []);
+  }, [resetFinances]);
 
   // ── Subscription: redeem a no-card activation code ─────────────────────────
   const applyActivation = useCallback(async (code: string) => {
@@ -285,9 +307,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const startSecretaryLogin = useCallback(async (username: string, password: string) => {
     apiLogout();
     setUser(null); setIsAuth(false);
+    // Leaving the doctor account → clear its finances so nothing carries over.
+    resetFinances();
     const owner = await secretaryLogin(username.trim(), password);
     setSecretaryOwner(owner);
-  }, []);
+  }, [resetFinances]);
 
   const endSecretarySession = useCallback(() => {
     clearSecretarySession();

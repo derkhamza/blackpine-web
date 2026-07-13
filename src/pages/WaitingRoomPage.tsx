@@ -2,10 +2,11 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import { Link } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import { useCabinet } from "../context/CabinetContext";
+import { emitSignal } from "../api/client";
 import { todayIso } from "../lib/format";
 import { AnimatedNumber } from "../components/AnimatedNumber";
 import type { Appointment } from "../lib/cabinetTypes";
-import { APPT_TYPE_LABELS, APPT_TYPE_COLORS } from "../lib/cabinetTypes";
+import { apptTypeLabel, apptTypeColor } from "../lib/cabinetTypes";
 import { useTranslation } from "react-i18next";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -36,8 +37,8 @@ interface CardProps {
 function WaitCard({ appt, now, onArrive, onCall, onDone, onNoShow }: CardProps) {
   // Cards can be dragged between columns to change status.
   const { t } = useTranslation();
-  const color = (APPT_TYPE_COLORS as Record<string, string>)[appt.type] ?? "#888";
-  const typeLabel = (APPT_TYPE_LABELS as Record<string, string>)[appt.type] ?? appt.type;
+  const color = apptTypeColor(appt.type);
+  const typeLabel = apptTypeLabel(appt.type);
 
   const waitLabel =
     appt.status === "arrived" && appt.checkedInAt
@@ -150,8 +151,15 @@ export function WaitingRoomPage() {
   const { t, i18n } = useTranslation();
   const locale = i18n.language?.slice(0, 2) === "ar" ? "ar-MA"
                : i18n.language?.slice(0, 2) === "en" ? "en-US" : "fr-FR";
-  const { appointments, updateAppointment } = useCabinet();
+  const { appointments, updateAppointment, doctorProfile, role } = useCabinet();
   const today = todayIso();
+
+  // Ring the other side of the cabinet (secretary/doctor) when a patient is
+  // called in, so their board reflects it at once with a notification.
+  const ringPatientCalled = useCallback((appt: Appointment) => {
+    emitSignal("patient_called", { patientName: appt.patientName },
+      role === "doctor" ? doctorProfile.fullName || undefined : undefined);
+  }, [role, doctorProfile.fullName]);
 
   // Live clock — refreshes every 30 s
   const [now, setNow] = useState(() => new Date());
@@ -178,8 +186,10 @@ export function WaitingRoomPage() {
   // Actions
   const arrive = useCallback((appt: Appointment) =>
     updateAppointment({ ...appt, status: "arrived",         checkedInAt:      new Date().toISOString() }), [updateAppointment]);
-  const call   = useCallback((appt: Appointment) =>
-    updateAppointment({ ...appt, status: "in_consultation", inConsultationAt: new Date().toISOString() }), [updateAppointment]);
+  const call   = useCallback((appt: Appointment) => {
+    updateAppointment({ ...appt, status: "in_consultation", inConsultationAt: new Date().toISOString() });
+    ringPatientCalled(appt);
+  }, [updateAppointment, ringPatientCalled]);
   const done   = useCallback((appt: Appointment) =>
     updateAppointment({ ...appt, status: "completed" }), [updateAppointment]);
   const noShow = useCallback((appt: Appointment) =>
@@ -196,10 +206,11 @@ export function WaitingRoomPage() {
         updateAppointment({ ...appt, status: "arrived", checkedInAt: appt.checkedInAt ?? new Date().toISOString() });
       } else if (col === "in_consultation" && appt.status !== "in_consultation") {
         updateAppointment({ ...appt, status: "in_consultation", inConsultationAt: appt.inConsultationAt ?? new Date().toISOString() });
+        ringPatientCalled(appt);
       } else if (col === "done" && appt.status !== "completed") {
         updateAppointment({ ...appt, status: "completed" });
       }
-    }, [todayAppts, updateAppointment]);
+    }, [todayAppts, updateAppointment, ringPatientCalled]);
 
   const timeStr = now.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
   const dateStr = now.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" });

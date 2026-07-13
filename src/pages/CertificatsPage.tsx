@@ -31,6 +31,29 @@ function daysBetween(from: string, to: string): number {
 function printCertificate(cert: Certificate, doctor: {
   fullName: string; specialtyLabel?: string; address?: string; phone?: string; inpe?: string;
 }) {
+  // Escape every free-text field before it is interpolated into the print HTML
+  // below. These values can carry patient- or secretary-supplied content (e.g.
+  // an online-booking name) that would otherwise inject script into the same-
+  // origin print window and exfiltrate the session token.
+  const esc = (s: unknown) =>
+    String(s ?? "").replace(/[&<>"']/g, (m) =>
+      (({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }) as Record<string, string>)[m]);
+  cert = {
+    ...cert,
+    patientName:     esc(cert.patientName),
+    content:         esc(cert.content),
+    specialist:      esc(cert.specialist),
+    reason:          esc(cert.reason),
+    clinicalSummary: esc(cert.clinicalSummary),
+  };
+  doctor = {
+    ...doctor,
+    fullName:       esc(doctor.fullName),
+    specialtyLabel: esc(doctor.specialtyLabel),
+    address:        esc(doctor.address),
+    phone:          esc(doctor.phone),
+    inpe:           esc(doctor.inpe),
+  };
   let body = "";
 
   if (cert.type === "medical") {

@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { CabinetDoctorProfile, ExamRequestLine, ExamRequestCategory } from "../lib/cabinetTypes";
+import type { CabinetDoctorProfile, ExamRequestLine, ExamRequestCategory, ExamRequestTemplate } from "../lib/cabinetTypes";
 import { printExamRequest } from "../lib/examRequestPrinter";
 import { PatientPicker, type PickerPatient } from "./PatientPicker";
 import { ModalPortal } from "./ModalPortal";
 import {
-  EXAM_CATALOG, EXAM_REQ_CATEGORIES, EXAM_REQ_CATEGORY_COLORS,
+  EXAM_CATALOG, EXAM_REQ_CATEGORIES, EXAM_REQ_CATEGORY_COLORS, EXAM_REQUEST_MODELS,
 } from "../lib/examCatalog";
 
 const uid = () => Math.random().toString(36).slice(2, 9);
@@ -23,12 +23,18 @@ interface Props {
   patients?:     PickerPatient[];
   initialLines?:      ExamRequestLine[];
   initialIndication?: string;
+  // Doctor-saved models (from doctorProfile.examRequestTemplates) + callbacks to
+  // persist a new one / remove one. Omitted → only the built-in models show.
+  savedTemplates?:  ExamRequestTemplate[];
+  onSaveTemplate?:  (name: string, lines: ExamRequestLine[], indication?: string) => void;
+  onDeleteTemplate?: (id: string) => void;
   onSave:  (data: { lines: ExamRequestLine[]; indication?: string; patientName: string; patientId?: string }) => void;
   onClose: () => void;
 }
 
 export function ExamRequestModal({
-  patientName, patientId, date, doctorProfile, patients, initialLines, initialIndication, onSave, onClose,
+  patientName, patientId, date, doctorProfile, patients, initialLines, initialIndication,
+  savedTemplates, onSaveTemplate, onDeleteTemplate, onSave, onClose,
 }: Props) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language?.slice(0, 2) === "ar" ? "ar-MA"
@@ -55,6 +61,29 @@ export function ExamRequestModal({
   const clean = () => lines
     .map(l => ({ category: l.category, label: l.label.trim(), detail: l.detail?.trim() || undefined }))
     .filter(l => l.label.length > 0);
+
+  // Load a model's lines into the form. Merges onto existing filled lines (so a
+  // doctor can stack models) rather than replacing what they already typed.
+  const applyModel = (mLines: ExamRequestLine[], mIndication?: string) => {
+    setLines(prev => {
+      const existing = prev.filter(l => l.label.trim());
+      const seen = new Set(existing.map(l => `${l.category}|${l.label.toLowerCase()}`));
+      const added = mLines
+        .filter(l => !seen.has(`${l.category}|${l.label.toLowerCase()}`))
+        .map(l => ({ ...l, _key: uid() }));
+      const merged = [...existing, ...added];
+      return merged.length ? merged : [blankLine()];
+    });
+    if (mIndication && !indication.trim()) setIndication(mIndication);
+  };
+
+  const saveAsTemplate = () => {
+    const c = clean();
+    if (!c.length || !onSaveTemplate) return;
+    const name = window.prompt(t("examReq.templateNamePrompt"));
+    if (!name || !name.trim()) return;
+    onSaveTemplate(name.trim(), c, indication.trim() || undefined);
+  };
 
   const hasLines = lines.some(l => l.label.trim());
   const canSubmit = hasLines && pName.trim().length > 0;
@@ -107,6 +136,38 @@ export function ExamRequestModal({
               </div>
             </div>
           )}
+
+          {/* Models — one-click bundles of common exams (built-in + doctor-saved) */}
+          <div className="exr-models">
+            <div className="exr-models-head">
+              <span className="exr-models-label">{t("examReq.modelsLabel")}</span>
+              {onSaveTemplate && (
+                <button type="button" className="exr-model-save" onClick={saveAsTemplate} disabled={!hasLines}>
+                  {t("examReq.saveAsModel")}
+                </button>
+              )}
+            </div>
+            <div className="exr-models-chips">
+              {EXAM_REQUEST_MODELS.map(m => (
+                <button type="button" key={m.name} className="exr-model-chip"
+                  onClick={() => applyModel(m.lines, m.indication)} title={m.name}>
+                  {m.name}
+                </button>
+              ))}
+              {(savedTemplates ?? []).map(tpl => (
+                <span key={tpl.id} className="exr-model-chip exr-model-chip-custom">
+                  <button type="button" className="exr-model-chip-apply"
+                    onClick={() => applyModel(tpl.lines, tpl.indication)} title={tpl.name}>
+                    {tpl.name}
+                  </button>
+                  {onDeleteTemplate && (
+                    <button type="button" className="exr-model-chip-del"
+                      onClick={() => onDeleteTemplate(tpl.id)} title={t("common.delete")} aria-label={t("common.delete")}>×</button>
+                  )}
+                </span>
+              ))}
+            </div>
+          </div>
 
           {/* Exam lines */}
           <div className="exr-rows">

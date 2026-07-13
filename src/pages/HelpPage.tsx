@@ -22,11 +22,43 @@ const CATEGORIES: { id: string; emoji: string; topics: string[] }[] = [
 // The 4-step first-run checklist (help.steps.<n>).
 const STEPS = [1, 2, 3, 4];
 
+// Complete feature guide — every major capability of the app gets a one-line
+// explanation (help.feat.<id>.{t,d}). Shown as its own reference section and
+// included in search, so a user can look up what any feature does.
+const FEATURES: { id: string; emoji: string }[] = [
+  { id: "agenda",      emoji: "📅" },
+  { id: "apptTypes",   emoji: "🏷️" },
+  { id: "waitingRoom", emoji: "⏳" },
+  { id: "patients",    emoji: "👤" },
+  { id: "consultation",emoji: "🩺" },
+  { id: "history",     emoji: "📚" },
+  { id: "autoCalc",    emoji: "🧮" },
+  { id: "growth",      emoji: "📈" },
+  { id: "bilans",      emoji: "🔬" },
+  { id: "documents",   emoji: "📄" },
+  { id: "designer",    emoji: "🖊️" },
+  { id: "billing",     emoji: "🧾" },
+  { id: "finances",    emoji: "💰" },
+  { id: "reminders",   emoji: "🔔" },
+  { id: "booking",     emoji: "🌐" },
+  { id: "tele",        emoji: "🎥" },
+  { id: "stock",       emoji: "📦" },
+  { id: "secretary",   emoji: "🤝" },
+  { id: "stats",       emoji: "📊" },
+  { id: "sync",        emoji: "🔄" },
+  { id: "languages",   emoji: "🌍" },
+  { id: "backup",      emoji: "💾" },
+];
+
 export function HelpPage() {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState<string | null>("gettingStarted");
+  const [featOpen, setFeatOpen] = useState(false);
   const supportEmail = t("trial.supportEmail");
+
+  const jumpTo = (id: string) =>
+    document.getElementById(`help-sec-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
 
   const q = query.trim().toLowerCase();
   const matches = (key: string) => {
@@ -45,6 +77,16 @@ export function HelpPage() {
     [q, t],
   );
   const anyResults = groups.length > 0;
+
+  // Feature guide filtered by the same search box.
+  const featMatches = (id: string) => {
+    if (!q) return true;
+    return (
+      t(`help.feat.${id}.t`).toLowerCase().includes(q) ||
+      t(`help.feat.${id}.d`).toLowerCase().includes(q)
+    );
+  };
+  const features = useMemo(() => FEATURES.filter((f) => featMatches(f.id)), [q, t]);
 
   return (
     <Layout title={t("help.title")} subtitle={t("help.subtitle")}>
@@ -65,6 +107,20 @@ export function HelpPage() {
           </span>
         </a>
       </div>
+
+      {/* Jump navigation — scroll straight to a section (hidden while searching) */}
+      {!q && (
+        <div className="help-jumpnav">
+          {CATEGORIES.map((c) => (
+            <button key={c.id} className="help-jump-pill" onClick={() => jumpTo(c.id)}>
+              <span aria-hidden>{c.emoji}</span> {t(`help.cat.${c.id}`)}
+            </button>
+          ))}
+          <button className="help-jump-pill" onClick={() => { setFeatOpen(true); setTimeout(() => jumpTo("features"), 0); }}>
+            <span aria-hidden>📖</span> {t("help.featuresTitle")}
+          </button>
+        </div>
+      )}
 
       {/* Getting started in 4 steps (hidden while searching) */}
       {!q && (
@@ -92,7 +148,7 @@ export function HelpPage() {
       {/* Topics grouped by category */}
       {!anyResults && <div className="help-empty">{t("help.noResults")}</div>}
       {groups.map((cat) => (
-        <div key={cat.id} className="help-cat">
+        <div key={cat.id} id={`help-sec-${cat.id}`} className="help-cat">
           <div className="help-cat-head">
             <span className="help-cat-emoji" aria-hidden>{cat.emoji}</span>
             <span className="help-cat-title">{t(`help.cat.${cat.id}`)}</span>
@@ -113,6 +169,36 @@ export function HelpPage() {
           </div>
         </div>
       ))}
+
+      {/* Complete feature guide — collapsible (kept closed so it doesn't bury the
+          topics; a search always expands it). */}
+      {features.length > 0 && (
+        <div id="help-sec-features" className="help-cat">
+          <button
+            className="help-cat-head help-cat-toggle"
+            onClick={() => setFeatOpen(o => !o)}
+            aria-expanded={featOpen || !!q}
+          >
+            <span className="help-cat-emoji" aria-hidden>📖</span>
+            <span className="help-cat-title">{t("help.featuresTitle")}</span>
+            <span className="help-cat-count">{features.length}</span>
+            <span className="help-topic-chev" aria-hidden style={{ marginInlineStart: "auto" }}>{(featOpen || q) ? "−" : "+"}</span>
+          </button>
+          {(featOpen || q) && (
+            <div className="help-feat-grid">
+              {features.map((f) => (
+                <div key={f.id} className="help-feat">
+                  <span className="help-feat-emoji" aria-hidden>{f.emoji}</span>
+                  <div className="help-feat-body">
+                    <div className="help-feat-title">{t(`help.feat.${f.id}.t`)}</div>
+                    <div className="help-feat-desc">{t(`help.feat.${f.id}.d`)}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Pricing reminder */}
       <div className="help-pricing">

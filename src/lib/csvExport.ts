@@ -1,5 +1,5 @@
 import type { Patient, Appointment } from "./cabinetTypes";
-import { APPT_TYPE_LABELS, APPT_STATUS_LABELS } from "./cabinetTypes";
+import { apptTypeLabel, APPT_STATUS_LABELS } from "./cabinetTypes";
 import { calcAge } from "./format";
 
 // ── Core ──────────────────────────────────────────────────────────────────────
@@ -83,7 +83,7 @@ export function exportAppointmentsCsv(appointments: Appointment[]): void {
       a.startTime,
       a.endTime,
       a.patientName,
-      APPT_TYPE_LABELS[a.type]   ?? a.type,
+      apptTypeLabel(a.type),
       APPT_STATUS_LABELS[a.status] ?? a.status,
       a.billedAmount       ?? "",
       a.invoiceNumber      ?? "",

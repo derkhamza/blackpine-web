@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Layout } from "../components/Layout";
+import { ActionIcon } from "../components/ActionIcon";
 
 // ══════════════════════════════════════════════════════════════════
 // CALCULATOR ENGINES — label fields are i18n key strings
@@ -530,11 +531,11 @@ export function CalculateursPage() {
   const [active, setActive] = useState<CalcKey>("imc");
 
   const CALCS: { key: CalcKey; label: string; icon: string; subtitle: string }[] = [
-    { key: "imc",       label: t("calculateurs.navImc"),       icon: "⚖️", subtitle: t("calculateurs.navImcSub") },
-    { key: "dfg",       label: t("calculateurs.navDfg"),       icon: "🫘", subtitle: t("calculateurs.navDfgSub") },
-    { key: "cv",        label: t("calculateurs.navCv"),        icon: "🫀", subtitle: t("calculateurs.navCvSub") },
-    { key: "grossesse", label: t("calculateurs.navGrossesse"), icon: "🤰", subtitle: t("calculateurs.navGrossesseSub") },
-    { key: "poids",     label: t("calculateurs.navPoids"),     icon: "📏", subtitle: t("calculateurs.navPoidsSub") },
+    { key: "imc",       label: t("calculateurs.navImc"),       icon: "scale",       subtitle: t("calculateurs.navImcSub") },
+    { key: "dfg",       label: t("calculateurs.navDfg"),       icon: "kidney",      subtitle: t("calculateurs.navDfgSub") },
+    { key: "cv",        label: t("calculateurs.navCv"),        icon: "heart",       subtitle: t("calculateurs.navCvSub") },
+    { key: "grossesse", label: t("calculateurs.navGrossesse"), icon: "pregnant",    subtitle: t("calculateurs.navGrossesseSub") },
+    { key: "poids",     label: t("calculateurs.navPoids"),     icon: "ruler",       subtitle: t("calculateurs.navPoidsSub") },
   ];
 
   const cur = CALCS.find(c => c.key === active)!;
@@ -547,7 +548,7 @@ export function CalculateursPage() {
             <button key={c.key}
               className={`calc-nav-btn${active === c.key ? " active" : ""}`}
               onClick={() => setActive(c.key)}>
-              <span className="calc-nav-icon">{c.icon}</span>
+              <span className="calc-nav-icon"><ActionIcon name={c.icon} /></span>
               <div>
                 <div className="calc-nav-label">{c.label}</div>
                 <div className="calc-nav-sub">{c.subtitle}</div>
@@ -558,7 +559,7 @@ export function CalculateursPage() {
 
         <div className="calc-main">
           <div className="calc-header">
-            <span className="calc-header-icon">{cur.icon}</span>
+            <span className="calc-header-icon"><ActionIcon name={cur.icon} /></span>
             <div>
               <div className="calc-header-title">{cur.label}</div>
               <div className="calc-header-sub">{cur.subtitle}</div>

@@ -30,6 +30,7 @@ export function OfflineBanner() {
 
 export function PWAUpdateToast() {
   const { t } = useTranslation();
+  const [dismissed, setDismissed] = useState(false);
   const {
     needRefresh: [needRefresh],
     updateServiceWorker,
@@ -42,7 +43,7 @@ export function PWAUpdateToast() {
     },
   });
 
-  if (!needRefresh) return null;
+  if (!needRefresh || dismissed) return null;
 
   return (
     <div className="pwa-update-toast" role="alert">
@@ -53,6 +54,11 @@ export function PWAUpdateToast() {
       </div>
       <button className="pwa-update-btn" onClick={() => updateServiceWorker(true)}>
         {t("pwa.updateBtn")}
+      </button>
+      <button className="pwa-update-close" onClick={() => setDismissed(true)} aria-label={t("common.close")}>
+        <svg width="11" height="11" viewBox="0 0 10 10" fill="none">
+          <path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+        </svg>
       </button>
     </div>
   );

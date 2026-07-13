@@ -5,7 +5,7 @@ import { Layout } from "../components/Layout";
 import { useCabinet } from "../context/CabinetContext";
 import { todayIso } from "../lib/format";
 import { AnimatedNumber } from "../components/AnimatedNumber";
-import { APPT_TYPE_LABELS } from "../lib/cabinetTypes";
+import { apptTypeLabel } from "../lib/cabinetTypes";
 import type { Appointment } from "../lib/cabinetTypes";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -76,7 +76,7 @@ function FollowRow({ appt, days, urgency, onDone, locale }: RowProps) {
           }
         </div>
         <div className="rpl-meta">
-          <span className="rpl-type-chip">{APPT_TYPE_LABELS[appt.type]}</span>
+          <span className="rpl-type-chip">{apptTypeLabel(appt.type)}</span>
           <span className="rpl-orig-date">{t("rappels.consulOn", { date: fmtDate(appt.date) })}</span>
         </div>
       </div>

@@ -2,12 +2,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Layout } from "../components/Layout";
+import { ActionIcon } from "../components/ActionIcon";
+import { fetchAttachment } from "../api/client";
 import { GrowthCurve } from "../components/GrowthCurve";
 import { useCabinet } from "../context/CabinetContext";
 import { useApp } from "../context/AppContext";
 import type { Patient, PatientGender, VitalSigns, OrdonnanceLine } from "../lib/cabinetTypes";
 import {
-  APPT_TYPE_LABELS, APPT_TYPE_COLORS, APPT_STATUS_LABELS,
+  apptTypeLabel, apptTypeColor, APPT_STATUS_LABELS,
   EXAM_TYPE_LABELS, EXAM_TYPE_COLORS,
   CERT_TYPE_LABELS, CERT_TYPE_COLORS,
   TELE_STATUS_LABELS,
@@ -24,6 +26,7 @@ import { printOrdonnance } from "../lib/ordonnancePrinter";
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function fmtDate(iso: string, locale = "fr-FR") {
+  if (!iso) return "";
   return new Date(iso + "T12:00:00").toLocaleDateString(locale, {
     day: "numeric", month: "short", year: "numeric",
   });
@@ -258,8 +261,20 @@ export function PatientDetailPage() {
 
   const completedAppts = patientAppts.filter((a) => a.status === "completed");
   const billedAppts    = patientAppts.filter((a) => !!a.billedAt);
+
+  // "Patient depuis" — the earliest date we actually know about. createdAt alone
+  // is wrong for patients imported/created after their first real visit, so take
+  // the min of createdAt and the earliest appointment date (guarding bad dates).
+  const patientSince = useMemo(() => {
+    const cand: string[] = [];
+    const cd = patient?.createdAt?.slice(0, 10);
+    if (cd && /^\d{4}-\d{2}-\d{2}$/.test(cd)) cand.push(cd);
+    for (const a of patientAppts) if (/^\d{4}-\d{2}-\d{2}/.test(a.date)) cand.push(a.date.slice(0, 10));
+    if (!cand.length) return null;
+    return cand.sort()[0];
+  }, [patient?.createdAt, patientAppts]);
   const patientOutstanding = useMemo(() => outstandingTotal(patientAppts), [patientAppts]);
-  const ordAppts       = patientAppts.filter((a) => !!a.savedOrdonnance && a.savedOrdonnance.lines.length > 0);
+  const ordAppts       = patientAppts.filter((a) => !!a.savedOrdonnance && (a.savedOrdonnance.lines?.length ?? 0) > 0);
 
   // Every document that belongs to this patient: those imported at the dossier
   // level (patientId set) plus those uploaded to one of the patient's
@@ -296,10 +311,17 @@ export function PatientDetailPage() {
     if (skipped > 0) setImportWarn(t("patientDetail.docImportSkipped", { n: skipped }));
   };
 
-  const openDoc = (d: { data: string; filename: string }) => {
-    // data-URL → Blob so the browser opens/downloads without a giant href.
+  const openDoc = async (d: { data: string; filename: string }) => {
+    // Resolve an object-storage marker to a real data URL first (inline data
+    // passes through untouched), then data-URL → Blob so the browser opens it.
+    let data = d.data;
+    if (data.startsWith("blob:")) {
+      const resolved = await fetchAttachment(data.slice(5));
+      if (!resolved) return;
+      data = resolved;
+    }
     try {
-      const [meta, b64] = d.data.split(",");
+      const [meta, b64] = data.split(",");
       const mime = /data:(.*?);/.exec(meta)?.[1] || "application/octet-stream";
       const bin = atob(b64);
       const arr = new Uint8Array(bin.length);
@@ -308,7 +330,7 @@ export function PatientDetailPage() {
       window.open(url, "_blank", "noopener");
       setTimeout(() => URL.revokeObjectURL(url), 60000);
     } catch {
-      window.open(d.data, "_blank", "noopener");
+      window.open(data, "_blank", "noopener");
     }
   };
 
@@ -328,14 +350,14 @@ export function PatientDetailPage() {
   const ordHistory = useMemo(() => {
     const fromAppts = ordAppts.map((a) => ({
       key: `appt-${a.id}`, date: a.date, stamp: a.savedOrdonnance!.printedAt,
-      lines: a.savedOrdonnance!.lines as OrdonnanceLine[],
-      apptId: a.id as string | null, typeLabel: APPT_TYPE_LABELS[a.type], patientName: a.patientName,
+      lines: (a.savedOrdonnance!.lines ?? []) as OrdonnanceLine[],
+      apptId: a.id as string | null, typeLabel: apptTypeLabel(a.type), patientName: a.patientName,
     }));
     const fromStandalone = prescriptions
-      .filter((p) => p.source === "standalone" && belongsHere(p) && p.lines.length > 0)
+      .filter((p) => p.source === "standalone" && belongsHere(p) && (p.lines?.length ?? 0) > 0)
       .map((p) => ({
         key: `rx-${p.id}`, date: p.date, stamp: p.createdAt,
-        lines: p.lines as OrdonnanceLine[],
+        lines: (p.lines ?? []) as OrdonnanceLine[],
         apptId: null as string | null, typeLabel: t("patientDetail.ordStandalone"), patientName: p.patientName,
       }));
     return [...fromAppts, ...fromStandalone]
@@ -473,7 +495,7 @@ export function PatientDetailPage() {
   }, [patient?.dateOfBirth]);
 
   // ── Unified timeline ──────────────────────────────────────────────────────
-  const EXAM_ICONS: Record<string, string> = { biologie: "🔬", imagerie: "🩻", ecg: "💗", autre: "📋" };
+  const EXAM_ICONS: Record<string, string> = { biologie: "flask", imagerie: "xray", ecg: "heart", autre: "clipboard" };
 
   interface TLEntry {
     id: string; kind: string; date: string; sortKey: string;
@@ -487,20 +509,20 @@ export function PatientDetailPage() {
 
     // Appointments (exclude cancelled / no-show)
     for (const a of patientAppts.filter((a) => a.status !== "cancelled" && a.status !== "no_show")) {
-      const color = a.status === "completed" ? APPT_TYPE_COLORS[a.type] : "var(--tertiary)";
+      const color = a.status === "completed" ? apptTypeColor(a.type) : "var(--tertiary)";
       let subtitle = a.consultationNote?.motif || a.consultationNote?.diagnosis || undefined;
       if (subtitle && subtitle.length > 90) subtitle = subtitle.slice(0, 90) + "…";
       const chips: string[] = [];
       if (a.vitalSigns && Object.values(a.vitalSigns).some((v) => v != null)) chips.push(t("patientDetail.tlVitals"));
-      if (a.savedOrdonnance?.lines.length) chips.push(t("patientDetail.tlMeds", { n: a.savedOrdonnance.lines.length }));
+      if (a.savedOrdonnance?.lines?.length) chips.push(t("patientDetail.tlMeds", { n: a.savedOrdonnance.lines.length }));
       if (a.savedCertificates?.length) chips.push(t("patientDetail.tlCerts", { n: a.savedCertificates.length }));
       if (a.billedAt) chips.push(t("patientDetail.tlBilled"));
       entries.push({
         id: `rdv-${a.id}`, kind: "rdv",
         date: a.date, sortKey: a.date + "T" + a.startTime,
-        icon: a.status === "completed" ? "🩺" : "📅",
+        icon: a.status === "completed" ? "stethoscope" : "calendar",
         color,
-        title: APPT_TYPE_LABELS[a.type] + (a.status !== "completed" ? ` · ${APPT_STATUS_LABELS[a.status]}` : ""),
+        title: apptTypeLabel(a.type) + (a.status !== "completed" ? ` · ${APPT_STATUS_LABELS[a.status]}` : ""),
         subtitle,
         detail: chips.length > 0 ? chips.join(" · ") : undefined,
         link: `/agenda/${a.id}`,
@@ -513,7 +535,7 @@ export function PatientDetailPage() {
       entries.push({
         id: `exam-${e.id}`, kind: "exam",
         date: e.date, sortKey: e.date + "T00:00",
-        icon: EXAM_ICONS[e.type] ?? "📋",
+        icon: EXAM_ICONS[e.type] ?? "clipboard",
         color: EXAM_TYPE_COLORS[e.type],
         title: e.title,
         subtitle: EXAM_TYPE_LABELS[e.type] + (e.labName ? ` · ${e.labName}` : ""),
@@ -524,14 +546,15 @@ export function PatientDetailPage() {
 
     // Standalone prescriptions
     for (const p of prescriptions.filter((p) => p.source === "standalone" && belongsHere(p))) {
-      const first = p.lines[0];
+      const first = p.lines?.[0];
+      const rxCount = p.lines?.length ?? 0;
       entries.push({
         id: `rx-${p.id}`, kind: "prescription",
         date: p.date, sortKey: p.date + "T00:01",
-        icon: "℞", color: "#15A876",
+        icon: "pills", color: "#15A876",
         title: t("patientDetail.tlPrescription"),
         subtitle: first
-          ? `${first.drug}${p.lines.length > 1 ? ` ${t("patientDetail.tlPrescMore", { n: p.lines.length - 1 })}` : ""}`
+          ? `${first.drug}${rxCount > 1 ? ` ${t("patientDetail.tlPrescMore", { n: rxCount - 1 })}` : ""}`
           : undefined,
         link: `/ordonnances?focus=${p.id}`,
       });
@@ -544,7 +567,7 @@ export function PatientDetailPage() {
       entries.push({
         id: `cert-${c.id}`, kind: "certificate",
         date: c.date, sortKey: c.date + "T00:02",
-        icon: "📄", color: CERT_TYPE_COLORS[c.type],
+        icon: "file", color: CERT_TYPE_COLORS[c.type],
         title: CERT_TYPE_LABELS[c.type],
         subtitle,
         link: `/certificats?focus=${c.id}`,
@@ -553,13 +576,13 @@ export function PatientDetailPage() {
 
     // Exam requests (demandes d'examens)
     for (const r of examRequests.filter((r) => belongsHere(r))) {
-      const names = r.lines.map((l) => l.label).filter(Boolean);
+      const names = (r.lines ?? []).map((l) => l.label).filter(Boolean);
       let subtitle = names.slice(0, 3).join(" · ");
       if (names.length > 3) subtitle += ` · +${names.length - 3}`;
       entries.push({
         id: `examreq-${r.id}`, kind: "examRequest",
         date: r.date, sortKey: r.date + "T00:02",
-        icon: "🧪", color: "#1890C5",
+        icon: "flask", color: "#1890C5",
         title: t("patientDetail.tlExamRequest"),
         subtitle: subtitle || undefined,
         link: `/documents?tab=examens&focus=${r.id}`,
@@ -571,7 +594,7 @@ export function PatientDetailPage() {
       entries.push({
         id: `tele-${s.id}`, kind: "teleconsult",
         date: s.scheduledDate, sortKey: s.scheduledDate + "T" + s.scheduledTime,
-        icon: "💻", color: "#1890C5",
+        icon: "monitor", color: "#1890C5",
         title: t("patientDetail.tlTeleconsult"),
         subtitle: TELE_STATUS_LABELS[s.status] + (s.duration ? ` · ${s.duration} min` : ""),
         detail: s.notes ? s.notes.slice(0, 80) : undefined,
@@ -584,7 +607,7 @@ export function PatientDetailPage() {
       entries.push({
         id: `evt-${ev.id}`, kind: "event",
         date: ev.date, sortKey: ev.date + "T00:03",
-        icon: "📌", color: "#D4962A",
+        icon: "pin", color: "#D4962A",
         title: ev.title,
         subtitle: ev.notes || undefined,
       });
@@ -802,7 +825,7 @@ export function PatientDetailPage() {
               {tlEntries.map((entry, idx) => {
                 const showMonth =
                   idx === 0 ||
-                  entry.date.slice(0, 7) !== tlEntries[idx - 1].date.slice(0, 7);
+                  (entry.date ?? "").slice(0, 7) !== (tlEntries[idx - 1].date ?? "").slice(0, 7);
                 const isLast = idx === tlEntries.length - 1;
                 // Appointments expand INLINE (compact consultation view) — the
                 // doctor shouldn't need to leave the patient page for a recap.
@@ -814,7 +837,7 @@ export function PatientDetailPage() {
                   : entry.link ? () => navigate(entry.link!) : undefined;
                 return (
                   <div key={entry.id}>
-                    {showMonth && (
+                    {showMonth && entry.date && (
                       <div className="tl-month">
                         {new Date(entry.date + "T12:00:00").toLocaleDateString(locale, {
                           month: "long", year: "numeric",
@@ -831,7 +854,7 @@ export function PatientDetailPage() {
                     >
                       <div className="tl-icon-col">
                         <div className="tl-icon" style={{ background: entry.color + "18", color: entry.color }}>
-                          {entry.icon}
+                          <ActionIcon name={entry.icon} />
                         </div>
                         {!isLast && <div className="tl-connector" />}
                       </div>
@@ -873,11 +896,11 @@ export function PatientDetailPage() {
                                 <span className="tl-expand-value">{val}</span>
                               </div>
                             ) : null)}
-                            {(rdvAppt.savedOrdonnance?.lines.length ?? 0) > 0 && (
+                            {(rdvAppt.savedOrdonnance?.lines?.length ?? 0) > 0 && (
                               <div className="tl-expand-field">
                                 <span className="tl-expand-label">{t("patientDetail.tabOrdonnances", { n: "" }).trim()}</span>
                                 <span className="tl-expand-value">
-                                  {rdvAppt.savedOrdonnance!.lines.map(l => l.drug).join(" · ")}
+                                  {(rdvAppt.savedOrdonnance!.lines ?? []).map(l => l.drug).join(" · ")}
                                 </span>
                               </div>
                             )}
@@ -931,7 +954,7 @@ export function PatientDetailPage() {
               [t("patients.cnops"), patient.cnopsNumber || null],
               [t("patientDetail.mutuelleLabel"), patient.mutuelle || null],
               [t("patients.city"), patient.city || null],
-              [t("patientDetail.patientSince"), patient.createdAt ? formatDateShort(patient.createdAt) : null],
+              [t("patientDetail.patientSince"), patientSince ? formatDateShort(patientSince) : null],
             ].filter(([, v]) => v).map(([label, v]) => (
               <div key={label as string} className="patient-id-row">
                 <span className="patient-id-label">{label}</span>
@@ -1053,7 +1076,7 @@ export function PatientDetailPage() {
           ) : (
             <div className="patient-rdv-list">
               {patientAppts.map((a) => {
-                const color = APPT_TYPE_COLORS[a.type];
+                const color = apptTypeColor(a.type);
                 const hasNote = !!(a.consultationNote?.motif || a.consultationNote?.diagnosis);
                 return (
                   <Link
@@ -1066,7 +1089,7 @@ export function PatientDetailPage() {
                       <div className="patient-rdv-date">{fmtDate(a.date, locale)} · {a.startTime}</div>
                       <div className="patient-rdv-badges">
                         <span className="appt-badge" style={{ background: color + "20", color }}>
-                          {APPT_TYPE_LABELS[a.type]}
+                          {apptTypeLabel(a.type)}
                         </span>
                         <span className="appt-badge" style={{ background: "var(--surface-alt)", color: "var(--muted)" }}>
                           {APPT_STATUS_LABELS[a.status]}
@@ -1269,7 +1292,7 @@ export function PatientDetailPage() {
                     </div>
                   </div>
                   <ol className="ord-history-lines">
-                    {item.lines.map((l, i) => (
+                    {(item.lines ?? []).map((l, i) => (
                       <li key={i} className="ord-history-line">
                         <span className="ord-history-drug">{l.drug}</span>
                         {l.dosage && <span className="ord-history-meta"> — {l.dosage}</span>}
@@ -1311,7 +1334,7 @@ export function PatientDetailPage() {
                 <option value="">{t("patientDetail.docLinkDossier")}</option>
                 {patientAppts.map((a) => (
                   <option key={a.id} value={a.id}>
-                    {fmtDate(a.date)} · {APPT_TYPE_LABELS[a.type]}
+                    {fmtDate(a.date)} · {apptTypeLabel(a.type)}
                   </option>
                 ))}
               </select>

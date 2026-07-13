@@ -2,7 +2,7 @@ import {
   createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode,
 } from "react";
 import type { Appointment, ApptDocument, CabinetDoctorProfile, Certificate, Employee, InvoiceRecord, Patient, Prescription, PrescriptionTemplate, StockItem, WaTemplate, TeleSession, InternalNote, Supplier, PurchaseOrder, PurchaseOrderLine, ExamResult, ExamRequest } from "../lib/cabinetTypes";
-import { BLANK_DOCTOR_PROFILE } from "../lib/cabinetTypes";
+import { BLANK_DOCTOR_PROFILE, setApptTypeRegistry } from "../lib/cabinetTypes";
 import { idbGet, idbSet } from "../lib/idbStore";
 import { fullName } from "../lib/nameFormat";
 import {
@@ -10,6 +10,7 @@ import {
   getSecretaryToken, secretaryPull, secretaryPushAppointments, secretaryPushPatients,
   secretaryPushApptDocuments, NOT_MODIFIED,
   listBackups, restoreBackup, type CabinetBackup,
+  getStorageMode, uploadAttachment, deleteAttachment,
 } from "../api/client";
 
 export interface SecretarySessionRef { ownerUserId: string; ownerName: string; }
@@ -218,6 +219,10 @@ interface CabinetCtx {
   role: "doctor" | "secretary";
   secretaryOwnerName?: string;
 
+  // Force an immediate snapshot pull (used by the live signal bus so a "patient
+  // called" ring reflects on the board at once instead of on the next poll).
+  refreshNow: () => Promise<void>;
+
   // Automatic backups (doctor only)
   listCabinetBackups: () => Promise<CabinetBackup[]>;
   restoreCabinetBackup: (backupId: string) => Promise<void>;
@@ -399,6 +404,10 @@ export function CabinetProvider({
   useEffect(() => { save(`${pfx}.patients`,  patients);      }, [patients, pfx]);
   useEffect(() => { save(`${pfx}.employees`, employees);     }, [employees, pfx]);
   useEffect(() => { save(`${pfx}.doctor`,    doctorProfile); }, [doctorProfile, pfx]);
+  // Keep the module-level appointment-type registry (custom types + built-in
+  // overrides + secondary labels) in sync so context-less call sites (printers,
+  // CSV/iCal exporters) resolve type labels/colours correctly.
+  useEffect(() => { setApptTypeRegistry(doctorProfile); }, [doctorProfile]);
   useEffect(() => { save(`${pfx}.prescriptionTemplates`, prescriptionTemplates); }, [prescriptionTemplates, pfx]);
   useEffect(() => { save(`${pfx}.stock`,       stockItems);    }, [stockItems, pfx]);
   useEffect(() => { save(`${pfx}.waTemplates`,  waTemplates);   }, [waTemplates, pfx]);
@@ -1061,11 +1070,28 @@ export function CabinetProvider({
       const id = uid();
       touchedRef.current.apptDocs.add(id);
       setApptDocuments(prev => [...prev, { ...doc, id }]);
+      // When object storage is configured, offload the binary and swap the inline
+      // base64 for a tiny "blob:<url>" marker so the synced snapshot stays small.
+      // On any failure the inline copy is left as-is (fully backward compatible).
+      if (doc.data && doc.data.startsWith("data:")) {
+        void (async () => {
+          const mode = await getStorageMode();
+          if (!mode.blob) return;
+          const url = await uploadAttachment(id, doc.data);
+          if (!url) return;
+          touchedRef.current.apptDocs.add(id);
+          setApptDocuments(prev => prev.map(x => x.id === id ? { ...x, data: `blob:${url}` } : x));
+        })();
+      }
     }, []);
   const deleteApptDocument = useCallback(
     (id: string) => {
       tombstonesRef.current.apptDocs.add(id);
-      setApptDocuments(prev => prev.filter(x => x.id !== id));
+      setApptDocuments(prev => {
+        const doc = prev.find(x => x.id === id);
+        if (doc?.data?.startsWith("blob:")) void deleteAttachment(doc.data.slice(5));
+        return prev.filter(x => x.id !== id);
+      });
     }, []);
 
   const value: CabinetCtx = {
@@ -1092,6 +1118,7 @@ export function CabinetProvider({
     syncState, lastSynced,
     role: isSecretary ? "secretary" : "doctor",
     secretaryOwnerName: secretarySession?.ownerName,
+    refreshNow: () => pullFromServer().then(() => undefined),
     listCabinetBackups, restoreCabinetBackup,
   };
 

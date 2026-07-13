@@ -6,10 +6,11 @@ import { useToast } from "../components/Toast";
 import { useCabinet } from "../context/CabinetContext";
 import { useApp } from "../context/AppContext";
 import type {
-  Appointment, AppointmentType, AppointmentStatus, Patient, WaTemplate,
+  Appointment, AppointmentStatus, Patient, WaTemplate,
 } from "../lib/cabinetTypes";
 import {
-  APPT_TYPE_LABELS, APPT_TYPE_COLORS, APPT_STATUS_LABELS,
+  APPT_STATUS_LABELS,
+  apptTypeLabel, apptTypeColor, resolveApptTypes, apptLabelById,
   WA_TEMPLATE_CATEGORY_LABELS, WA_TEMPLATE_CATEGORY_COLORS,
 } from "../lib/cabinetTypes";
 import { todayIso, calcAge } from "../lib/format";
@@ -22,6 +23,7 @@ import {
 import { printReceipt } from "../lib/receiptPrinter";
 import { printFacture, nextInvoiceNumber } from "../lib/facturePrinter";
 import { useContextMenu, type CtxItem } from "../components/ContextMenu";
+import { ActionIcon } from "../components/ActionIcon";
 import { exportAgendaIcal } from "../lib/icalExport";
 import { parseAgendaIcal, icalEventsToAppointments } from "../lib/icalImport";
 import { useTranslation } from "react-i18next";
@@ -72,7 +74,7 @@ function colour(hex: string, muted = false) { return muted ? "var(--border)" : h
 // ── Smart-prefill helpers ──────────────────────────────────────────────────────
 
 interface SmartPrefill {
-  type: AppointmentType;
+  type: string;
   startTime: string;
   endTime: string;
   suggestedDate: string | null;
@@ -114,7 +116,8 @@ function getSmartPrefill(patientId: string, appointments: Appointment[]): SmartP
 // ── Time-grid constants ────────────────────────────────────────────────────────
 const TG_START  = 7;    // 07:00 — default first hour (grid expands earlier if needed)
 const TG_END    = 20;   // 20:00 — default last hour  (grid expands later if needed)
-const TG_PX_H   = 88;   // pixels per hour (tall enough that a 15-min slot ≈ 22px)
+const TG_PX_H   = 62;   // pixels per hour — compact enough that a typical working
+                        // week fits the viewport without scrolling (15-min ≈ 15px)
 const TG_MIN_EVENT = 17; // px — floor so a quarter-hour RDV still fits without spilling
 const gridHourList = (startH: number, endH: number) =>
   Array.from({ length: Math.max(1, endH - startH) }, (_, i) => startH + i);
@@ -213,10 +216,9 @@ function layoutDayAppts(appts: Appointment[]): Map<string, { col: number; cols: 
   return result;
 }
 const DAY_HEADERS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
-// Full set of appointment types offered when creating/editing, so appointments
-// are differentiated by colour in the agenda (urgence = red, suivi, procédure…).
-// The doctor can hide the ones they don't use in Settings → Consultation types.
-const TYPE_OPTS: AppointmentType[] = ["consultation", "controle", "suivi", "procedure", "urgence", "autre"];
+// Appointment types are resolved dynamically from the doctor profile (built-ins
+// + custom types + renames), so the agenda differentiates by colour and the
+// doctor can add/rename/hide types in Settings → Consultation types.
 const STATUS_OPTS: AppointmentStatus[] = ["scheduled", "arrived", "in_consultation", "completed", "cancelled", "no_show"];
 
 // ── WhatsApp helpers ───────────────────────────────────────────────────────────
@@ -428,6 +430,7 @@ function ApptModal({ initial, defaultDate, isEdit, patients, appointments, onSav
   // Consultation types: hide the ones the doctor disabled in Settings, but always
   // keep the currently-selected type visible (e.g. when editing an old RDV).
   const hiddenApptTypes = doctorProfile?.hiddenConsultationTypes ?? [];
+  const apptLabels      = doctorProfile?.apptLabels ?? [];
 
   const [patientName, setName]      = useState(initial?.patientName ?? "");
   const [linkedPid,   setPid]       = useState(initial?.patientId   ?? "");
@@ -438,7 +441,8 @@ function ApptModal({ initial, defaultDate, isEdit, patients, appointments, onSav
   );
   const [start,       setStart]     = useState(initial?.startTime ?? "09:00");
   const [end,         setEnd]       = useState(initial?.endTime ?? "09:30");
-  const [type,        setType]      = useState<AppointmentType>(initial?.type ?? "consultation");
+  const [type,        setType]      = useState<string>(initial?.type ?? "consultation");
+  const [labelId,     setLabelId]   = useState<string>(initial?.labelId ?? "");
   const [status,      setStatus]    = useState<AppointmentStatus>(initial?.status ?? "scheduled");
   const [notes,       setNotes]     = useState(initial?.notes ?? "");
   const [locationId,  setLocationId] = useState(initial?.locationId ?? "");
@@ -506,29 +510,14 @@ function ApptModal({ initial, defaultDate, isEdit, patients, appointments, onSav
 
   const linkedPatient = patients.find(p => p.id === linkedPid);
 
-  const handleSubmit = (e: FormEvent) => {
-    e.preventDefault();
-    if (!patientName.trim()) return;
-
-    // Conflict detection
-    if (!conflictWarn) {
-      const editId = initial && "id" in initial ? (initial as { id?: string }).id : undefined;
-      const conflict = appointments.find(a =>
-        a.date === date &&
-        a.id !== editId &&
-        a.status !== "cancelled" &&
-        start < a.endTime && end > a.startTime,
-      );
-      if (conflict) {
-        setConflictWarn(`${conflict.patientName} (${conflict.startTime}–${conflict.endTime})`);
-        return;
-      }
-    }
-
+  // The actual save — bypasses conflict detection (used both for a clean save
+  // and when the doctor explicitly forces an overlapping slot).
+  const doSave = () => {
     const base = {
       patientName: patientName.trim(),
       patientId:   linkedPid || undefined,
       startTime: start, endTime: end, type, status,
+      labelId:     labelId || undefined,
       notes:       notes || undefined,
       locationId:  locationId || undefined,
     };
@@ -540,6 +529,28 @@ function ApptModal({ initial, defaultDate, isEdit, patients, appointments, onSav
       onSave({ ...base, date });
     }
     onClose();
+  };
+
+  const handleSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    if (!patientName.trim()) return;
+
+    // Conflict detection — warn once. The "ignore" button then calls doSave()
+    // directly to force the overlapping slot (previously it only cleared the
+    // warning, so the next submit re-detected the same conflict → could never
+    // force it through).
+    const editId = initial && "id" in initial ? (initial as { id?: string }).id : undefined;
+    const conflict = appointments.find(a =>
+      a.date === date &&
+      a.id !== editId &&
+      a.status !== "cancelled" &&
+      start < a.endTime && end > a.startTime,
+    );
+    if (conflict) {
+      setConflictWarn(`${conflict.patientName} (${conflict.startTime}–${conflict.endTime})`);
+      return;
+    }
+    doSave();
   };
 
   return (
@@ -639,26 +650,57 @@ function ApptModal({ initial, defaultDate, isEdit, patients, appointments, onSav
             <div className="form-group">
               <label className="form-label">{t("agenda.type")}</label>
               <div className="appt-type-pills">
-                {TYPE_OPTS
-                  .concat(TYPE_OPTS.includes(type) ? [] : [type])   // legacy type stays selectable on old records
-                  .filter(tp => !hiddenApptTypes.includes(tp) || tp === type)
-                  .map(tp => {
-                    const c = APPT_TYPE_COLORS[tp];
-                    const active = type === tp;
+                {resolveApptTypes()
+                  .filter(rt => !hiddenApptTypes.includes(rt.id) || rt.id === type)
+                  // A legacy/removed type still on this record stays selectable.
+                  .concat(resolveApptTypes().some(rt => rt.id === type) ? [] : [{ id: type, label: apptTypeLabel(type), color: apptTypeColor(type), builtin: false }])
+                  .map(rt => {
+                    const active = type === rt.id;
                     return (
                       <button
-                        key={tp}
+                        key={rt.id}
                         type="button"
                         className={`appt-type-pill${active ? " active" : ""}`}
-                        style={active ? { background: c + "20", color: c, borderColor: c } : undefined}
-                        onClick={() => setType(tp)}
+                        style={active ? { background: rt.color + "20", color: rt.color, borderColor: rt.color } : undefined}
+                        onClick={() => setType(rt.id)}
                       >
-                        {t(`apptType.${tp}`)}
+                        {rt.label}
                       </button>
                     );
                   })}
               </div>
             </div>
+
+            {/* ── Secondary label (optional differentiation axis) ── */}
+            {apptLabels.length > 0 && (
+              <div className="form-group">
+                <label className="form-label">{t("agenda.label")} <span style={{ color: "var(--muted)", fontWeight: 400 }}>{t("common.optional")}</span></label>
+                <div className="appt-type-pills">
+                  <button
+                    type="button"
+                    className={`appt-type-pill${!labelId ? " active" : ""}`}
+                    onClick={() => setLabelId("")}
+                  >
+                    {t("agenda.labelNone")}
+                  </button>
+                  {apptLabels.map(lb => {
+                    const active = labelId === lb.id;
+                    return (
+                      <button
+                        key={lb.id}
+                        type="button"
+                        className={`appt-type-pill${active ? " active" : ""}`}
+                        style={active ? { background: lb.color + "20", color: lb.color, borderColor: lb.color } : undefined}
+                        onClick={() => setLabelId(lb.id)}
+                      >
+                        <span className="agenda-legend-dot" style={{ background: lb.color, marginRight: 5 }} />
+                        {lb.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             <div className="form-group">
               <label className="form-label">{t("agenda.status")}</label>
               <select className="form-select" value={status} onChange={e => setStatus(e.target.value as AppointmentStatus)}>
@@ -773,14 +815,14 @@ function ApptModal({ initial, defaultDate, isEdit, patients, appointments, onSav
                 <path d="M7 6v2.5M7 10v.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
               </svg>
               <span>{t("agenda.conflictWarn", { name: conflictWarn })}</span>
-              <button type="button" className="appt-conflict-ignore" onClick={() => setConflictWarn(null)}>
+              <button type="button" className="appt-conflict-ignore" onClick={() => { setConflictWarn(null); doSave(); }}>
                 {t("agenda.conflictIgnore")}
               </button>
             </div>
           )}
           <div className="modal-footer">
             <button type="button" className="btn btn-ghost" onClick={onClose}>{t("common.cancel")}</button>
-            <button type="submit" className="btn btn-primary" style={{ background: APPT_TYPE_COLORS[type] }}>
+            <button type="submit" className="btn btn-primary" style={{ background: apptTypeColor(type) }}>
               {!isEdit && recurring ? t("agenda.createNAppts", { n: recurrCount }) : t("agenda.saveBtn")}
             </button>
           </div>
@@ -879,7 +921,7 @@ function ApptCard({
                : i18n.language?.slice(0, 2) === "en" ? "en-US" : "fr-FR";
   const { doctorProfile } = useCabinet();
   const isDone = appt.status === "completed";
-  const color  = APPT_TYPE_COLORS[appt.type];
+  const color  = apptTypeColor(appt.type);
   const hasNotes = !!(appt.consultationNote?.motif || appt.consultationNote?.diagnosis || appt.vitalSigns);
   const locName = appt.locationId
     ? (doctorProfile?.locations ?? []).find(l => l.id === appt.locationId)?.name
@@ -893,8 +935,16 @@ function ApptCard({
         <div className="appt-name">{appt.patientName}</div>
         <div className="appt-badges">
           <span className="appt-badge" style={{ background: color + "22", color }}>
-            {APPT_TYPE_LABELS[appt.type]}
+            {apptTypeLabel(appt.type)}
           </span>
+          {(() => {
+            const lb = apptLabelById(appt.labelId);
+            return lb ? (
+              <span className="appt-badge" style={{ background: lb.color + "22", color: lb.color }}>
+                {lb.label}
+              </span>
+            ) : null;
+          })()}
           <span className="appt-badge" style={{ background: "var(--surface-alt)", color: "var(--muted)" }}>
             {APPT_STATUS_LABELS[appt.status]}
           </span>
@@ -1034,8 +1084,8 @@ function BulkBillModal({ items, onChange, onConfirm, onClose }: BulkBillModalPro
                 <div className="bulk-bill-info">
                   <div className="bulk-bill-name">{appt.patientName}</div>
                   <div className="bulk-bill-sub">
-                    <span style={{ background: APPT_TYPE_COLORS[appt.type] + "22", color: APPT_TYPE_COLORS[appt.type], padding: "1px 6px", borderRadius: 4, fontSize: 11 }}>
-                      {APPT_TYPE_LABELS[appt.type]}
+                    <span style={{ background: apptTypeColor(appt.type) + "22", color: apptTypeColor(appt.type), padding: "1px 6px", borderRadius: 4, fontSize: 11 }}>
+                      {apptTypeLabel(appt.type)}
                     </span>
                     · {appt.startTime}
                   </div>
@@ -1122,7 +1172,8 @@ function TGSlotGrid({
 
       {/* Appointments */}
       {appts.map(appt => {
-        const color  = APPT_TYPE_COLORS[appt.type];
+        const color  = apptTypeColor(appt.type);
+        const lbl    = apptLabelById(appt.labelId);   // 2nd differentiation axis
         const done   = appt.status === "completed";
         const canc   = appt.status === "cancelled" || appt.status === "no_show";
         const top    = tTop(appt.startTime, gridStart);
@@ -1150,6 +1201,7 @@ function TGSlotGrid({
             onClick={(e) => { e.stopPropagation(); onApptClick(appt); }}
             title={`${appt.patientName} · ${appt.startTime}–${appt.endTime}`}
           >
+            {lbl && <span className="tgrid-label-dot" style={{ background: lbl.color }} title={lbl.label} />}
             <span className="tgrid-event-time">{appt.startTime}</span>
             <span className="tgrid-event-name">{appt.patientName}</span>
             {(appt.billedAt || appt.savedOrdonnance) && (
@@ -1395,16 +1447,22 @@ export function AgendaPage() {
 
   // Grid hours expand beyond the default 07:00–20:00 window to include any
   // early-morning or late-evening appointments, so nothing is pinned to an edge.
+  // Fit the grid to the week's actual hours so it stays visible without scrolling.
+  // Contracts to the appointment span (±1h padding), falls back to a sensible
+  // working window when the week is empty, and keeps a minimum span.
   const { gridStart, gridEnd } = useMemo(() => {
-    let lo = TG_START, hi = TG_END;
+    let lo = 24, hi = 0, any = false;
     for (const list of weekApptsByDay.values()) {
       for (const a of list) {
         const s = timeToMin(a.startTime), e = timeToMin(a.endTime);
-        if (s != null) lo = Math.min(lo, Math.floor(s / 60));
-        if (e != null) hi = Math.max(hi, Math.ceil(e / 60));
+        if (s != null) { lo = Math.min(lo, Math.floor(s / 60)); any = true; }
+        if (e != null) { hi = Math.max(hi, Math.ceil(e / 60));  any = true; }
       }
     }
-    return { gridStart: Math.max(0, lo), gridEnd: Math.min(24, Math.max(hi, lo + 1)) };
+    if (!any) { lo = TG_START; hi = TG_END - 2; }   // default 07:00–18:00
+    else { lo = Math.max(0, lo - 1); hi = Math.min(24, hi + 1); }
+    if (hi - lo < 6) hi = Math.min(24, lo + 6);      // never smaller than 6h
+    return { gridStart: lo, gridEnd: hi };
   }, [weekApptsByDay]);
   const gridHours = gridHourList(gridStart, gridEnd);
   const nowTop = ((nowMinutes - gridStart * 60) / 60) * TG_PX_H;
@@ -1532,7 +1590,7 @@ export function AgendaPage() {
         type: "RECETTE", amount: collected,
         date: appt.date,
         category: "consultation",
-        description: `${APPT_TYPE_LABELS[appt.type]} – ${appt.patientName}`,
+        description: `${apptTypeLabel(appt.type)} – ${appt.patientName}`,
         deductibilityStatus: "FULLY_DEDUCTIBLE",
         professionalUseRatio: 1,
       });
@@ -1571,7 +1629,7 @@ export function AgendaPage() {
         invoiceDate:   now.slice(0, 10),
         patientName:   appt.patientName,
         patientCnops:  patient?.cnopsNumber,
-        serviceLabel:  APPT_TYPE_LABELS[appt.type] + " médicale",
+        serviceLabel:  apptTypeLabel(appt.type) + " médicale",
         serviceDate:   appt.date,
         amount:        billedAmount,
         items:         billedItems,
@@ -1601,7 +1659,7 @@ export function AgendaPage() {
         type: "RECETTE", amount: amt,
         date: appt.date,
         category: "consultation",
-        description: `${APPT_TYPE_LABELS[appt.type]} – ${appt.patientName}`,
+        description: `${apptTypeLabel(appt.type)} – ${appt.patientName}`,
         deductibilityStatus: "FULLY_DEDUCTIBLE",
         professionalUseRatio: 1,
       });
@@ -1759,20 +1817,40 @@ export function AgendaPage() {
       {/* ── Colour legend ── */}
       <div className="agenda-legend">
         {(() => {
-          // The legend is a colour key. A type is hidden only from the *new-RDV
-          // selector*; existing RDVs of that type (e.g. online bookings default
-          // to "consultation") still need their colour explained. So show a type
-          // when it is not hidden OR it appears in the current appointments.
+          // The legend is a colour key. A hidden type is removed entirely — the
+          // doctor chose to retire it, so it should not appear in the agenda at
+          // all (existing RDVs of that type keep their stored colour on the grid,
+          // but the key no longer lists it).
           const hidden  = new Set(doctorProfile?.hiddenConsultationTypes ?? []);
-          const present = new Set(appointments.map(a => a.type));
-          const types   = [...new Set([...TYPE_OPTS, ...appointments.map(a => a.type)])]
-            .filter(tp => !hidden.has(tp) || present.has(tp));
-          return types.map(tp => (
-            <span key={tp} className="agenda-legend-item">
-              <span className="agenda-legend-dot" style={{ background: APPT_TYPE_COLORS[tp] }} />
-              {t(`apptType.${tp}`)}
-            </span>
-          ));
+          const ids     = [...new Set([...resolveApptTypes().map(rt => rt.id), ...appointments.map(a => a.type)])]
+            .filter(id => !hidden.has(id));
+          const labels = doctorProfile?.apptLabels ?? [];
+          return (
+            <>
+              {/* Group 1 — consultation-type colours (filled square dot), left. */}
+              <div className="agenda-legend-group">
+                {ids.map(id => (
+                  <span key={id} className="agenda-legend-item">
+                    <span className="agenda-legend-dot" style={{ background: apptTypeColor(id) }} />
+                    {apptTypeLabel(id)}
+                  </span>
+                ))}
+              </div>
+              {/* Group 2 — the secondary distinction axis (ring dot), pushed to the
+                  opposite edge so the two colour systems read as physically separate
+                  keys (no captions needed — the dot shapes already differ). */}
+              {labels.length > 0 && (
+                <div className="agenda-legend-group agenda-legend-group-end">
+                  {labels.map(lb => (
+                    <span key={lb.id} className="agenda-legend-item">
+                      <span className="agenda-legend-dot agenda-legend-dot-ring" style={{ background: lb.color }} />
+                      {lb.label}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </>
+          );
         })()}
       </div>
 
@@ -1837,18 +1915,20 @@ export function AgendaPage() {
                     <div className="agenda-month-chips">
                       {shown.map(a => {
                         const cancelled = a.status === "cancelled" || a.status === "no_show";
+                        const lbl = apptLabelById(a.labelId);
                         return (
                           <div
                             key={a.id}
                             className={`agenda-month-chip${a.status === "completed" ? " am-done" : ""}${cancelled ? " am-cancel" : ""}`}
-                            style={{ borderLeftColor: APPT_TYPE_COLORS[a.type], cursor: "grab" }}
+                            style={{ borderLeftColor: apptTypeColor(a.type), cursor: "grab" }}
                             draggable
                             onDragStart={e => { e.stopPropagation(); e.dataTransfer.effectAllowed = "move"; setDragAppt(a); }}
                             onClick={e => { e.stopPropagation(); navigate(`/agenda/${a.id}`); }}
-                            title={`${a.startTime} · ${a.patientName}`}
+                            title={`${a.startTime} · ${a.patientName}${lbl ? " · " + lbl.label : ""}`}
                           >
                             <span className="am-chip-time">{a.startTime}</span>
                             <span className="am-chip-name">{a.patientName}</span>
+                            {lbl && <span className="am-chip-label-dot" style={{ background: lbl.color }} />}
                           </div>
                         );
                       })}
@@ -1990,7 +2070,7 @@ export function AgendaPage() {
                   {dayAppts2.length > 0 && (
                     <div className="cal-dots">
                       {dayAppts2.slice(0, 3).map((a, j) => (
-                        <span key={j} className="cal-dot" style={{ background: APPT_TYPE_COLORS[a.type] }} />
+                        <span key={j} className="cal-dot" style={{ background: apptTypeColor(a.type) }} />
                       ))}
                     </div>
                   )}
@@ -2086,7 +2166,7 @@ export function AgendaPage() {
                 };
                 const doReceipt = () => printReceipt({
                   patientName:      appt.patientName,
-                  consultationType: APPT_TYPE_LABELS[appt.type],
+                  consultationType: apptTypeLabel(appt.type),
                   appointmentDate:  appt.date,
                   appointmentTime:  appt.startTime,
                   amount:           appt.billedAmount ?? 0,
@@ -2108,17 +2188,17 @@ export function AgendaPage() {
                 };
                 const isDone = appt.status === "completed";
                 const menu: CtxItem[] = [
-                  { label: t("ctx.openConsult"), icon: "📋", onClick: openDetail },
+                  { label: t("ctx.openConsult"), icon: <ActionIcon name="clipboard" />, onClick: openDetail },
                   ...(isDone && !appt.billedAt
-                    ? [{ label: t("ctx.bill"), icon: "💰", onClick: openBill }] : []),
+                    ? [{ label: t("ctx.bill"), icon: <ActionIcon name="money" />, onClick: openBill }] : []),
                   ...(appt.billedAt
-                    ? [{ label: t("ctx.receipt"), icon: "🧾", onClick: doReceipt }] : []),
-                  { label: isDone ? t("ctx.markUndone") : t("ctx.markDone"), icon: "✓", onClick: toggleDone },
-                  { label: t("ctx.edit"), icon: "✏️", onClick: doEdit },
-                  ...(doWa ? [{ label: t("ctx.whatsapp"), icon: "💬", onClick: doWa }] : []),
+                    ? [{ label: t("ctx.receipt"), icon: <ActionIcon name="receipt" />, onClick: doReceipt }] : []),
+                  { label: isDone ? t("ctx.markUndone") : t("ctx.markDone"), icon: <ActionIcon name="check" />, onClick: toggleDone },
+                  { label: t("ctx.edit"), icon: <ActionIcon name="edit" />, onClick: doEdit },
+                  ...(doWa ? [{ label: t("ctx.whatsapp"), icon: <ActionIcon name="chat" />, onClick: doWa }] : []),
                   ...(appt.patientId
-                    ? [{ label: t("ctx.patientFile"), icon: "👤", onClick: () => navigate(`/patients/${appt.patientId}`) }] : []),
-                  { label: t("ctx.delete"), icon: "🗑", onClick: doDelete, danger: true, divider: true },
+                    ? [{ label: t("ctx.patientFile"), icon: <ActionIcon name="user" />, onClick: () => navigate(`/patients/${appt.patientId}`) }] : []),
+                  { label: t("ctx.delete"), icon: <ActionIcon name="trash" />, onClick: doDelete, danger: true, divider: true },
                 ];
                 return (
                   <ApptCard
@@ -2172,7 +2252,7 @@ export function AgendaPage() {
             <div className="modal-body">
               <div style={{ fontWeight: 700, marginBottom: 4 }}>{billModal.appt.patientName}</div>
               <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 16 }}>
-                {APPT_TYPE_LABELS[billModal.appt.type]} · {billModal.appt.startTime}
+                {apptTypeLabel(billModal.appt.type)} · {billModal.appt.startTime}
               </div>
 
               {/* Bill prepared by the doctor — show his acts and remise so the
@@ -2388,8 +2468,8 @@ export function AgendaPage() {
             top: tgDrag.preview.top,
             width: tgDrag.preview.width,
             height: tgDrag.preview.height,
-            borderLeftColor: APPT_TYPE_COLORS[tgDrag.appt.type],
-            color: APPT_TYPE_COLORS[tgDrag.appt.type],
+            borderLeftColor: apptTypeColor(tgDrag.appt.type),
+            color: apptTypeColor(tgDrag.appt.type),
           }}
         >
           <span className="tgrid-event-time">{tgDrag.preview.startTime}</span>

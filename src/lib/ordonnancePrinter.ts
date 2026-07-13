@@ -414,6 +414,43 @@ export const COMMON_DRUGS: string[] = [
   "Tiémonium cp 50 mg",
   "N-butylbromure de scopolamine cp 10 mg",
   "Alvérine + Siméticone gél",
+
+  // ── Myorelaxants ──────────────────────────────────────────────────────────
+  "Thiocolchicoside cp 4 mg",
+  "Thiocolchicoside inj 4 mg",
+  "Méthocarbamol cp 500 mg",
+  "Baclofène cp 10 mg",
+
+  // ── Contraceptifs & hormonothérapie ───────────────────────────────────────
+  "Éthinylestradiol + Lévonorgestrel cp",
+  "Éthinylestradiol + Désogestrel cp",
+  "Désogestrel cp 75 µg",
+  "Lévonorgestrel cp 1,5 mg (contraception d'urgence)",
+  "Estradiol gel transdermique",
+  "Tibolone cp 2,5 mg",
+
+  // ── Ostéoporose ───────────────────────────────────────────────────────────
+  "Risédronate cp 35 mg",
+  "Acide zolédronique perf 5 mg",
+  "Raloxifène cp 60 mg",
+
+  // ── Anesthésiques locaux ──────────────────────────────────────────────────
+  "Lidocaïne gel 2 %",
+  "Lidocaïne + Prilocaïne crème 5 %",
+  "Lidocaïne inj 1 %",
+
+  // ── Antiseptiques & soins locaux ──────────────────────────────────────────
+  "Povidone iodée solution 10 %",
+  "Chlorhexidine solution 0,5 %",
+  "Éosine aqueuse 2 %",
+  "Alcool modifié 70°",
+  "Peroxyde d'hydrogène (eau oxygénée) 10 vol",
+
+  // ── Veinotoniques & antihémorroïdaires ────────────────────────────────────
+  "Troxérutine cp 300 mg",
+  "Diosmine + Hespéridine cp 600 mg",
+  "Trinitrine pommade rectale 0,4 %",
+  "Suppositoire antihémorroïdaire",
 ];
 
 // ── Common frequencies ────────────────────────────────────────────────────────
@@ -457,7 +494,23 @@ export function printOrdonnance(opts: {
   doctorProfile: CabinetDoctorProfile;
 }): void {
   const { lines, patientName, date, doctorProfile } = opts;
+  // Escape free-text before interpolating into the print HTML. Patient/secretary
+  // -supplied values (names, drugs, dosages) would otherwise inject script into
+  // the same-origin print window and steal the session token.
+  const esc = (s: unknown) =>
+    String(s ?? "").replace(/[&<>"']/g, (m) =>
+      (({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }) as Record<string, string>)[m]);
+  const eName  = esc(patientName);
+  const eFull  = esc(doctorProfile.fullName);
+  const eSpec  = esc(doctorProfile.specialtyLabel);
+  const eAddr  = esc(doctorProfile.address);
+  const ePhone = esc(doctorProfile.phone);
+  const eOrdre = esc(doctorProfile.ordre);
+  const eInpe  = esc(doctorProfile.inpe);
+  const eIce   = esc(doctorProfile.ice);
   const ds = { ...DEFAULT_DOCUMENT_SETTINGS, ...(doctorProfile.documentSettings ?? {}) };
+  const eHeaderNote = esc(ds.headerNote);
+  const eFooterNote = esc(ds.footerNote);
   const letterhead = ds.layout === "letterhead";   // pre-printed paper: skip identity block
   const compact    = ds.layout === "compact";
   // Advanced page design (margins / block positions / logo / letterhead
@@ -470,19 +523,19 @@ export function printOrdonnance(opts: {
   const dateLabel = new Date(date + "T12:00:00").toLocaleDateString("fr-FR", {
     day: "numeric", month: "long", year: "numeric",
   });
-  const cityPart = doctorProfile.address
+  const cityPart = esc(doctorProfile.address
     ? doctorProfile.address.split(",").pop()?.trim() ?? ""
-    : "";
+    : "");
 
   const lineHtml = lines.map((l, i) => {
-    const doseStr  = l.dosage    ? ` — ${l.dosage}`  : "";
-    const notesStr = l.notes     ? `<div class="rx-notes">${l.notes}</div>` : "";
+    const doseStr  = l.dosage    ? ` — ${esc(l.dosage)}`  : "";
+    const notesStr = l.notes     ? `<div class="rx-notes">${esc(l.notes)}</div>` : "";
     return `
     <div class="rx-item">
       <div class="rx-num">${i + 1}.</div>
       <div class="rx-body">
-        <div class="rx-drug">${l.drug}${doseStr}</div>
-        <div class="rx-posol">Prendre ${l.frequency} pendant ${l.duration}.</div>
+        <div class="rx-drug">${esc(l.drug)}${doseStr}</div>
+        <div class="rx-posol">Prendre ${esc(l.frequency)} pendant ${esc(l.duration)}.</div>
         ${notesStr}
       </div>
     </div>`;
@@ -492,7 +545,7 @@ export function printOrdonnance(opts: {
 <html lang="fr">
 <head>
   <meta charset="UTF-8"/>
-  <title>Ordonnance — ${patientName}</title>
+  <title>Ordonnance — ${eName}</title>
   <style>
     ${pageRule(resolvePageSize(design, "A5").css, margins)}
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -544,24 +597,23 @@ export function printOrdonnance(opts: {
   ${logoHtml(design, margins)}
   <div class="header" style="${letterhead ? "border:none;padding-top:28mm;" : ""}${compact ? "padding-bottom:6px;margin-bottom:7px;" : ""}${blockHidden(design, "header") && blockHidden(design, "date") ? "display:none;" : ""}">
     ${letterhead || blockHidden(design, "header") ? `<div></div>` : `<div style="${bs("header")}">
-      <div class="doc-name">${doctorProfile.fullName || "Dr."}</div>
+      <div class="doc-name">${eFull || "Dr."}</div>
       <div class="doc-meta">
-        ${doctorProfile.specialtyLabel ? doctorProfile.specialtyLabel + "<br/>" : ""}
-        ${doctorProfile.address        ? doctorProfile.address        + "<br/>" : ""}
-        ${doctorProfile.phone          ? "Tél : " + doctorProfile.phone + "<br/>" : ""}
-        ${doctorProfile.ordre          ? "N° Ordre : " + doctorProfile.ordre + "<br/>" : ""}
-        ${ds.showInpe && doctorProfile.inpe ? "INPE : " + doctorProfile.inpe + "<br/>" : ""}
-        ${ds.showIce  && doctorProfile.ice  ? "ICE : "  + doctorProfile.ice  : ""}
-        ${ds.headerNote ? `<div style="margin-top:3px;font-style:italic;">${ds.headerNote}</div>` : ""}
+        ${eSpec  ? eSpec  + "<br/>" : ""}
+        ${eAddr  ? eAddr  + "<br/>" : ""}
+        ${ePhone ? "Tél : " + ePhone + "<br/>" : ""}
+        ${eOrdre ? "N° Ordre : " + eOrdre + "<br/>" : ""}
+        ${ds.showInpe && eInpe ? "INPE : " + eInpe + "<br/>" : ""}
+        ${ds.showIce  && eIce  ? "ICE : "  + eIce  : ""}
+        ${eHeaderNote ? `<div style="margin-top:3px;font-style:italic;">${eHeaderNote}</div>` : ""}
       </div>
     </div>`}
-    <div class="date-bloc" style="${bs("date")}">
-      ${cityPart ? cityPart + "<br/>" : ""}Le ${dateLabel}
-    </div>
+    ${cityPart ? `<div class="date-bloc" style="${bs("city")}">${cityPart}</div>` : ""}
+    <div class="date-bloc" style="${bs("date")}">Le ${dateLabel}</div>
   </div>
 
   <div class="patient-line" style="${bs("patient")}">
-    Patient(e) : <strong>${patientName}</strong>
+    <strong>${eName}</strong>
   </div>
 
   <div class="rx-list" style="${bs("body")}">
@@ -570,11 +622,11 @@ export function printOrdonnance(opts: {
 
   <div class="sig-area" style="${bs("signature")}">
     <div class="sig-label">Signature et cachet du médecin :</div>
-    <div class="sig-line">${doctorProfile.fullName || ""}</div>
+    <div class="sig-line">${eFull}</div>
   </div>
 
   <div class="footer" style="${bs("footer")}">
-    ${ds.footerNote ? ds.footerNote : "Ordonnance médicale · Document confidentiel"}
+    ${eFooterNote ? eFooterNote : "Ordonnance médicale · Document confidentiel"}
   </div>
 
   <script>window.onload = function(){ window.print(); };<\/script>

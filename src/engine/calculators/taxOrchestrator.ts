@@ -107,10 +107,14 @@ export function calculateTax(
   };
 }
 
+// Régime d'imposition d'un médecin (profession libérale). Le CGI (art. 39)
+// ouvre le Résultat Net Simplifié aux prestataires de services et professions
+// libérales tant que le chiffre d'affaires HT ≤ 500 000 MAD ; au-delà, le
+// Résultat Net Réel s'applique. Les médecins sont exclus du forfait / de la CPU
+// (auto-entrepreneur), il n'existe donc pas de palier inférieur : sous le seuil
+// c'est RNS, au-dessus c'est RNR.
 function determineRegime(chiffreAffaires: number, config: FiscalYearConfig): Regime {
-  if (chiffreAffaires < config.regimeThresholds.rnsMinCa) return "RNS";
-  if (chiffreAffaires <= config.regimeThresholds.rnsMaxCa) return "RNS";
-  return "RNR";
+  return chiffreAffaires <= config.regimeThresholds.rnsMaxCa ? "RNS" : "RNR";
 }
 
 function regimeExplanation(regime: Regime, ca: number, config: FiscalYearConfig): string {

@@ -6,7 +6,7 @@ import { useToast } from "../components/Toast";
 import { useCabinet } from "../context/CabinetContext";
 import { useApp } from "../context/AppContext";
 import type { Appointment } from "../lib/cabinetTypes";
-import { APPT_TYPE_LABELS } from "../lib/cabinetTypes";
+import { apptTypeLabel } from "../lib/cabinetTypes";
 import { todayIso } from "../lib/format";
 
 // ── AMO / CNOPS papers log ──────────────────────────────────────────────────
@@ -175,7 +175,7 @@ export function RemboursementsPage({ noLayout = false }: { noLayout?: boolean } 
                         <Link to={`/agenda/${appt.id}`} className="rmb-appt-link">{appt.patientName}</Link>
                       </td>
                       <td style={{ color: "var(--muted)", fontSize: 12 }}>{fmtDate(appt.date)}</td>
-                      <td style={{ fontSize: 12 }}>{APPT_TYPE_LABELS[appt.type]}</td>
+                      <td style={{ fontSize: 12 }}>{apptTypeLabel(appt.type)}</td>
                       <td style={{ fontSize: 12 }}>{mutLabel}</td>
                       <td>
                         {appt.mutuellePapersFilled ? (

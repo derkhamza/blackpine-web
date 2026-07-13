@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import type { IRBracket } from "../engine";
 import { loadFiscalYearConfig } from "../engine";
 import { Layout } from "../components/Layout";
+import { ActionIcon } from "../components/ActionIcon";
 import { useApp } from "../context/AppContext";
 import { useCabinet } from "../context/CabinetContext";
 import { formatMAD } from "../lib/format";
@@ -218,7 +219,7 @@ export function OptimisationPage({ noLayout = false }: { noLayout?: boolean } = 
 
     if (unbilledAppts > 0) {
       out.push({
-        id: "unbilled", priority: "urgent", icon: "💰",
+        id: "unbilled", priority: "urgent", icon: "money",
         title: t("optimisation.tipUnbilledTitle", { n: unbilledAppts, s: unbilledAppts > 1 ? "s" : "" }),
         description: t("optimisation.tipUnbilledDesc", { n: unbilledAppts, s: unbilledAppts > 1 ? "s" : "" }),
         action: { label: t("optimisation.tipUnbilledAction"), to: "/agenda" },
@@ -228,7 +229,7 @@ export function OptimisationPage({ noLayout = false }: { noLayout?: boolean } = 
     if (cnopsPending > 0) {
       const amountStr = cnopsAmount > 0 ? ` · ${formatMAD(cnopsAmount)}` : "";
       out.push({
-        id: "cnops", priority: "urgent", icon: "🏥",
+        id: "cnops", priority: "urgent", icon: "hospital",
         title: t("optimisation.tipCnopsTitle", { n: cnopsPending, s: cnopsPending > 1 ? "s" : "", amount: amountStr }),
         description: t("optimisation.tipCnopsDesc"),
         action: { label: t("optimisation.tipCnopsAction"), to: "/agenda" },
@@ -238,7 +239,7 @@ export function OptimisationPage({ noLayout = false }: { noLayout?: boolean } = 
 
     if (needsReview > 0) {
       out.push({
-        id: "review", priority: "important", icon: "🔍",
+        id: "review", priority: "important", icon: "search",
         title: t("optimisation.tipReviewTitle", { n: needsReview, s: needsReview > 1 ? "s" : "" }),
         description: t("optimisation.tipReviewDesc"),
         action: { label: t("optimisation.tipReviewAction"), to: "/transactions" },
@@ -248,7 +249,7 @@ export function OptimisationPage({ noLayout = false }: { noLayout?: boolean } = 
     if (!hasAssets && rec > 50_000) {
       const saving = simulateSaving(resFiscal, familyDed, rec, cmRate, brackets, 15_000);
       out.push({
-        id: "assets", priority: "important", icon: "🖥️",
+        id: "assets", priority: "important", icon: "monitor",
         title: t("optimisation.tipAssetsTitle"),
         description: t("optimisation.tipAssetsDesc", { charge: formatMAD(3_000) }),
         action: { label: t("optimisation.tipAssetsAction"), to: "/comptabilite" },
@@ -259,7 +260,7 @@ export function OptimisationPage({ noLayout = false }: { noLayout?: boolean } = 
     if (!hasRecurring) {
       const saving = simulateSaving(resFiscal, familyDed, rec, cmRate, brackets, 30_000);
       out.push({
-        id: "recurring", priority: "important", icon: "🔁",
+        id: "recurring", priority: "important", icon: "repeat",
         title: t("optimisation.tipRecurTitle"),
         description: t("optimisation.tipRecurDesc"),
         action: { label: t("optimisation.tipRecurAction"), to: "/comptabilite" },
@@ -272,7 +273,7 @@ export function OptimisationPage({ noLayout = false }: { noLayout?: boolean } = 
       const extra  = Math.max(0, target - chargesDed);
       const saving = simulateSaving(resFiscal, familyDed, rec, cmRate, brackets, extra);
       out.push({
-        id: "ratio", priority: "important", icon: "📊",
+        id: "ratio", priority: "important", icon: "chartBar",
         title: t("optimisation.tipRatioTitle", { rate: (chargeRatio * 100).toFixed(0) }),
         description: t("optimisation.tipRatioDesc", {
           rate: (chargeRatio * 100).toFixed(0),
@@ -287,7 +288,7 @@ export function OptimisationPage({ noLayout = false }: { noLayout?: boolean } = 
     if (lowerBracket?.to && marginToLower > 0 && marginToLower <= 25_000) {
       const saving = simulateSaving(resFiscal, familyDed, rec, cmRate, brackets, marginToLower);
       out.push({
-        id: "bracket", priority: "conseil", icon: "📉",
+        id: "bracket", priority: "conseil", icon: "chartDown",
         title: t("optimisation.tipBracketTitle", { amount: formatMAD(marginToLower), rate: (lowerBracket.rate * 100).toFixed(0) }),
         description: t("optimisation.tipBracketDesc", {
           amount: formatMAD(marginToLower),
@@ -300,7 +301,7 @@ export function OptimisationPage({ noLayout = false }: { noLayout?: boolean } = 
 
     if (marginToUpper > 0 && marginToUpper <= 20_000 && upperBracket) {
       out.push({
-        id: "upperBracket", priority: "conseil", icon: "📈",
+        id: "upperBracket", priority: "conseil", icon: "chartUp",
         title: t("optimisation.tipUpperTitle", { amount: formatMAD(marginToUpper), rate: (upperBracket.rate * 100).toFixed(0) }),
         description: t("optimisation.tipUpperDesc", { amount: formatMAD(marginToUpper), rate: (upperBracket.rate * 100).toFixed(0) }),
       });
@@ -308,7 +309,7 @@ export function OptimisationPage({ noLayout = false }: { noLayout?: boolean } = 
 
     if (out.length === 0) {
       out.push({
-        id: "good", priority: "conseil", icon: "✅",
+        id: "good", priority: "conseil", icon: "check",
         title: t("optimisation.tipGoodTitle"),
         description: rec === 0
           ? t("optimisation.tipGoodDescEmpty", { year: fiscalYear })
@@ -512,7 +513,7 @@ export function OptimisationPage({ noLayout = false }: { noLayout?: boolean } = 
             return (
               <div key={tip.id} className="opt-tip" style={{ background: meta.bg, borderColor: meta.border }}>
                 <div className="opt-tip-top">
-                  <span className="opt-tip-icon">{tip.icon}</span>
+                  <span className="opt-tip-icon"><ActionIcon name={tip.icon} /></span>
                   <div className="opt-tip-content">
                     <div className="opt-tip-title">{tip.title}</div>
                     <span className="opt-tip-badge" style={{ background: meta.color + "22", color: meta.color }}>

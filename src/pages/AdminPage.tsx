@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Layout } from "../components/Layout";
-import { adminGetStats, adminGetEvents, adminGetRetention, adminGetDoctors, adminGetDoctor, adminSetPlan, adminResetTrial, adminExpireAccount, adminDeleteAccount, type AdminStats, type AdminEvents, type AdminRetention, type AdminDoctor, type AdminDoctorDetail } from "../api/client";
+import { adminGetStats, adminGetEvents, adminGetRetention, adminGetDoctors, adminGetDoctor, adminSetPlan, adminResetTrial, adminExpireAccount, adminDeleteAccount, adminGetConsumption, adminForceLogout, adminSetPassword, adminExtendDays, type AdminStats, type AdminEvents, type AdminRetention, type AdminDoctor, type AdminDoctorDetail, type AdminConsumption } from "../api/client";
 import { AnimatedNumber } from "../components/AnimatedNumber";
 
 // Horizontal bar list for "most used pages/actions".
@@ -300,6 +300,8 @@ function AdminZone({ doctor, onChanged, onDeleted }: {
   const [plan, setPlan] = useState(doctor.plan);
   const [expiry, setExpiry] = useState(doctor.expiresAt ? doctor.expiresAt.slice(0, 10) : "");
   const [confirmEmail, setConfirmEmail] = useState("");
+  const [extendDays, setExtendDays] = useState("30");
+  const [newPw, setNewPw] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
 
@@ -346,6 +348,35 @@ function AdminZone({ doctor, onChanged, onDeleted }: {
         </button>
       </div>
 
+      {/* Extend by N days */}
+      <div className="admin-danger-row">
+        <span style={{ fontSize: 12, color: "var(--muted)" }}>Prolonger de</span>
+        <input className="admin-select" type="number" style={{ width: 80 }} value={extendDays}
+          onChange={(e) => setExtendDays(e.target.value)} disabled={busy} />
+        <span style={{ fontSize: 12, color: "var(--muted)" }}>jours</span>
+        <button className="admin-btn" disabled={busy || !Number(extendDays)}
+          onClick={() => run(() => adminExtendDays(doctor.id, Number(extendDays)), `Abonnement prolongé de ${extendDays} j.`, onChanged)}>
+          Appliquer
+        </button>
+      </div>
+
+      {/* Deep powers: force logout + set password */}
+      <div className="admin-danger-row">
+        <button className="admin-btn warn" disabled={busy} onClick={() => {
+          if (window.confirm(`Déconnecter ${doctor.email} de tous ses appareils ?`)) run(() => adminForceLogout(doctor.id), "Sessions révoquées — reconnexion requise.", () => {});
+        }}>
+          Déconnecter partout
+        </button>
+        <input className="admin-select" type="text" placeholder="Nouveau mot de passe (8+)" value={newPw}
+          onChange={(e) => setNewPw(e.target.value)} disabled={busy} style={{ flex: 1, minWidth: 180 }} />
+        <button className="admin-btn warn" disabled={busy || newPw.trim().length < 8} onClick={() => {
+          if (window.confirm(`Définir un nouveau mot de passe pour ${doctor.email} ? Ses sessions seront révoquées.`))
+            run(() => adminSetPassword(doctor.id, newPw), "Mot de passe réinitialisé.", () => setNewPw(""));
+        }}>
+          Réinitialiser
+        </button>
+      </div>
+
       {/* Delete */}
       <div className="admin-danger-row">
         <input
@@ -377,6 +408,8 @@ function AdminZone({ doctor, onChanged, onDeleted }: {
 function DoctorsSection() {
   const [doctors, setDoctors] = useState<AdminDoctor[] | null>(null);
   const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<"active" | "signup" | "appts" | "patients">("active");
+  const [riskOnly, setRiskOnly] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
   const [detail, setDetail] = useState<AdminDoctorDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
@@ -398,9 +431,25 @@ function DoctorsSection() {
   if (!doctors) return <Section title="Médecins"><div className="tx-empty" style={{ padding: 20 }}>Chargement…</div></Section>;
 
   const q = search.toLowerCase().trim();
-  const filtered = q
+  const now = Date.now();
+  const daysSince = (iso: string | null) => (iso ? Math.floor((now - new Date(iso).getTime()) / 86400000) : Infinity);
+  const isAtRisk = (d: AdminDoctor) => {
+    const expIn = d.expiresAt ? Math.ceil((new Date(d.expiresAt).getTime() - now) / 86400000) : null;
+    const inactive = (d.apptCount > 0 || d.eventCount > 0) && daysSince(d.lastActive) > 30;
+    const expiring = d.plan === "free_trial" && expIn != null && expIn <= 7;
+    const expired  = expIn != null && expIn < 0;
+    const stalled  = d.apptCount === 0 && d.eventCount === 0 && daysSince(d.createdAt) >= 2;
+    return inactive || expiring || expired || stalled;
+  };
+  const searched = q
     ? doctors.filter((d) => d.email.toLowerCase().includes(q) || d.specialty.toLowerCase().includes(q) || d.commune.toLowerCase().includes(q))
     : doctors;
+  const filtered = [...(riskOnly ? searched.filter(isAtRisk) : searched)].sort((a, b) => {
+    if (sort === "signup")   return (b.createdAt ?? "").localeCompare(a.createdAt ?? "");
+    if (sort === "appts")    return b.apptCount - a.apptCount;
+    if (sort === "patients") return b.patientCount - a.patientCount;
+    return daysSince(a.lastActive) - daysSince(b.lastActive); // most recently active first
+  });
 
   return (
     <Section title={`Médecins · ${doctors.length}`}>
@@ -410,6 +459,24 @@ function DoctorsSection() {
         value={search}
         onChange={(e) => setSearch(e.target.value)}
       />
+      <div className="admin-doc-controls">
+        <label className="admin-doc-sort">
+          Trier :
+          <select className="admin-select" value={sort} onChange={(e) => setSort(e.target.value as typeof sort)}>
+            <option value="active">Activité récente</option>
+            <option value="signup">Date d'inscription</option>
+            <option value="appts">Rendez-vous</option>
+            <option value="patients">Patients</option>
+          </select>
+        </label>
+        <button
+          className={`admin-risk-toggle${riskOnly ? " active" : ""}`}
+          onClick={() => setRiskOnly((v) => !v)}
+        >
+          À risque uniquement
+        </button>
+        <span className="admin-doc-count">{filtered.length} affiché(s)</span>
+      </div>
       <div className="admin-doctors">
         {filtered.length === 0 ? (
           <div className="admin-empty">Aucun médecin ne correspond.</div>
@@ -425,6 +492,16 @@ function DoctorsSection() {
               <div className="admin-doc-stats">
                 <span className="admin-chip" title="Dernière activité">⏱ {shortDate(d.lastActive)}</span>
                 <span className="admin-chip">{PLAN_LABELS[d.plan] ?? d.plan}</span>
+                {(() => {
+                  const left = d.expiresAt ? Math.ceil((new Date(d.expiresAt).getTime() - now) / 86400000) : null;
+                  if (left == null) return d.plan === "lifetime"
+                    ? <span className="admin-chip" title="Abonnement">∞</span>
+                    : null;
+                  const tone = left < 0 ? "var(--coral)" : left <= 7 ? "var(--gold)" : "var(--green)";
+                  return <span className="admin-chip" title="Temps restant d'abonnement" style={{ color: tone, fontWeight: 700 }}>
+                    {left < 0 ? `expiré · ${-left}j` : `⏳ ${left}j`}
+                  </span>;
+                })()}
                 <span className="admin-chip" title="Rendez-vous">📅 {d.apptCount}</span>
                 <span className="admin-chip" title="Patients">👥 {d.patientCount}</span>
                 <span className="admin-chip" title="Événements suivis">⚡ {d.eventCount}</span>
@@ -487,12 +564,265 @@ function DoctorsSection() {
   );
 }
 
+// ── Financial dashboard (owner) ────────────────────────────────────────────────
+// Revenue derives from the REAL paying-subscriber count; costs, ARPU and growth
+// are owner-editable assumptions (persisted locally). Projects 12 months forward.
+const FIN_KEY = "bp.admin.finance";
+interface FinanceCfg {
+  arpu: number;              // MAD collected per paying subscriber / month
+  growthPct: number;         // monthly gross subscriber growth (%)
+  churnPct: number;          // monthly churn (%)
+  conversionPct: number;     // % of the CURRENT trial pool that converts to paying
+  variablePerUser: number;   // MAD infra cost per active cabinet / month
+  oneOff: number;            // one-time cost booked in month 1 (MAD)
+  costs: { label: string; monthly: number }[]; // fixed monthly costs (MAD)
+}
+const DEFAULT_FINANCE: FinanceCfg = {
+  arpu: 249, growthPct: 8, churnPct: 3, conversionPct: 20, variablePerUser: 3, oneOff: 0,
+  costs: [
+    { label: "Hébergement (Vercel)", monthly: 200 },
+    { label: "Base de données (Neon)", monthly: 190 },
+    { label: "E-mails (Resend)", monthly: 90 },
+    { label: "Nom de domaine / divers", monthly: 60 },
+  ],
+};
+function loadFinance(): FinanceCfg {
+  try { const r = localStorage.getItem(FIN_KEY); if (r) return { ...DEFAULT_FINANCE, ...JSON.parse(r) }; } catch { /* ignore */ }
+  return DEFAULT_FINANCE;
+}
+
+// Revenue / cost / net over 12 months as a layered SVG chart (revenue area,
+// costs + net lines, zero baseline). Self-contained, theme-aware.
+function FinChart({ data }: { data: { m: number; rev: number; cost: number; net: number }[] }) {
+  const W = 720, H = 200, PAD = 8;
+  const vals = data.flatMap(d => [d.rev, d.cost, d.net]);
+  const maxV = Math.max(1, ...vals);
+  const minV = Math.min(0, ...vals);
+  const n = data.length;
+  const x = (i: number) => PAD + (n <= 1 ? 0 : (i / (n - 1)) * (W - PAD * 2));
+  const y = (v: number) => PAD + (1 - (v - minV) / (maxV - minV)) * (H - PAD * 2);
+  const path = (key: "rev" | "cost" | "net") =>
+    data.map((d, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(d[key]).toFixed(1)}`).join(" ");
+  const revArea = `${path("rev")} L${x(n - 1).toFixed(1)},${y(minV).toFixed(1)} L${x(0).toFixed(1)},${y(minV).toFixed(1)} Z`;
+  return (
+    <svg className="admin-area" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label="Projection financière">
+      <line x1={PAD} y1={y(0)} x2={W - PAD} y2={y(0)} stroke="var(--border)" strokeWidth={1} strokeDasharray="4 4" />
+      <path d={revArea} fill="var(--blue)" fillOpacity={0.12} />
+      <path d={path("rev")} fill="none" stroke="var(--blue)" strokeWidth={2} strokeLinejoin="round" />
+      <path d={path("cost")} fill="none" stroke="var(--coral)" strokeWidth={2} strokeLinejoin="round" />
+      <path d={path("net")} fill="none" stroke="var(--green)" strokeWidth={2.4} strokeLinejoin="round" />
+      {data.map((d, i) => (
+        <circle key={i} cx={x(i)} cy={y(d.net)} r={1.6} fill="var(--green)">
+          <title>{`M+${d.m} · net ${Math.round(d.net).toLocaleString("fr-FR")} MAD`}</title>
+        </circle>
+      ))}
+    </svg>
+  );
+}
+
+function FinancialDashboard({ stats }: { stats: AdminStats }) {
+  const [cfg, setCfg] = useState<FinanceCfg>(loadFinance);
+  const save = (next: FinanceCfg) => { setCfg(next); try { localStorage.setItem(FIN_KEY, JSON.stringify(next)); } catch { /* ignore */ } };
+
+  // Paying subscribers = everyone not on the free trial.
+  const subEntries = Object.entries(stats.subscriptions);
+  const paying = subEntries.filter(([p]) => p !== "free_trial").reduce((s, [, n]) => s + (n as number), 0);
+  const trial  = (stats.subscriptions as Record<string, number>)["free_trial"] ?? 0;
+  const activeCabinets = stats.volumes.snapshots;
+
+  const fixedCosts = cfg.costs.reduce((s, c) => s + c.monthly, 0);
+  const mrr = paying * cfg.arpu;
+  const monthlyCost = fixedCosts + activeCabinets * cfg.variablePerUser;
+  const net = mrr - monthlyCost;
+  const margin = mrr > 0 ? Math.round((net / mrr) * 100) : 0;
+  const fmtM = (n: number) => `${Math.round(n).toLocaleString("fr-FR")} MAD`;
+
+  // 12-month projection. Base = today's payers + expected trial conversions; the
+  // sub base then compounds at (growth − churn); costs = fixed + variable × subs
+  // (+ a one-off in month 1).
+  const base = paying + Math.round(trial * cfg.conversionPct / 100);
+  const netG = (cfg.growthPct - cfg.churnPct) / 100;
+  const projection = Array.from({ length: 12 }, (_, i) => {
+    const m = i + 1;
+    const subs = base * Math.pow(1 + netG, m);
+    const rev = subs * cfg.arpu;
+    const cost = fixedCosts + subs * cfg.variablePerUser + (m === 1 ? cfg.oneOff : 0);
+    return { m, subs, rev, cost, net: rev - cost };
+  });
+  const year1Net = projection.reduce((s, p) => s + p.net, 0) - cfg.oneOff;
+  const breakevenMonth = projection.find(p => p.net >= 0)?.m ?? null;
+
+  const setCost = (i: number, patch: Partial<{ label: string; monthly: number }>) =>
+    save({ ...cfg, costs: cfg.costs.map((c, idx) => idx === i ? { ...c, ...patch } : c) });
+  const addCost = () => save({ ...cfg, costs: [...cfg.costs, { label: "Nouveau coût", monthly: 0 }] });
+  const removeCost = (i: number) => save({ ...cfg, costs: cfg.costs.filter((_, idx) => idx !== i) });
+
+  return (<>
+    <Section title="Revenus & rentabilité (mensuel)">
+      <div className="admin-grid">
+        <Tile label="Abonnés payants" value={paying} accent="var(--green)" />
+        <Tile label="En essai (à convertir)" value={trial} accent="var(--gold)" />
+        <Tile label="MRR (revenu mensuel)" value={fmtM(mrr)} accent="var(--blue)" />
+        <Tile label="ARR (annualisé)" value={fmtM(mrr * 12)} accent="var(--blue)" />
+        <Tile label="Coûts mensuels" value={fmtM(monthlyCost)} accent="var(--coral)" />
+        <Tile label="Cashflow net / mois" value={fmtM(net)} accent={net >= 0 ? "var(--green)" : "var(--coral)"} />
+      </div>
+      <div className="admin-sub">
+        Marge nette : <strong style={{ color: margin >= 0 ? "var(--green)" : "var(--coral)" }}>{margin}%</strong>
+        {" · "}Seuil de rentabilité : <strong>{Math.ceil(monthlyCost / Math.max(1, cfg.arpu))}</strong> abonnés payants
+        {" · "}Projection nette 12 mois : <strong style={{ color: year1Net >= 0 ? "var(--green)" : "var(--coral)" }}>{fmtM(year1Net)}</strong>
+      </div>
+    </Section>
+
+    <Section title="Projection sur 12 mois">
+      <FinChart data={projection} />
+      <div className="admin-fin-legend">
+        <span><i style={{ background: "var(--blue)" }} /> Revenu</span>
+        <span><i style={{ background: "var(--coral)" }} /> Coûts</span>
+        <span><i style={{ background: "var(--green)" }} /> Cashflow net</span>
+      </div>
+      <div className="admin-sub">
+        Base : {base} abonnés (payants + conversions d'essais), croissance nette {(cfg.growthPct - cfg.churnPct)}%/mois
+        {breakevenMonth ? ` · rentable dès M+${breakevenMonth}` : " · non rentable sur 12 mois aux hypothèses actuelles"}.
+      </div>
+    </Section>
+
+    <Section title="Hypothèses (modifiables)">
+      <div className="admin-fin-cfg">
+        <label className="admin-fin-field">ARPU (revenu/abonné/mois)
+          <input className="admin-select" type="number" min="0" value={cfg.arpu} onChange={(e) => save({ ...cfg, arpu: +e.target.value || 0 })} /> MAD
+        </label>
+        <label className="admin-fin-field">Croissance mensuelle
+          <input className="admin-select" type="number" min="-50" max="100" value={cfg.growthPct} onChange={(e) => save({ ...cfg, growthPct: +e.target.value || 0 })} /> %
+        </label>
+        <label className="admin-fin-field">Attrition (churn)
+          <input className="admin-select" type="number" min="0" max="100" value={cfg.churnPct} onChange={(e) => save({ ...cfg, churnPct: +e.target.value || 0 })} /> %
+        </label>
+        <label className="admin-fin-field">Conversion des essais
+          <input className="admin-select" type="number" min="0" max="100" value={cfg.conversionPct} onChange={(e) => save({ ...cfg, conversionPct: +e.target.value || 0 })} /> %
+        </label>
+        <label className="admin-fin-field">Coût variable / cabinet / mois
+          <input className="admin-select" type="number" min="0" value={cfg.variablePerUser} onChange={(e) => save({ ...cfg, variablePerUser: +e.target.value || 0 })} /> MAD
+        </label>
+        <label className="admin-fin-field">Coût unique (M+1)
+          <input className="admin-select" type="number" min="0" value={cfg.oneOff} onChange={(e) => save({ ...cfg, oneOff: +e.target.value || 0 })} /> MAD
+        </label>
+      </div>
+      <div className="admin-fin-costs">
+        <div className="admin-doc-subtitle" style={{ marginBottom: 4 }}>Coûts fixes mensuels</div>
+        {cfg.costs.map((c, i) => (
+          <div key={i} className="admin-fin-cost-row">
+            <input className="admin-select" value={c.label} onChange={(e) => setCost(i, { label: e.target.value })} style={{ flex: 1 }} />
+            <input className="admin-select" type="number" min="0" value={c.monthly} onChange={(e) => setCost(i, { monthly: +e.target.value || 0 })} style={{ width: 110 }} />
+            <span style={{ fontSize: 12, color: "var(--muted)" }}>MAD/mois</span>
+            <button className="admin-fin-cost-del" onClick={() => removeCost(i)} title="Supprimer" aria-label="Supprimer">×</button>
+          </div>
+        ))}
+        <div className="admin-fin-cost-row admin-fin-cost-total">
+          <span style={{ flex: 1 }}>Total coûts fixes</span><strong>{fmtM(fixedCosts)}/mois</strong>
+        </div>
+        <button className="admin-btn" style={{ alignSelf: "flex-start", marginTop: 6 }} onClick={addCost}>+ Ajouter un coût</button>
+      </div>
+    </Section>
+  </>);
+}
+
+// ── Resource consumption (storage + per-user usage + connexion geo) ────────────
+const fmtBytes = (b: number) => {
+  if (b >= 1_048_576) return `${(b / 1_048_576).toFixed(1)} Mo`;
+  if (b >= 1024) return `${(b / 1024).toFixed(1)} Ko`;
+  return `${b} o`;
+};
+const COUNTRY_NAMES: Record<string, string> = {
+  MA: "Maroc", FR: "France", ES: "Espagne", US: "États-Unis", BE: "Belgique",
+  DE: "Allemagne", GB: "Royaume-Uni", CA: "Canada", NL: "Pays-Bas", IT: "Italie",
+};
+
+function ConsumptionSection() {
+  const [data, setData] = useState<AdminConsumption | null>(null);
+  const [err, setErr] = useState(false);
+  useEffect(() => { adminGetConsumption().then(setData).catch(() => setErr(true)); }, []);
+
+  if (err) return <Section title="Consommation"><div className="admin-empty">Indisponible.</div></Section>;
+  if (!data) return <Section title="Consommation"><div className="admin-empty">Chargement…</div></Section>;
+
+  const { storage, usage, countries } = data;
+  const maxBytes = Math.max(1, ...storage.users.map(u => u.bytes));
+  return (<>
+    <Section title="Stockage (base de données)">
+      <div className="admin-grid">
+        <Tile label="Stockage total" value={fmtBytes(storage.totalBytes)} accent="var(--blue)" />
+        <Tile label="Cabinets" value={storage.cabinets} />
+        <Tile label="Moyenne / cabinet" value={fmtBytes(storage.avgBytes)} />
+      </div>
+      <div className="admin-sub" style={{ marginBottom: 10 }}>Plus gros consommateurs (part du stockage total) :</div>
+      <div className="admin-barlist">
+        {storage.users.slice(0, 12).map((u) => (
+          <div key={u.email} className="admin-barlist-row">
+            <div className="admin-barlist-name" title={u.email}>{u.email}</div>
+            <div className="admin-barlist-track">
+              <div className="admin-barlist-fill" style={{ width: `${(u.bytes / maxBytes) * 100}%`, background: "var(--blue)" }} />
+            </div>
+            <div className="admin-barlist-val">{fmtBytes(u.bytes)} · {u.pct}%</div>
+          </div>
+        ))}
+      </div>
+      <div className="admin-sub">Le « calcul » (compute) n'est pas mesurable côté serverless ; le volume d'activité ci-dessous en est l'indicateur.</div>
+    </Section>
+
+    <Section title="Usage par utilisateur">
+      <div className="admin-doc-cols">
+        <div>
+          <div className="admin-doc-subtitle">Événements & jours actifs</div>
+          <div className="admin-barlist">
+            {usage.users.slice(0, 12).map((u) => (
+              <div key={u.email} className="admin-barlist-row">
+                <div className="admin-barlist-name" title={u.email}>{u.email}</div>
+                <div className="admin-barlist-val" style={{ width: "auto" }}>
+                  {u.events.toLocaleString("fr-FR")} évts · {u.activeDays} j · {u.activeHours} h actives
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="admin-sub">« h actives » = heures distinctes avec activité (indicateur du temps passé ; la durée exacte de session n'est pas suivie).</div>
+        </div>
+        <div>
+          <div className="admin-doc-subtitle">Localisation des connexions</div>
+          {countries.length === 0 ? (
+            <div className="admin-empty">Aucune donnée de pays encore (capturée à partir des prochaines connexions).</div>
+          ) : (
+            <div className="admin-barlist">
+              {countries.map((c) => (
+                <div key={c.country} className="admin-barlist-row">
+                  <div className="admin-barlist-name">{COUNTRY_NAMES[c.country] ?? c.country}</div>
+                  <div className="admin-barlist-val">{c.users} méd. · {c.events.toLocaleString("fr-FR")} évts</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </Section>
+  </>);
+}
+
+type AdminTab = "overview" | "growth" | "usage" | "finances" | "doctors" | "system";
+const ADMIN_TABS: { key: AdminTab; label: string }[] = [
+  { key: "overview", label: "Vue d'ensemble" },
+  { key: "growth",   label: "Croissance" },
+  { key: "usage",    label: "Usage" },
+  { key: "finances", label: "Finances" },
+  { key: "doctors",  label: "Médecins & contrôles" },
+  { key: "system",   label: "Système" },
+];
+
 export function AdminPage() {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [events, setEvents] = useState<AdminEvents | null>(null);
   const [retention, setRetention] = useState<AdminRetention | null>(null);
   const [range, setRange] = useState<number>(30);   // behavioural window in days
   const [err, setErr] = useState<string | null>(null);
+  const [tab, setTab] = useState<AdminTab>("overview");
 
   // Stats + retention use fixed multi-windows (DAU/WAU/MAU, etc.) → load once.
   useEffect(() => {
@@ -524,6 +854,20 @@ export function AdminPage() {
 
   return (
     <Layout title="Supervision" subtitle={`Données au ${new Date(stats.generatedAt).toLocaleString("fr-FR")}`}>
+      {/* ── Console section tabs ── */}
+      <div className="admin-tabs">
+        {ADMIN_TABS.map(tb => (
+          <button
+            key={tb.key}
+            className={`admin-tab${tab === tb.key ? " active" : ""}`}
+            onClick={() => setTab(tb.key)}
+          >
+            {tb.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "overview" && (<>
       {/* ── Headline KPIs ── */}
       <div className="admin-grid">
         <Tile label="Médecins inscrits" value={stats.doctors.total} accent="var(--blue)" />
@@ -534,7 +878,9 @@ export function AdminPage() {
 
       {/* ── Risks & shortfalls (actionable, first) ── */}
       <RisksSection stats={stats} retention={retention} />
+      </>)}
 
+      {tab === "growth" && (<>
       {/* ── Signups over time ── */}
       <Section title="Inscriptions — 30 derniers jours">
         <div className="admin-bars">
@@ -569,7 +915,9 @@ export function AdminPage() {
           <Tile label="Essais expirant (7 j)" value={stats.trialsExpiring7} accent="var(--coral)" />
         </div>
       </Section>
+      </>)}
 
+      {tab === "usage" && (<>
       {/* ── Feature adoption ── */}
       <Section title="Adoption des fonctionnalités">
         <div className="admin-grid">
@@ -662,9 +1010,57 @@ export function AdminPage() {
           <div className="admin-empty">Aucun événement encore enregistré — les statistiques d'usage apparaîtront ici dès que l'app sera utilisée.</div>
         </Section>
       ))}
+      <ConsumptionSection />
+      </>)}
 
-      {/* ── Per-doctor drill-down ── */}
-      <DoctorsSection />
+      {tab === "finances" && <FinancialDashboard stats={stats} />}
+
+      {tab === "doctors" && <DoctorsSection />}
+
+      {tab === "system" && <VersionRollbackSection />}
     </Layout>
+  );
+}
+
+// Owner-facing summary of the release process: which build is live, how it is
+// gated (automated tests + scored manual pass), and how to revert to the
+// previous version. Full details live in the repo's DEPLOY.md / TESTING.md.
+function VersionRollbackSection() {
+  const version = typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "—";
+  return (
+    <Section title="Version & déploiement">
+      <div className="admin-grid">
+        <Tile label="Version en ligne" value={`v${version}`} accent="var(--blue)" />
+        <Tile label="Déploiement" value="Manuel · contrôlé" />
+        <Tile label="Tests auto" value="npm test" accent="var(--green)" />
+      </div>
+      <div className="admin-release">
+        <div className="admin-release-block">
+          <div className="admin-release-title">Avant de déployer</div>
+          <ol className="admin-release-list">
+            <li>Tests automatiques verts : <code>npm test</code> + <code>npm run build</code>.</li>
+            <li>Passage manuel (checklist <code>TESTING.md</code>) → décision <b>GO</b> (aucun test 🔴 en échec, score ≥ 90 %).</li>
+            <li>Noter l'URL du déploiement de production actuel (cible de retour arrière).</li>
+            <li>Promouvoir la préversion en production (Vercel → <i>Promote to Production</i>).</li>
+            <li>Smoke-test : connexion, une consultation, une facture.</li>
+          </ol>
+        </div>
+        <div className="admin-release-block admin-release-rollback">
+          <div className="admin-release-title">Revenir à la version précédente (rollback)</div>
+          <ol className="admin-release-list">
+            <li>Vercel → le projet → <b>Deployments</b>.</li>
+            <li>Repérer le dernier déploiement sain (production précédente).</li>
+            <li>Menu <b>⋯ → Promote to Production</b> (<i>Instant Rollback</i>) — effet en quelques secondes, sans reconstruction.</li>
+            <li>Vérifier en production (connexion + une facture).</li>
+            <li>PWA : demander un rechargement forcé (Ctrl/Cmd+Maj+R) aux postes concernés.</li>
+          </ol>
+          <div className="admin-sub">
+            En ligne de commande : <code>vercel rollback &lt;url-du-déploiement&gt;</code>. Le retour arrière ne
+            restaure pas les données — les migrations Blackpine sont additives et rétro-compatibles.
+            Procédure complète : <code>DEPLOY.md</code> à la racine du dépôt.
+          </div>
+        </div>
+      </div>
+    </Section>
   );
 }

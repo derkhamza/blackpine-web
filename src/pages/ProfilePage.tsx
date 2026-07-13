@@ -1,4 +1,4 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useState, useEffect, useRef } from "react";
 import type { DoctorProfile } from "../engine";
 import { Layout } from "../components/Layout";
 import { useToast } from "../components/Toast";
@@ -51,10 +51,24 @@ export function ProfilePage({ noLayout = false }: { noLayout?: boolean } = {}) {
   const [doc,   setDoc]   = useState<CabinetDoctorProfile>({ ...doctorProfile });
   const [fiscal, setFiscal] = useState<DoctorProfile>({ ...profile });
 
-  const updateDoc   = <K extends keyof CabinetDoctorProfile>(k: K, v: CabinetDoctorProfile[K]) =>
+  // The form is a draft of the profile. Re-sync it from the live profile (initial
+  // load / a server pull that arrives after mount) UNTIL the user starts editing —
+  // then their edits are protected until they save. Without this, a profile that
+  // hydrates after mount leaves the form showing stale/blank fields, so a saved
+  // value (e.g. spécialité) looks like it "didn't save".
+  const touched = useRef(false);
+  useEffect(() => {
+    if (!touched.current) { setDoc({ ...doctorProfile }); setFiscal({ ...profile }); }
+  }, [doctorProfile, profile]);
+
+  const updateDoc   = <K extends keyof CabinetDoctorProfile>(k: K, v: CabinetDoctorProfile[K]) => {
+    touched.current = true;
     setDoc(p => ({ ...p, [k]: v }));
-  const updateFiscal = <K extends keyof DoctorProfile>(k: K, v: DoctorProfile[K]) =>
+  };
+  const updateFiscal = <K extends keyof DoctorProfile>(k: K, v: DoctorProfile[K]) => {
+    touched.current = true;
     setFiscal(p => ({ ...p, [k]: v }));
+  };
 
   const showToast = useToast();
 
@@ -62,6 +76,7 @@ export function ProfilePage({ noLayout = false }: { noLayout?: boolean } = {}) {
     e.preventDefault();
     setDoctorProfile(doc);
     setProfile(fiscal);
+    touched.current = false; // saved → allow re-sync from server again
     showToast(t("profile.saved"));
   };
 
@@ -111,16 +126,21 @@ export function ProfilePage({ noLayout = false }: { noLayout?: boolean } = {}) {
                 </div>
                 <div className="form-group" style={{ flex: 2 }}>
                   <label className="form-label">{t("profile.specialty")}</label>
-                  <select
-                    className="form-select"
+                  {/* Free-text with suggestions: displays ANY saved value (incl.
+                      custom ones not in the list) and lets the doctor type their
+                      own — a locked <select> silently blanked non-listed values. */}
+                  <input
+                    className="form-input"
+                    list="specialty-options"
+                    placeholder={t("profile.chooseSpecialty")}
                     value={doc.specialtyLabel ?? ""}
                     onChange={e => updateDoc("specialtyLabel", e.target.value || undefined)}
-                  >
-                    <option value="">{t("profile.chooseSpecialty")}</option>
+                  />
+                  <datalist id="specialty-options">
                     {SPECIALTIES.map(s => (
-                      <option key={s.id} value={s.label}>{s.label}</option>
+                      <option key={s.id} value={s.label} />
                     ))}
-                  </select>
+                  </datalist>
                 </div>
               </div>
 

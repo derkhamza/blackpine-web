@@ -2,12 +2,15 @@ import { type ReactNode, useEffect, useLayoutEffect, useMemo, useState } from "r
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 import { useCabinet } from "../context/CabinetContext";
+import { useToast } from "./Toast";
+import { emitSignal } from "../api/client";
 import { BlackpineLogo } from "./Logo";
 import { CommandPalette }  from "./CommandPalette";
 import { TrialGate }       from "./TrialGate";
 import { ShortcutsModal } from "./ShortcutsModal";
-import { PinModal }       from "./PinModal";
 import { todayIso } from "../lib/format";
+import { isAdminEmail } from "../lib/owner";
+import { CURRENT_VERSION as APP_VERSION } from "../lib/changelog";
 import { DEFAULT_SECRETARY_PERMISSIONS } from "../lib/cabinetTypes";
 import { useDarkMode } from "../lib/useDarkMode";
 import { useTranslation } from "react-i18next";
@@ -345,13 +348,25 @@ let lastNavScroll = 0;
 
 export function Layout({ title, subtitle, actions, children }: Props) {
   const { t } = useTranslation();
-  const { user, logout, isSecretary, endSecretarySession } = useApp();
+  const { user, logout, endSecretarySession } = useApp();
   const { appointments, stockItems, doctorProfile, secretaryMode, setSecretaryMode, role, secretaryOwnerName } = useCabinet();
+  const toast = useToast();
+  // Doctor rings the secretary (quick "come in" / patient signal). The reverse
+  // direction is handled by the chat channel, not a one-shot call. Hidden in
+  // secretary preview (the doctor is alone there).
+  const canIntercom = role === "doctor" && !secretaryMode && !isAdminEmail(user?.email);
+  const callSecretary = () => {
+    emitSignal("intercom", {}, doctorProfile.fullName || undefined);
+    toast(t("signals.calledSecretary"), "success");
+  };
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const isRealSecretary = role === "secretary";
-  // Home page differs by role (doctor → dashboard, secretary → agenda).
-  const homePath = isRealSecretary ? "/agenda" : "/";
+  // Product-owner accounts run a pure admin console (see lib/owner).
+  const isAdmin = !isRealSecretary && isAdminEmail(user?.email);
+  // Home page differs by role (owner → admin console, secretary/preview → agenda,
+  // doctor → dashboard).
+  const homePath = isAdmin ? "/admin" : (isRealSecretary || secretaryMode) ? "/agenda" : "/";
   const showBack = pathname !== homePath;
   // Header icon badge, resolved from the first path segment (root → dashboard).
   const pageIcon = PAGE_ICONS[pathname.split("/")[1] ?? ""];
@@ -375,7 +390,6 @@ export function Layout({ title, subtitle, actions, children }: Props) {
   const [searchOpen,    setSearchOpen]    = useState(false);
   const [drawerOpen,    setDrawerOpen]    = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
-  const [pinOpen,       setPinOpen]       = useState(false);
   const { dark, toggle: toggleDark } = useDarkMode();
 
   const handleLogout = () => {
@@ -517,10 +531,12 @@ export function Layout({ title, subtitle, actions, children }: Props) {
   }, [appointments, stockItems, today]);
 
   // ── Nav items ─────────────────────────────────────────────────────────────
-  // Owner-only analytics link. Backend enforces the real gate; this just hides
-  // the link for everyone else.
-  const ADMIN_EMAILS = ["derkhamza@gmail.com"];
-  const isAdmin = !isSecretary && !!user && ADMIN_EMAILS.includes(user.email.toLowerCase());
+  // Product-owner accounts get a pure admin console: a single Supervision entry,
+  // no clinical modules. Everyone else gets the full clinical nav (filtered by
+  // secretary permissions below).
+  const adminNavItems = [
+    { to: "/admin", label: t("nav.admin"), icon: "analytiques", group: "Administration" },
+  ];
   const allNavItems = [
     // ── Quotidien — daily workflow ─────────────────────────────────────────
     { to: "/",              label: t("nav.dashboard"),    icon: "dashboard",    group: "Quotidien" },
@@ -543,7 +559,6 @@ export function Layout({ title, subtitle, actions, children }: Props) {
     // ── Paramètres ────────────────────────────────────────────────────────
     { to: "/profil",        label: t("nav.profile"),      icon: "profile",      group: "Paramètres" },
     { to: "/parametres",    label: t("nav.settings"),     icon: "parametres",   group: "Paramètres" },
-    ...(isAdmin ? [{ to: "/admin", label: t("nav.admin"), icon: "analytiques", group: "Paramètres" }] : []),
   ];
 
   // Secretary access: the Quotidien group by default, plus whatever extra areas
@@ -563,11 +578,14 @@ export function Layout({ title, subtitle, actions, children }: Props) {
     if (to === "/salaires") return !!secPerms.managePayroll;
     return false;
   };
-  const navItems = isRealSecretary
+  // A real secretary AND a doctor previewing "secretary mode" both see exactly
+  // the areas the doctor granted via secretaryPermissions — so the preview is a
+  // faithful picture of what the secretary can reach.
+  const navItems = isAdmin
+    ? adminNavItems
+    : (isRealSecretary || secretaryMode)
     ? allNavItems.filter(i => secretaryCanSee(i.to, i.group))
-    : secretaryMode
-      ? allNavItems.filter(i => i.group === "Quotidien")
-      : allNavItems;
+    : allNavItems;
 
   // ── Shared sidebar content ────────────────────────────────────────────────
   const sidebarContent = (
@@ -606,13 +624,14 @@ export function Layout({ title, subtitle, actions, children }: Props) {
 
       {/* Nav — grouped */}
       <div className="sidebar-nav">
-        {(["Quotidien", "Clinique", "Gestion", "Finances", "Paramètres"] as const).map(group => {
+        {(["Administration", "Quotidien", "Clinique", "Gestion", "Finances", "Paramètres"] as const).map(group => {
           const items = navItems.filter(n => n.group === group);
           if (items.length === 0) return null;  // don't render an empty group label (secretary view)
           const groupLabel = group === "Quotidien" ? t("navGroup.daily")
             : group === "Clinique"   ? t("navGroup.clinical")
             : group === "Gestion"    ? t("navGroup.management")
             : group === "Finances"   ? t("navGroup.finances")
+            : group === "Administration" ? t("navGroup.administration")
             : t("navGroup.settings");
           return (
             <div key={group}>
@@ -643,6 +662,22 @@ export function Layout({ title, subtitle, actions, children }: Props) {
           <div className="sidebar-user">
             <div className="sidebar-avatar">{user.email[0].toUpperCase()}</div>
             <span className="sidebar-email">{user.email}</span>
+            {/* Secretary preview — subtle eye icon (doctor only). Full control also
+                in Paramètres → Secrétariat. Exit via the top banner while previewing. */}
+            {role === "doctor" && !secretaryMode && !isAdmin && (
+              <button
+                className="sidebar-dark-btn"
+                onClick={() => { setSecretaryMode(true); navigate("/agenda"); closeDrawer(); }}
+                title={t("sidebar.secretaryEnter")}
+                aria-label={t("sidebar.secretaryEnter")}
+                style={{ marginRight: 2 }}
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <path d="M1 7s2.2-4 6-4 6 4 6 4-2.2 4-6 4-6-4-6-4Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/>
+                  <circle cx="7" cy="7" r="1.7" stroke="currentColor" strokeWidth="1.3"/>
+                </svg>
+              </button>
+            )}
             <button
               className="sidebar-dark-btn"
               onClick={() => { navigate("/aide"); closeDrawer(); }}
@@ -686,38 +721,22 @@ export function Layout({ title, subtitle, actions, children }: Props) {
             </button>
           </div>
         )}
-        {/* ── Local secretary mode controls (doctor's own login only) ── */}
-        {!isRealSecretary && (
-          secretaryMode ? (
-            <button
-              className="sidebar-secretary-exit"
-              onClick={() => {
-                if (doctorProfile.secretaryPin) {
-                  setPinOpen(true);
-                } else {
-                  setSecretaryMode(false);
-                }
-              }}
-            >
-              {t("sidebar.secretaryExit")}
-            </button>
-          ) : (
-            doctorProfile.secretaryPin && (
-              <button
-                className="sidebar-secretary-enter"
-                onClick={() => { setSecretaryMode(true); closeDrawer(); }}
-              >
-                {t("sidebar.secretaryEnter")}
-              </button>
-            )
-          )
-        )}
+        {/* Secretary preview moved to Paramètres → Espace secrétaire (it cluttered
+            the sidebar). While previewing, the exit is the top-of-page banner. */}
         {(isRealSecretary || !secretaryMode) && (
           <button className="sidebar-logout" onClick={handleLogout}>
             <Icon name="logout" />
             {isRealSecretary ? t("sidebar.secretaryLogout") : t("sidebar.logout")}
           </button>
         )}
+        {/* Current version — click to reopen the "Nouveautés" release notes. */}
+        <button
+          className="sidebar-version"
+          onClick={() => { window.dispatchEvent(new Event("bp:open-whatsnew")); closeDrawer(); }}
+          title={t("whatsNew.title")}
+        >
+          {t("whatsNew.versionLabel", { version: APP_VERSION })}
+        </button>
       </div>
     </>
   );
@@ -789,6 +808,17 @@ export function Layout({ title, subtitle, actions, children }: Props) {
             <div className="page-title">{title}</div>
             {subtitle && <div className="page-sub">{subtitle}</div>}
           </div>
+          {canIntercom && (
+            <button
+              className="btn btn-ghost call-secretary-btn"
+              onClick={callSecretary}
+              title={t("signals.callSecretary")}
+              aria-label={t("signals.callSecretary")}
+              style={{ flexShrink: 0, whiteSpace: "nowrap" }}
+            >
+              🔔
+            </button>
+          )}
           {actions && <div style={{ display: "flex", gap: 10, flexShrink: 0 }}>{actions}</div>}
         </div>
         {/* Real secretary session banner (separate login) */}
@@ -800,16 +830,13 @@ export function Layout({ title, subtitle, actions, children }: Props) {
             </button>
           </div>
         )}
-        {/* Local secretary mode banner (doctor's own login) */}
+        {/* Secretary preview banner (doctor's own login) */}
         {!isRealSecretary && secretaryMode && (
           <div className="secretary-banner">
             <span>{t("sidebar.secretaryBanner")}</span>
             <button
               className="secretary-banner-btn"
-              onClick={() => {
-                if (doctorProfile.secretaryPin) setPinOpen(true);
-                else setSecretaryMode(false);
-              }}
+              onClick={() => { setSecretaryMode(false); navigate("/"); }}
             >
               {t("sidebar.returnDoctor")}
             </button>
@@ -824,15 +851,6 @@ export function Layout({ title, subtitle, actions, children }: Props) {
 
       {/* ── Shortcuts overlay ── */}
       {shortcutsOpen && <ShortcutsModal onClose={() => setShortcutsOpen(false)} />}
-
-      {/* ── PIN modal (exit secretary mode) ── */}
-      {pinOpen && (
-        <PinModal
-          verify={pin => pin === (doctorProfile.secretaryPin ?? "")}
-          onSuccess={() => { setPinOpen(false); setSecretaryMode(false); }}
-          onCancel={() => setPinOpen(false)}
-        />
-      )}
     </div>
   );
 }

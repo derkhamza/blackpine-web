@@ -1,18 +1,20 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { BlackpineLogo } from "./Logo";
+import { TourArt } from "./TourArt";
 
-// One-time feature walkthrough shown after the profile-setup OnboardingWizard.
-// A simple slide carousel (not element-anchored — those break as the UI shifts)
-// that introduces the main areas of the app. Persisted per browser so it only
-// ever appears once; re-launchable from the Help page via openWelcomeTour().
-// Two variants: the doctor tour and a shorter secretary (front-desk) tour.
+// One-time, illustrated feature walkthrough shown after the profile-setup wizard.
+// A slide carousel (not element-anchored — those break as the UI shifts) that
+// introduces every main area with a picture + a short "how to" checklist.
+// Persisted per browser so it only appears once; re-launchable from Help via
+// openWelcomeTour(). Two variants: full doctor tour + a shorter secretary tour.
 
 export type TourVariant = "doctor" | "secretary";
 
 const SEEN_KEY: Record<TourVariant, string> = {
-  doctor:    "bp.tourSeen.v1",
-  secretary: "bp.tourSeenSec.v1",
+  // v2 → re-show the new illustrated tour once, even to users who saw the old one.
+  doctor:    "bp.tourSeen.v2",
+  secretary: "bp.tourSeenSec.v2",
 };
 
 export function hasSeenTour(variant: TourVariant = "doctor"): boolean {
@@ -21,30 +23,17 @@ export function hasSeenTour(variant: TourVariant = "doctor"): boolean {
 export function markTourSeen(variant: TourVariant = "doctor"): void {
   try { localStorage.setItem(SEEN_KEY[variant], "1"); } catch { /* private mode */ }
 }
-// Lets the Help page force the tour open again (variant chosen by the caller).
 export function openWelcomeTour(): void {
   window.dispatchEvent(new CustomEvent("bp:open-tour"));
 }
 
-// Each slide is keyed to i18n strings: doctor → tour.<key>{Title,Body};
-// secretary → tour.sec.<key>{Title,Body}.
-const DOCTOR_SLIDES: { key: string; emoji: string }[] = [
-  { key: "welcome",   emoji: "🌲" },
-  { key: "agenda",    emoji: "📅" },
-  { key: "patients",  emoji: "👥" },
-  { key: "consult",   emoji: "🩺" },
-  { key: "billing",   emoji: "🧾" },
-  { key: "secretary", emoji: "🤝" },
-  { key: "help",      emoji: "💬" },
+// Each slide: an illustration key (TourArt) + i18n keys
+// (<prefix>.<key>{Title,Body,Steps}). Steps is an array of how-to lines.
+const DOCTOR_SLIDES = [
+  "welcome", "agenda", "waiting", "patients", "consult", "prescribe",
+  "billing", "finances", "documents", "team", "sync", "help",
 ];
-const SECRETARY_SLIDES: { key: string; emoji: string }[] = [
-  { key: "welcome",  emoji: "🌲" },
-  { key: "agenda",   emoji: "📅" },
-  { key: "waiting",  emoji: "🕑" },
-  { key: "patients", emoji: "👥" },
-  { key: "billing",  emoji: "🧾" },
-  { key: "help",     emoji: "💬" },
-];
+const SECRETARY_SLIDES = ["welcome", "agenda", "waiting", "patients", "billing", "sync", "help"];
 
 export function WelcomeTour({
   open, onClose, variant = "doctor",
@@ -60,34 +49,57 @@ export function WelcomeTour({
   const slides = variant === "secretary" ? SECRETARY_SLIDES : DOCTOR_SLIDES;
   const prefix = variant === "secretary" ? "tour.sec" : "tour";
   const idx = Math.min(i, slides.length - 1);
-  const slide = slides[idx];
+  const key = slides[idx];
   const isLast = idx === slides.length - 1;
+  const isFirst = idx === 0;
+
+  const steps = t(`${prefix}.${key}Steps`, { returnObjects: true, defaultValue: [] }) as unknown;
+  const stepList = Array.isArray(steps) ? (steps as string[]) : [];
 
   const finish = () => { markTourSeen(variant); setI(0); onClose(); };
+  const go = (n: number) => setI(Math.max(0, Math.min(slides.length - 1, n)));
 
   return (
-    <div className="tour-overlay" role="dialog" aria-modal="true">
+    <div className="tour-overlay" role="dialog" aria-modal="true" aria-label={t(`${prefix}.${key}Title`)}>
       <div className="tour-card">
+        <div className="tour-progress"><span style={{ width: `${((idx + 1) / slides.length) * 100}%` }} /></div>
+
         <button className="tour-skip" onClick={finish}>{t("tour.skip")}</button>
 
-        <div className="tour-emoji" aria-hidden>{slide.key === "welcome" ? <BlackpineLogo size={52} radius={13} /> : slide.emoji}</div>
-        <h2 className="tour-title">{t(`${prefix}.${slide.key}Title`)}</h2>
-        <p className="tour-body">{t(`${prefix}.${slide.key}Body`)}</p>
+        <div className="tour-illus">
+          {key === "welcome" ? (
+            <div className="tour-welcome-logo"><BlackpineLogo size={56} radius={14} /></div>
+          ) : (
+            <TourArt name={key} />
+          )}
+        </div>
+
+        <div className="tour-step-badge">{t("tour.stepOf", { n: idx + 1, total: slides.length })}</div>
+        <h2 className="tour-title">{t(`${prefix}.${key}Title`)}</h2>
+        <p className="tour-body">{t(`${prefix}.${key}Body`)}</p>
+
+        {stepList.length > 0 && (
+          <ol className="tour-steps">
+            {stepList.map((s, k) => (
+              <li key={k} className="tour-step"><span className="tour-step-n">{k + 1}</span><span>{s}</span></li>
+            ))}
+          </ol>
+        )}
 
         <div className="tour-dots">
           {slides.map((s, k) => (
-            <span key={s.key} className={`tour-dot${k === idx ? " active" : ""}`} onClick={() => setI(k)} />
+            <span key={s} className={`tour-dot${k === idx ? " active" : ""}`} onClick={() => go(k)} role="button" aria-label={`${k + 1}`} />
           ))}
         </div>
 
         <div className="tour-actions">
-          {idx > 0 ? (
-            <button className="tour-back" onClick={() => setI(idx - 1)}>{t("tour.back")}</button>
+          {!isFirst ? (
+            <button className="tour-back" onClick={() => go(idx - 1)}>{t("tour.back")}</button>
           ) : <span />}
           {isLast ? (
             <button className="btn btn-primary tour-next" onClick={finish}>{t("tour.start")}</button>
           ) : (
-            <button className="btn btn-primary tour-next" onClick={() => setI(idx + 1)}>{t("tour.next")}</button>
+            <button className="btn btn-primary tour-next" onClick={() => go(idx + 1)}>{t("tour.next")}</button>
           )}
         </div>
       </div>

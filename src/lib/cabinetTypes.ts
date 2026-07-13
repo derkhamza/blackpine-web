@@ -27,14 +27,21 @@ export interface CabinetDoctorProfile {
   whatsApp?:       string;   // WhatsApp cabinet (patients)
   accountantPhone?: string;  // WhatsApp expert-comptable
   locations?:      CabinetLocation[];  // multi-location support
-  secretaryPin?:   string;   // 4-digit PIN to exit secretary mode (doctor sets this)
   customDrugs?:    string[]; // Custom medications added by the doctor
-  hiddenConsultationTypes?: AppointmentType[]; // types hidden from the type selector
-  appointmentPrices?: Partial<Record<AppointmentType, number>>; // doctor-set fee (MAD) per RDV type
+  hiddenConsultationTypes?: string[]; // types hidden from the type selector (built-in ids or custom ids)
+  appointmentPrices?: Record<string, number>; // doctor-set fee (MAD) per RDV type (built-in or custom id)
+  // Doctor-defined appointment types (added on top of the built-ins).
+  customApptTypes?: CustomApptType[];
+  // Rename / recolour a BUILT-IN appointment type without deleting it.
+  apptTypeOverrides?: Record<string, { label?: string; color?: string }>;
+  // Second, optional agenda differentiation axis — colour-coded "labels"/tags
+  // orthogonal to the type (e.g. "Première visite", "Urgent", "Téléconsult").
+  apptLabels?:     ApptLabel[];
   secretaryPermissions?: SecretaryPermissions; // granular access the doctor grants the secretary
   acteCodes?:      ActeCode[];        // doctor-maintained list of medical act codes
   documentSettings?: DocumentSettings; // facture / ordonnance customisation
   noteTemplates?:  CustomNoteTemplate[]; // doctor-saved clinical-note templates
+  examRequestTemplates?: ExamRequestTemplate[]; // doctor-saved demande d'examens models
   extraBilans?:    string[];          // preferred measure groups shown by default (bilan keys or "spec:<title>")
   bilanSourcePrefs?: Record<string, "office" | "external">; // preferred section per group in the preferred set
   hiddenSpecialtyGroups?: string[];   // legacy — specialty groups the doctor removed (superseded by opt-in extraBilans)
@@ -98,6 +105,7 @@ export interface DocBlockDesign {
   x?: number;       // mm from the left page edge; undefined = natural flow
   y?: number;       // mm from the top page edge
   w?: number;       // mm — block width (text wraps to it); undefined = natural width
+  h?: number;       // mm — reserved block height (min-height); undefined = natural
 }
 
 // Custom page design for a printed document (facture / ordonnance).
@@ -114,6 +122,11 @@ export type DocKind =
   | "payroll";
 
 export interface PageDesign {
+  // Paper mode: false/undefined = blank paper (the app prints the full document,
+  // header + footer included); true = pre-printed letterhead (the doctor's own
+  // header/footer are already on the paper, so those blocks are hidden and only
+  // the content is printed, positioned to fit).
+  preprinted?:   boolean;
   pageSize?:     PaperSize; // paper size (defaults: ordonnance=A5, facture=A4)
   marginTop?:    number;  // mm
   marginRight?:  number;
@@ -284,7 +297,27 @@ export interface VitalSigns {
 
 // ── Appointment types ─────────────────────────────────────────────────────────
 
+// Built-in appointment types. An appointment's `type` may also be a doctor-defined
+// custom id, so `Appointment.type` is widened to string — always resolve display
+// through apptTypeLabel()/apptTypeColor(), never index APPT_TYPE_LABELS directly.
 export type AppointmentType = "consultation" | "controle" | "suivi" | "procedure" | "urgence" | "autre";
+
+export const BUILTIN_APPT_TYPES: AppointmentType[] = ["consultation", "controle", "suivi", "procedure", "urgence", "autre"];
+
+// A doctor-defined appointment type (rides the synced doctorProfile).
+export interface CustomApptType {
+  id:    string;   // stable slug stored on Appointment.type (e.g. "teleconsult")
+  label: string;
+  color: string;   // hex
+}
+
+// A secondary, optional agenda tag — orthogonal to the type. Colour-coded and
+// shown as a small badge on the appointment, giving a second differentiation axis.
+export interface ApptLabel {
+  id:    string;
+  label: string;
+  color: string;   // hex
+}
 
 // ── Prescription templates ────────────────────────────────────────────────────
 
@@ -394,6 +427,16 @@ export interface ExamRequestLine {
   detail?:  string;    // parameters: "à jeun", "face + profil", "avec injection"
 }
 
+// A reusable exam-request model — a named bundle of lines (+ optional default
+// indication) the doctor can drop into a new demande d'examens. Built-ins ship in
+// examCatalog.ts; the doctor's own saved ones ride the synced doctorProfile.
+export interface ExamRequestTemplate {
+  id:          string;
+  name:        string;
+  lines:       ExamRequestLine[];
+  indication?: string;
+}
+
 // Standalone exam-request record (also used for appointment-sourced ones, which
 // carry source:"appointment" + appointmentId — single source of truth).
 export interface ExamRequest {
@@ -417,7 +460,11 @@ export interface Appointment {
   date: string;        // "YYYY-MM-DD"
   startTime: string;   // "HH:MM"
   endTime: string;     // "HH:MM"
-  type: AppointmentType;
+  // Built-in AppointmentType id or a doctor-defined custom type id. The union
+  // keeps autocomplete for built-ins while allowing any custom slug.
+  type: AppointmentType | (string & {});
+  // Optional secondary differentiation tag (doctorProfile.apptLabels[].id).
+  labelId?: string;
   notes?: string;
   status: AppointmentStatus;
   consultationNote?: ConsultationNote;
@@ -577,10 +624,65 @@ export const APPT_TYPE_COLORS: Record<AppointmentType, string> = {
   autre:        "#F59E0B",
 };
 
+// ── Appointment-type registry (custom types + built-in overrides) ─────────────
+//
+// Appointment.type may be a built-in id OR a doctor-defined custom id, and many
+// call sites (printers, CSV/iCal exporters) have no React context to read the
+// doctorProfile from. So we keep a module-level registry, refreshed whenever the
+// doctorProfile changes (see CabinetContext), and resolve display through it.
+
+export interface ResolvedApptType { id: string; label: string; color: string; builtin: boolean; }
+
+const DEFAULT_TYPE_COLOR = "#64748B";
+let typeById  = new Map<string, ResolvedApptType>();
+let labelById = new Map<string, ApptLabel>();
+
+// Recompute the registry from a doctor profile. Idempotent; call on every
+// profile change. Built-ins come first (respecting label/colour overrides),
+// then the doctor's custom types.
+export function setApptTypeRegistry(profile?: { customApptTypes?: CustomApptType[]; apptTypeOverrides?: Record<string, { label?: string; color?: string }>; apptLabels?: ApptLabel[] } | null): void {
+  const map = new Map<string, ResolvedApptType>();
+  for (const id of BUILTIN_APPT_TYPES) {
+    const ov = profile?.apptTypeOverrides?.[id];
+    map.set(id, { id, label: ov?.label || APPT_TYPE_LABELS[id], color: ov?.color || APPT_TYPE_COLORS[id], builtin: true });
+  }
+  for (const c of profile?.customApptTypes ?? []) {
+    if (!c.id) continue;
+    map.set(c.id, { id: c.id, label: c.label || c.id, color: c.color || DEFAULT_TYPE_COLOR, builtin: false });
+  }
+  typeById = map;
+  labelById = new Map((profile?.apptLabels ?? []).filter(l => l.id).map(l => [l.id, l]));
+}
+
+// Full ordered list of types for selectors/settings (built-ins then custom).
+export function resolveApptTypes(): ResolvedApptType[] {
+  return [...typeById.values()];
+}
+
+export function apptTypeLabel(type: string): string {
+  return typeById.get(type)?.label
+    ?? APPT_TYPE_LABELS[type as AppointmentType]
+    ?? type;
+}
+
+export function apptTypeColor(type: string): string {
+  return typeById.get(type)?.color
+    ?? APPT_TYPE_COLORS[type as AppointmentType]
+    ?? DEFAULT_TYPE_COLOR;
+}
+
+export function apptLabelById(id?: string): ApptLabel | undefined {
+  return id ? labelById.get(id) : undefined;
+}
+
+// Seed the registry with built-ins at module load, so resolution works before
+// the CabinetContext provider mounts and pushes the real doctor profile.
+setApptTypeRegistry(null);
+
 export const APPT_STATUS_LABELS: Record<AppointmentStatus, string> = {
   scheduled:       "Planifié",
   arrived:         "Arrivé",
-  in_consultation: "En consultation",
+  in_consultation: "En salle",
   completed:       "Terminé",
   cancelled:       "Annulé",
   no_show:         "Non présenté",

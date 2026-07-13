@@ -1,5 +1,5 @@
 import type { Appointment } from "./cabinetTypes";
-import { APPT_TYPE_LABELS } from "./cabinetTypes";
+import { apptTypeLabel } from "./cabinetTypes";
 
 // ── RFC 5545 helpers ──────────────────────────────────────────────────────────
 
@@ -75,7 +75,7 @@ export function exportAgendaIcal(
   ];
 
   for (const a of appointments) {
-    const typeLabel = APPT_TYPE_LABELS[a.type] ?? a.type;
+    const typeLabel = apptTypeLabel(a.type);
     const summary   = `${a.patientName} — ${typeLabel}`;
 
     const descParts: string[] = [];

@@ -26,6 +26,31 @@ function printOrdonnance(
   notes: string | undefined,
   doctor: { fullName: string; specialtyLabel?: string; address?: string; phone?: string; inpe?: string },
 ) {
+  // Escape every free-text field before interpolating into the print HTML. Drug
+  // names, dosages and the patient name can be patient/secretary-supplied, so
+  // unescaped they inject script into the same-origin print window (token theft).
+  const esc = (s: unknown) =>
+    String(s ?? "").replace(/[&<>"']/g, (m) =>
+      (({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }) as Record<string, string>)[m]);
+  patientName = esc(patientName);
+  notes = notes ? esc(notes) : notes;
+  doctor = {
+    ...doctor,
+    fullName:       esc(doctor.fullName),
+    specialtyLabel: esc(doctor.specialtyLabel),
+    address:        esc(doctor.address),
+    phone:          esc(doctor.phone),
+    inpe:           esc(doctor.inpe),
+  };
+  lines = lines.map((l) => ({
+    ...l,
+    drug:      esc(l.drug),
+    dosage:    l.dosage ? esc(l.dosage) : l.dosage,
+    frequency: esc(l.frequency),
+    duration:  l.duration ? esc(l.duration) : l.duration,
+    notes:     l.notes ? esc(l.notes) : l.notes,
+  }));
+
   const formatDateFr = (iso: string) => {
     const [y, m, d] = iso.split("-");
     return `${d}/${m}/${y}`;
