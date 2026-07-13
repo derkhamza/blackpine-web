@@ -578,7 +578,7 @@ export function CabinetProvider({
     return () => window.removeEventListener("bp:storage-quota", onQuota);
   }, []);
   useEffect(() => {
-    const WARN_BYTES = 3_800_000; // ~3.8 MB of a ~5 MB cap → warn with headroom
+    const WARN_BYTES = 4_300_000; // ~4.3 MB of a ~5 MB cap → warn only when genuinely close
     const check = () => setNearFull(estimateStorageBytes() >= WARN_BYTES);
     check();
     const id = setInterval(check, 60_000);

@@ -392,6 +392,9 @@ export function Layout({ title, subtitle, actions, children }: Props) {
   const [searchOpen,    setSearchOpen]    = useState(false);
   const [drawerOpen,    setDrawerOpen]    = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [storageWarnDismissed, setStorageWarnDismissed] = useState(() => {
+    try { return sessionStorage.getItem("bp.storageWarnDismissed") === "1"; } catch { return false; }
+  });
   const { dark, toggle: toggleDark } = useDarkMode();
 
   const handleLogout = () => {
@@ -851,17 +854,28 @@ export function Layout({ title, subtitle, actions, children }: Props) {
           </div>
         )}
         {/* Local-storage quota pressure — warn before data is lost, alarm once a
-            write has been dropped. Links to Paramètres, where backup/export lives. */}
-        {storagePressure !== "ok" && (
+            write has been dropped. The warning is dismissible for the session so it
+            doesn't nag; the critical alarm (a write was actually dropped) always shows. */}
+        {(storagePressure === "critical" || (storagePressure === "warning" && !storageWarnDismissed)) && (
           <div className={`storage-banner storage-banner-${storagePressure}`} role="alert">
             <span>
               <strong>{t(storagePressure === "critical" ? "storage.criticalTitle" : "storage.warningTitle")}</strong>
               {" — "}
               {t(storagePressure === "critical" ? "storage.criticalBody" : "storage.warningBody")}
             </span>
-            <button className="storage-banner-btn" onClick={() => { navigate("/parametres"); closeDrawer(); }}>
-              {t("storage.action")}
-            </button>
+            <span style={{ display: "inline-flex", gap: 8, flexShrink: 0 }}>
+              <button className="storage-banner-btn" onClick={() => { navigate("/parametres"); closeDrawer(); }}>
+                {t("storage.action")}
+              </button>
+              {storagePressure === "warning" && (
+                <button
+                  className="storage-banner-dismiss"
+                  onClick={() => { setStorageWarnDismissed(true); try { sessionStorage.setItem("bp.storageWarnDismissed", "1"); } catch { /* ignore */ } }}
+                  aria-label={t("common.close")}
+                  title={t("common.close")}
+                >×</button>
+              )}
+            </span>
           </div>
         )}
         <TrialGate />

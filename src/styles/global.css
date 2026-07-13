@@ -7672,6 +7672,11 @@ a.ana-top-name:hover { color: var(--blue); text-decoration: underline; }
   transition: background var(--trans);
 }
 .storage-banner-btn:hover { background: rgba(127,127,127,0.14); }
+.storage-banner-dismiss {
+  border: none; background: transparent; color: inherit;
+  font-size: 17px; line-height: 1; cursor: pointer; opacity: 0.65; padding: 0 4px;
+}
+.storage-banner-dismiss:hover { opacity: 1; }
 
 /* ═══════════════════════════════════════════════════════
    SECRETARY PIN — SETTINGS FORM
