@@ -3151,6 +3151,12 @@
     "title": "Dashboard",
     "quickAccess": "Quick access",
     "todaySchedule": "Today's schedule",
+    "upcoming": "Upcoming",
+    "waitingSub": "in the waiting room",
+    "toConfirm": "To confirm",
+    "toConfirmSub": "booked online",
+    "toBill": "To collect",
+    "toBillSub": "completed consultations",
     "noAppts": "No appointments today",
     "noName": "No name"
   }

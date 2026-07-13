@@ -67,11 +67,14 @@ function RequireAuth({ children, secretaryOk = false, perm, adminOk = false }: {
   return children;
 }
 
-// The "/" landing: a real secretary gets their own focused dashboard; the doctor
-// (or preview) gets the full clinical dashboard.
+// The "/" landing: a real secretary — AND a doctor previewing the secretary view
+// — get the focused secretary dashboard; the doctor's own login gets the full
+// clinical dashboard. Rendering the secretary dashboard in preview keeps the
+// preview faithful (and lets "Tableau de bord" be a real tab in both).
 function HomeDashboard() {
   const { isSecretary } = useApp();
-  return isSecretary ? <SecretaryDashboardPage /> : <DashboardPage />;
+  const { secretaryMode } = useCabinet();
+  return (isSecretary || secretaryMode) ? <SecretaryDashboardPage /> : <DashboardPage />;
 }
 
 function OnboardingGate() {

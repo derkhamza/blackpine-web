@@ -3151,6 +3151,12 @@
     "title": "Tableau de bord",
     "quickAccess": "Accès rapide",
     "todaySchedule": "Programme du jour",
+    "upcoming": "À venir",
+    "waitingSub": "en salle d'attente",
+    "toConfirm": "À confirmer",
+    "toConfirmSub": "réservés en ligne",
+    "toBill": "À encaisser",
+    "toBillSub": "consultations terminées",
     "noAppts": "Aucun rendez-vous aujourd'hui",
     "noName": "Sans nom"
   }

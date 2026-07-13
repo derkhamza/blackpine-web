@@ -3151,6 +3151,12 @@
     "title": "لوحة التحكم",
     "quickAccess": "وصول سريع",
     "todaySchedule": "برنامج اليوم",
+    "upcoming": "قادمة",
+    "waitingSub": "في قاعة الانتظار",
+    "toConfirm": "للتأكيد",
+    "toConfirmSub": "محجوزة عبر الإنترنت",
+    "toBill": "للتحصيل",
+    "toBillSub": "استشارات منتهية",
     "noAppts": "لا مواعيد اليوم",
     "noName": "بدون اسم"
   }

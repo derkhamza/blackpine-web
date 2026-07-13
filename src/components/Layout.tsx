@@ -355,11 +355,11 @@ export function Layout({ title, subtitle, actions, children }: Props) {
   const isRealSecretary = role === "secretary";
   // Product-owner accounts run a pure admin console (see lib/owner).
   const isAdmin = !isRealSecretary && isAdminEmail(user?.email);
-  // Home page differs by role (owner → admin console, secretary/preview → agenda,
-  // doctor → dashboard).
-  // A real secretary now lands on their own dashboard at "/"; a doctor previewing
-  // the secretary view stays on /agenda (the "/" route shows the doctor dashboard).
-  const homePath = isAdmin ? "/admin" : secretaryMode ? "/agenda" : "/";
+  // Home page differs by role (owner → admin console, everyone else → "/").
+  // "/" resolves to the secretary dashboard for a real secretary AND a doctor
+  // previewing the secretary view, and to the clinical dashboard for the doctor's
+  // own login — so the "Tableau de bord" tab is a real destination in every case.
+  const homePath = isAdmin ? "/admin" : "/";
   const showBack = pathname !== homePath;
   // Header icon badge, resolved from the first path segment (root → dashboard).
   const pageIcon = PAGE_ICONS[pathname.split("/")[1] ?? ""];
@@ -557,12 +557,12 @@ export function Layout({ title, subtitle, actions, children }: Props) {
     { to: "/parametres",    label: t("nav.settings"),     icon: "parametres",   group: "Paramètres" },
   ];
 
-  // Secretary access: the Quotidien group by default, plus whatever extra areas
-  // the doctor has granted via secretaryPermissions. A real (separate-login)
-  // secretary also can't reach the dashboard ("/"), so drop it for them.
+  // Secretary access: the whole Quotidien group — including their own dashboard
+  // at "/" — plus whatever extra areas the doctor has granted via
+  // secretaryPermissions.
   const secPerms = doctorProfile.secretaryPermissions ?? DEFAULT_SECRETARY_PERMISSIONS;
   const secretaryCanSee = (to: string, group: string): boolean => {
-    if (group === "Quotidien" && to !== "/") return true;
+    if (group === "Quotidien") return true;
     if (to === "/documents" || to === "/examens") return !!secPerms.viewClinical;
     if (to === "/communication") return !!secPerms.useCommunication;
     if (to === "/calculateurs") return !!secPerms.useCalculators;
