@@ -5,7 +5,7 @@ import type { Appointment, ApptDocument, CabinetDoctorProfile, Certificate, Empl
 import { BLANK_DOCTOR_PROFILE, setApptTypeRegistry } from "../lib/cabinetTypes";
 import { idbGet, idbSet } from "../lib/idbStore";
 import { fullName } from "../lib/nameFormat";
-import { mergeConflict } from "../lib/cabinetMerge";
+import { mergeConflict, shouldApplySnapshot } from "../lib/cabinetMerge";
 import {
   getToken, pullCabinet, pushCabinet, CabinetConflictError, type CabinetSnapshot,
   getSecretaryToken, secretaryPull, secretaryPushAppointments, secretaryPushPatients,
@@ -733,8 +733,7 @@ export function CabinetProvider({
         // forever — the "sync failing all the time" loop — besides reverting
         // data. Boot (base null) always applies to hydrate.
         const incoming = (snapshot as CabinetSnapshot).updatedAt;
-        const base = baseUpdatedAt.current;
-        if (boot || !base || !incoming || incoming >= base) {
+        if (shouldApplySnapshot(boot, baseUpdatedAt.current, incoming)) {
           applySnapshot(snapshot);
         }
       }

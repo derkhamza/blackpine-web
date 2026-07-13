@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { mergeRecord, mergeConflict } from "./cabinetMerge";
+import { mergeRecord, mergeConflict, shouldApplySnapshot } from "./cabinetMerge";
 
 const S = (...ids: string[]) => new Set<string>(ids);
 
@@ -67,5 +67,26 @@ describe("mergeConflict", () => {
   it("without a base, a touched record keeps local wholesale (back-compat)", () => {
     expect(mergeConflict([{ id: "1", a: 9, b: 9 }], [{ id: "1", a: 1, b: 1 }], S(), S("1")))
       .toEqual([{ id: "1", a: 1, b: 1 }]);
+  });
+
+  it("skips null/idless server rows", () => {
+    const server = [null as any, { id: "" } as any, { id: "1", a: 1 }];
+    expect(mergeConflict(server, [], S(), S())).toEqual([{ id: "1", a: 1 }]);
+  });
+});
+
+describe("shouldApplySnapshot (monotonic pull guard)", () => {
+  it("always applies on boot, even if the incoming is older", () => {
+    expect(shouldApplySnapshot(true, "2026-02-01T00:00:00Z", "2026-01-01T00:00:00Z")).toBe(true);
+  });
+  it("applies when there is no base yet", () => {
+    expect(shouldApplySnapshot(false, null, "2026-01-01T00:00:00Z")).toBe(true);
+  });
+  it("applies a newer or equal incoming snapshot", () => {
+    expect(shouldApplySnapshot(false, "2026-01-01T00:00:00Z", "2026-02-01T00:00:00Z")).toBe(true);
+    expect(shouldApplySnapshot(false, "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z")).toBe(true);
+  });
+  it("rejects a stale (older) incoming snapshot — no going backwards", () => {
+    expect(shouldApplySnapshot(false, "2026-02-01T00:00:00Z", "2026-01-01T00:00:00Z")).toBe(false);
   });
 });

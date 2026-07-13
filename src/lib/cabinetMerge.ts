@@ -49,6 +49,21 @@ export function mergeRecord<T extends { id: string }>(
 }
 
 /**
+ * Monotonic guard for pulls. A stale/out-of-order read (e.g. a lagged DB replica)
+ * must never drag our concurrency base backwards — if it did, every optimistic
+ * push would conflict forever and data would revert. Apply a pulled snapshot only
+ * when it is not OLDER than the base we already hold. Boot always applies (it is
+ * the initial hydration that first sets the base).
+ */
+export function shouldApplySnapshot(
+  boot: boolean,
+  base: string | null | undefined,
+  incoming: string | null | undefined,
+): boolean {
+  return boot || !base || !incoming || incoming >= base;
+}
+
+/**
  * Reconcile a server array against our local array after a 409.
  *   - records we deleted locally stay deleted (tombstones),
  *   - records we touched are field-merged against the server copy (3-way when a
