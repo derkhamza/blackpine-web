@@ -28,6 +28,7 @@ import { OrdonnanceModal }  from "../components/OrdonnanceModal";
 import { CertificateModal } from "../components/CertificateModal";
 import { ExamRequestModal } from "../components/ExamRequestModal";
 import { MedicalReportModal } from "../components/MedicalReportModal";
+import { findLastPrescription } from "../lib/prescriptions";
 import { Icd10Picker }      from "../components/Icd10Picker";
 import type { Icd10Entry }  from "../lib/icd10";
 import { getSpecialtyGroups, getSpecialtyBilans, DEFAULT_BILANS, BILAN_CATALOG, fieldMeta } from "../lib/specialtyFields";
@@ -281,17 +282,17 @@ export function AppointmentDetailPage() {
   // consultationNote.motif from a secretary, nothing else beyond extraFields.
   const motifReadOnly = false;
 
-  // Most recent prescription this patient received at any *other* appointment —
-  // lets the doctor one-click "repeat last" for chronic patients.
-  const lastOrdonnanceLines = useMemo(() => {
-    const pid = appointments.find((a) => a.id === apptId)?.patientId;
-    if (!pid) return undefined;
-    const prior = appointments
-      .filter((a) => a.id !== apptId && a.patientId === pid
-        && a.savedOrdonnance && a.savedOrdonnance.lines.length > 0)
-      .sort((a, b) => b.savedOrdonnance!.printedAt.localeCompare(a.savedOrdonnance!.printedAt));
-    return prior[0]?.savedOrdonnance?.lines;
-  }, [appointments, apptId]);
+  // Most recent prescription this patient already received — across other
+  // appointments AND standalone ordonnances — so the doctor can one-click renew
+  // for a returning / chronic patient.
+  const lastRx = useMemo(() => {
+    const cur = appointments.find((a) => a.id === apptId);
+    if (!cur) return undefined;
+    return findLastPrescription(
+      { patientId: cur.patientId, patientName: cur.patientName, excludeApptId: apptId },
+      prescriptions, appointments,
+    );
+  }, [appointments, prescriptions, apptId]);
 
   const appt = useMemo(
     () => appointments.find((a) => a.id === apptId),
@@ -2683,7 +2684,8 @@ export function AppointmentDetailPage() {
           date={appt.date}
           doctorProfile={doctorProfile}
           allergies={patient?.allergies}
-          lastOrdonnance={lastOrdonnanceLines}
+          lastOrdonnance={lastRx?.lines}
+          lastOrdonnanceDate={lastRx?.date}
           initialLines={appt.savedOrdonnance?.lines}
           onSave={(lines: OrdonnanceLine[]) => {
             updateAppointment({

@@ -2957,7 +2957,9 @@
     "emptyHint": "Créez votre première ordonnance",
     "emptySearchHint": "Essayez un autre nom",
     "emptyTpl": "Aucun modèle",
-    "emptyTplHint": "Créez des modèles pour accélérer la saisie"
+    "emptyTplHint": "Créez des modèles pour accélérer la saisie",
+    "renewProposal": "Dernière ordonnance : {{date}}",
+    "renewBtn": "Renouveler"
   },
   "shortcuts": {
     "title": "Raccourcis clavier",
@@ -3063,7 +3065,10 @@
     "moveUp": "Monter",
     "moveDown": "Descendre",
     "saveOnly": "Enregistrer sans imprimer",
-    "printBtn": "Imprimer l'ordonnance"
+    "printBtn": "Imprimer l'ordonnance",
+    "renewProposal": "Ordonnance existante du {{date}}",
+    "renewProposalNoDate": "Ce patient a déjà une ordonnance",
+    "renewBtn": "Renouveler"
   },
   "csvModal": {
     "title": "Importer des patients (CSV)",

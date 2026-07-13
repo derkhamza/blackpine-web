@@ -2957,7 +2957,9 @@
     "emptyHint": "أنشئ وصفتك الطبية الأولى",
     "emptySearchHint": "جرب اسماً آخر",
     "emptyTpl": "لا توجد نماذج",
-    "emptyTplHint": "أنشئ نماذج لتسريع إدخال البيانات"
+    "emptyTplHint": "أنشئ نماذج لتسريع إدخال البيانات",
+    "renewProposal": "آخر وصفة: {{date}}",
+    "renewBtn": "تجديد"
   },
   "shortcuts": {
     "title": "اختصارات لوحة المفاتيح",
@@ -3063,7 +3065,10 @@
     "moveUp": "تحريك لأعلى",
     "moveDown": "تحريك لأسفل",
     "saveOnly": "حفظ بدون طباعة",
-    "printBtn": "طباعة الوصفة"
+    "printBtn": "طباعة الوصفة",
+    "renewProposal": "وصفة موجودة بتاريخ {{date}}",
+    "renewProposalNoDate": "لدى هذا المريض وصفة سابقة",
+    "renewBtn": "تجديد"
   },
   "csvModal": {
     "title": "استيراد المرضى (CSV)",

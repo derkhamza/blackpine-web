@@ -2,8 +2,9 @@ import { useState, useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Layout } from "../components/Layout";
 import { useCabinet } from "../context/CabinetContext";
-import type { OrdonnanceLine, Prescription, PrescriptionTemplate } from "../lib/cabinetTypes";
+import type { OrdonnanceLine, Prescription, PrescriptionTemplate, Appointment } from "../lib/cabinetTypes";
 import { PatientPicker, type PickerPatient } from "../components/PatientPicker";
+import { findLastPrescription } from "../lib/prescriptions";
 import { todayIso } from "../lib/format";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -179,13 +180,16 @@ interface RxModalProps {
   initialTemplate?:  PrescriptionTemplate;
   patients:          PickerPatient[];
   templates:         PrescriptionTemplate[];
+  prescriptions:     Prescription[];
+  appointments:      Appointment[];
   today:             string;
   onSave:            (p: Omit<Prescription, "id" | "createdAt">) => void;
   onClose:           () => void;
 }
 
-function RxModal({ editing, initialTemplate, patients, templates, today, onSave, onClose }: RxModalProps) {
-  const { t } = useTranslation();
+function RxModal({ editing, initialTemplate, patients, templates, prescriptions, appointments, today, onSave, onClose }: RxModalProps) {
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language?.slice(0, 2) === "ar" ? "ar-MA" : i18n.language?.slice(0, 2) === "en" ? "en-US" : "fr-FR";
   const [patientName,   setPatientName]   = useState(editing?.patientName ?? "");
   const [patientId,     setPatientId]     = useState<string | undefined>(editing?.patientId);
   const [date,          setDate]          = useState(editing?.date ?? today);
@@ -196,6 +200,16 @@ function RxModal({ editing, initialTemplate, patients, templates, today, onSave,
   });
   const [notes,         setNotes]         = useState(editing?.notes ?? "");
   const [selectedTplId, setTplId]         = useState(initialTemplate?.id ?? "");
+
+  // "Patient coming back to renew" — the last prescription this patient already
+  // has. Proposed (not auto-applied) only for a NEW ordonnance whose form is
+  // still empty, so it never overwrites what the doctor is typing.
+  const formEmpty = lines.every(l => !l.drug.trim());
+  const lastRx = useMemo(
+    () => (editing ? undefined : findLastPrescription({ patientId, patientName }, prescriptions, appointments)),
+    [editing, patientId, patientName, prescriptions, appointments],
+  );
+  const renewLast = () => { if (lastRx) { setLines(lastRx.lines.map(l => ({ ...l }))); setTplId(""); } };
 
   const applyTemplate = useCallback((tplId: string) => {
     const tpl = templates.find(x => x.id === tplId);
@@ -252,6 +266,21 @@ function RxModal({ editing, initialTemplate, patients, templates, today, onSave,
               <input type="date" className="form-input" value={date} onChange={e => setDate(e.target.value)} />
             </div>
           </div>
+
+          {/* Renewal proposal — surfaced when a returning patient is chosen and the
+              form is still empty. One click reprend leur dernière ordonnance. */}
+          {lastRx && formEmpty && (
+            <button type="button" className="rx-renew-banner" onClick={renewLast}>
+              <svg width="16" height="16" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0 }}>
+                <path d="M2 7a5 5 0 1 1 1.5 3.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                <path d="M2 10.5V7.8h2.7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              <span className="rx-renew-text">
+                {t("ordonnances.renewProposal", { date: fmtDateLocale(lastRx.date, locale) })}
+              </span>
+              <span className="rx-renew-cta">{t("ordonnances.renewBtn")}</span>
+            </button>
+          )}
 
           {templates.length > 0 && (
             <div className="form-group">
@@ -691,6 +720,7 @@ export function OrdonancesPage({ noLayout = false }: { noLayout?: boolean } = {}
       {showRxModal && (
         <RxModal editing={editingRx} initialTemplate={preFillTpl}
           patients={patientsList} templates={prescriptionTemplates} today={today}
+          prescriptions={prescriptions} appointments={appointments}
           onSave={handleSaveRx}
           onClose={() => { setRxModal(false); setEditingRx(undefined); setPreFillTpl(undefined); }}
         />

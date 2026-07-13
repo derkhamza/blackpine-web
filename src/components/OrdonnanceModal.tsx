@@ -193,13 +193,14 @@ interface Props {
   doctorProfile: CabinetDoctorProfile;
   allergies?:    string;             // patient's recorded allergies (free text)
   lastOrdonnance?: OrdonnanceLine[];  // this patient's most recent prior prescription
+  lastOrdonnanceDate?: string;        // YYYY-MM-DD of that prescription (for the proposal)
   initialLines?: OrdonnanceLine[];   // pre-loaded from appointment
   onSave:        (lines: OrdonnanceLine[]) => void;
   onClose:       () => void;
 }
 
 export function OrdonnanceModal({
-  patientName, date, doctorProfile, allergies, lastOrdonnance, initialLines, onSave, onClose,
+  patientName, date, doctorProfile, allergies, lastOrdonnance, lastOrdonnanceDate, initialLines, onSave, onClose,
 }: Props) {
   const { t, i18n } = useTranslation();
   const { prescriptionTemplates, addPrescriptionTemplate, deletePrescriptionTemplate } = useCabinet();
@@ -367,6 +368,23 @@ export function OrdonnanceModal({
               <span className="ord-info-value">{doctorProfile.fullName || "—"}</span>
             </div>
           </div>
+
+          {/* Renewal proposal — for a returning patient with a prior ordonnance,
+              while the form is still empty. One click reprend la dernière. */}
+          {lastOrdonnance && lastOrdonnance.length > 0 && !lines.some(l => l.drug.trim()) && (
+            <button type="button" className="rx-renew-banner" onClick={repeatLast}>
+              <svg width="16" height="16" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0 }}>
+                <path d="M2 7a5 5 0 1 1 1.5 3.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                <path d="M2 10.5V7.8h2.7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              <span className="rx-renew-text">
+                {lastOrdonnanceDate
+                  ? t("ordModal.renewProposal", { date: new Date(lastOrdonnanceDate + "T12:00:00").toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" }) })
+                  : t("ordModal.renewProposalNoDate")}
+              </span>
+              <span className="rx-renew-cta">{t("ordModal.renewBtn")}</span>
+            </button>
+          )}
 
           {/* Allergy safety banner — surfaced when the patient has recorded allergies */}
           {showAllergyInfo && (

@@ -1367,6 +1367,21 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 .doc-mode-btn.active { background: var(--blue); color: #fff; }
 .pd-simple-note { display: flex; flex-direction: column; align-items: flex-start; padding: 4px 0; }
 
+/* Prescription renewal proposal — "patient coming back to renew" */
+.rx-renew-banner {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  margin: 10px 0 4px; padding: 12px 14px; text-align: left;
+  border: 1px solid rgba(37,99,235,0.30); border-radius: var(--r);
+  background: rgba(37,99,235,0.07); color: var(--blue, #2563EB);
+  cursor: pointer; transition: background var(--trans), border-color var(--trans);
+}
+.rx-renew-banner:hover { background: rgba(37,99,235,0.12); border-color: rgba(37,99,235,0.5); }
+.rx-renew-text { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; color: var(--text); }
+.rx-renew-cta {
+  flex-shrink: 0; font-size: 12.5px; font-weight: 700; color: #fff;
+  background: var(--blue, #2563EB); padding: 5px 12px; border-radius: 999px;
+}
+
 /* Grid body (relative container for events + lines) */
 .tgrid-body {
   position: relative; cursor: cell;

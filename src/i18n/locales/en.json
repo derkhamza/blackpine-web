@@ -2957,7 +2957,9 @@
     "emptyHint": "Create your first prescription",
     "emptySearchHint": "Try another name",
     "emptyTpl": "No templates",
-    "emptyTplHint": "Create templates to speed up entry"
+    "emptyTplHint": "Create templates to speed up entry",
+    "renewProposal": "Last prescription: {{date}}",
+    "renewBtn": "Renew"
   },
   "shortcuts": {
     "title": "Keyboard shortcuts",
@@ -3063,7 +3065,10 @@
     "moveUp": "Move up",
     "moveDown": "Move down",
     "saveOnly": "Save without printing",
-    "printBtn": "Print prescription"
+    "printBtn": "Print prescription",
+    "renewProposal": "Existing prescription from {{date}}",
+    "renewProposalNoDate": "This patient already has a prescription",
+    "renewBtn": "Renew"
   },
   "csvModal": {
     "title": "Import patients (CSV)",

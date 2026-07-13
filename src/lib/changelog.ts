@@ -17,6 +17,15 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "1.18.0",
+    date:    "2026-07-13",
+    title:   "Renouvellement d'ordonnance en un clic",
+    items: [
+      "Patient qui revient pour renouveler ? L'app propose sa dernière ordonnance — un clic sur « Renouveler » la reprend, depuis la consultation comme depuis Documents.",
+      "La dernière ordonnance est retrouvée où qu'elle ait été créée (consultation ou ordonnance directe).",
+    ],
+  },
+  {
     version: "1.17.0",
     date:    "2026-07-13",
     title:   "Salle d'attente plus juste & aperçu exact des documents",
