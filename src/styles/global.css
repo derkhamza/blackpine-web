@@ -810,6 +810,14 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 }
 .auth-role-doctor    { color: var(--blue, #2563EB); background: rgba(37,99,235,0.10); }
 .auth-role-secretary { color: #7c3aed;               background: rgba(124,58,237,0.12); }
+.auth-secretary-btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; margin-top: 14px; padding: 10px 12px;
+  border: 1px solid rgba(124,58,237,0.30); border-radius: var(--r);
+  background: transparent; color: #7c3aed; font-size: 13px; font-weight: 500;
+  cursor: pointer; transition: background var(--trans), border-color var(--trans);
+}
+.auth-secretary-btn:hover { background: rgba(124,58,237,0.07); border-color: rgba(124,58,237,0.5); }
 .auth-title { font-size: 18px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
 .auth-sub { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
 .auth-form { display: flex; flex-direction: column; gap: 12px; }
@@ -2319,6 +2327,16 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 .patient-stat-value { font-size: 22px; font-weight: 800; color: var(--navy); }
 .patient-stat-label { font-size: 10px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; }
 .patient-header-actions { display: flex; gap: 8px; margin-left: 8px; }
+
+/* Patient screen — stack the header and stats on narrow windows so nothing
+   squeezes into an unreadable row. */
+@media (max-width: 720px) {
+  .patient-header-card { flex-direction: column; align-items: stretch; gap: 14px; padding: 16px; }
+  .patient-header-actions { margin-left: 0; }
+  .patient-header-stats { gap: 14px; justify-content: flex-start; }
+  .patient-header-avatar { width: 52px; height: 52px; font-size: 18px; }
+  .patient-header-name { font-size: 18px; }
+}
 
 /* Dossier grid */
 .patient-dossier-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
@@ -8480,6 +8498,15 @@ html { scroll-behavior: smooth; }
 .admin-release-list code { background: var(--surface-alt); border-radius: 4px; padding: 0 4px; font-size: 11.5px; }
 .admin-area { display: block; width: 100%; height: 160px; }
 .admin-empty { font-size: 13px; color: var(--muted); padding: 20px 0; }
+/* Hour-of-day bar chart (admin analytics) */
+.admin-hourbars { display: flex; align-items: flex-end; gap: 2px; height: 120px; margin: 8px 0 22px; }
+.admin-hourbar-col { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; position: relative; }
+.admin-hourbar { width: 100%; border-radius: 3px 3px 0 0; min-height: 2px; }
+.admin-hourbar-lbl { position: absolute; bottom: -16px; font-size: 9px; color: var(--muted); }
+/* Metric explanations */
+.admin-metric-defs { display: flex; flex-direction: column; gap: 10px; margin: 0; }
+.admin-metric-defs dt { font-size: 13px; font-weight: 600; color: var(--text); }
+.admin-metric-defs dd { font-size: 12.5px; color: var(--muted); margin: 2px 0 0; line-height: 1.5; }
 
 /* Per-doctor drill-down */
 /* Admin console section tabs */

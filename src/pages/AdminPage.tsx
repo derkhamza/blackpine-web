@@ -54,6 +54,32 @@ function AreaChart({ data, color }: { data: { date: string; count: number }[]; c
   );
 }
 
+// Activity across the hours of the day (24 bars). created_at is stored UTC; shift
+// +1h to approximate Morocco local time so peaks line up with clinic hours.
+function HourBars({ data, color }: { data?: { hour: number; count: number }[]; color: string }) {
+  if (!data || data.length === 0) return <div className="admin-empty">Aucune donnée sur la période.</div>;
+  const buckets = new Array(24).fill(0);
+  for (const d of data) buckets[((d.hour + 1) % 24 + 24) % 24] += d.count;
+  const max = Math.max(1, ...buckets);
+  const total = buckets.reduce((s, v) => s + v, 0);
+  const peakHour = buckets.indexOf(Math.max(...buckets));
+  return (
+    <>
+      <div className="admin-hourbars" role="img" aria-label="Activité par heure de la journée">
+        {buckets.map((v, h) => (
+          <div key={h} className="admin-hourbar-col" title={`${String(h).padStart(2, "0")}h : ${v.toLocaleString("fr-FR")}`}>
+            <div className="admin-hourbar" style={{ height: `${(v / max) * 100}%`, background: color }} />
+            {h % 3 === 0 && <span className="admin-hourbar-lbl">{h}h</span>}
+          </div>
+        ))}
+      </div>
+      <div className="admin-sub">
+        Pic d'activité : {String(peakHour).padStart(2, "0")}h · Total : {total.toLocaleString("fr-FR")} · heure locale (approx.)
+      </div>
+    </>
+  );
+}
+
 // Stacked engagement-segment bar with legend (retention view).
 const SEGMENTS: { key: "active7" | "sleeping" | "inactive" | "never"; label: string; color: string }[] = [
   { key: "active7",  label: "Actifs · 7j",        color: "var(--green)" },
@@ -532,6 +558,12 @@ function DoctorsSection() {
                         <AreaChart data={detail.byDay} color="var(--blue)" />
                       </div>
                     )}
+                    {detail.byHour && detail.byHour.length > 0 && (
+                      <div style={{ marginTop: 14 }}>
+                        <div className="admin-doc-subtitle">Activité par heure de la journée</div>
+                        <HourBars data={detail.byHour} color="var(--green)" />
+                      </div>
+                    )}
                     {detail.byPlatform.length > 0 && (
                       <div className="admin-sub" style={{ marginTop: 10 }}>
                         {detail.byPlatform.map((p) => `${PLATFORM_LABELS[p.platform] ?? p.platform} : ${p.count.toLocaleString("fr-FR")}`).join(" · ")}
@@ -981,6 +1013,20 @@ export function AdminPage() {
               <AreaChart data={events.byDay} color="var(--blue)" />
             </Section>
           )}
+          {events.byHour && events.byHour.length > 0 && (
+            <Section title="Activité par heure de la journée">
+              <HourBars data={events.byHour} color="var(--blue)" />
+            </Section>
+          )}
+          <Section title="Que mesure-t-on ?">
+            <dl className="admin-metric-defs">
+              <div><dt>Événements</dt><dd>Total des interactions suivies (ouvertures d'écran + actions).</dd></div>
+              <div><dt>Utilisateurs actifs</dt><dd>Comptes distincts ayant généré au moins un événement sur la période.</dd></div>
+              <div><dt>Écrans / Actions</dt><dd>Écrans les plus consultés et actions les plus déclenchées — les préférences d'usage.</dd></div>
+              <div><dt>Activité par heure</dt><dd>Répartition des événements sur les 24 heures (heure locale approx.) — révèle les créneaux d'usage.</dd></div>
+              <div><dt>Plateforme</dt><dd>Part du web vs application mobile (médecin / secrétaire).</dd></div>
+            </dl>
+          </Section>
           {events.byPlatform && events.byPlatform.length > 0 && (
             <Section title="Répartition par plateforme">
               <div className="admin-grid">

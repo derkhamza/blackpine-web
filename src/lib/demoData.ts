@@ -98,7 +98,13 @@ export function generateDemoData(now: Date = new Date()): DemoBundle {
   const meds = ["", "Metformine 850mg x2/j", "Levothyrox 75µg", "Amlodipine 5mg", "Atorvastatine 20mg", "Insuline Lantus 20UI"];
 
   const patients: any[] = [];
-  const N_PATIENTS = 24;
+  const N_PATIENTS = 40;
+  const patientNotes = [
+    "Patient observant, bon suivi.", "À recontrôler dans 3 mois.",
+    "Sensibiliser sur l'observance thérapeutique.", "Antécédents familiaux de diabète type 2.",
+    "Éducation diététique en cours.", "Surveillance rapprochée du poids.",
+    "Bonne évolution sous traitement.", "Adresser au diététicien.",
+  ];
   for (let i = 0; i < N_PATIENTS; i++) {
     const isChild = i < 3;                       // first 3 are children (growth curves)
     const gender = chance(0.5) ? "M" : "F";
@@ -121,7 +127,7 @@ export function generateDemoData(now: Date = new Date()): DemoBundle {
       antecedents: isChild ? pick(["", "Asthme", "Terrain atopique"]) : pick(anteced),
       currentMedications: isChild ? "" : pick(meds),
       createdAt: isoAt(-int(30, 720), 9, 0),
-      notes: "",
+      notes: !isChild && chance(0.45) ? pick(patientNotes) : "",
     });
   }
 
@@ -159,13 +165,13 @@ export function generateDemoData(now: Date = new Date()): DemoBundle {
   const appts: any[] = [];
   let invSeq = 1;
   let apptSeq = 0;
-  // Past ~90 days (mostly completed) + next ~21 days (scheduled).
-  for (let day = -90; day <= 21; day++) {
+  // Past ~150 days (mostly completed) + next ~21 days (scheduled).
+  for (let day = -150; day <= 21; day++) {
     const d = dayOffset(day);
     const wd = d.getDay();
     if (wd === 0) continue;                        // closed Sunday
-    if (day < 0 && chance(0.35)) continue;          // not every past day is full
-    const count = day > 0 ? int(0, 3) : int(1, 4);
+    if (day < 0 && chance(0.20)) continue;          // not every past day is full
+    const count = day > 0 ? int(1, 3) : int(2, 5);
     for (let k = 0; k < count; k++) {
       const p = pick(patients);
       const child = patients.indexOf(p) < 3;
@@ -247,7 +253,7 @@ export function generateDemoData(now: Date = new Date()): DemoBundle {
   ];
 
   // ── Exam results & requests, standalone prescriptions, notes ──────────────
-  const examResults = patients.slice(0, 8).map((p, i) => {
+  const examResults = patients.slice(0, 18).map((p, i) => {
     const d = ymd(dayOffset(-int(5, 60)));
     const hba1c = 5.5 + rng() * 3;
     return {
@@ -262,7 +268,7 @@ export function generateDemoData(now: Date = new Date()): DemoBundle {
       notes: "", createdAt: d + "T09:00:00.000Z",
     };
   });
-  const examRequests = patients.slice(0, 5).map((p, i) => {
+  const examRequests = patients.slice(0, 12).map((p, i) => {
     const d = ymd(dayOffset(-int(1, 20)));
     return {
       id: uid("exq", i), patientId: p.id, patientName: `${p.firstName} ${p.lastName}`,
@@ -294,7 +300,7 @@ export function generateDemoData(now: Date = new Date()): DemoBundle {
     { id: uid("emp", 2), firstName: "Nadia", lastName: "Rifai", role: "infirmier", baseSalary: 6000, cnssNumber: "987654321", hireDate: "2022-09-15", dependents: 2, contractType: "cdi" },
     { id: uid("emp", 3), firstName: "Youssef", lastName: "Ait Ali", role: "aide_soignant", baseSalary: 3500, cnssNumber: "456789123", hireDate: "2024-01-10", dependents: 0, contractType: "anapec" },
   ];
-  const invoices = appts.filter(a => a.invoiceNumber).slice(0, 8).map((a, i) => ({
+  const invoices = appts.filter(a => a.invoiceNumber).slice(0, 16).map((a, i) => ({
     id: uid("inv", i), appointmentId: a.id, patientId: a.patientId, patientName: a.patientName,
     amount: a.billedAmount, actLabel: "Consultation médicale", invoiceNumber: a.invoiceNumber,
     issuedAt: a.invoiceIssuedAt,

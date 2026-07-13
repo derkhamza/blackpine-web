@@ -439,13 +439,9 @@ export function AuthPage() {
           {/* Footer links */}
           <div className="auth-switch">
             {mode === "login" && (
-              <>
-                <button className="auth-link" onClick={() => switchMode("forgot")}>
-                  {t("auth.forgotLink")}
-                </button>
-                <span className="auth-switch-sep">·</span>
-                <button className="auth-link" onClick={() => switchMode("secretary")}>{t("auth.secretaryLink")}</button>
-              </>
+              <button className="auth-link" onClick={() => switchMode("forgot")}>
+                {t("auth.forgotLink")}
+              </button>
             )}
             {mode === "secretary" && (
               <button className="auth-link" onClick={() => switchMode("login")}>{t("auth.backToLogin")}</button>
@@ -463,6 +459,18 @@ export function AuthPage() {
               </>
             )}
           </div>
+
+          {/* Secretary access — a distinct, deliberate button rather than a plain
+              text link tucked under the sign-in action. */}
+          {mode === "login" && (
+            <button type="button" className="auth-secretary-btn" onClick={() => switchMode("secretary")}>
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <circle cx="8" cy="5" r="2.4" stroke="currentColor" strokeWidth="1.4"/>
+                <path d="M3.5 13c0-2.3 2-4 4.5-4s4.5 1.7 4.5 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+              </svg>
+              {t("auth.secretaryLink")}
+            </button>
+          )}
 
           {mode === "reset-verify" && (
             <p className="auth-resend-hint">

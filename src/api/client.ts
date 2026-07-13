@@ -755,6 +755,7 @@ export interface AdminEvents {
   topActions: { name: string; count: number }[];
   byDay: { date: string; count: number }[];
   byPlatform?: { platform: string; count: number; users: number }[];
+  byHour?: { hour: number; count: number }[];
 }
 export async function adminGetEvents(days = 30): Promise<AdminEvents> {
   const res = await request(`/admin/events?days=${days}`);
@@ -792,6 +793,7 @@ export interface AdminDoctorDetail {
   topPages: { name: string; count: number }[];
   topActions: { name: string; count: number }[];
   byDay: { date: string; count: number }[];
+  byHour?: { hour: number; count: number }[];
 }
 export async function adminGetDoctors(): Promise<{ generatedAt: string; count: number; doctors: AdminDoctor[] }> {
   const res = await request(`/admin/doctors`);
