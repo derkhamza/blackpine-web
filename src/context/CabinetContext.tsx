@@ -841,8 +841,9 @@ export function CabinetProvider({
     if (!userId && !secretarySession) return;
     const onFocus = () => {
       if (document.visibilityState === "hidden") return;
-      if (!hydrated.current || dirtyRef.current) return;
+      if (dirtyRef.current) return;
       pollMissRef.current = 0; // user is back → return to fast polling
+      // If the initial pull failed, this also retries hydration (see the poll tick).
       pullFromServer();
     };
     window.addEventListener("focus", onFocus);
@@ -874,9 +875,17 @@ export function CabinetProvider({
       timer = setTimeout(tick, delay);
     };
     const tick = async () => {
-      if (document.visibilityState === "visible" && hydrated.current && !dirtyRef.current) {
-        const changed = await pullFromServer();
-        pollMissRef.current = changed ? 0 : pollMissRef.current + 1;
+      if (document.visibilityState === "visible") {
+        if (!hydrated.current) {
+          // The initial (boot) pull never succeeded — a transient network/cold-start
+          // error at load. Keep retrying so sync self-heals instead of stalling
+          // forever (pushes AND pulls stay blocked until hydration succeeds, which
+          // is the "secretary changes stop syncing until a new account" bug).
+          await pullFromServer();
+        } else if (!dirtyRef.current) {
+          const changed = await pullFromServer();
+          pollMissRef.current = changed ? 0 : pollMissRef.current + 1;
+        }
       }
       schedule();
     };
