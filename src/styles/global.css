@@ -7611,6 +7611,34 @@ a.ana-top-name:hover { color: var(--blue); text-decoration: underline; }
   background: rgba(var(--blue-rgb,10,78,126),0.12);
 }
 
+/* Local-storage quota pressure banner (warning = amber, critical = red) */
+.storage-banner {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; padding: 8px 20px;
+  font-size: 13px; font-weight: 500; line-height: 1.45;
+}
+.storage-banner-warning {
+  background: rgba(245,158,11,0.10);
+  border-bottom: 1px solid rgba(245,158,11,0.30);
+  color: #92600A;
+}
+.storage-banner-critical {
+  background: rgba(239,68,68,0.10);
+  border-bottom: 1px solid rgba(239,68,68,0.32);
+  color: #B42318;
+}
+[data-theme="dark"] .storage-banner-warning { color: #FBBF24; }
+[data-theme="dark"] .storage-banner-critical { color: #FCA5A5; }
+.storage-banner-btn {
+  flex-shrink: 0;
+  border: 1px solid currentColor; border-radius: var(--r);
+  background: transparent; color: inherit;
+  padding: 4px 10px; font-size: 12px; font-weight: 600; cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--trans);
+}
+.storage-banner-btn:hover { background: rgba(127,127,127,0.14); }
+
 /* ═══════════════════════════════════════════════════════
    SECRETARY PIN — SETTINGS FORM
    ═══════════════════════════════════════════════════════ */

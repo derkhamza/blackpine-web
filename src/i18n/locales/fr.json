@@ -379,6 +379,13 @@
     "syncFailed": "Sync échoué",
     "offline": "Hors ligne"
   },
+  "storage": {
+    "warningTitle": "Stockage presque plein",
+    "warningBody": "Le stockage local de cet appareil est presque plein. Exportez une sauvegarde pour ne rien perdre.",
+    "criticalTitle": "Une modification n'a pas pu être enregistrée",
+    "criticalBody": "Le stockage local est plein : votre dernière modification n'a pas été enregistrée sur cet appareil. Exportez une sauvegarde et libérez de l'espace maintenant.",
+    "action": "Sauvegarder"
+  },
   "lang": {
     "fr": "Français",
     "en": "English",

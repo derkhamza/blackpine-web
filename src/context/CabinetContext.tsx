@@ -29,7 +29,28 @@ function load<T>(key: string, fallback: T): T {
 }
 
 function save(key: string, value: unknown) {
-  try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (e) {
+    // A QuotaExceededError means this write did NOT persist: the value is still
+    // in memory for this session, but a reload would lose it. We used to swallow
+    // this silently, so a doctor could lose work with no warning. Signal it so
+    // the provider can surface a banner (see storagePressure). Non-quota failures
+    // (e.g. Safari private mode blocking localStorage) trip the same path.
+    if (isQuotaError(e)) {
+      try { window.dispatchEvent(new Event("bp:storage-quota")); } catch { /* no window */ }
+    }
+  }
+}
+
+// Cross-browser QuotaExceededError detection (name + legacy numeric codes).
+function isQuotaError(e: unknown): boolean {
+  return (
+    e instanceof DOMException &&
+    (e.name === "QuotaExceededError" ||
+      e.name === "NS_ERROR_DOM_QUOTA_REACHED" ||  // Firefox
+      e.code === 22 || e.code === 1014)
+  );
 }
 
 /** Estimate total localStorage usage for the bp. prefix (bytes, approximate). */
@@ -210,6 +231,9 @@ interface CabinetCtx {
 
   // Storage health
   lastBackupAt: string | null;
+  // localStorage quota pressure: "warning" as it fills, "critical" once a write
+  // has been dropped this session. Surfaced as a banner so the doctor can export.
+  storagePressure: "ok" | "warning" | "critical";
 
   // Remote sync state
   syncState:  "idle" | "syncing" | "synced" | "error";
@@ -541,6 +565,28 @@ export function CabinetProvider({
   const [lastBackupAt, setLastBackupAt] = useState<string | null>(
     () => localStorage.getItem(BACKUP_KEY),
   );
+
+  // localStorage has a hard per-origin cap (~5 MB in most browsers). save() writes
+  // every collection there; when it overflows a write is dropped and that edit
+  // only lives in memory until reload. Track pressure so the UI can warn the
+  // doctor to export/free space BEFORE work is lost, and alarm once a write has
+  // actually been dropped (quotaHit, sticky for the session).
+  const [quotaHit, setQuotaHit] = useState(false);
+  const [nearFull, setNearFull] = useState(false);
+  useEffect(() => {
+    const onQuota = () => setQuotaHit(true);
+    window.addEventListener("bp:storage-quota", onQuota);
+    return () => window.removeEventListener("bp:storage-quota", onQuota);
+  }, []);
+  useEffect(() => {
+    const WARN_BYTES = 3_800_000; // ~3.8 MB of a ~5 MB cap → warn with headroom
+    const check = () => setNearFull(estimateStorageBytes() >= WARN_BYTES);
+    check();
+    const id = setInterval(check, 60_000);
+    return () => clearInterval(id);
+  }, [appointments, patients, examResults, prescriptions, certificates, invoices, doctorProfile]);
+  const storagePressure: "ok" | "warning" | "critical" =
+    quotaHit ? "critical" : nearFull ? "warning" : "ok";
 
   // ── Remote sync (multi-device, optimistic concurrency) ────────────────────
   const [syncState,  setSyncState]  = useState<"idle" | "syncing" | "synced" | "error">("idle");
@@ -1115,6 +1161,7 @@ export function CabinetProvider({
     secretaryMode, setSecretaryMode,
     exportCabinetJSON, importCabinetJSON, clearAppointments, clearPatients,
     lastBackupAt,
+    storagePressure,
     syncState, lastSynced,
     role: isSecretary ? "secretary" : "doctor",
     secretaryOwnerName: secretarySession?.ownerName,

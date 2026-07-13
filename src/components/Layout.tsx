@@ -349,7 +349,7 @@ let lastNavScroll = 0;
 export function Layout({ title, subtitle, actions, children }: Props) {
   const { t } = useTranslation();
   const { user, logout, endSecretarySession } = useApp();
-  const { appointments, stockItems, doctorProfile, secretaryMode, setSecretaryMode, role, secretaryOwnerName } = useCabinet();
+  const { appointments, stockItems, doctorProfile, secretaryMode, setSecretaryMode, role, secretaryOwnerName, storagePressure } = useCabinet();
   const toast = useToast();
   // Doctor rings the secretary (quick "come in" / patient signal). The reverse
   // direction is handled by the chat channel, not a one-shot call. Hidden in
@@ -839,6 +839,20 @@ export function Layout({ title, subtitle, actions, children }: Props) {
               onClick={() => { setSecretaryMode(false); navigate("/"); }}
             >
               {t("sidebar.returnDoctor")}
+            </button>
+          </div>
+        )}
+        {/* Local-storage quota pressure — warn before data is lost, alarm once a
+            write has been dropped. Links to Paramètres, where backup/export lives. */}
+        {storagePressure !== "ok" && (
+          <div className={`storage-banner storage-banner-${storagePressure}`} role="alert">
+            <span>
+              <strong>{t(storagePressure === "critical" ? "storage.criticalTitle" : "storage.warningTitle")}</strong>
+              {" — "}
+              {t(storagePressure === "critical" ? "storage.criticalBody" : "storage.warningBody")}
+            </span>
+            <button className="storage-banner-btn" onClick={() => { navigate("/parametres"); closeDrawer(); }}>
+              {t("storage.action")}
             </button>
           </div>
         )}

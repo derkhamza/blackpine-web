@@ -379,6 +379,13 @@
     "syncFailed": "Sync failed",
     "offline": "Offline"
   },
+  "storage": {
+    "warningTitle": "Storage almost full",
+    "warningBody": "This device's local storage is nearly full. Export a backup so nothing gets lost.",
+    "criticalTitle": "A change couldn't be saved",
+    "criticalBody": "Local storage is full, so your last change wasn't saved on this device. Export a backup and free up space now.",
+    "action": "Back up now"
+  },
   "lang": {
     "fr": "Français",
     "en": "English",
