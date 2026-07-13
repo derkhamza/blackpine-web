@@ -3,8 +3,10 @@
 // latest entry once after an update, and the sidebar version chip reopens it).
 //
 // Entries are written in French — the working language of the practice, matching
-// the always-French printed documents. Keep them short and user-facing (what the
-// doctor/secretary gains), not technical. Newest FIRST.
+// the always-French printed documents. Keep each entry SHORT and focused on
+// selling points / high-value gains only — the few things a doctor or secretary
+// actually cares about, in plain language. Not an exhaustive or technical list:
+// aim for 3–5 punchy bullets, drop fixes and internal changes. Newest FIRST.
 
 export interface Release {
   version: string;   // matches package.json / __APP_VERSION__
@@ -14,6 +16,17 @@ export interface Release {
 }
 
 export const CHANGELOG: Release[] = [
+  {
+    version: "1.14.0",
+    date:    "2026-07-13",
+    title:   "Salle d'attente fluide, nouveaux calculateurs & réglages plus clairs",
+    items: [
+      "Salle d'attente : appelez le patient d'un geste (la secrétaire est prévenue), puis démarrez la consultation quand il entre — l'appel reste annulable.",
+      "Nouveaux calculateurs : HbA1c → glycémie moyenne, clairance de la créatinine (Cockcroft-Gault) et surface corporelle.",
+      "Agenda : renommez et recolorez vos types de rendez-vous directement depuis la légende.",
+      "Réglages réorganisés en catégories claires, et meilleure lisibilité sur petit écran (dossier patient, tableaux, messagerie).",
+    ],
+  },
   {
     version: "1.13.0",
     date:    "2026-07-13",
