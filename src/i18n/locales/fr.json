@@ -2144,6 +2144,8 @@
     "btnArrive": "✓ Arrivé",
     "btnNoShow": "Absent",
     "btnCall": "▶ Faire entrer",
+    "btnStartConsult": "Commencer la consultation",
+    "calledIn": "Patient appelé",
     "btnDone": "✓ Terminer",
     "chipDone": "✓ Terminé",
     "chipNoShow": "✕ Absent",

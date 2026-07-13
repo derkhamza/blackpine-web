@@ -2144,6 +2144,8 @@
     "btnArrive": "✓ Arrived",
     "btnNoShow": "No-show",
     "btnCall": "▶ Call in",
+    "btnStartConsult": "Start consultation",
+    "calledIn": "Patient called in",
     "btnDone": "✓ Finish",
     "chipDone": "✓ Done",
     "chipNoShow": "✕ No-show",

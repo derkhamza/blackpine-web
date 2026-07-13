@@ -504,7 +504,11 @@ export interface Appointment {
   bookingPhone?:  string;
   // Waiting-room timestamps
   checkedInAt?:      string;  // ISO — set when patient marks "arrived"
-  inConsultationAt?: string;  // ISO — set when doctor calls patient
+  // ISO — set when the doctor pressed "Faire entrer": the secretary is notified
+  // to invite the patient in. Status stays "arrived" until the consultation is
+  // actually started (a separate step), so the patient shows as "called" first.
+  calledInAt?:       string;
+  inConsultationAt?: string;  // ISO — set when the consultation actually starts
   // Certificates
   savedCertificates?: SavedCertificate[];
   // Invoice

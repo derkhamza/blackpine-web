@@ -30,11 +30,12 @@ interface CardProps {
   now:      Date;
   onArrive: () => void;
   onCall:   () => void;
+  onStart:  () => void;
   onDone:   () => void;
   onNoShow: () => void;
 }
 
-function WaitCard({ appt, now, onArrive, onCall, onDone, onNoShow }: CardProps) {
+function WaitCard({ appt, now, onArrive, onCall, onStart, onDone, onNoShow }: CardProps) {
   // Cards can be dragged between columns to change status.
   const { t } = useTranslation();
   const color = apptTypeColor(appt.type);
@@ -73,14 +74,23 @@ function WaitCard({ appt, now, onArrive, onCall, onDone, onNoShow }: CardProps) 
       </div>
 
       {waitLabel && <div className="wr-wait-label">{waitLabel}</div>}
+      {appt.status === "arrived" && appt.calledInAt && (
+        <div className="wr-called-label">{t("waiting.calledIn")}</div>
+      )}
 
       <div className="wr-card-actions">
         {appt.status === "scheduled" && <>
           <button className="wr-btn wr-arrive" onClick={onArrive}>{t("waiting.btnArrive")}</button>
           <button className="wr-btn wr-absent" onClick={onNoShow}>{t("waiting.btnNoShow")}</button>
         </>}
-        {appt.status === "arrived" && <>
+        {/* Step 1 — notify the secretary to bring the patient in (stays "arrived"). */}
+        {appt.status === "arrived" && !appt.calledInAt && <>
           <button className="wr-btn wr-call" onClick={onCall}>{t("waiting.btnCall")}</button>
+          <button className="wr-btn wr-absent" onClick={onNoShow}>{t("waiting.btnNoShow")}</button>
+        </>}
+        {/* Step 2 — the patient has been called; start the consultation. */}
+        {appt.status === "arrived" && appt.calledInAt && <>
+          <button className="wr-btn wr-start" onClick={onStart}>{t("waiting.btnStartConsult")}</button>
           <button className="wr-btn wr-absent" onClick={onNoShow}>{t("waiting.btnNoShow")}</button>
         </>}
         {appt.status === "in_consultation" && (
@@ -186,10 +196,16 @@ export function WaitingRoomPage() {
   // Actions
   const arrive = useCallback((appt: Appointment) =>
     updateAppointment({ ...appt, status: "arrived",         checkedInAt:      new Date().toISOString() }), [updateAppointment]);
-  const call   = useCallback((appt: Appointment) => {
-    updateAppointment({ ...appt, status: "in_consultation", inConsultationAt: new Date().toISOString() });
+  // Step 1: notify the secretary to invite the patient in. The patient stays
+  // "arrived" (now flagged calledInAt) — the consultation hasn't started yet.
+  const callIn = useCallback((appt: Appointment) => {
+    updateAppointment({ ...appt, calledInAt: new Date().toISOString() });
     ringPatientCalled(appt);
   }, [updateAppointment, ringPatientCalled]);
+  // Step 2: the patient is in the room — start the consultation.
+  const startConsult = useCallback((appt: Appointment) =>
+    updateAppointment({ ...appt, status: "in_consultation", inConsultationAt: new Date().toISOString() }),
+    [updateAppointment]);
   const done   = useCallback((appt: Appointment) =>
     updateAppointment({ ...appt, status: "completed" }), [updateAppointment]);
   const noShow = useCallback((appt: Appointment) =>
@@ -205,12 +221,13 @@ export function WaitingRoomPage() {
       } else if (col === "arrived" && appt.status !== "arrived") {
         updateAppointment({ ...appt, status: "arrived", checkedInAt: appt.checkedInAt ?? new Date().toISOString() });
       } else if (col === "in_consultation" && appt.status !== "in_consultation") {
+        // Dragging straight to "En consultation" starts the consultation; it does
+        // not ring the secretary — that's the explicit "Faire entrer" step.
         updateAppointment({ ...appt, status: "in_consultation", inConsultationAt: appt.inConsultationAt ?? new Date().toISOString() });
-        ringPatientCalled(appt);
       } else if (col === "done" && appt.status !== "completed") {
         updateAppointment({ ...appt, status: "completed" });
       }
-    }, [todayAppts, updateAppointment, ringPatientCalled]);
+    }, [todayAppts, updateAppointment]);
 
   const timeStr = now.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
   const dateStr = now.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" });
@@ -251,7 +268,7 @@ export function WaitingRoomPage() {
             onDropAppt={dropToColumn("scheduled")}>
             {cols.scheduled.map(a => (
               <WaitCard key={a.id} appt={a} now={now}
-                onArrive={() => arrive(a)} onCall={() => call(a)}
+                onArrive={() => arrive(a)} onCall={() => callIn(a)} onStart={() => startConsult(a)}
                 onDone={() => done(a)}     onNoShow={() => noShow(a)} />
             ))}
           </Col>
@@ -260,7 +277,7 @@ export function WaitingRoomPage() {
             onDropAppt={dropToColumn("arrived")}>
             {cols.arrived.map(a => (
               <WaitCard key={a.id} appt={a} now={now}
-                onArrive={() => arrive(a)} onCall={() => call(a)}
+                onArrive={() => arrive(a)} onCall={() => callIn(a)} onStart={() => startConsult(a)}
                 onDone={() => done(a)}     onNoShow={() => noShow(a)} />
             ))}
           </Col>
@@ -269,7 +286,7 @@ export function WaitingRoomPage() {
             onDropAppt={dropToColumn("in_consultation")}>
             {cols.in_consultation.map(a => (
               <WaitCard key={a.id} appt={a} now={now}
-                onArrive={() => arrive(a)} onCall={() => call(a)}
+                onArrive={() => arrive(a)} onCall={() => callIn(a)} onStart={() => startConsult(a)}
                 onDone={() => done(a)}     onNoShow={() => noShow(a)} />
             ))}
           </Col>
@@ -278,7 +295,7 @@ export function WaitingRoomPage() {
             onDropAppt={dropToColumn("done")}>
             {cols.done.map(a => (
               <WaitCard key={a.id} appt={a} now={now}
-                onArrive={() => arrive(a)} onCall={() => call(a)}
+                onArrive={() => arrive(a)} onCall={() => callIn(a)} onStart={() => startConsult(a)}
                 onDone={() => done(a)}     onNoShow={() => noShow(a)} />
             ))}
           </Col>

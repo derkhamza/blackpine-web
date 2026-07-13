@@ -100,7 +100,16 @@ export function CabinetChat() {
         aria-label={t("chat.title")}
         title={t("chat.title")}
       >
-        💬
+        {open ? (
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <path d="M6 8l4 4 4-4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        ) : (
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <path d="M3 4.5h14a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H7l-3.5 3v-3H3a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+            <path d="M6 8h8M6 10.5h5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+          </svg>
+        )}
         {unread > 0 && <span className="chat-fab-badge">{unread > 9 ? "9+" : unread}</span>}
       </button>
 

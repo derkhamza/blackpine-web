@@ -3919,6 +3919,15 @@ a.wr-card-open:hover {
   color: var(--muted);
   margin-bottom: 8px;
 }
+/* "Patient appelé" — shown on an arrived card once the secretary has been
+   notified (Faire entrer), before the consultation is started. */
+.wr-called-label {
+  font-size: 11px; font-weight: 600;
+  color: #b45309; background: rgba(217,119,6,0.12);
+  border-radius: 5px; padding: 2px 7px; display: inline-block;
+  margin-bottom: 8px;
+}
+[data-theme="dark"] .wr-called-label { color: #fbbf24; }
 
 /* Buttons */
 .wr-card-actions {
@@ -3940,6 +3949,7 @@ a.wr-card-open:hover {
 .wr-btn:active { transform: scale(0.97); }
 .wr-arrive { background: var(--green);  color: #fff; }
 .wr-call   { background: var(--blue);   color: #fff; }
+.wr-start  { background: var(--navy);   color: #fff; }
 .wr-done   { background: var(--green);  color: #fff; }
 .wr-absent {
   background: transparent;

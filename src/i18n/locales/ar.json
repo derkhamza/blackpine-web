@@ -2144,6 +2144,8 @@
     "btnArrive": "✓ وصل",
     "btnNoShow": "غائب",
     "btnCall": "▶ إدخال المريض",
+    "btnStartConsult": "بدء الاستشارة",
+    "calledIn": "تم استدعاء المريض",
     "btnDone": "✓ إنهاء",
     "chipDone": "✓ منتهي",
     "chipNoShow": "✕ غائب",
