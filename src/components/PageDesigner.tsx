@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { DocumentSettings, PageDesign, DocBlockDesign, PaperSize, DocKind } from "../lib/cabinetTypes";
 import {
   DOC_DEFAULT_MARGINS, DOC_DEFAULT_SIZE, DOC_BLOCKS, isFlowDoc,
-  designForKind, resolveMargins, resolvePageSize,
+  designForKind, docModeForKind, resolveMargins, resolvePageSize,
 } from "../lib/docDesign";
 import { resolveDocImage, offloadDocImage, warmDocImages } from "../lib/docImages";
 
@@ -231,6 +231,12 @@ export function PageDesigner({
   const bgFileRef = useRef<HTMLInputElement>(null);
   const dragRef = useRef<DragMode | null>(null);
 
+  // Only documents in "advanced" mode are editable here. Simple-mode documents
+  // still render an EXACT, to-scale, read-only preview (the same canvas) so the
+  // doctor sees precise size + text positions before choosing to customise.
+  const editable = docModeForKind(settings, kind) === "advanced";
+  const setDocMode = (m: "simple" | "advanced") =>
+    onChange({ ...settings, docMode: { ...settings.docMode, [kind]: m } });
   const design: PageDesign = designForKind(settings, kind) ?? {};
   const defaults = DOC_DEFAULT_MARGINS[kind];
   // Letterhead/logo may be a blob: marker — resolve to a data URL for the preview.
@@ -432,7 +438,7 @@ export function PageDesigner({
             {t(`settings.pd.kind_${k}`)}
           </button>
         ))}
-        {hasCustom && (
+        {editable && hasCustom && (
           <button
             type="button"
             className="btn btn-ghost"
@@ -474,10 +480,12 @@ export function PageDesigner({
             className="pd-margins"
             style={{ left: px(margins.left), top: px(margins.top), right: px(margins.right), bottom: px(margins.bottom) }}
           />
+          {editable && <>
           <div className="pd-margin-handle pd-mh-top"    style={{ top: px(margins.top) }}                 onPointerDown={startMargin("top")}    title={`${t("settings.pd.margins")} ↑ ${margins.top}mm`} />
           <div className="pd-margin-handle pd-mh-bottom" style={{ top: px(page.h - margins.bottom) }}      onPointerDown={startMargin("bottom")} title={`${t("settings.pd.margins")} ↓ ${margins.bottom}mm`} />
           <div className="pd-margin-handle pd-mh-left"   style={{ left: px(margins.left) }}                onPointerDown={startMargin("left")}   title={`${t("settings.pd.margins")} ← ${margins.left}mm`} />
           <div className="pd-margin-handle pd-mh-right"  style={{ left: px(page.w - margins.right) }}      onPointerDown={startMargin("right")}  title={`${t("settings.pd.margins")} → ${margins.right}mm`} />
+          </>}
 
           {/* blocks with example content */}
           {blocks.map(key => {
@@ -493,14 +501,14 @@ export function PageDesigner({
                 style={{
                   left: px(pos.x), top: px(pos.y),
                   width: px(pos.w), height: px(pos.h),
-                  cursor: flow ? "pointer" : "grab",
+                  cursor: editable ? (flow ? "pointer" : "grab") : "default",
                 }}
-                onPointerDown={startBlockMove(key)}
-                title={flow ? blockLabel(key) : t("settings.pd.dragHint")}
+                onPointerDown={editable ? startBlockMove(key) : undefined}
+                title={editable ? (flow ? blockLabel(key) : t("settings.pd.dragHint")) : blockLabel(key)}
               >
                 <span className="pd-block-tag">{blockLabel(key)}</span>
                 <div className="pd-block-ex">{renderExample(key, pos.w)}</div>
-                {isSel && (
+                {editable && isSel && (
                   <>
                     {/* right (width) + bottom (height) + corner resize handles */}
                     <span className="pd-resize pd-resize-r"  onPointerDown={startBlockResize(key, "r")} />
@@ -517,16 +525,25 @@ export function PageDesigner({
             <div
               className={`pd-logo-wrap${selected === "__logo" ? " selected" : ""}`}
               style={{ left: px(design.logoX ?? margins.left), top: px(design.logoY ?? margins.top), width: px(design.logoW ?? 30) }}
-              onPointerDown={startLogoMove}
+              onPointerDown={editable ? startLogoMove : undefined}
             >
               <img src={logoSrc} alt="logo" className="pd-logo-img" draggable={false} />
-              {selected === "__logo" && <span className="pd-resize pd-resize-br" onPointerDown={startLogoResize} />}
+              {editable && selected === "__logo" && <span className="pd-resize pd-resize-br" onPointerDown={startLogoResize} />}
             </div>
           )}
         </div>
 
         {/* ── Controls (drag on the preview; these are helpers only) ── */}
         <div className="pd-controls">
+          {!editable ? (
+            <div className="pd-simple-note">
+              <div className="pd-hint">{t("settings.pd.simpleNote")}</div>
+              <button type="button" className="btn btn-primary" style={{ fontSize: 12, marginTop: 10 }}
+                onClick={() => setDocMode("advanced")}>
+                {t("settings.pd.customize")}
+              </button>
+            </div>
+          ) : (<>
           <div className="pd-hint">{t(flow ? "settings.pd.flowHint" : "settings.pd.dragAllHint")}</div>
 
           {/* Document mode: blank paper vs pre-printed letterhead */}
@@ -652,6 +669,11 @@ export function PageDesigner({
             )}
           </div>
           <div className="pd-hint" style={{ marginTop: 4 }}>{t("settings.pd.bgTip")}</div>
+          <button type="button" className="btn btn-ghost" style={{ fontSize: 12, marginTop: 10 }}
+            onClick={() => setDocMode("simple")}>
+            {t("settings.pd.backToSimple")}
+          </button>
+          </>)}
         </div>
       </div>
     </div>

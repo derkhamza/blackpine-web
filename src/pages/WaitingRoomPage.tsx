@@ -6,7 +6,7 @@ import { emitSignal } from "../api/client";
 import { todayIso } from "../lib/format";
 import { AnimatedNumber } from "../components/AnimatedNumber";
 import type { Appointment } from "../lib/cabinetTypes";
-import { apptTypeLabel, apptTypeColor } from "../lib/cabinetTypes";
+import { apptTypeLabel, apptTypeColor, isTeleType } from "../lib/cabinetTypes";
 import { useTranslation } from "react-i18next";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -198,12 +198,18 @@ export function WaitingRoomPage() {
     [appointments, today],
   );
 
+  // Teleconsultations don't physically arrive, so they're kept OUT of the waiting
+  // room steps and listed separately; the board only tracks in-cabinet visits.
+  const teleAppts     = useMemo(() => todayAppts.filter(a => isTeleType(a.type)), [todayAppts]);
+  const physicalAppts = useMemo(() => todayAppts.filter(a => !isTeleType(a.type)), [todayAppts]);
+
   const cols = useMemo(() => ({
-    scheduled:       todayAppts.filter(a => a.status === "scheduled"),
-    arrived:         todayAppts.filter(a => a.status === "arrived"),
-    in_consultation: todayAppts.filter(a => a.status === "in_consultation"),
-    done:            todayAppts.filter(a => a.status === "completed" || a.status === "no_show" || a.status === "cancelled"),
-  }), [todayAppts]);
+    scheduled:       physicalAppts.filter(a => a.status === "scheduled"),
+    arrived:         physicalAppts.filter(a => a.status === "arrived"),
+    in_consultation: physicalAppts.filter(a => a.status === "in_consultation"),
+    completed:       physicalAppts.filter(a => a.status === "completed"),
+    absent:          physicalAppts.filter(a => a.status === "no_show" || a.status === "cancelled"),
+  }), [physicalAppts]);
 
   // Actions
   const arrive = useCallback((appt: Appointment) =>
@@ -230,10 +236,10 @@ export function WaitingRoomPage() {
     updateAppointment({ ...appt, status: "no_show" }), [updateAppointment]);
 
   // Drag & drop between columns → status change (with check-in timestamps)
-  const dropToColumn = useCallback((col: "scheduled" | "arrived" | "in_consultation" | "done") =>
+  const dropToColumn = useCallback((col: "scheduled" | "arrived" | "in_consultation" | "completed" | "absent") =>
     (apptId: string) => {
       const appt = todayAppts.find(a => a.id === apptId);
-      if (!appt) return;
+      if (!appt || isTeleType(appt.type)) return; // teleconsults aren't on the board
       if (col === "scheduled" && appt.status !== "scheduled") {
         updateAppointment({ ...appt, status: "scheduled" });
       } else if (col === "arrived" && appt.status !== "arrived") {
@@ -243,9 +249,11 @@ export function WaitingRoomPage() {
         // Dragging straight to "En consultation" starts the consultation; it does
         // not ring the secretary — that's the explicit "Faire entrer" step.
         updateAppointment({ ...appt, status: "in_consultation", inConsultationAt: appt.inConsultationAt ?? new Date().toISOString() });
-      } else if (col === "done" && appt.status !== "completed") {
+      } else if (col === "completed" && appt.status !== "completed") {
         if (!canConsult) return; // only the doctor marks the consultation over
         updateAppointment({ ...appt, status: "completed" });
+      } else if (col === "absent" && appt.status !== "no_show") {
+        updateAppointment({ ...appt, status: "no_show" });
       }
     }, [todayAppts, updateAppointment, canConsult]);
 
@@ -256,7 +264,8 @@ export function WaitingRoomPage() {
     { label: t("waiting.colScheduled"),      count: cols.scheduled.length,       accent: "#6b7280" },
     { label: t("waiting.colArrived"),         count: cols.arrived.length,         accent: "#d97706" },
     { label: t("waiting.colInConsultation"),  count: cols.in_consultation.length, accent: "#1890C5" },
-    { label: t("waiting.colDone"),            count: cols.done.length,            accent: "#15a876" },
+    { label: t("waiting.colDone"),            count: cols.completed.length,       accent: "#15a876" },
+    { label: t("waiting.colAbsent"),          count: cols.absent.length,          accent: "#dc2626" },
   ];
 
   return (
@@ -274,6 +283,23 @@ export function WaitingRoomPage() {
         ))}
       </div>
 
+      {/* Teleconsultations today — shown for reference but not part of the
+          in-cabinet flow (no arrival / consultation steps). */}
+      {teleAppts.length > 0 && (
+        <div className="wr-tele-strip">
+          <span className="wr-tele-title">🎥 {t("waiting.teleTitle", { n: teleAppts.length })}</span>
+          <div className="wr-tele-list">
+            {teleAppts.map(a => (
+              <Link key={a.id} to={`/agenda/${a.id}`} className="wr-tele-item" title={t("waiting.openAppt")}>
+                <span className="wr-tele-time">{a.startTime}</span>
+                <span className="wr-tele-name">{a.patientName}</span>
+                {a.status === "completed" && <span className="wr-tele-done">✓</span>}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
       {todayAppts.length === 0 ? (
         <div className="wr-empty">
           <div className="wr-empty-icon">🗓</div>
@@ -281,6 +307,11 @@ export function WaitingRoomPage() {
           <div className="wr-empty-sub">
             <Link to="/agenda" className="wr-empty-link">{t("waiting.viewAgenda")}</Link>
           </div>
+        </div>
+      ) : physicalAppts.length === 0 ? (
+        <div className="wr-empty">
+          <div className="wr-empty-icon">🎥</div>
+          <div className="wr-empty-title">{t("waiting.onlyTele")}</div>
         </div>
       ) : (
         <div className="wr-board">
@@ -311,9 +342,18 @@ export function WaitingRoomPage() {
             ))}
           </Col>
 
-          <Col title={t("waiting.colDoneAbsent")} accent="#15a876" count={cols.done.length}
-            onDropAppt={dropToColumn("done")}>
-            {cols.done.map(a => (
+          <Col title={t("waiting.colDone")} accent="#15a876" count={cols.completed.length}
+            onDropAppt={dropToColumn("completed")}>
+            {cols.completed.map(a => (
+              <WaitCard key={a.id} appt={a} now={now} canConsult={canConsult}
+                onArrive={() => arrive(a)} onCall={() => callIn(a)} onUncall={() => uncall(a)} onStart={() => startConsult(a)}
+                onDone={() => done(a)}     onNoShow={() => noShow(a)} />
+            ))}
+          </Col>
+
+          <Col title={t("waiting.colAbsent")} accent="#dc2626" count={cols.absent.length}
+            onDropAppt={dropToColumn("absent")}>
+            {cols.absent.map(a => (
               <WaitCard key={a.id} appt={a} now={now} canConsult={canConsult}
                 onArrive={() => arrive(a)} onCall={() => callIn(a)} onUncall={() => uncall(a)} onStart={() => startConsult(a)}
                 onDone={() => done(a)}     onNoShow={() => noShow(a)} />

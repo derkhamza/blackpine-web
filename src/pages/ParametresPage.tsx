@@ -1313,7 +1313,6 @@ function DocumentSettingsSection({
   ];
   const setMode = (kind: DocKind, mode: "simple" | "advanced") =>
     set({ docMode: { ...s.docMode, [kind]: mode } });
-  const anyAdvanced = DOC_KINDS_LIST.some(k => docModeForKind(s, k) === "advanced");
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       {/* ── STEP 1 — Simple built-in style (shared by every document) ── */}
@@ -1373,14 +1372,15 @@ function DocumentSettingsSection({
         </div>
       </div>
 
-      {/* ── STEP 3 — Advanced layout editor (only for documents set to "Avancé") ── */}
-      {anyAdvanced && (
-        <div style={{ borderTop: "1px solid var(--border)", paddingTop: 14 }}>
-          <div className="secretary-info-title" style={{ marginBottom: 2 }}>{t("settings.pd.title")}</div>
-          <div className="secretary-info-desc" style={{ marginBottom: 10 }}>{t("settings.docAdvancedDesc")}</div>
-          <PageDesigner settings={s} onChange={onChange} />
-        </div>
-      )}
+      {/* ── STEP 3 — Exact preview + advanced layout editor ── */}
+      {/* PageDesigner shows an exact, to-scale preview for EVERY document (real
+          size + text positions). Simple documents are read-only here (with a
+          "customise" button); documents set to Avancé are fully editable. */}
+      <div style={{ borderTop: "1px solid var(--border)", paddingTop: 14 }}>
+        <div className="secretary-info-title" style={{ marginBottom: 2 }}>{t("settings.docPreviewExactTitle")}</div>
+        <div className="secretary-info-desc" style={{ marginBottom: 10 }}>{t("settings.docPreviewExactDesc")}</div>
+        <PageDesigner settings={s} onChange={onChange} />
+      </div>
     </div>
   );
 }

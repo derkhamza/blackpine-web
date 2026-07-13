@@ -1665,7 +1665,10 @@
       "block_signature": "Signature",
       "block_footer": "Pied de page",
       "kind_compteRendu": "Compte rendu d'imagerie",
-      "kind_rapportMedical": "Rapport médical"
+      "kind_rapportMedical": "Rapport médical",
+      "simpleNote": "Ce document utilise le style simple (mise en page automatique). L'aperçu ci-dessus est à taille réelle.",
+      "customize": "Personnaliser la mise en page",
+      "backToSimple": "Revenir au style simple"
     },
     "daysOffTitle": "Jours de congé & fériés",
     "daysOffSubtitle": "Jours de fermeture du cabinet et jours fériés affichés sur l'agenda",
@@ -1681,7 +1684,9 @@
     "docModeDesc": "Choisissez pour chaque document : le style simple ci-dessus, ou une mise en page avancée personnalisée.",
     "docMode_simple": "Simple",
     "docMode_advanced": "Avancé",
-    "docAdvancedDesc": "Mise en page des documents réglés sur « Avancé » (papier à en-tête, marges, positions)."
+    "docAdvancedDesc": "Mise en page des documents réglés sur « Avancé » (papier à en-tête, marges, positions).",
+    "docPreviewExactTitle": "Aperçu exact de la mise en page",
+    "docPreviewExactDesc": "Aperçu à taille réelle de chaque document (taille du papier et position du texte). Passez un document en « Avancé » pour ajuster marges, blocs et logo."
   },
   "pin": {
     "title": "🔐 Code médecin",
@@ -2380,7 +2385,10 @@
     "btnDone": "✓ Terminer",
     "chipDone": "✓ Terminé",
     "chipNoShow": "✕ Absent",
-    "chipCancelled": "✕ Annulé"
+    "chipCancelled": "✕ Annulé",
+    "colAbsent": "Absents",
+    "teleTitle": "{{n}} téléconsultation(s) aujourd'hui — hors salle d'attente",
+    "onlyTele": "Uniquement des téléconsultations aujourd'hui — gérées hors de la salle d'attente."
   },
   "calculateurs": {
     "title": "Calculateurs",

@@ -1365,6 +1365,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   color: var(--muted); cursor: pointer; transition: background var(--trans), color var(--trans);
 }
 .doc-mode-btn.active { background: var(--blue); color: #fff; }
+.pd-simple-note { display: flex; flex-direction: column; align-items: flex-start; padding: 4px 0; }
 
 /* Grid body (relative container for events + lines) */
 .tgrid-body {
@@ -3828,10 +3829,28 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
 .wr-kpi-strip {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 12px;
   margin-bottom: 18px;
 }
+/* Teleconsultations aren't in-cabinet — a compact reference strip above the board. */
+.wr-tele-strip {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 10px 14px; margin-bottom: 14px;
+  border: 1px solid var(--border); border-radius: var(--r);
+  background: rgba(14,165,233,0.06);
+}
+.wr-tele-title { font-size: 13px; font-weight: 700; color: #0EA5E9; flex-shrink: 0; }
+.wr-tele-list { display: flex; gap: 8px; flex-wrap: wrap; }
+.wr-tele-item {
+  display: inline-flex; align-items: center; gap: 6px; text-decoration: none;
+  padding: 4px 10px; border-radius: 999px; background: var(--surface);
+  border: 1px solid var(--border); color: var(--text); font-size: 12px;
+}
+.wr-tele-item:hover { border-color: #0EA5E9; }
+.wr-tele-time { font-variant-numeric: tabular-nums; font-weight: 700; color: #0EA5E9; }
+.wr-tele-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 160px; }
+.wr-tele-done { color: var(--green); font-weight: 700; }
 .wr-kpi {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -3859,8 +3878,8 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 /* Board */
 .wr-board {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 14px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
   align-items: start;
 }
 .wr-col {

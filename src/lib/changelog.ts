@@ -17,6 +17,16 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "1.17.0",
+    date:    "2026-07-13",
+    title:   "Salle d'attente plus juste & aperçu exact des documents",
+    items: [
+      "Salle d'attente : les absents et les terminés sont désormais comptés séparément.",
+      "Les téléconsultations n'encombrent plus la salle d'attente — elles apparaissent à part (elles ne se font pas au cabinet).",
+      "Format des documents : le style simple affiche maintenant un aperçu à taille réelle, avec la position exacte du texte, comme la mise en page avancée.",
+    ],
+  },
+  {
     version: "1.16.0",
     date:    "2026-07-13",
     title:   "Espace secrétaire enrichi, format des documents plus clair & confort",

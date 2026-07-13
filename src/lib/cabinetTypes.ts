@@ -732,6 +732,16 @@ export function apptLabelById(id?: string): ApptLabel | undefined {
   return id ? labelById.get(id) : undefined;
 }
 
+// A teleconsultation appointment (remote). There's no structured flag — a
+// teleconsult is an appointment whose TYPE the doctor named for it — so we detect
+// it from the type id + its resolved label (accent-insensitive). Remote consults
+// don't physically arrive, so the waiting room keeps them out of its steps.
+export function isTeleType(type: string): boolean {
+  const norm = (s: string) => (s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  const hay = norm(type) + " " + norm(apptTypeLabel(type));
+  return /tele\W?consult|visio|en ?ligne|a distance|distanciel/.test(hay);
+}
+
 // Seed the registry with built-ins at module load, so resolution works before
 // the CabinetContext provider mounts and pushes the real doctor profile.
 setApptTypeRegistry(null);

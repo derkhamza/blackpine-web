@@ -1665,7 +1665,10 @@
       "block_signature": "Signature",
       "block_footer": "Footer",
       "kind_compteRendu": "Imaging report",
-      "kind_rapportMedical": "Medical report"
+      "kind_rapportMedical": "Medical report",
+      "simpleNote": "This document uses the simple style (automatic layout). The preview above is to exact scale.",
+      "customize": "Customise the layout",
+      "backToSimple": "Back to the simple style"
     },
     "daysOffTitle": "Days off & holidays",
     "daysOffSubtitle": "Cabinet closures and public holidays shown on the agenda",
@@ -1681,7 +1684,9 @@
     "docModeDesc": "For each document choose the simple style above, or a custom advanced layout.",
     "docMode_simple": "Simple",
     "docMode_advanced": "Advanced",
-    "docAdvancedDesc": "Layout for documents set to “Advanced” (letterhead paper, margins, positions)."
+    "docAdvancedDesc": "Layout for documents set to “Advanced” (letterhead paper, margins, positions).",
+    "docPreviewExactTitle": "Exact layout preview",
+    "docPreviewExactDesc": "To-scale preview of each document (paper size and text positions). Set a document to “Advanced” to adjust margins, blocks and logo."
   },
   "pin": {
     "title": "🔐 Doctor code",
@@ -2380,7 +2385,10 @@
     "btnDone": "✓ Finish",
     "chipDone": "✓ Done",
     "chipNoShow": "✕ No-show",
-    "chipCancelled": "✕ Cancelled"
+    "chipCancelled": "✕ Cancelled",
+    "colAbsent": "No-shows",
+    "teleTitle": "{{n}} teleconsultation(s) today — outside the waiting room",
+    "onlyTele": "Only teleconsultations today — handled outside the waiting room."
   },
   "calculateurs": {
     "title": "Calculators",
