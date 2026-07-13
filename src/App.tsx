@@ -11,6 +11,8 @@ import { WelcomeTour, hasSeenTour } from "./components/WelcomeTour";
 import { SignalBus } from "./components/SignalBus";
 import { CabinetChat } from "./components/CabinetChat";
 import { WhatsNew } from "./components/WhatsNew";
+import { LockScreen } from "./components/LockScreen";
+import { hasAppLock, isUnlocked } from "./lib/appLock";
 import { HelpPage }              from "./pages/HelpPage";
 import { AuthPage }              from "./pages/AuthPage";
 import { BookingPage }           from "./pages/BookingPage";
@@ -162,11 +164,15 @@ function ModalDragGuard() {
 }
 
 export function App() {
-  const { user, isSecretary } = useApp();
+  const { user, isSecretary, isAuthenticated } = useApp();
+  // App-lock gate: an authenticated user who set a PIN must unlock before any
+  // clinical data renders (guards an unattended / shared device on reload).
+  const [locked, setLocked] = useState(() => hasAppLock() && !isUnlocked());
   // Product-owner accounts run a pure admin console — none of the clinical
   // overlays (onboarding wizard, feature tour, doctor↔secretary signals & chat)
   // apply to them.
   const isAdmin = !isSecretary && isAdminEmail(user?.email);
+  if (isAuthenticated && locked) return <LockScreen onUnlock={() => setLocked(false)} />;
   return (
     <>
     <RouteTracker />

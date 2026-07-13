@@ -383,6 +383,14 @@
     "syncFailed": "Sync failed",
     "offline": "Offline"
   },
+  "lock": {
+    "title": "App locked",
+    "sub": "Enter your access code to continue.",
+    "pinLabel": "Access code",
+    "wrong": "Wrong code.",
+    "unlock": "Unlock",
+    "forgot": "Forgot code? Sign out"
+  },
   "storage": {
     "warningTitle": "Storage almost full",
     "warningBody": "This device's local storage is nearly full. Export a backup so nothing gets lost.",
@@ -1119,6 +1127,18 @@
     "catTeam": "Team & access",
     "catData": "Data & backup",
     "catApp": "Application",
+    "appLockTitle": "App lock (access code)",
+    "appLockSub": "Require a code to open the app on this device",
+    "appLockDesc": "Add a numeric code asked when the app opens — useful on a shared or unattended device. This locks access; it does not encrypt the stored data.",
+    "appLockActive": "App lock is on",
+    "appLockActiveHint": "A code is asked each time the app opens on this device.",
+    "appLockDisable": "Turn off the lock",
+    "appLockPin": "Access code (4–8 digits)",
+    "appLockConfirm": "Confirm code",
+    "appLockEnable": "Enable lock",
+    "appLockSet": "App lock enabled",
+    "appLockRemoved": "App lock turned off",
+    "appLockMismatch": "Codes must match (4 digits minimum).",
     "title": "Settings",
     "subtitle": "Profile & preferences",
     "profile": "My profile",

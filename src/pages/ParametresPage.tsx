@@ -5,6 +5,7 @@ import { useToast } from "../components/Toast";
 import { useCabinet } from "../context/CabinetContext";
 import { useApp } from "../context/AppContext";
 import { useDarkMode } from "../lib/useDarkMode";
+import { hasAppLock, setAppLock, clearAppLock } from "../lib/appLock";
 import { enableWebPush, webPushPermission, webPushSupported } from "../lib/webPush";
 import { exportPatientsCsv, exportAppointmentsCsv } from "../lib/csvExport";
 import { exportAgendaIcal } from "../lib/icalExport";
@@ -622,6 +623,66 @@ function OnlineBookingSection({
 }
 
 // ── Automated SMS reminders ─────────────────────────────────────────────────────
+
+function AppLockSection({
+  t, showToast,
+}: {
+  t: (k: string, o?: Record<string, unknown>) => string;
+  showToast: (m: string) => void;
+}) {
+  const [enabled, setEnabled] = useState(hasAppLock());
+  const [pin, setPin]   = useState("");
+  const [pin2, setPin2] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const save = async () => {
+    if (pin.length < 4 || pin !== pin2) { showToast(t("settings.appLockMismatch")); return; }
+    setBusy(true);
+    await setAppLock(pin);
+    setBusy(false);
+    setEnabled(true); setPin(""); setPin2("");
+    showToast(t("settings.appLockSet"));
+  };
+  const remove = () => {
+    clearAppLock();
+    setEnabled(false);
+    showToast(t("settings.appLockRemoved"));
+  };
+
+  return (
+    <div>
+      <div className="secretary-info-desc" style={{ marginBottom: 12 }}>{t("settings.appLockDesc")}</div>
+      {enabled ? (
+        <div className="settings-secretary-info">
+          <div className="settings-secretary-info-row">
+            <span className="secretary-info-icon">🔒</span>
+            <div>
+              <div className="secretary-info-title">{t("settings.appLockActive")}</div>
+              <div className="secretary-info-desc">{t("settings.appLockActiveHint")}</div>
+            </div>
+          </div>
+          <button className="btn btn-danger-ghost" style={{ marginTop: 12 }} onClick={remove}>{t("settings.appLockDisable")}</button>
+        </div>
+      ) : (
+        <div className="form-row" style={{ alignItems: "flex-end" }}>
+          <div className="form-group">
+            <label className="form-label">{t("settings.appLockPin")}</label>
+            <input className="form-input" type="password" inputMode="numeric" placeholder="••••"
+              value={pin} onChange={e => setPin(e.target.value.replace(/\D/g, "").slice(0, 8))} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">{t("settings.appLockConfirm")}</label>
+            <input className="form-input" type="password" inputMode="numeric" placeholder="••••"
+              value={pin2} onChange={e => setPin2(e.target.value.replace(/\D/g, "").slice(0, 8))} />
+          </div>
+          <button className="btn btn-primary" onClick={save} disabled={busy || pin.length < 4 || pin !== pin2}>
+            {t("settings.appLockEnable")}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function SmsRemindersSection({
   t, showToast,
@@ -1618,6 +1679,11 @@ export function ParametresPage() {
         <div className="settings-category">{t("settings.catAccount")}</div>
         <Section icon="security" title={t("settings.securityTitle")} subtitle={t("settings.securitySub")} defaultOpen>
           <SecuritySection />
+        </Section>
+
+        {/* ── Verrouillage de l'application (code d'accès) ── */}
+        <Section icon="security" title={t("settings.appLockTitle")} subtitle={t("settings.appLockSub")}>
+          <AppLockSection t={t} showToast={showToast} />
         </Section>
 
         {/* ── Abonnement & tarifs ── */}

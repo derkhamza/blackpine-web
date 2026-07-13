@@ -818,6 +818,30 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   cursor: pointer; transition: background var(--trans), border-color var(--trans);
 }
 .auth-secretary-btn:hover { background: rgba(124,58,237,0.07); border-color: rgba(124,58,237,0.5); }
+
+/* App-lock screen */
+.lock-root {
+  position: fixed; inset: 0; z-index: 500;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface-alt, var(--surface)); padding: 20px;
+}
+.lock-card {
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  width: 100%; max-width: 320px; text-align: center;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 16px; padding: 28px 24px; box-shadow: var(--shadow-card);
+}
+.lock-title { font-size: 17px; font-weight: 700; color: var(--text); margin-top: 6px; }
+.lock-sub { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+.lock-input {
+  width: 100%; text-align: center; letter-spacing: 8px; font-size: 20px;
+  padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--r);
+  background: var(--surface-alt, var(--surface)); color: var(--text);
+}
+.lock-input.error { border-color: var(--coral); }
+.lock-input:focus { outline: none; border-color: var(--blue); }
+.lock-error { font-size: 12px; color: var(--coral); }
+.lock-card .btn { width: 100%; }
 .auth-title { font-size: 18px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
 .auth-sub { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
 .auth-form { display: flex; flex-direction: column; gap: 12px; }

@@ -383,6 +383,14 @@
     "syncFailed": "Sync échoué",
     "offline": "Hors ligne"
   },
+  "lock": {
+    "title": "Application verrouillée",
+    "sub": "Saisissez votre code d'accès pour continuer.",
+    "pinLabel": "Code d'accès",
+    "wrong": "Code incorrect.",
+    "unlock": "Déverrouiller",
+    "forgot": "Code oublié ? Se déconnecter"
+  },
   "storage": {
     "warningTitle": "Stockage presque plein",
     "warningBody": "Le stockage local de cet appareil est presque plein. Exportez une sauvegarde pour ne rien perdre.",
@@ -1119,6 +1127,18 @@
     "catTeam": "Équipe & accès",
     "catData": "Données & sauvegarde",
     "catApp": "Application",
+    "appLockTitle": "Verrouillage de l'application (code d'accès)",
+    "appLockSub": "Exiger un code pour ouvrir l'application sur cet appareil",
+    "appLockDesc": "Ajoutez un code chiffré demandé à l'ouverture de l'application — utile sur un appareil partagé ou laissé sans surveillance. Ceci verrouille l'accès ; les données stockées ne sont pas chiffrées.",
+    "appLockActive": "Verrouillage activé",
+    "appLockActiveHint": "Un code est demandé à chaque ouverture de l'application sur cet appareil.",
+    "appLockDisable": "Désactiver le verrouillage",
+    "appLockPin": "Code d'accès (4 à 8 chiffres)",
+    "appLockConfirm": "Confirmer le code",
+    "appLockEnable": "Activer le verrouillage",
+    "appLockSet": "Verrouillage activé",
+    "appLockRemoved": "Verrouillage désactivé",
+    "appLockMismatch": "Les codes doivent correspondre (4 chiffres minimum).",
     "title": "Paramètres",
     "subtitle": "Profil & préférences",
     "profile": "Mon profil",
