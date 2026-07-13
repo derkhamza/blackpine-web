@@ -26,16 +26,18 @@ function fmtMins(m: number): string {
 // ── Card ──────────────────────────────────────────────────────────────────────
 
 interface CardProps {
-  appt:     Appointment;
-  now:      Date;
-  onArrive: () => void;
-  onCall:   () => void;
-  onStart:  () => void;
-  onDone:   () => void;
-  onNoShow: () => void;
+  appt:       Appointment;
+  now:        Date;
+  canConsult: boolean;   // only the doctor may start / end a consultation
+  onArrive:   () => void;
+  onCall:     () => void;
+  onUncall:   () => void;
+  onStart:    () => void;
+  onDone:     () => void;
+  onNoShow:   () => void;
 }
 
-function WaitCard({ appt, now, onArrive, onCall, onStart, onDone, onNoShow }: CardProps) {
+function WaitCard({ appt, now, canConsult, onArrive, onCall, onUncall, onStart, onDone, onNoShow }: CardProps) {
   // Cards can be dragged between columns to change status.
   const { t } = useTranslation();
   const color = apptTypeColor(appt.type);
@@ -88,13 +90,19 @@ function WaitCard({ appt, now, onArrive, onCall, onStart, onDone, onNoShow }: Ca
           <button className="wr-btn wr-call" onClick={onCall}>{t("waiting.btnCall")}</button>
           <button className="wr-btn wr-absent" onClick={onNoShow}>{t("waiting.btnNoShow")}</button>
         </>}
-        {/* Step 2 — the patient has been called; start the consultation. */}
+        {/* Step 2 — the patient has been called. The call can be reverted; only
+            the doctor may actually start the consultation. */}
         {appt.status === "arrived" && appt.calledInAt && <>
-          <button className="wr-btn wr-start" onClick={onStart}>{t("waiting.btnStartConsult")}</button>
+          {canConsult && <button className="wr-btn wr-start" onClick={onStart}>{t("waiting.btnStartConsult")}</button>}
+          <button className="wr-btn wr-ghost" onClick={onUncall}>{t("waiting.btnUncall")}</button>
           <button className="wr-btn wr-absent" onClick={onNoShow}>{t("waiting.btnNoShow")}</button>
         </>}
-        {appt.status === "in_consultation" && (
+        {/* Only the doctor can mark the consultation over. */}
+        {appt.status === "in_consultation" && canConsult && (
           <button className="wr-btn wr-done" onClick={onDone}>{t("waiting.btnDone")}</button>
+        )}
+        {appt.status === "in_consultation" && !canConsult && (
+          <span className="wr-called-label">{t("waiting.inConsulSecretary")}</span>
         )}
         {appt.status === "completed" && (
           <span className="wr-done-chip wr-ok">{t("waiting.chipDone")}</span>
@@ -163,6 +171,9 @@ export function WaitingRoomPage() {
                : i18n.language?.slice(0, 2) === "en" ? "en-US" : "fr-FR";
   const { appointments, updateAppointment, doctorProfile, role } = useCabinet();
   const today = todayIso();
+  // Only the doctor may start a consultation or mark it over; the secretary
+  // handles arrivals and calling patients in.
+  const canConsult = role === "doctor";
 
   // Ring the other side of the cabinet (secretary/doctor) when a patient is
   // called in, so their board reflects it at once with a notification.
@@ -202,7 +213,13 @@ export function WaitingRoomPage() {
     updateAppointment({ ...appt, calledInAt: new Date().toISOString() });
     ringPatientCalled(appt);
   }, [updateAppointment, ringPatientCalled]);
-  // Step 2: the patient is in the room — start the consultation.
+  // Revert "Faire entrer": clear the called flag, back to a plain arrived patient.
+  const uncall = useCallback((appt: Appointment) => {
+    const next = { ...appt };
+    delete (next as Partial<Appointment>).calledInAt;
+    updateAppointment(next);
+  }, [updateAppointment]);
+  // Step 2: the patient is in the room — start the consultation (doctor only).
   const startConsult = useCallback((appt: Appointment) =>
     updateAppointment({ ...appt, status: "in_consultation", inConsultationAt: new Date().toISOString() }),
     [updateAppointment]);
@@ -221,13 +238,15 @@ export function WaitingRoomPage() {
       } else if (col === "arrived" && appt.status !== "arrived") {
         updateAppointment({ ...appt, status: "arrived", checkedInAt: appt.checkedInAt ?? new Date().toISOString() });
       } else if (col === "in_consultation" && appt.status !== "in_consultation") {
+        if (!canConsult) return; // only the doctor starts a consultation
         // Dragging straight to "En consultation" starts the consultation; it does
         // not ring the secretary — that's the explicit "Faire entrer" step.
         updateAppointment({ ...appt, status: "in_consultation", inConsultationAt: appt.inConsultationAt ?? new Date().toISOString() });
       } else if (col === "done" && appt.status !== "completed") {
+        if (!canConsult) return; // only the doctor marks the consultation over
         updateAppointment({ ...appt, status: "completed" });
       }
-    }, [todayAppts, updateAppointment]);
+    }, [todayAppts, updateAppointment, canConsult]);
 
   const timeStr = now.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
   const dateStr = now.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" });
@@ -267,8 +286,8 @@ export function WaitingRoomPage() {
           <Col title={t("waiting.colScheduled")} accent="#6b7280" count={cols.scheduled.length}
             onDropAppt={dropToColumn("scheduled")}>
             {cols.scheduled.map(a => (
-              <WaitCard key={a.id} appt={a} now={now}
-                onArrive={() => arrive(a)} onCall={() => callIn(a)} onStart={() => startConsult(a)}
+              <WaitCard key={a.id} appt={a} now={now} canConsult={canConsult}
+                onArrive={() => arrive(a)} onCall={() => callIn(a)} onUncall={() => uncall(a)} onStart={() => startConsult(a)}
                 onDone={() => done(a)}     onNoShow={() => noShow(a)} />
             ))}
           </Col>
@@ -276,8 +295,8 @@ export function WaitingRoomPage() {
           <Col title={t("waiting.colArrived")} accent="#d97706" count={cols.arrived.length}
             onDropAppt={dropToColumn("arrived")}>
             {cols.arrived.map(a => (
-              <WaitCard key={a.id} appt={a} now={now}
-                onArrive={() => arrive(a)} onCall={() => callIn(a)} onStart={() => startConsult(a)}
+              <WaitCard key={a.id} appt={a} now={now} canConsult={canConsult}
+                onArrive={() => arrive(a)} onCall={() => callIn(a)} onUncall={() => uncall(a)} onStart={() => startConsult(a)}
                 onDone={() => done(a)}     onNoShow={() => noShow(a)} />
             ))}
           </Col>
@@ -285,8 +304,8 @@ export function WaitingRoomPage() {
           <Col title={t("waiting.colInConsultation")} accent="#1890C5" count={cols.in_consultation.length}
             onDropAppt={dropToColumn("in_consultation")}>
             {cols.in_consultation.map(a => (
-              <WaitCard key={a.id} appt={a} now={now}
-                onArrive={() => arrive(a)} onCall={() => callIn(a)} onStart={() => startConsult(a)}
+              <WaitCard key={a.id} appt={a} now={now} canConsult={canConsult}
+                onArrive={() => arrive(a)} onCall={() => callIn(a)} onUncall={() => uncall(a)} onStart={() => startConsult(a)}
                 onDone={() => done(a)}     onNoShow={() => noShow(a)} />
             ))}
           </Col>
@@ -294,8 +313,8 @@ export function WaitingRoomPage() {
           <Col title={t("waiting.colDoneAbsent")} accent="#15a876" count={cols.done.length}
             onDropAppt={dropToColumn("done")}>
             {cols.done.map(a => (
-              <WaitCard key={a.id} appt={a} now={now}
-                onArrive={() => arrive(a)} onCall={() => callIn(a)} onStart={() => startConsult(a)}
+              <WaitCard key={a.id} appt={a} now={now} canConsult={canConsult}
+                onArrive={() => arrive(a)} onCall={() => callIn(a)} onUncall={() => uncall(a)} onStart={() => startConsult(a)}
                 onDone={() => done(a)}     onNoShow={() => noShow(a)} />
             ))}
           </Col>

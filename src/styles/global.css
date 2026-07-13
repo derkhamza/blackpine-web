@@ -584,6 +584,7 @@ img { max-width: 100%; display: block; }
 .tx-row:hover .tx-delete { opacity: 1; }
 .tx-delete:hover { color: var(--coral); }
 .tx-empty { text-align: center; padding: 48px 0; color: var(--tertiary); font-size: 14px; }
+.tx-empty-icon { color: var(--muted); opacity: .55; margin-bottom: 10px; display: flex; justify-content: center; }
 
 /* ── FABs ───────────────────────────────────────────────────────────────── */
 .fabs { display: flex; gap: 10px; }
@@ -2894,6 +2895,17 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
 /* Monthly table */
 .rpt-table-wrap { overflow-x: auto; }
+
+/* ── Table readability (item 18) ──────────────────────────────────────────────
+   Wide data tables keep a legible min-width and their wrapper scrolls
+   horizontally on narrow screens, instead of squeezing every column. Scoped to
+   tables inside a scroll wrapper so nothing overflows without a way to scroll. */
+.table-wrap, .fac-table-wrap, .payroll-table-wrap, .rmb-table-wrap,
+.compta-table-wrap, .rpt-table-wrap { overflow-x: auto; }
+.table-wrap > table, .fac-table-wrap > table, .payroll-table-wrap > table,
+.rmb-table-wrap > table, .compta-table-wrap > table, .rpt-table-wrap > table { min-width: 560px; }
+.table-wrap th, .fac-table-wrap th, .payroll-table-wrap th, .rmb-table-wrap th,
+.compta-table-wrap th, .rpt-table-wrap th { white-space: nowrap; }
 .rpt-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .rpt-table th {
   text-align: start; padding: 7px 10px;
@@ -4014,6 +4026,8 @@ a.wr-card-open:hover {
 .wr-arrive { background: var(--green);  color: #fff; }
 .wr-call   { background: var(--blue);   color: #fff; }
 .wr-start  { background: var(--navy);   color: #fff; }
+.wr-ghost  { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+.wr-ghost:hover { color: var(--text); border-color: var(--border-strong, var(--border)); }
 .wr-done   { background: var(--green);  color: #fff; }
 .wr-absent {
   background: transparent;

@@ -107,6 +107,9 @@ function FilterBar({
   const { t } = useTranslation();
   const up = (patch: Partial<FilterState>) => onChange({ ...filters, ...patch });
   const active = isFiltersActive(filters);
+  // Keep the advanced filters (dates + categories) tucked away by default so the
+  // bar reads as one clean row — open automatically if a filter is already set.
+  const [showAdv, setShowAdv] = useState(() => !!(filters.dateFrom || filters.dateTo || filters.category));
 
   const catList = filters.typeFilter === "RECETTE" ? RECETTE_CATS
                 : filters.typeFilter === "CHARGE"  ? CHARGE_CATS
@@ -165,12 +168,19 @@ function FilterBar({
           >
             {filters.sortOrder === "desc" ? "↓" : "↑"}
           </button>
+          <button
+            className={`tx-sort-btn${showAdv ? " active" : ""}`}
+            onClick={() => setShowAdv(a => !a)}
+            title={t("transactions.filters")}
+          >
+            {t("transactions.filters")}
+          </button>
         </div>
       </div>
 
-      {/* ── Row 2: date range ── */}
+      {/* ── Row 2: date range (advanced) + result count (always visible) ── */}
       <div className="tx-filter-row tx-filter-row-dates">
-        <div className="tx-date-range">
+        {showAdv && <div className="tx-date-range">
           <label className="tx-date-label">{t("transactions.dateFrom")}</label>
           <input
             className="tx-date-input"
@@ -193,7 +203,7 @@ function FilterBar({
               ×
             </button>
           )}
-        </div>
+        </div>}
 
         {/* Result count + reset */}
         <div className="tx-filter-result">
@@ -214,8 +224,8 @@ function FilterBar({
         </div>
       </div>
 
-      {/* ── Row 3: category chips (only when type is selected) ── */}
-      {catList && (
+      {/* ── Row 3: category chips (advanced, only when a type is selected) ── */}
+      {showAdv && catList && (
         <div className="tx-filter-row tx-cat-row">
           <button
             className={`tx-cat-chip${filters.category === null ? " active" : ""}`}
@@ -511,8 +521,11 @@ export function TransactionsPage({ noLayout = false }: { noLayout?: boolean } = 
       {/* ── Transaction list ── */}
       {filtered.length === 0 ? (
         <div className="tx-empty">
-          <div style={{ fontSize: 36, marginBottom: 10 }}>
-            {isFiltersActive(filters) ? "🔍" : filters.typeFilter === "RECETTE" ? "💰" : filters.typeFilter === "CHARGE" ? "📋" : "📊"}
+          <div className="tx-empty-icon">
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" strokeWidth="1.5"/>
+              <path d="M7 14l3-3 2.5 2 4.5-5.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
           </div>
           <div style={{ fontWeight: 700, marginBottom: 6 }}>
             {isFiltersActive(filters) ? t("transactions.emptyFiltered") : t("transactions.emptyTitle")}
