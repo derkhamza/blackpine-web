@@ -6,10 +6,10 @@ import { useToast } from "../components/Toast";
 import { useCabinet } from "../context/CabinetContext";
 import { useApp } from "../context/AppContext";
 import type {
-  Appointment, AppointmentStatus, Patient, WaTemplate,
+  Appointment, AppointmentStatus, Patient, WaTemplate, CustomApptType,
 } from "../lib/cabinetTypes";
 import {
-  APPT_STATUS_LABELS,
+  APPT_STATUS_LABELS, BUILTIN_APPT_TYPES,
   apptTypeLabel, apptTypeColor, resolveApptTypes, apptLabelById,
   WA_TEMPLATE_CATEGORY_LABELS, WA_TEMPLATE_CATEGORY_COLORS,
 } from "../lib/cabinetTypes";
@@ -1227,12 +1227,43 @@ export function AgendaPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const {
-    appointments, patients, doctorProfile,
+    appointments, patients, doctorProfile, setDoctorProfile,
     addAppointment, updateAppointment, deleteAppointment, deleteAppointmentSeries,
     waTemplates, role,
   } = useCabinet();
   const { addTransaction } = useApp();
   const apptCtx = useContextMenu();
+
+  // Inline legend editing — rename or recolour an appointment type straight from
+  // the agenda's colour key. Doctor only: the secretary can't sync the profile.
+  const canEditLegend = role !== "secretary";
+  const updateLegendType = (id: string, patch: { label?: string; color?: string }) => {
+    const customs = doctorProfile.customApptTypes ?? [];
+    if ((BUILTIN_APPT_TYPES as string[]).includes(id)) {
+      const overrides = { ...(doctorProfile.apptTypeOverrides ?? {}) };
+      const cur = overrides[id] ?? {};
+      overrides[id] = {
+        label: patch.label !== undefined ? patch.label : cur.label,
+        color: patch.color !== undefined ? patch.color : cur.color,
+      };
+      setDoctorProfile({ ...doctorProfile, apptTypeOverrides: overrides });
+    } else if (customs.some(c => c.id === id)) {
+      setDoctorProfile({ ...doctorProfile, customApptTypes: customs.map(c =>
+        c.id === id
+          ? { ...c,
+              label: patch.label !== undefined ? patch.label : c.label,
+              color: patch.color !== undefined ? patch.color : c.color }
+          : c) });
+    } else {
+      // A type used only on existing appointments → promote it to a custom type.
+      const created: CustomApptType = {
+        id,
+        label: patch.label !== undefined ? patch.label : apptTypeLabel(id),
+        color: patch.color !== undefined ? patch.color : apptTypeColor(id),
+      };
+      setDoctorProfile({ ...doctorProfile, customApptTypes: [...customs, created] });
+    }
+  };
 
   const [selDate,   setSelDate]   = useState(today);
   const [view,      setView]      = useState<AgendaView>("week");
@@ -1830,10 +1861,37 @@ export function AgendaPage() {
               {/* Group 1 — consultation-type colours (filled square dot), left. */}
               <div className="agenda-legend-group">
                 {ids.map(id => (
-                  <span key={id} className="agenda-legend-item">
-                    <span className="agenda-legend-dot" style={{ background: apptTypeColor(id) }} />
-                    {apptTypeLabel(id)}
-                  </span>
+                  canEditLegend ? (
+                    <span key={id} className="agenda-legend-item agenda-legend-item-edit">
+                      <label className="agenda-legend-swatch" title={t("agenda.legendColor")}>
+                        <span className="agenda-legend-dot" style={{ background: apptTypeColor(id) }} />
+                        <input
+                          type="color"
+                          className="agenda-legend-color-input"
+                          value={apptTypeColor(id)}
+                          onChange={e => updateLegendType(id, { color: e.target.value })}
+                          aria-label={t("agenda.legendColor")}
+                        />
+                      </label>
+                      <input
+                        key={apptTypeLabel(id)}
+                        className="agenda-legend-name-input"
+                        defaultValue={apptTypeLabel(id)}
+                        title={t("agenda.legendName")}
+                        aria-label={t("agenda.legendName")}
+                        onKeyDown={e => { if (e.key === "Enter") e.currentTarget.blur(); }}
+                        onBlur={e => {
+                          const v = e.target.value.trim();
+                          if (v && v !== apptTypeLabel(id)) updateLegendType(id, { label: v });
+                        }}
+                      />
+                    </span>
+                  ) : (
+                    <span key={id} className="agenda-legend-item">
+                      <span className="agenda-legend-dot" style={{ background: apptTypeColor(id) }} />
+                      {apptTypeLabel(id)}
+                    </span>
+                  )
                 ))}
               </div>
               {/* Group 2 — the secondary distinction axis (ring dot), pushed to the

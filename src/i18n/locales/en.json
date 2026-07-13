@@ -588,6 +588,8 @@
     "cancelled": "Cancelled"
   },
   "agenda": {
+    "legendColor": "Change colour",
+    "legendName": "Rename this type",
     "title": "Schedule",
     "subtitle": "Calendar & appointments",
     "subtitleTotal": "{{n}} appointments total",

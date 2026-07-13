@@ -1109,6 +1109,23 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   border-radius: 50%;
   box-shadow: inset 0 0 0 2px rgba(255,255,255,0.75);
 }
+/* Editable legend (doctor): the dot is a colour swatch opening the native
+   picker; the name is an inline field committed on blur. */
+.agenda-legend-item-edit { gap: 4px; }
+.agenda-legend-swatch { position: relative; display: inline-flex; cursor: pointer; }
+.agenda-legend-swatch .agenda-legend-dot { cursor: pointer; }
+.agenda-legend-color-input {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  opacity: 0; cursor: pointer; border: none; padding: 0;
+}
+.agenda-legend-name-input {
+  font-size: 12px; color: var(--text); background: transparent;
+  border: 1px solid transparent; border-radius: 5px;
+  padding: 1px 5px; width: 13ch;
+  transition: border-color var(--trans), background var(--trans);
+}
+.agenda-legend-name-input:hover { border-color: var(--border); }
+.agenda-legend-name-input:focus { outline: none; border-color: var(--blue); background: var(--hover); }
 
 /* Week nav bar */
 .agenda-week-nav {

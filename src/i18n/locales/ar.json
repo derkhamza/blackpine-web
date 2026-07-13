@@ -588,6 +588,8 @@
     "cancelled": "ملغى"
   },
   "agenda": {
+    "legendColor": "تغيير اللون",
+    "legendName": "إعادة تسمية هذا النوع",
     "title": "جدول المواعيد",
     "subtitle": "التقويم والمواعيد",
     "subtitleTotal": "{{n}} موعد في المجموع",
