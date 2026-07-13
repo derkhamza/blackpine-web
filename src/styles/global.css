@@ -1317,6 +1317,55 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 }
 .agenda-day-off-badge.is-off { color: var(--muted); background: var(--surface-alt, rgba(0,0,0,0.05)); }
 
+/* ── Secretary dashboard ──────────────────────────────────────────────────── */
+.sec-dash-actions {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px;
+}
+.sec-dash-action {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px;
+  padding: 16px 10px; border: 1px solid var(--border); border-radius: var(--r);
+  background: var(--surface); color: var(--text); cursor: pointer;
+  transition: border-color var(--trans), background var(--trans);
+}
+.sec-dash-action:hover { border-color: var(--blue); background: var(--surface-alt, rgba(37,99,235,0.04)); }
+.sec-dash-action-emoji { font-size: 24px; line-height: 1; }
+.sec-dash-action-label { font-size: 12.5px; font-weight: 600; text-align: center; }
+.sec-dash-avatar-sec { font-size: 15px; }
+.sidebar-avatar-sec { display: flex; align-items: center; justify-content: center; }
+.sidebar-sec-id { display: flex; flex-direction: column; min-width: 0; }
+.sidebar-sec-owner { font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.sec-dash-list { display: flex; flex-direction: column; gap: 6px; }
+.sec-dash-appt {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--r);
+  background: var(--surface); color: var(--text); cursor: pointer; text-align: left;
+  transition: border-color var(--trans), background var(--trans);
+}
+.sec-dash-appt:hover { border-color: var(--blue); background: var(--surface-alt, rgba(37,99,235,0.04)); }
+.sec-dash-appt-time { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--blue); min-width: 46px; }
+.sec-dash-appt-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sec-dash-appt-status {
+  font-size: 11px; font-weight: 600; color: var(--muted);
+  padding: 2px 8px; border-radius: 999px; background: var(--surface-alt, rgba(0,0,0,0.05)); flex-shrink: 0;
+}
+.sec-dash-appt-status.s-arrived   { color: #b45309; background: rgba(245,158,11,0.14); }
+.sec-dash-appt-status.s-completed { color: var(--green); background: rgba(21,168,118,0.12); }
+
+/* ── Document format: per-document simple/advanced choice ─────────────────── */
+.doc-mode-list { display: flex; flex-direction: column; gap: 6px; }
+.doc-mode-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--r); background: var(--surface);
+}
+.doc-mode-label { font-size: 13px; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.doc-mode-toggle { display: inline-flex; border: 1px solid var(--border); border-radius: 999px; overflow: hidden; flex-shrink: 0; }
+.doc-mode-btn {
+  padding: 4px 12px; font-size: 12px; font-weight: 600; border: none; background: transparent;
+  color: var(--muted); cursor: pointer; transition: background var(--trans), color var(--trans);
+}
+.doc-mode-btn.active { background: var(--blue); color: #fff; }
+
 /* Grid body (relative container for events + lines) */
 .tgrid-body {
   position: relative; cursor: cell;
@@ -1647,9 +1696,12 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 }
 .appt-card:hover { border-color: var(--blue); background: var(--blue-soft); }
 .appt-accent { width: 3px; flex-shrink: 0; }
-.appt-body { flex: 1; padding: 9px 12px; display: flex; flex-direction: column; gap: 3px; }
+/* min-width:0 lets the body actually shrink in the flex row so the fixed actions
+   column can't collide with the name/time on narrow windows; name truncates. */
+.appt-body { flex: 1; min-width: 0; padding: 9px 12px; display: flex; flex-direction: column; gap: 3px; }
 .appt-time { font-size: 11px; font-weight: 500; color: var(--muted); }
-.appt-name { font-weight: 600; font-size: 13px; color: var(--text); }
+.appt-name { font-weight: 600; font-size: 13px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.appt-actions { flex-shrink: 0; }
 .appt-badges { display: flex; flex-wrap: wrap; gap: 5px; }
 .appt-badge {
   font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: var(--r-pill);
@@ -4212,7 +4264,9 @@ a.wr-card-open:hover {
 /* ── Factures Page ──────────────────────────────────────────────────────── */
 
 .fac-kpi-strip {
-  display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 18px;
+  /* 5 KPI cards — was repeat(4,1fr), which pushed the 5th onto a lopsided second
+     row. auto-fit keeps them evenly sized and wraps cleanly as width shrinks. */
+  display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px;
 }
 .fac-kpi {
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--r);
@@ -4966,8 +5020,10 @@ a.ana-top-name:hover { color: var(--blue); text-decoration: underline; }
   display: flex;
   flex-direction: column;
   gap: 2px;
-  position: sticky;
-  top: 20px;
+  /* No sticky: with align-items:start and calculators of differing heights, a
+     sticky selector re-anchored as the page height changed between calculators,
+     making the picker visibly jump. Sitting in the grid cell keeps it fixed. */
+  align-self: start;
 }
 .calc-nav-btn {
   width: 100%;

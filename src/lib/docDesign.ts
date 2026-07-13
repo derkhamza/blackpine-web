@@ -68,11 +68,24 @@ export function isFlowDoc(kind: DocKind): boolean {
  * customised before this map existed keeps applying until it is re-edited.
  */
 export function designForKind(ds: DocumentSettings | undefined, kind: DocKind): PageDesign | undefined {
-  const fromMap = ds?.designs?.[kind];
-  if (fromMap) return fromMap;
-  if (kind === "ordonnance") return ds?.ordonnanceDesign;
-  if (kind === "facture")    return ds?.factureDesign;
-  return undefined;
+  const design = ds?.designs?.[kind]
+    ?? (kind === "ordonnance" ? ds?.ordonnanceDesign : undefined)
+    ?? (kind === "facture"    ? ds?.factureDesign    : undefined);
+  // Apply the advanced custom layout ONLY when this document is in advanced mode.
+  // Default: advanced when a design already exists (so paper customised before the
+  // per-document mode shipped keeps working), otherwise simple built-in design.
+  const mode = docModeForKind(ds, kind);
+  return mode === "advanced" ? design : undefined;
+}
+
+/** Effective per-document mode ("simple" | "advanced") with backward-compatible default. */
+export function docModeForKind(ds: DocumentSettings | undefined, kind: DocKind): "simple" | "advanced" {
+  const explicit = ds?.docMode?.[kind];
+  if (explicit) return explicit;
+  const hasDesign = !!(ds?.designs?.[kind]
+    ?? (kind === "ordonnance" ? ds?.ordonnanceDesign : undefined)
+    ?? (kind === "facture"    ? ds?.factureDesign    : undefined));
+  return hasDesign ? "advanced" : "simple";
 }
 
 export function resolveMargins(d: PageDesign | undefined, dflt: PageMargins): PageMargins {

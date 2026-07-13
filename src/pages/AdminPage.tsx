@@ -434,8 +434,9 @@ function AdminZone({ doctor, onChanged, onDeleted }: {
 function DoctorsSection() {
   const [doctors, setDoctors] = useState<AdminDoctor[] | null>(null);
   const [search, setSearch] = useState("");
-  const [sort, setSort] = useState<"active" | "signup" | "appts" | "patients">("active");
+  const [sort, setSort] = useState<"active" | "signup" | "appts" | "patients" | "trial">("active");
   const [riskOnly, setRiskOnly] = useState(false);
+  const [planFilter, setPlanFilter] = useState<string>("all");
   const [openId, setOpenId] = useState<string | null>(null);
   const [detail, setDetail] = useState<AdminDoctorDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
@@ -458,7 +459,13 @@ function DoctorsSection() {
 
   const q = search.toLowerCase().trim();
   const now = Date.now();
+  const TRIAL_DAYS = 30;
   const daysSince = (iso: string | null) => (iso ? Math.floor((now - new Date(iso).getTime()) / 86400000) : Infinity);
+  // Trial days remaining for a free-trial account (30-day window from trial_start).
+  const trialLeft = (d: AdminDoctor): number | null =>
+    d.plan === "free_trial" && d.trialStart ? Math.max(0, TRIAL_DAYS - daysSince(d.trialStart)) : null;
+  // Plans present in the data, for the filter dropdown.
+  const plans = Array.from(new Set(doctors.map((d) => d.plan || "free_trial")));
   const isAtRisk = (d: AdminDoctor) => {
     const expIn = d.expiresAt ? Math.ceil((new Date(d.expiresAt).getTime() - now) / 86400000) : null;
     const inactive = (d.apptCount > 0 || d.eventCount > 0) && daysSince(d.lastActive) > 30;
@@ -470,10 +477,12 @@ function DoctorsSection() {
   const searched = q
     ? doctors.filter((d) => d.email.toLowerCase().includes(q) || d.specialty.toLowerCase().includes(q) || d.commune.toLowerCase().includes(q))
     : doctors;
-  const filtered = [...(riskOnly ? searched.filter(isAtRisk) : searched)].sort((a, b) => {
+  const byPlan = planFilter === "all" ? searched : searched.filter((d) => (d.plan || "free_trial") === planFilter);
+  const filtered = [...(riskOnly ? byPlan.filter(isAtRisk) : byPlan)].sort((a, b) => {
     if (sort === "signup")   return (b.createdAt ?? "").localeCompare(a.createdAt ?? "");
     if (sort === "appts")    return b.apptCount - a.apptCount;
     if (sort === "patients") return b.patientCount - a.patientCount;
+    if (sort === "trial")    return (trialLeft(a) ?? 9999) - (trialLeft(b) ?? 9999); // soonest-to-expire first
     return daysSince(a.lastActive) - daysSince(b.lastActive); // most recently active first
   });
 
@@ -493,6 +502,14 @@ function DoctorsSection() {
             <option value="signup">Date d'inscription</option>
             <option value="appts">Rendez-vous</option>
             <option value="patients">Patients</option>
+            <option value="trial">Essai — jours restants</option>
+          </select>
+        </label>
+        <label className="admin-doc-sort">
+          Plan :
+          <select className="admin-select" value={planFilter} onChange={(e) => setPlanFilter(e.target.value)}>
+            <option value="all">Tous</option>
+            {plans.map((p) => <option key={p} value={p}>{PLAN_LABELS[p] ?? p}</option>)}
           </select>
         </label>
         <button
@@ -519,6 +536,15 @@ function DoctorsSection() {
                 <span className="admin-chip" title="Dernière activité">⏱ {shortDate(d.lastActive)}</span>
                 <span className="admin-chip">{PLAN_LABELS[d.plan] ?? d.plan}</span>
                 {(() => {
+                  // Free-trial accounts: show days left in the 30-day trial window.
+                  const tl = trialLeft(d);
+                  if (tl != null) {
+                    const tone = tl <= 3 ? "var(--coral)" : tl <= 7 ? "var(--gold)" : "var(--green)";
+                    return <span className="admin-chip" title="Jours d'essai restants" style={{ color: tone, fontWeight: 700 }}>
+                      🎁 {tl}j essai
+                    </span>;
+                  }
+                  // Paid plans: show subscription time remaining.
                   const left = d.expiresAt ? Math.ceil((new Date(d.expiresAt).getTime() - now) / 86400000) : null;
                   if (left == null) return d.plan === "lifetime"
                     ? <span className="admin-chip" title="Abonnement">∞</span>

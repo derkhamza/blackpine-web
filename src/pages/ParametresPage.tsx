@@ -12,7 +12,8 @@ import { exportAgendaIcal } from "../lib/icalExport";
 import { useInstallPWA } from "../components/PWAPrompts";
 import { useTranslation } from "react-i18next";
 import i18n from "../i18n";
-import type { CabinetLocation, SecretaryPermissions, ActeCode, DocumentSettings, DocumentLayout, CabinetDoctorProfile, CustomApptType, ApptLabel } from "../lib/cabinetTypes";
+import type { CabinetLocation, SecretaryPermissions, ActeCode, DocumentSettings, DocumentLayout, CabinetDoctorProfile, CustomApptType, ApptLabel, DocKind } from "../lib/cabinetTypes";
+import { docModeForKind } from "../lib/docDesign";
 import { APPT_TYPE_LABELS, APPT_TYPE_COLORS, BUILTIN_APPT_TYPES, DEFAULT_SECRETARY_PERMISSIONS, DEFAULT_DOCUMENT_SETTINGS, DOCUMENT_LAYOUT_LABELS } from "../lib/cabinetTypes";
 import { COMMON_DRUGS } from "../lib/ordonnancePrinter";
 import { ActeCatalogModal } from "../components/ActeCatalogModal";
@@ -45,6 +46,12 @@ const SECTION_ICONS: Record<string, { tone: string; node: React.ReactNode }> = {
     <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
       <path d="M9 2l5 2v4.2c0 3.4-2.3 5.6-5 6.8-2.7-1.2-5-3.4-5-6.8V4l5-2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
       <path d="M6.7 8.6l1.6 1.6 3.1-3.3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>) },
+  appLock: { tone: "#0EA5E9", node: (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
+      <rect x="4" y="8" width="10" height="7" rx="1.4" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M6.2 8V6.2a2.8 2.8 0 0 1 5.6 0V8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      <circle cx="9" cy="11.4" r="1" fill="currentColor"/>
     </svg>) },
   appearance: { tone: "#8B5CF6", node: (
     <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
@@ -1299,42 +1306,81 @@ function DocumentSettingsSection({
   const s = { ...DEFAULT_DOCUMENT_SETTINGS, ...settings };
   const set = (patch: Partial<DocumentSettings>) => onChange({ ...s, ...patch });
   const LAYOUTS: DocumentLayout[] = ["classic", "compact", "letterhead"];
+  // Every printable document, so the doctor can pick simple vs advanced per doc.
+  const DOC_KINDS_LIST: DocKind[] = [
+    "ordonnance", "facture", "certificate", "examRequest", "receipt",
+    "compteRendu", "rapportMedical", "report", "payroll",
+  ];
+  const setMode = (kind: DocKind, mode: "simple" | "advanced") =>
+    set({ docMode: { ...s.docMode, [kind]: mode } });
+  const anyAdvanced = DOC_KINDS_LIST.some(k => docModeForKind(s, k) === "advanced");
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      <div className="secretary-info-title">{t("settings.docPreviewTitle")}</div>
-      <DocumentPreview s={s} doc={doctorProfile} />
-      <div className="form-group">
-        <label className="form-label">{t("settings.docLayout")}</label>
-        <select className="form-select" value={s.layout} onChange={e => set({ layout: e.target.value as DocumentLayout })}>
-          {LAYOUTS.map(l => <option key={l} value={l}>{DOCUMENT_LAYOUT_LABELS[l]}</option>)}
-        </select>
-        <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 3 }}>{t("settings.docLayoutHint")}</div>
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        {([["showInpe", "INPE"], ["showIce", "ICE"], ["showRib", "RIB"]] as [keyof DocumentSettings, string][]).map(([k, lbl]) => (
-          <label key={k} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-            <input type="checkbox" checked={!!s[k]} onChange={e => set({ [k]: e.target.checked })} />
-            <span>{t("settings.docShow", { field: lbl })}</span>
-          </label>
-        ))}
-      </div>
-      <div className="form-group">
-        <label className="form-label">{t("settings.docHeaderNote")}</label>
-        <input className="form-input" value={s.headerNote ?? ""} onChange={e => set({ headerNote: e.target.value || undefined })}
-          placeholder={t("settings.docHeaderNotePlaceholder")} />
-      </div>
-      <div className="form-group">
-        <label className="form-label">{t("settings.docFooterNote")}</label>
-        <input className="form-input" value={s.footerNote ?? ""} onChange={e => set({ footerNote: e.target.value || undefined })}
-          placeholder={t("settings.docFooterNotePlaceholder")} />
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {/* ── STEP 1 — Simple built-in style (shared by every document) ── */}
+      <div>
+        <div className="secretary-info-title">{t("settings.docSimpleTitle")}</div>
+        <div className="secretary-info-desc" style={{ marginBottom: 10 }}>{t("settings.docSimpleDesc")}</div>
+        <DocumentPreview s={s} doc={doctorProfile} />
+        <div className="form-group" style={{ marginTop: 10 }}>
+          <label className="form-label">{t("settings.docLayout")}</label>
+          <select className="form-select" value={s.layout} onChange={e => set({ layout: e.target.value as DocumentLayout })}>
+            {LAYOUTS.map(l => <option key={l} value={l}>{DOCUMENT_LAYOUT_LABELS[l]}</option>)}
+          </select>
+          <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 3 }}>{t("settings.docLayoutHint")}</div>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {([["showInpe", "INPE"], ["showIce", "ICE"], ["showRib", "RIB"]] as [keyof DocumentSettings, string][]).map(([k, lbl]) => (
+            <label key={k} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+              <input type="checkbox" checked={!!s[k]} onChange={e => set({ [k]: e.target.checked })} />
+              <span>{t("settings.docShow", { field: lbl })}</span>
+            </label>
+          ))}
+        </div>
+        <div className="form-group" style={{ marginTop: 8 }}>
+          <label className="form-label">{t("settings.docHeaderNote")}</label>
+          <input className="form-input" value={s.headerNote ?? ""} onChange={e => set({ headerNote: e.target.value || undefined })}
+            placeholder={t("settings.docHeaderNotePlaceholder")} />
+        </div>
+        <div className="form-group">
+          <label className="form-label">{t("settings.docFooterNote")}</label>
+          <input className="form-input" value={s.footerNote ?? ""} onChange={e => set({ footerNote: e.target.value || undefined })}
+            placeholder={t("settings.docFooterNotePlaceholder")} />
+        </div>
       </div>
 
-      {/* ── Advanced page designer (pre-printed paper) ── */}
-      <div style={{ marginTop: 8, borderTop: "1px solid var(--border)", paddingTop: 14 }}>
-        <div className="secretary-info-title" style={{ marginBottom: 2 }}>{t("settings.pd.title")}</div>
-        <div className="secretary-info-desc" style={{ marginBottom: 10 }}>{t("settings.pd.desc")}</div>
-        <PageDesigner settings={s} onChange={onChange} />
+      {/* ── STEP 2 — Per-document choice: simple built-in OR advanced layout ── */}
+      <div style={{ borderTop: "1px solid var(--border)", paddingTop: 14 }}>
+        <div className="secretary-info-title">{t("settings.docModeTitle")}</div>
+        <div className="secretary-info-desc" style={{ marginBottom: 10 }}>{t("settings.docModeDesc")}</div>
+        <div className="doc-mode-list">
+          {DOC_KINDS_LIST.map(kind => {
+            const mode = docModeForKind(s, kind);
+            return (
+              <div key={kind} className="doc-mode-row">
+                <span className="doc-mode-label">{t(`settings.pd.kind_${kind}`)}</span>
+                <div className="doc-mode-toggle">
+                  {(["simple", "advanced"] as const).map(m => (
+                    <button key={m} type="button"
+                      className={`doc-mode-btn${mode === m ? " active" : ""}`}
+                      onClick={() => setMode(kind, m)}>
+                      {t(`settings.docMode_${m}`)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
+
+      {/* ── STEP 3 — Advanced layout editor (only for documents set to "Avancé") ── */}
+      {anyAdvanced && (
+        <div style={{ borderTop: "1px solid var(--border)", paddingTop: 14 }}>
+          <div className="secretary-info-title" style={{ marginBottom: 2 }}>{t("settings.pd.title")}</div>
+          <div className="secretary-info-desc" style={{ marginBottom: 10 }}>{t("settings.docAdvancedDesc")}</div>
+          <PageDesigner settings={s} onChange={onChange} />
+        </div>
+      )}
     </div>
   );
 }
@@ -1773,7 +1819,7 @@ export function ParametresPage() {
         </Section>
 
         {/* ── Verrouillage de l'application (code d'accès) ── */}
-        <Section icon="security" title={t("settings.appLockTitle")} subtitle={t("settings.appLockSub")}>
+        <Section icon="appLock" title={t("settings.appLockTitle")} subtitle={t("settings.appLockSub")}>
           <AppLockSection t={t} showToast={showToast} />
         </Section>
 

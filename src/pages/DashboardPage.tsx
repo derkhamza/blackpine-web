@@ -82,7 +82,7 @@ export function DashboardPage() {
   const navigate = useNavigate();
   const today = todayIso();
 
-  const { result, transactions, fiscalYear } = useApp();
+  const { result, transactions, fiscalYear, trial } = useApp();
 
   const {
     appointments,
@@ -94,6 +94,7 @@ export function DashboardPage() {
     patients,
     lastBackupAt,
     doctorProfile,
+    storagePrefix,
   } = useCabinet();
 
   const [alertsCollapsed, setAlertsCollapsed] = useState(false);
@@ -171,6 +172,18 @@ export function DashboardPage() {
   // ── Clinical alerts ────────────────────────────────────────────────────────
   const alerts = useMemo((): Alert[] => {
     const list: Alert[] = [];
+
+    // Free-trial ending soon — an actionable nudge on the dashboard (besides the
+    // TrialGate banner) so it isn't missed. Resurfaces as the deadline nears.
+    if (trial.isTrial && trial.active && !trial.expired && trial.daysLeft != null && trial.daysLeft <= 7) {
+      list.push({
+        id: "trial-ending", level: trial.daysLeft <= 3 ? "critical" : "warning",
+        icon: <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M7 1v6l4 2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/><circle cx="7" cy="7" r="6" stroke="currentColor" strokeWidth="1.3"/></svg>,
+        text: t("dashboard.trialEnding", { n: trial.daysLeft }),
+        subtext: t("dashboard.trialEndingSub"),
+        route: "/parametres?section=subscription", weight: 30 - trial.daysLeft,
+      });
+    }
 
     // Low / out-of-stock
     const outOfStock = stockItems.filter(s => s.quantity === 0);
@@ -297,7 +310,7 @@ export function DashboardPage() {
     // Storage health — this browser's local storage nears its ~10 MB cap
     // (mostly attachments). Weight = MB so a growing footprint resurfaces a
     // dismissed alert; the wording explains the concept in plain language.
-    const storageBytes = estimateStorageBytes();
+    const storageBytes = estimateStorageBytes(storagePrefix); // scope to THIS account
     const storageMB = storageBytes / (1024 * 1024);
     if (storageMB > 7) {
       list.push({
@@ -338,7 +351,7 @@ export function DashboardPage() {
     }
 
     return list;
-  }, [stockItems, purchaseOrders, examResults, notes, appointments, patients, lastBackupAt, today]);
+  }, [stockItems, purchaseOrders, examResults, notes, appointments, patients, lastBackupAt, today, trial, storagePrefix]);
 
   // Hide alerts that were dismissed and haven't worsened since.
   const visibleAlerts = alerts.filter(a => {

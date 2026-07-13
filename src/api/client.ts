@@ -474,9 +474,11 @@ const docsVersions: Record<string, string> = {};
 // server always echoes its full current versions, even in a delta response, so
 // this stays a complete baseline. See buildColVersions on the backend.
 const colVersions: Record<string, string> = {};
-// Count of doctor pulls that returned changed data since the last FULL reconcile
-// (see pullCabinet). Reset on account change so a full heal happens right after login.
+// Count of pulls that returned changed data since the last FULL reconcile (see
+// pullCabinet / secretaryPull). Reset on account change so a full heal happens
+// right after login.
 let myPullsSinceFull = 0;
+let secPullsSinceFull = 0;
 
 // Drop all per-account conditional state. Called whenever the token changes
 // (login/logout) so one account can never send another's If-None-Match /
@@ -487,6 +489,7 @@ export function resetConditionalCaches(): void {
   for (const k of Object.keys(docsVersions)) delete docsVersions[k];
   for (const k of Object.keys(colVersions))  delete colVersions[k];
   myPullsSinceFull = 0;
+  secPullsSinceFull = 0;
 }
 
 // Every Nth pull that actually returned changed data, force a FULL reconcile:
@@ -816,7 +819,7 @@ export async function adminGetRetention(): Promise<AdminRetention> {
 
 export interface AdminDoctor {
   id: string; email: string; createdAt: string;
-  plan: string; expiresAt: string | null; lastActive: string | null;
+  plan: string; expiresAt: string | null; trialStart: string | null; lastActive: string | null;
   specialty: string; commune: string;
   apptCount: number; patientCount: number; onlineBookings: number;
   eventCount: number; lastEvent: string | null;
@@ -890,24 +893,35 @@ export async function postEvents(names: string[]): Promise<void> {
 }
 
 export interface SecretaryCabinet {
-  appointments:  unknown[];
-  patients:      unknown[];
-  doctorProfile: unknown;
-  // Absent when the server omitted unchanged attachments — caller keeps its copy.
+  // All optional: with per-column delta the server omits unchanged columns, and
+  // the caller keeps its current copy for anything absent (applySnapshot is
+  // partial-safe). An explicit value — including [] on a genuinely empty cabinet
+  // — IS applied; only omission means "unchanged".
+  appointments?:  unknown[];
+  patients?:      unknown[];
+  doctorProfile?: unknown;
   apptDocuments?: unknown[];
 }
 
 export async function secretaryPull(clearOn401 = true): Promise<SecretaryCabinet | typeof NOT_MODIFIED> {
-  const prev = pullEtags["/cabinet/pull"];
-  const dv   = docsVersions["/cabinet/pull"];
-  const res = await secretaryRequest(`/cabinet/pull${dv ? `?docsVersion=${encodeURIComponent(dv)}` : ""}`, {
+  // Force a FULL reconcile every Nth changed pull — same self-heal as the doctor
+  // pull, bounding any per-column delta drift on the desk to a few changes.
+  const forceFull = secPullsSinceFull >= FULL_PULL_EVERY;
+  const prev = forceFull ? undefined : pullEtags["/cabinet/pull"];
+  const dv   = forceFull ? undefined : docsVersions["/cabinet/pull"];
+  const cv   = forceFull ? undefined : colVersions["/cabinet/pull"];
+  const qs = new URLSearchParams();
+  if (dv) qs.set("docsVersion", dv);
+  if (cv) qs.set("cv", cv);
+  const suffix = qs.toString() ? `?${qs.toString()}` : "";
+  const res = await secretaryRequest(`/cabinet/pull${suffix}`, {
     cache: "no-store",
     headers: prev ? { "If-None-Match": prev } : {},
   });
   // Boot passes clearOn401=false so a transient cold-start 401 doesn't end the
   // session on every reopen; a genuine revoke is caught on the next live sync.
   if (res.status === 401) { if (clearOn401) clearSecretarySession(); throw new Error("SECRETARY_REVOKED"); }
-  if (res.status === 304) return NOT_MODIFIED;
+  if (res.status === 304) return NOT_MODIFIED; // unchanged — don't advance the heal counter
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error((data as any).error || "Secretary pull failed");
   const etag = res.headers.get("ETag");
@@ -915,12 +929,18 @@ export async function secretaryPull(clearOn401 = true): Promise<SecretaryCabinet
   if (typeof (data as any).apptDocumentsVersion === "string") {
     docsVersions["/cabinet/pull"] = (data as any).apptDocumentsVersion;
   }
+  if (typeof (data as any).colVersions === "string") {
+    colVersions["/cabinet/pull"] = (data as any).colVersions;
+  } else {
+    delete colVersions["/cabinet/pull"]; // legacy/empty response → next pull is full
+  }
+  secPullsSinceFull = forceFull ? 0 : secPullsSinceFull + 1;
   return {
-    appointments:  (data as any).appointments  ?? [],
-    patients:      (data as any).patients       ?? [],
-    doctorProfile: (data as any).doctorProfile  ?? {},
-    // Keep undefined (not []) when omitted — the caller must NOT wipe the local
-    // attachments; absence means "unchanged, keep what you have".
+    // Omitted (delta) → undefined → caller keeps its current copy. An explicit
+    // value (incl. [] on an empty cabinet) is applied.
+    appointments:  (data as any).appointments,
+    patients:      (data as any).patients,
+    doctorProfile: (data as any).doctorProfile,
     apptDocuments: (data as any).apptDocuments,
   };
 }

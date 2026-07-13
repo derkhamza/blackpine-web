@@ -543,7 +543,8 @@
     "syncReady": "Ready",
     "syncing": "Syncing…",
     "syncFailed": "Sync failed",
-    "offline": "Offline"
+    "offline": "Offline",
+    "secretaryRole": "Secretary"
   },
   "lock": {
     "title": "App locked",
@@ -713,7 +714,9 @@
     "caisseSeen": "{{n}} patient{{s}} seen",
     "caisseAvg": "avg {{amount}}",
     "caisseUnpaid": "to collect",
-    "caisseNothing": "Nothing collected yet today"
+    "caisseNothing": "Nothing collected yet today",
+    "trialEnding": "Free trial — {{n}} day(s) left",
+    "trialEndingSub": "Activate your subscription to keep going without interruption."
   },
   "apptStatus": {
     "scheduled": "Scheduled",
@@ -1671,7 +1674,14 @@
     "customDaysOff": "One-off closures (leave)",
     "closureReasonPlaceholder": "Reason (optional) — e.g. leave",
     "daysOffHint": "These days are greyed out on the agenda; you can still add an appointment.",
-    "closed": "Closed"
+    "closed": "Closed",
+    "docSimpleTitle": "Simple style (shared by all documents)",
+    "docSimpleDesc": "Header, identifiers and notes used by documents in “Simple” mode.",
+    "docModeTitle": "Mode per document",
+    "docModeDesc": "For each document choose the simple style above, or a custom advanced layout.",
+    "docMode_simple": "Simple",
+    "docMode_advanced": "Advanced",
+    "docAdvancedDesc": "Layout for documents set to “Advanced” (letterhead paper, margins, positions)."
   },
   "pin": {
     "title": "🔐 Doctor code",
@@ -3120,5 +3130,12 @@
     "deleteConfirm": "Delete this document?",
     "pageTitle": "Reports",
     "pageSubtitle": "Imaging and medical reports, printable and reissuable."
+  },
+  "secDash": {
+    "title": "Dashboard",
+    "quickAccess": "Quick access",
+    "todaySchedule": "Today's schedule",
+    "noAppts": "No appointments today",
+    "noName": "No name"
   }
 }

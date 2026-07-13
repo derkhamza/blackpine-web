@@ -543,7 +543,8 @@
     "syncReady": "Prêt",
     "syncing": "Sync…",
     "syncFailed": "Sync échoué",
-    "offline": "Hors ligne"
+    "offline": "Hors ligne",
+    "secretaryRole": "Secrétaire"
   },
   "lock": {
     "title": "Application verrouillée",
@@ -713,7 +714,9 @@
     "caisseSeen": "{{n}} patient{{s}} vu{{s}}",
     "caisseAvg": "ticket moyen {{amount}}",
     "caisseUnpaid": "à encaisser",
-    "caisseNothing": "Rien encaissé pour l'instant aujourd'hui"
+    "caisseNothing": "Rien encaissé pour l'instant aujourd'hui",
+    "trialEnding": "Essai gratuit — {{n}} jour(s) restant(s)",
+    "trialEndingSub": "Activez votre abonnement pour continuer sans interruption."
   },
   "apptStatus": {
     "scheduled": "Planifié",
@@ -1671,7 +1674,14 @@
     "customDaysOff": "Fermetures ponctuelles (congés)",
     "closureReasonPlaceholder": "Motif (facultatif) — ex. congé",
     "daysOffHint": "Ces jours sont grisés sur l'agenda ; vous pouvez toujours y ajouter un rendez-vous.",
-    "closed": "Fermé"
+    "closed": "Fermé",
+    "docSimpleTitle": "Style simple (commun à tous les documents)",
+    "docSimpleDesc": "En-tête, mentions et notes utilisés par les documents en mode « Simple ».",
+    "docModeTitle": "Mode par document",
+    "docModeDesc": "Choisissez pour chaque document : le style simple ci-dessus, ou une mise en page avancée personnalisée.",
+    "docMode_simple": "Simple",
+    "docMode_advanced": "Avancé",
+    "docAdvancedDesc": "Mise en page des documents réglés sur « Avancé » (papier à en-tête, marges, positions)."
   },
   "pin": {
     "title": "🔐 Code médecin",
@@ -3120,5 +3130,12 @@
     "deleteConfirm": "Supprimer ce document ?",
     "pageTitle": "Comptes rendus",
     "pageSubtitle": "Comptes rendus d'imagerie et rapports médicaux, imprimables et réémettables."
+  },
+  "secDash": {
+    "title": "Tableau de bord",
+    "quickAccess": "Accès rapide",
+    "todaySchedule": "Programme du jour",
+    "noAppts": "Aucun rendez-vous aujourd'hui",
+    "noName": "Sans nom"
   }
 }

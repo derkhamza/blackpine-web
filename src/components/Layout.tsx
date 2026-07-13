@@ -357,7 +357,9 @@ export function Layout({ title, subtitle, actions, children }: Props) {
   const isAdmin = !isRealSecretary && isAdminEmail(user?.email);
   // Home page differs by role (owner → admin console, secretary/preview → agenda,
   // doctor → dashboard).
-  const homePath = isAdmin ? "/admin" : (isRealSecretary || secretaryMode) ? "/agenda" : "/";
+  // A real secretary now lands on their own dashboard at "/"; a doctor previewing
+  // the secretary view stays on /agenda (the "/" route shows the doctor dashboard).
+  const homePath = isAdmin ? "/admin" : secretaryMode ? "/agenda" : "/";
   const showBack = pathname !== homePath;
   // Header icon badge, resolved from the first path segment (root → dashboard).
   const pageIcon = PAGE_ICONS[pathname.split("/")[1] ?? ""];
@@ -651,14 +653,26 @@ export function Layout({ title, subtitle, actions, children }: Props) {
       {/* Footer */}
       <div className="sidebar-footer">
         <SyncPill />
-        {user && (
-          <>
-          {/* Profile line — identity only */}
+        {/* Identity line — doctor email, or the real-secretary session (relocated
+            here from the old top banner). */}
+        {user ? (
           <div className="sidebar-user">
             <div className="sidebar-avatar">{user.email[0].toUpperCase()}</div>
             <span className="sidebar-email">{user.email}</span>
           </div>
-          {/* Action buttons on their own row, separate from the profile line */}
+        ) : isRealSecretary ? (
+          <div className="sidebar-user">
+            <div className="sidebar-avatar sidebar-avatar-sec" aria-hidden>👤</div>
+            <div className="sidebar-sec-id">
+              <span className="sidebar-email">{t("sidebar.secretaryRole")}</span>
+              {secretaryOwnerName && <span className="sidebar-sec-owner">{secretaryOwnerName}</span>}
+            </div>
+          </div>
+        ) : null}
+        {/* Action buttons (language, help, shortcuts, dark) — available to the
+            doctor AND to a real secretary (who has no `user` object). */}
+        {(user || isRealSecretary) && (
+          <>
           <div className="sidebar-actions">
             <LangButton />
             {/* Secretary preview — subtle eye icon (doctor only). Full control also
@@ -807,15 +821,9 @@ export function Layout({ title, subtitle, actions, children }: Props) {
           </div>
           {actions && <div style={{ display: "flex", gap: 10, flexShrink: 0 }}>{actions}</div>}
         </div>
-        {/* Real secretary session banner (separate login) */}
-        {isRealSecretary && (
-          <div className="secretary-banner">
-            <span>{t("sidebar.secretarySessionBanner", { name: secretaryOwnerName ?? "" })}</span>
-            <button className="secretary-banner-btn" onClick={handleLogout}>
-              {t("sidebar.secretaryLogout")}
-            </button>
-          </div>
-        )}
+        {/* A real secretary's session identity now lives in the sidebar footer
+            (with the disconnect button) rather than a top banner that pushed the
+            page content down on every screen. */}
         {/* Secretary preview banner (doctor's own login) */}
         {!isRealSecretary && secretaryMode && (
           <div className="secretary-banner">

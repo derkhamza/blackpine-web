@@ -17,6 +17,17 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "1.16.0",
+    date:    "2026-07-13",
+    title:   "Espace secrétaire enrichi, format des documents plus clair & confort",
+    items: [
+      "Secrétaire : un vrai tableau de bord d'accueil, plus l'accès à la langue, au mode sombre, à l'aide et aux raccourcis — la déconnexion est désormais dans le menu.",
+      "Format des documents : choisissez pour chaque document le style simple ou une mise en page avancée, dans une page réorganisée et plus claire.",
+      "Un rappel s'affiche quand votre essai gratuit approche de sa fin.",
+      "Corrections : le sélecteur de calculateurs ne bouge plus, la carte de rendez-vous ne se chevauche plus sur petit écran, et le message « stockage plein » ne s'affiche plus à tort sur un compte vide.",
+    ],
+  },
+  {
     version: "1.15.0",
     date:    "2026-07-13",
     title:   "Comptes rendus d'imagerie, agenda intelligent & agenda plus rapide",

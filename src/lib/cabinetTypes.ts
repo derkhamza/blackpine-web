@@ -171,6 +171,10 @@ export interface DocumentSettings {
   // page designer for all letterhead documents (certificate, exam request,
   // receipt, plus ordonnance/facture once re-edited).
   designs?: Partial<Record<DocKind, PageDesign>>;
+  // Per-document choice: use the SIMPLE built-in design (the shared layout above)
+  // or the ADVANCED custom page layout (designs[kind]). Absent → advanced when a
+  // design already exists for the kind (backward compat), else simple.
+  docMode?: Partial<Record<DocKind, "simple" | "advanced">>;
 }
 
 export const DEFAULT_DOCUMENT_SETTINGS: DocumentSettings = {

@@ -45,8 +45,10 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   // "À encaisser" panel: collapsed state persists (a preference); dismissed hides
   // it for the session only, so unpaid prepared bills resurface on the next visit.
+  // Collapsed by DEFAULT (it's a secondary reminder, not the main table) — only
+  // expanded when the doctor explicitly opened it before (stored "0").
   const [toCollectCollapsed, setToCollectCollapsed] = useState(
-    () => localStorage.getItem("bp.facToCollectCollapsed") === "1");
+    () => localStorage.getItem("bp.facToCollectCollapsed") !== "0");
   const [toCollectDismissed, setToCollectDismissed] = useState(
     () => sessionStorage.getItem("bp.facToCollectDismissed") === "1");
 

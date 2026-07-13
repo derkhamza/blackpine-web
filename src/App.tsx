@@ -19,6 +19,7 @@ import { BookingPage }           from "./pages/BookingPage";
 import { DeleteAccountPage }     from "./pages/DeleteAccountPage";
 import { AdminPage }             from "./pages/AdminPage";
 import { DashboardPage }         from "./pages/DashboardPage";
+import { SecretaryDashboardPage } from "./pages/SecretaryDashboardPage";
 import { ProfilePage }           from "./pages/ProfilePage";
 import { AgendaPage }            from "./pages/AgendaPage";
 import { AppointmentDetailPage } from "./pages/AppointmentDetailPage";
@@ -64,6 +65,13 @@ function RequireAuth({ children, secretaryOk = false, perm, adminOk = false }: {
   // are reachable. Keeps the operator login free of clinical clutter.
   if (isAdminEmail(user?.email) && !adminOk) return <Navigate to="/admin" replace />;
   return children;
+}
+
+// The "/" landing: a real secretary gets their own focused dashboard; the doctor
+// (or preview) gets the full clinical dashboard.
+function HomeDashboard() {
+  const { isSecretary } = useApp();
+  return isSecretary ? <SecretaryDashboardPage /> : <DashboardPage />;
 }
 
 function OnboardingGate() {
@@ -190,7 +198,7 @@ export function App() {
       <Route path="/supprimer-compte" element={<DeleteAccountPage />} />
       <Route path="/delete-account"   element={<DeleteAccountPage />} />
       <Route path="/" element={
-        <RequireAuth><DashboardPage /></RequireAuth>
+        <RequireAuth secretaryOk><HomeDashboard /></RequireAuth>
       } />
       <Route path="/transactions" element={<Navigate to="/facturation" replace />} />
       <Route path="/admin" element={

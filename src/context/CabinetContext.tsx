@@ -68,11 +68,17 @@ function isQuotaError(e: unknown): boolean {
 }
 
 /** Estimate total localStorage usage for the bp. prefix (bytes, approximate). */
-export function estimateStorageBytes(): number {
+// Bytes used in localStorage. With a `prefix` (an account namespace like
+// `bp.<userId>`), counts ONLY that account's keys — otherwise a brand-new/empty
+// account on a browser that also holds another account (or demo data) would be
+// charged for everyone's data and trip the "storage almost full" warning with an
+// empty cabinet. Without a prefix, falls back to all `bp.*` keys (legacy).
+export function estimateStorageBytes(prefix?: string): number {
+  const match = prefix ? prefix + "." : "bp.";
   let total = 0;
   for (let i = 0; i < localStorage.length; i++) {
     const k = localStorage.key(i) ?? "";
-    if (!k.startsWith("bp.")) continue;
+    if (!k.startsWith(match)) continue;
     total += (k.length + (localStorage.getItem(k)?.length ?? 0)) * 2; // UTF-16
   }
   return total;
@@ -230,6 +236,9 @@ interface CabinetCtx {
   // localStorage quota pressure: "warning" as it fills, "critical" once a write
   // has been dropped this session. Surfaced as a banner so the doctor can export.
   storagePressure: "ok" | "warning" | "critical";
+  // This account's localStorage namespace (bp.<userId> / bp.sec.<owner>) so
+  // callers can scope estimateStorageBytes() to the current account.
+  storagePrefix: string;
 
   // Remote sync state
   syncState:  "idle" | "syncing" | "synced" | "error";
@@ -387,9 +396,23 @@ export function CabinetProvider({
   const [stockItems, setStock] = useState<StockItem[]>(
     () => load(`${pfx}.stock`, [])
   );
-  const [waTemplates, setWaTpls] = useState<WaTemplate[]>(
-    () => load(`${pfx}.waTemplates`, DEFAULT_WA_TEMPLATES)
-  );
+  const [waTemplates, setWaTpls] = useState<WaTemplate[]>(() => {
+    const stored = load<WaTemplate[] | null>(`${pfx}.waTemplates`, null);
+    if (stored == null) return DEFAULT_WA_TEMPLATES; // new account → full set (incl. Arabic)
+    // One-time back-fill: existing accounts predate the Arabic models (and any
+    // future default templates). Merge in any DEFAULT_WA_TEMPLATES missing by id,
+    // once, so we add the new models without re-adding ones the doctor deleted.
+    const seedKey = `${pfx}.waSeed.v2`;
+    try {
+      if (!localStorage.getItem(seedKey)) {
+        localStorage.setItem(seedKey, "1");
+        const have = new Set(stored.map(t => t.id));
+        const missing = DEFAULT_WA_TEMPLATES.filter(t => !have.has(t.id));
+        if (missing.length) return [...stored, ...missing];
+      }
+    } catch { /* storage unavailable — skip back-fill */ }
+    return stored;
+  });
   const [teleSessions, setTele] = useState<TeleSession[]>(
     () => load(`${pfx}.teleSessions`, [])
   );
@@ -664,11 +687,13 @@ export function CabinetProvider({
   }, []);
   useEffect(() => {
     const WARN_BYTES = 4_300_000; // ~4.3 MB of a ~5 MB cap → warn only when genuinely close
-    const check = () => setNearFull(estimateStorageBytes() >= WARN_BYTES);
+    // Scope to THIS account (pfx) so an empty cabinet never inherits another
+    // account's / demo data's footprint and false-warns.
+    const check = () => setNearFull(estimateStorageBytes(pfx) >= WARN_BYTES);
     check();
     const id = setInterval(check, 60_000);
     return () => clearInterval(id);
-  }, [appointments, patients, examResults, prescriptions, certificates, invoices, doctorProfile]);
+  }, [pfx, appointments, patients, examResults, prescriptions, certificates, invoices, doctorProfile]);
   const storagePressure: "ok" | "warning" | "critical" =
     quotaHit ? "critical" : nearFull ? "warning" : "ok";
 
@@ -1285,6 +1310,7 @@ export function CabinetProvider({
     exportCabinetJSON, importCabinetJSON, clearAppointments, clearPatients,
     lastBackupAt,
     storagePressure,
+    storagePrefix: pfx,
     syncState, lastSynced,
     role: isSecretary ? "secretary" : "doctor",
     secretaryOwnerName: secretarySession?.ownerName,
