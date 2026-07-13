@@ -595,7 +595,7 @@ export function OrdonancesPage({ noLayout = false }: { noLayout?: boolean } = {}
 
   const body = (
     <>
-      <div className="stock-kpi-row">
+      <div className="stock-kpi-strip">
         <div className="stock-kpi-card">
           <div className="stock-kpi-val">{kpis.total}</div>
           <div className="stock-kpi-lbl">{t("ordonnances.kpiTotal")}</div>
@@ -675,7 +675,7 @@ export function OrdonancesPage({ noLayout = false }: { noLayout?: boolean } = {}
               {filteredRx.map(rx => (
                 <RxCard key={rx.id} rx={rx} locale={locale} doctor={doctorProfile}
                   onEdit={() => { setEditingRx(rx); setPreFillTpl(undefined); setRxModal(true); }}
-                  onDelete={() => deletePrescription(rx.id)}
+                  onDelete={() => { if (confirm(t("ordonnances.deleteConfirm"))) deletePrescription(rx.id); }}
                 />
               ))}
             </div>
@@ -708,7 +708,7 @@ export function OrdonancesPage({ noLayout = false }: { noLayout?: boolean } = {}
               {prescriptionTemplates.map(tpl => (
                 <TplCard key={tpl.id} tpl={tpl}
                   onEdit={() => { setEditingTpl(tpl); setTplModal(true); }}
-                  onDelete={() => deletePrescriptionTemplate(tpl.id)}
+                  onDelete={() => { if (confirm(t("ordonnances.deleteTplConfirm"))) deletePrescriptionTemplate(tpl.id); }}
                   onUse={() => openNewRx(tpl)}
                 />
               ))}

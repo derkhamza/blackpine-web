@@ -2526,6 +2526,7 @@
   "certificats": {
     "title": "Certificates",
     "subtitle": "Medical documents",
+    "deleteConfirm": "Delete this certificate?",
     "kpiTotal": "Total",
     "kpiThisMonth": "This month",
     "kpiMedical": "Certificates",
@@ -2919,6 +2920,8 @@
     "kpiThisMonth": "This month",
     "kpiPatients": "Patients",
     "kpiTemplates": "Templates",
+    "deleteConfirm": "Delete this prescription?",
+    "deleteTplConfirm": "Delete this template?",
     "tabOrd": "Prescriptions",
     "tabTemplates": "Templates",
     "search": "Search a patient…",

@@ -49,7 +49,11 @@ function getMondayOfWeek(iso: string): string {
 }
 function addMonths(iso: string, n: number): string {
   const d = new Date(iso + "T12:00:00");
+  const targetDay = d.getDate();
+  d.setDate(1);                       // avoid overflow (Jan 31 + 1mo → "Feb 31" → Mar 3)
   d.setMonth(d.getMonth() + n);
+  const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  d.setDate(Math.min(targetDay, lastDay)); // clamp: day 31 in a 30-day month → 30th
   return d.toISOString().slice(0, 10);
 }
 
@@ -58,12 +62,14 @@ type RecurrFreq = "weekly" | "biweekly" | "monthly";
 function generateRecurringDates(start: string, freq: RecurrFreq, count: number): string[] {
   const dates: string[] = [start];
   for (let i = 1; i < count; i++) {
-    const prev = dates[i - 1];
-    dates.push(
-      freq === "weekly"   ? addDays(prev, 7)
-      : freq === "biweekly" ? addDays(prev, 14)
-      :                       addMonths(prev, 1),
-    );
+    if (freq === "monthly") {
+      // Anchor every occurrence on the ORIGINAL start (start+i months) so a clamped
+      // month like February doesn't drag the day down for all later occurrences.
+      dates.push(addMonths(start, i));
+    } else {
+      const prev = dates[i - 1];
+      dates.push(freq === "weekly" ? addDays(prev, 7) : addDays(prev, 14));
+    }
   }
   return dates;
 }

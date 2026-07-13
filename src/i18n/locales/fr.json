@@ -2526,6 +2526,7 @@
   "certificats": {
     "title": "Certificats",
     "subtitle": "Documents médicaux",
+    "deleteConfirm": "Supprimer ce certificat ?",
     "kpiTotal": "Total",
     "kpiThisMonth": "Ce mois",
     "kpiMedical": "Certificats",
@@ -2919,6 +2920,8 @@
     "kpiThisMonth": "Ce mois",
     "kpiPatients": "Patients",
     "kpiTemplates": "Modèles",
+    "deleteConfirm": "Supprimer cette ordonnance ?",
+    "deleteTplConfirm": "Supprimer ce modèle ?",
     "tabOrd": "Ordonnances",
     "tabTemplates": "Modèles",
     "search": "Rechercher un patient…",

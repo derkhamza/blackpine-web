@@ -508,7 +508,7 @@ export function CertificatsPage({ noLayout = false }: { noLayout?: boolean } = {
 
   const body = (
     <>
-      <div className="stock-kpi-row">
+      <div className="stock-kpi-strip">
         <div className="stock-kpi-card">
           <div className="stock-kpi-val">{kpis.total}</div>
           <div className="stock-kpi-lbl">{t("certificats.kpiTotal")}</div>
@@ -588,7 +588,7 @@ export function CertificatsPage({ noLayout = false }: { noLayout?: boolean } = {
               locale={locale}
               doctor={doctorProfile}
               onEdit={() => { setEditing(cert); setShowModal(true); }}
-              onDelete={() => deleteCertificate(cert.id)}
+              onDelete={() => { if (confirm(t("certificats.deleteConfirm"))) deleteCertificate(cert.id); }}
             />
           ))}
         </div>

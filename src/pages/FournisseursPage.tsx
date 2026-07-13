@@ -412,7 +412,7 @@ export function FournisseursPage({ noLayout = false }: { noLayout?: boolean } = 
     <>
       {noLayout && <div className="inline-actions">{fourActions}</div>}
 
-      <div className="four-kpi-strip">
+      <div className="stock-kpi-strip">
         <div className="stock-kpi-card">
           <div className="stock-kpi-val">{kpi.suppliers}</div>
           <div className="stock-kpi-lbl">{t("fournisseurs.kpiSuppliers")}</div>

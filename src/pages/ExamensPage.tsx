@@ -595,7 +595,7 @@ export function ExamensPage() {
         </button>
       }
     >
-      <div className="four-kpi-strip">
+      <div className="stock-kpi-strip">
         <div className="stock-kpi-card">
           <div className="stock-kpi-val">{kpi.total}</div>
           <div className="stock-kpi-lbl">{t("examens.kpiTotal")}</div>

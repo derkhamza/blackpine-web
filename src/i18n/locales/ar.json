@@ -2526,6 +2526,7 @@
   "certificats": {
     "title": "الشهادات الطبية",
     "subtitle": "الوثائق الطبية",
+    "deleteConfirm": "حذف هذه الشهادة؟",
     "kpiTotal": "المجموع",
     "kpiThisMonth": "هذا الشهر",
     "kpiMedical": "الشهادات",
@@ -2919,6 +2920,8 @@
     "kpiThisMonth": "هذا الشهر",
     "kpiPatients": "المرضى",
     "kpiTemplates": "النماذج",
+    "deleteConfirm": "حذف هذه الوصفة؟",
+    "deleteTplConfirm": "حذف هذا النموذج؟",
     "tabOrd": "الوصفات",
     "tabTemplates": "النماذج",
     "search": "البحث عن مريض…",

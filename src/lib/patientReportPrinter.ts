@@ -389,7 +389,7 @@ export function printPatientReport(opts: {
       </div>
     </div>
     <div>
-      ${patient.bloodType  ? `<span class="patient-badge badge-blood">🩸 ${patient.bloodType}</span>`        : ""}
+      ${patient.bloodType  ? `<span class="patient-badge badge-blood">🩸 ${escHtml(patient.bloodType)}</span>`  : ""}
       ${patient.cnopsNumber ? `<span class="patient-badge badge-cnops">AMO ${escHtml(patient.cnopsNumber)}</span>` : ""}
     </div>
   </div>

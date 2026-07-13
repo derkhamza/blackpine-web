@@ -5,6 +5,14 @@ import {
   pageRule, backgroundHtml, blockStyle, logoHtml,
 } from "./docDesign";
 
+// Escape every user-controlled value before it enters the print HTML. The print
+// document is rendered in a same-origin iframe, so an unescaped patient/doctor
+// field (e.g. an online-booking name) could otherwise inject a script that reads
+// the auth token. Never interpolate raw strings below.
+function esc(s: unknown): string {
+  return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
 // ── French number-to-words ─────────────────────────────────────────────────────
 
 const ONES = [
@@ -102,7 +110,7 @@ export function printReceipt(opts: ReceiptOptions): void {
   const items     = opts.items && opts.items.length > 1 ? opts.items : null;
   const reduction = opts.reduction && opts.reduction > 0 ? opts.reduction : 0;
   const breakdownRows = items
-    ? items.map(l => `<tr><td>${l.label}${l.qty > 1 ? ` ×${l.qty}` : ""}</td>`
+    ? items.map(l => `<tr><td>${esc(l.label)}${l.qty > 1 ? ` ×${l.qty}` : ""}</td>`
         + `<td style="text-align:right;white-space:nowrap;">${fmtMAD(l.qty * l.unitPrice)}</td></tr>`).join("")
       + (reduction > 0 ? `<tr><td>Remise</td><td style="text-align:right;white-space:nowrap;">− ${fmtMAD(reduction)}</td></tr>` : "")
     : "";
@@ -204,13 +212,13 @@ export function printReceipt(opts: ReceiptOptions): void {
   <!-- Header -->
   <div class="header" style="${bs("header")}">
     <div class="doc-left">
-      <div class="doc-name">${doctorProfile.fullName || "Dr."}</div>
+      <div class="doc-name">${esc(doctorProfile.fullName || "Dr.")}</div>
       <div class="doc-meta">
-        ${doctorProfile.specialtyLabel ? doctorProfile.specialtyLabel + "<br/>" : ""}
-        ${doctorProfile.address        ? doctorProfile.address        + "<br/>" : ""}
-        ${doctorProfile.phone          ? "Tél : " + doctorProfile.phone + "<br/>" : ""}
-        ${doctorProfile.ordre          ? "N° Ordre : " + doctorProfile.ordre + "<br/>" : ""}
-        ${doctorProfile.inpe           ? "INPE : " + doctorProfile.inpe            : ""}
+        ${doctorProfile.specialtyLabel ? esc(doctorProfile.specialtyLabel) + "<br/>" : ""}
+        ${doctorProfile.address        ? esc(doctorProfile.address)        + "<br/>" : ""}
+        ${doctorProfile.phone          ? "Tél : " + esc(doctorProfile.phone) + "<br/>" : ""}
+        ${doctorProfile.ordre          ? "N° Ordre : " + esc(doctorProfile.ordre) + "<br/>" : ""}
+        ${doctorProfile.inpe           ? "INPE : " + esc(doctorProfile.inpe)            : ""}
       </div>
     </div>
   </div>
@@ -218,7 +226,7 @@ export function printReceipt(opts: ReceiptOptions): void {
   <!-- Receipt title -->
   <div class="title-block" style="${bs("title")}">
     <div class="title-main">REÇU DE PAIEMENT</div>
-    <div class="title-sub">N° ${receiptNo} &nbsp;·&nbsp; ${cityPart}, le ${dateLabel}</div>
+    <div class="title-sub">N° ${receiptNo} &nbsp;·&nbsp; ${esc(cityPart)}, le ${dateLabel}</div>
   </div>
 
   <!-- Info -->
@@ -226,11 +234,11 @@ export function printReceipt(opts: ReceiptOptions): void {
     <table class="info-table">
       <tr>
         <td class="info-label">Reçu de :</td>
-        <td>${patientName}</td>
+        <td>${esc(patientName)}</td>
       </tr>
       <tr>
         <td class="info-label">Pour :</td>
-        <td>${consultationType}</td>
+        <td>${esc(consultationType)}</td>
       </tr>
       <tr>
         <td class="info-label">Date du RDV :</td>
