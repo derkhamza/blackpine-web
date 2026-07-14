@@ -2331,6 +2331,9 @@
     "deleteConfirm": "Delete invoice {{num}}?"
   },
   "transactions": {
+    "autoPurchase": "Supplier purchase",
+    "autoBadge": "Auto",
+    "autoOpenSource": "Open in Stock & purchases",
     "title": "Transactions",
     "subtitle": "{{year}} · {{n}} transaction{{s}}",
     "fiscalYear": "Fiscal year",

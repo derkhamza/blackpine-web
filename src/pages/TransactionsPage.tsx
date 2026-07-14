@@ -1,12 +1,13 @@
 import { confirmDialog } from "../lib/confirm";
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { getCategoryById } from "../engine";
 import type { Transaction } from "../engine";
 import { Layout } from "../components/Layout";
 import { useToast } from "../components/Toast";
 import { useApp } from "../context/AppContext";
+import { useCabinet } from "../context/CabinetContext";
 import { formatMAD, formatDateShort, todayIso } from "../lib/format";
 import { clickable } from "../lib/a11y";
 import { AnimatedNumber } from "../components/AnimatedNumber";
@@ -66,7 +67,12 @@ const DEFAULT_FILTERS: FilterState = {
   dateFrom: null, dateTo: null, category: null,
 };
 
-function applyFilters(txs: Transaction[], f: FilterState): Transaction[] {
+// A row shown in the list — either a real ledger entry or a read-only row derived
+// from another module (e.g. a purchase order). Derived rows can't be edited or
+// deleted here; they reflect their source live and always stay in sync.
+type DisplayTx = Transaction & { derived?: boolean; originLabel?: string; originLink?: string };
+
+function applyFilters(txs: DisplayTx[], f: FilterState): DisplayTx[] {
   let result = [...txs];
   if (f.typeFilter !== "ALL") result = result.filter((t) => t.type === f.typeFilter);
   if (f.category) result = result.filter((t) => t.category === f.category);
@@ -421,6 +427,8 @@ export function TransactionsPage({ noLayout = false }: { noLayout?: boolean } = 
   const { t } = useTranslation();
   const { transactions, fiscalYear, setFiscalYear, FISCAL_MIN, FISCAL_MAX,
           addTransaction, updateTransaction, deleteTransaction } = useApp();
+  const { purchaseOrders } = useCabinet();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [filters,  setFilters]  = useState<FilterState>({
     ...DEFAULT_FILTERS,
@@ -438,9 +446,32 @@ export function TransactionsPage({ noLayout = false }: { noLayout?: boolean } = 
 
   const showToast = useToast();
 
-  const yearTx   = useMemo(
-    () => transactions.filter((tx) => tx.date.startsWith(String(fiscalYear))),
-    [transactions, fiscalYear]
+  // Purchase orders live in the cabinet store and never post to the ledger, so
+  // surface committed ones as read-only "auto" charges. The tab then reflects
+  // every charge, not just manual entries — billing and payroll already post
+  // real transactions, so only purchases are derived (no double-counting).
+  const derivedTx = useMemo<DisplayTx[]>(() =>
+    purchaseOrders
+      .filter((po) => po.status === "ordered" || po.status === "partial" || po.status === "received")
+      .map((po) => ({
+        id:          "po:" + po.id,
+        type:        "CHARGE" as const,
+        amount:      po.lines.reduce((s, l) => s + (l.quantity || 0) * (l.unitPrice ?? 0), 0),
+        date:        (po.receivedAt || po.orderedAt || po.createdAt || "").slice(0, 10),
+        category:    "consommables_medicaux",
+        description: `${t("transactions.autoPurchase")}${po.supplierName ? " — " + po.supplierName : ""}`,
+        deductibilityStatus: "FULLY_DEDUCTIBLE" as const,
+        derived:     true,
+        originLabel: t("transactions.autoBadge"),
+        originLink:  "/stocks",
+      }))
+      .filter((tx) => tx.amount > 0 && !!tx.date),
+    [purchaseOrders, t]
+  );
+
+  const yearTx   = useMemo<DisplayTx[]>(
+    () => [...transactions, ...derivedTx].filter((tx) => tx.date.startsWith(String(fiscalYear))),
+    [transactions, derivedTx, fiscalYear]
   );
   const filtered = useMemo(() => applyFilters(yearTx, filters), [yearTx, filters]);
 
@@ -545,8 +576,14 @@ export function TransactionsPage({ noLayout = false }: { noLayout?: boolean } = 
         <div className="tx-list">
           {filtered.map((tx) => {
             const isRec = tx.type === "RECETTE";
+            const derived = !!tx.derived;
+            // Derived rows (e.g. purchase orders) are read-only here: clicking
+            // opens their source module; editing/deleting happens there.
+            const onRowClick = derived
+              ? () => navigate(tx.originLink || "/stocks")
+              : () => setModal({ tx });
             return (
-              <div key={tx.id} className="tx-row" {...clickable(() => setModal({ tx }), tx.description || tx.category)} style={{ cursor: "pointer" }}>
+              <div key={tx.id} className="tx-row" {...clickable(onRowClick, tx.description || tx.category)} style={{ cursor: "pointer" }}>
                 <div
                   className="tx-type-badge"
                   style={{
@@ -559,6 +596,7 @@ export function TransactionsPage({ noLayout = false }: { noLayout?: boolean } = 
                 <div className="tx-main">
                   <div className="tx-category">
                     {categoryLabel(tx.type, tx.category)}
+                    {derived && <span className="tx-auto-badge">{tx.originLabel}</span>}
                     <DeductBadge status={tx.deductibilityStatus} />
                   </div>
                   <div className="tx-date">
@@ -571,14 +609,18 @@ export function TransactionsPage({ noLayout = false }: { noLayout?: boolean } = 
                 <div className="tx-amount" style={{ color: isRec ? "var(--green)" : "var(--coral)" }}>
                   {isRec ? "+" : "−"}{formatMAD(tx.amount, { showCurrency: false })}
                 </div>
-                <button
-                  className="tx-delete" title={t("transactions.deleteBtnTitle")}
-                  onClick={(e) => { e.stopPropagation(); handleDelete(tx.id); }}
-                >
-                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                    <path d="M2 3h10M5 3V2h4v1M4 3v9h6V3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </button>
+                {derived ? (
+                  <span className="tx-auto-arrow" aria-hidden title={t("transactions.autoOpenSource")}>›</span>
+                ) : (
+                  <button
+                    className="tx-delete" title={t("transactions.deleteBtnTitle")}
+                    onClick={(e) => { e.stopPropagation(); handleDelete(tx.id); }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                      <path d="M2 3h10M5 3V2h4v1M4 3v9h6V3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+                )}
               </div>
             );
           })}

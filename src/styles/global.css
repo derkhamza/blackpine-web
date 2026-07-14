@@ -587,6 +587,14 @@ img { max-width: 100%; display: block; }
 .tx-delete { padding: 4px; border: none; background: none; color: var(--tertiary); opacity: 0; transition: opacity var(--trans); border-radius: 4px; }
 .tx-row:hover .tx-delete { opacity: 1; }
 .tx-delete:hover { color: var(--coral); }
+/* Read-only "auto" rows derived from another module (e.g. purchase orders) */
+.tx-auto-badge {
+  display: inline-block; margin-inline-start: 7px; padding: 1px 7px;
+  font-size: 10px; font-weight: 700; letter-spacing: .3px; text-transform: uppercase;
+  color: var(--muted); background: rgba(128,128,128,.14); border-radius: 999px;
+  vertical-align: middle;
+}
+.tx-auto-arrow { color: var(--tertiary); font-size: 20px; line-height: 1; padding: 0 6px; flex-shrink: 0; }
 .tx-empty { text-align: center; padding: 48px 0; color: var(--tertiary); font-size: 14px; }
 .tx-empty-icon { color: var(--muted); opacity: .55; margin-bottom: 10px; display: flex; justify-content: center; }
 
