@@ -1,6 +1,7 @@
 import { confirmDialog } from "../lib/confirm";
 import { FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { clickable } from "../lib/a11y";
 import { Layout } from "../components/Layout";
 import { useCabinet } from "../context/CabinetContext";
 import type { WaTemplate, WaTemplateCategory } from "../lib/cabinetTypes";
@@ -243,7 +244,7 @@ export function MessagesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
                 <div
                   key={tpl.id}
                   className={`msg-tpl-row${editId === tpl.id ? " active" : ""}`}
-                  onClick={() => setEditId(tpl.id)}
+                  {...clickable(() => setEditId(tpl.id), tpl.name)}
                 >
                   <div
                     className="msg-tpl-accent"

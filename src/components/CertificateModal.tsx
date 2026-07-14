@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ModalPortal } from "./ModalPortal";
 import { useModalA11y } from "../lib/a11y";
+import { useGuardedClose } from "../lib/confirm";
 import type { Appointment, SavedCertificate, CertificateType, CabinetDoctorProfile } from "../lib/cabinetTypes";
 import { printCertificatMedical, printArretTravail, printOrientation, printAptitude, printPresence } from "../lib/certificatePrinter";
 
@@ -56,7 +57,8 @@ interface Props {
 // ── Modal ─────────────────────────────────────────────────────────────────────
 
 export function CertificateModal({ appt, patientName, doctorProfile, onSave, onClose }: Props) {
-  const dialogRef = useModalA11y<HTMLDivElement>(onClose);
+  const { dirtyRef, guardedClose } = useGuardedClose(onClose);
+  const dialogRef = useModalA11y<HTMLDivElement>(guardedClose);
   const { t, i18n } = useTranslation();
 
   const locale =
@@ -167,8 +169,9 @@ export function CertificateModal({ appt, patientName, doctorProfile, onSave, onC
 
   return (
     <ModalPortal>
-    <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="modal cert-modal" ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1}>
+    <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) guardedClose(); }}>
+      <div className="modal cert-modal" ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1}
+        onChange={() => { dirtyRef.current = true; }}>
         <div className="modal-header">
           <h2 className="modal-title">{t("certModal.title")}</h2>
           <button className="modal-close" onClick={onClose}>×</button>

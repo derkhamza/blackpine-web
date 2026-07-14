@@ -1,6 +1,7 @@
 import { confirmDialog } from "../lib/confirm";
 import { FormEvent, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { clickable } from "../lib/a11y";
 import { Layout } from "../components/Layout";
 import { useToast } from "../components/Toast";
 import { useCabinet } from "../context/CabinetContext";
@@ -436,7 +437,7 @@ function ExamCard({ exam, locale, onEdit, onDelete, onPrint }: {
   return (
     <div className={`exam-card${hasAbnormal ? " has-abnormal" : ""}`}>
       <div className="exam-card-accent" style={{ background: color }} />
-      <div className="exam-card-body" onClick={() => setExpanded(o => !o)} style={{ cursor: "pointer", flex: 1 }}>
+      <div className="exam-card-body" {...clickable(() => setExpanded(o => !o))} aria-expanded={expanded} style={{ cursor: "pointer", flex: 1 }}>
         <div className="exam-card-header">
           <div className="exam-card-title-row">
             <span className="exam-card-title">{exam.title}</span>

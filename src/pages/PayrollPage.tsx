@@ -1,6 +1,7 @@
 import { confirmDialog } from "../lib/confirm";
 import { FormEvent, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { clickable } from "../lib/a11y";
 import { Layout } from "../components/Layout";
 import { useToast } from "../components/Toast";
 import { useCabinet } from "../context/CabinetContext";
@@ -198,7 +199,7 @@ function EmployeeCard({
   const color = ROLE_COLORS[employee.role];
 
   return (
-    <div className="employee-card" onClick={onEdit}>
+    <div className="employee-card" {...clickable(onEdit)}>
       <div className="employee-avatar" style={{ background: color + "18", color }}>
         {fmtInitials(employee)}
       </div>

@@ -505,12 +505,12 @@ export function ComptabilitePage() {
                         </td>
                         <td>
                           <div style={{ display: "flex", gap: 4 }}>
-                            <button className="appt-edit-btn" onClick={() => setAssetModal({ asset })}>
+                            <button className="appt-edit-btn" aria-label={t("common.edit")} title={t("common.edit")} onClick={() => setAssetModal({ asset })}>
                               <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
                                 <path d="M8.5 1.5a1.5 1.5 0 0 1 2 2L4 10H2v-2L8.5 1.5Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
                               </svg>
                             </button>
-                            <button className="tx-delete" onClick={async () => {
+                            <button className="tx-delete" aria-label={t("common.delete")} title={t("common.delete")} onClick={async () => {
                               if (await confirmDialog(t("comptabilite.deleteAssetConfirm", { label: asset.label }))) {
                                 deleteAsset(asset.id);
                                 showToast(t("comptabilite.toastAssetDeleted"));
@@ -622,12 +622,12 @@ export function ComptabilitePage() {
                       </td>
                       <td>
                         <div style={{ display: "flex", gap: 4 }}>
-                          <button className="appt-edit-btn" onClick={() => setRuleModal({ rule })}>
+                          <button className="appt-edit-btn" aria-label={t("common.edit")} title={t("common.edit")} onClick={() => setRuleModal({ rule })}>
                             <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
                               <path d="M8.5 1.5a1.5 1.5 0 0 1 2 2L4 10H2v-2L8.5 1.5Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
                             </svg>
                           </button>
-                          <button className="tx-delete" onClick={async () => {
+                          <button className="tx-delete" aria-label={t("common.delete")} title={t("common.delete")} onClick={async () => {
                             if (await confirmDialog(t("comptabilite.deleteRuleConfirm", { label: rule.label }))) {
                               deleteRecurringRule(rule.id);
                               showToast(t("comptabilite.toastRuleDeleted"));

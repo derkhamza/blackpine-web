@@ -421,6 +421,7 @@
     "cancel": "Cancel",
     "confirm": "Confirm",
     "confirmTitle": "Confirm",
+    "discardConfirm": "Close without saving? Your changes will be lost.",
     "save": "Save",
     "delete": "Delete",
     "edit": "Edit",

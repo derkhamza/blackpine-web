@@ -421,6 +421,7 @@
     "cancel": "إلغاء",
     "confirm": "تأكيد",
     "confirmTitle": "تأكيد",
+    "discardConfirm": "الإغلاق دون حفظ؟ ستفقد التغييرات.",
     "save": "حفظ",
     "delete": "حذف",
     "edit": "تعديل",

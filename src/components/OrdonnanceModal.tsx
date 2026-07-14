@@ -1,6 +1,7 @@
 import { confirmDialog } from "../lib/confirm";
 import { useEffect, useState } from "react";
 import { useModalA11y } from "../lib/a11y";
+import { useGuardedClose } from "../lib/confirm";
 import { useTranslation } from "react-i18next";
 import { ModalPortal } from "./ModalPortal";
 import type { OrdonnanceLine, CabinetDoctorProfile } from "../lib/cabinetTypes";
@@ -204,7 +205,8 @@ interface Props {
 export function OrdonnanceModal({
   patientName, date, doctorProfile, allergies, lastOrdonnance, lastOrdonnanceDate, initialLines, onSave, onClose,
 }: Props) {
-  const dialogRef = useModalA11y<HTMLDivElement>(onClose);
+  const { dirtyRef, guardedClose } = useGuardedClose(onClose);
+  const dialogRef = useModalA11y<HTMLDivElement>(guardedClose);
   const { t, i18n } = useTranslation();
   const { prescriptionTemplates, addPrescriptionTemplate, deletePrescriptionTemplate } = useCabinet();
   const allDrugs = [...COMMON_DRUGS, ...(doctorProfile.customDrugs ?? [])]
@@ -302,8 +304,9 @@ export function OrdonnanceModal({
 
   return (
     <ModalPortal>
-    <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+    <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) guardedClose(); }}>
       <div className="modal ord-modal" ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1}
+        onChange={() => { dirtyRef.current = true; }}
         style={{ maxWidth: 640, maxHeight: "92vh", overflowY: "auto" }}>
         <div className="modal-header">
           <div>

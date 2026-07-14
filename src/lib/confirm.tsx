@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ModalPortal } from "../components/ModalPortal";
 import { useModalA11y } from "./a11y";
@@ -61,6 +61,24 @@ function ConfirmDialog({ opts, onResolve }: { opts: ConfirmOptions; onResolve: (
       </div>
     </ModalPortal>
   );
+}
+
+// Guard a data-entry modal against losing work on an accidental backdrop-click or
+// Escape. Attach `dirtyRef` via an onChange handler on the modal (React onChange
+// bubbles from every form control), pass `guardedClose` to useModalA11y and the
+// backdrop onClick, and keep the explicit ×/Cancel buttons on the raw onClose.
+export function useGuardedClose(onClose: () => void) {
+  const { t } = useTranslation();
+  const dirtyRef = useRef(false);
+  const guardedClose = async () => {
+    if (dirtyRef.current &&
+        !(await confirmDialog({ message: t("common.discardConfirm", { defaultValue: "Fermer sans enregistrer ? Les modifications seront perdues." }) }))) {
+      return;
+    }
+    onClose();
+  };
+  const markDirty = () => { dirtyRef.current = true; };
+  return { dirtyRef, guardedClose, markDirty };
 }
 
 export function ConfirmHost() {

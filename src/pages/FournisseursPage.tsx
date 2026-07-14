@@ -548,12 +548,12 @@ export function FournisseursPage({ noLayout = false }: { noLayout?: boolean } = 
                         <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
                       </svg>
                     </button>
-                    <button className="tele-action-btn" onClick={() => setSupModal({ sup: s })}>
+                    <button className="tele-action-btn" aria-label={t("common.edit")} title={t("common.edit")} onClick={() => setSupModal({ sup: s })}>
                       <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
                         <path d="M8.5 1.5a1.5 1.5 0 0 1 2 2L4 10H2v-2L8.5 1.5Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
                       </svg>
                     </button>
-                    <button className="tx-delete"
+                    <button className="tx-delete" aria-label={t("common.delete")} title={t("common.delete")}
                       onClick={async () => {
                         if (await confirmDialog(t("fournisseurs.deleteSupConfirm", { name: s.name }))) {
                           deleteSupplier(s.id);
@@ -643,7 +643,7 @@ export function FournisseursPage({ noLayout = false }: { noLayout?: boolean } = 
                         <path d="M8.5 1.5a1.5 1.5 0 0 1 2 2L4 10H2v-2L8.5 1.5Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
                       </svg>
                     </button>
-                    <button className="tx-delete"
+                    <button className="tx-delete" aria-label={t("common.delete")} title={t("common.delete")}
                       onClick={async () => {
                         if (await confirmDialog(t("fournisseurs.deleteOrderConfirm"))) {
                           deletePurchaseOrder(order.id);

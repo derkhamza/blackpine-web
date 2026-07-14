@@ -29,6 +29,7 @@ import { exportAgendaIcal } from "../lib/icalExport";
 import { parseAgendaIcal, icalEventsToAppointments } from "../lib/icalImport";
 import { holidayOn, type Holiday } from "../lib/holidays";
 import { useTranslation } from "react-i18next";
+import { clickable } from "../lib/a11y";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -936,7 +937,7 @@ function ApptCard({
     : undefined;
 
   return (
-    <div className="appt-card rv-press" style={{ opacity: isDone ? 0.75 : 1 }} onClick={onDetail} onContextMenu={onContextMenu}>
+    <div className="appt-card rv-press" style={{ opacity: isDone ? 0.75 : 1 }} {...clickable(onDetail)} onContextMenu={onContextMenu}>
       <div className="appt-accent" style={{ background: isDone ? "var(--border)" : color }} />
       <div className="appt-body">
         <div className="appt-time">{appt.startTime} – {appt.endTime}</div>

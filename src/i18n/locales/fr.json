@@ -421,6 +421,7 @@
     "cancel": "Annuler",
     "confirm": "Confirmer",
     "confirmTitle": "Confirmer",
+    "discardConfirm": "Fermer sans enregistrer ? Les modifications seront perdues.",
     "save": "Enregistrer",
     "delete": "Supprimer",
     "edit": "Modifier",
