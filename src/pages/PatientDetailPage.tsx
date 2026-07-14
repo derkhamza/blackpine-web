@@ -1394,6 +1394,7 @@ export function PatientDetailPage() {
                           patientName:  item.patientName,
                           date:         item.date,
                           doctorProfile,
+                          patient:      patient ? { gender: patient.gender, dateOfBirth: patient.dateOfBirth } : undefined,
                         })}
                       >
                         <svg width="12" height="12" viewBox="0 0 14 14" fill="none" style={{ marginRight: 4 }}>

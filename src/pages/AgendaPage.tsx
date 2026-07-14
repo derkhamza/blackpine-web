@@ -13,7 +13,7 @@ import {
   APPT_STATUS_LABELS, BUILTIN_APPT_TYPES,
   apptTypeLabel, apptTypeColor, resolveApptTypes, apptLabelById,
   WA_TEMPLATE_CATEGORY_LABELS, WA_TEMPLATE_CATEGORY_COLORS,
-  BLOCK_TYPE_META, BLOCK_TYPES, isBlockType,
+  BLOCK_TYPE_META, isBlockType, resolveBlockTypes, DEFAULT_BLOCK_TYPES,
 } from "../lib/cabinetTypes";
 import { todayIso, calcAge } from "../lib/format";
 import { billSubtotal as calcSubtotal, billNet, lineDiscount, lineNet } from "../lib/billing";
@@ -1305,29 +1305,65 @@ function BlockModal({ initial, isEdit, defaultDate, onSave, onDelete, onClose }:
   initial?: Partial<Appointment>;
   isEdit: boolean;
   defaultDate: string;
-  onSave: (a: Omit<Appointment, "id">) => void;
+  onSave: (a: Omit<Appointment, "id">[]) => void;
   onDelete?: () => void;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
-  const [cat,   setCat]   = useState<string>(isBlockType(initial?.type) ? (initial!.type as string) : "block:pause");
+  const { doctorProfile, setDoctorProfile } = useCabinet();
+  const blockTypes = resolveBlockTypes(doctorProfile);
+  const catLabel = (id: string) => blockTypes.find(c => c.id === id)?.label ?? BLOCK_TYPE_META[id]?.label ?? t("agenda.newBlock");
+  const [cat,   setCat]   = useState<string>(isBlockType(initial?.type) ? (initial!.type as string) : (blockTypes[0]?.id ?? "block:pause"));
   const [note,  setNote]  = useState<string>(() => {
-    const lbl = BLOCK_TYPE_META[(initial?.type as string) ?? ""]?.label;
+    const lbl = isBlockType(initial?.type) ? catLabel(initial!.type as string) : "";
     return initial?.patientName && initial.patientName !== lbl ? initial.patientName : "";
   });
   const [date,  setDate]  = useState(initial?.date || defaultDate);
+  // Optional end date so an event can span several days (e.g. a congress, leave).
+  // Only offered when creating — editing keeps a single day.
+  const [endDate, setEndDate] = useState(initial?.date || defaultDate);
   const [start, setStart] = useState(initial?.startTime || "12:00");
   const [end,   setEnd]   = useState(initial?.endTime || "13:00");
+  const [editCats, setEditCats] = useState(false);
+  const [newCat,   setNewCat]   = useState("");
+  const multiDay = !isEdit && !!endDate && endDate > date;
+
+  // Editable event categories, persisted on the doctor profile (customBlockTypes).
+  const saveCats = (next: CustomApptType[]) =>
+    setDoctorProfile({ ...doctorProfile, customBlockTypes: next.length ? next : undefined });
+  const addCat = () => {
+    const name = newCat.trim(); if (!name) return;
+    const id = "block:" + ((globalThis.crypto?.randomUUID?.() ?? String(Date.now())).replace(/-/g, "").slice(0, 8));
+    saveCats([...blockTypes, { id, label: name, color: "#64748B" }]);
+    setNewCat(""); setCat(id);
+  };
+  const removeCat = (id: string) => {
+    const next = blockTypes.filter(c => c.id !== id);
+    saveCats(next);
+    if (cat === id) setCat((next[0] ?? DEFAULT_BLOCK_TYPES[0]).id);
+  };
+  const patchCat = (id: string, patch: Partial<CustomApptType>) =>
+    saveCats(blockTypes.map(c => c.id === id ? { ...c, ...patch } : c));
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
     if (!date || !start || !end) return;
-    onSave({
-      patientName: note.trim() || (BLOCK_TYPE_META[cat]?.label ?? "Indisponibilité"),
-      patientId:   undefined,
-      date, startTime: start, endTime: end,
-      type: cat, status: "scheduled",
-    });
+    // Expand the [date … endDate] span into one block per day (capped for safety).
+    const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const days: string[] = [];
+    if (multiDay) {
+      const last = new Date(endDate + "T00:00:00");
+      for (let d = new Date(date + "T00:00:00"); d <= last && days.length < 90; d.setDate(d.getDate() + 1)) days.push(iso(d));
+    } else {
+      days.push(date);
+    }
+    const base = {
+      patientName: note.trim() || catLabel(cat),
+      patientId:   undefined as string | undefined,
+      startTime: start, endTime: end,
+      type: cat, status: "scheduled" as const,
+    };
+    onSave(days.map(d => ({ ...base, date: d })));
     onClose();
   };
 
@@ -1340,20 +1376,41 @@ function BlockModal({ initial, isEdit, defaultDate, onSave, onDelete, onClose }:
         </div>
         <div className="modal-body">
           <div className="form-group">
-            <label className="form-label">{t("agenda.blockCategory")}</label>
-            <div className="block-cat-grid">
-              {BLOCK_TYPES.map(id => (
-                <button
-                  type="button" key={id}
-                  className={`block-cat-btn${cat === id ? " active" : ""}`}
-                  style={cat === id ? { borderColor: BLOCK_TYPE_META[id].color, background: BLOCK_TYPE_META[id].color + "18", color: BLOCK_TYPE_META[id].color } : undefined}
-                  onClick={() => setCat(id)}
-                >
-                  <span className="block-cat-dot" style={{ background: BLOCK_TYPE_META[id].color }} />
-                  {BLOCK_TYPE_META[id].label}
-                </button>
-              ))}
+            <div className="block-cat-head">
+              <label className="form-label" style={{ margin: 0 }}>{t("agenda.blockCategory")}</label>
+              <button type="button" className="block-cat-edit-toggle" onClick={() => setEditCats(v => !v)}>
+                {editCats ? t("agenda.blockCatDone") : t("agenda.blockAddCat")}
+              </button>
             </div>
+            {!editCats ? (
+              <div className="block-cat-grid">
+                {blockTypes.map(c => (
+                  <button
+                    type="button" key={c.id}
+                    className={`block-cat-btn${cat === c.id ? " active" : ""}`}
+                    style={cat === c.id ? { borderColor: c.color, background: c.color + "18", color: c.color } : undefined}
+                    onClick={() => setCat(c.id)}
+                  >
+                    <span className="block-cat-dot" style={{ background: c.color }} />
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="block-cat-editor">
+                {blockTypes.map(c => (
+                  <div key={c.id} className="block-cat-edit-row">
+                    <input type="color" className="block-cat-color" value={c.color} onChange={e => patchCat(c.id, { color: e.target.value })} title={t("agenda.blockCategory")} />
+                    <input className="form-input" value={c.label} onChange={e => patchCat(c.id, { label: e.target.value })} />
+                    <button type="button" className="block-cat-remove" title={t("agenda.blockCatRemove")} onClick={() => removeCat(c.id)}>×</button>
+                  </div>
+                ))}
+                <div className="block-cat-edit-row">
+                  <input className="form-input" value={newCat} onChange={e => setNewCat(e.target.value)} placeholder={t("agenda.blockCatName")} />
+                  <button type="button" className="btn btn-ghost" onClick={addCat} disabled={!newCat.trim()}>+ {t("agenda.blockCatAdd")}</button>
+                </div>
+              </div>
+            )}
           </div>
           <div className="form-group">
             <label className="form-label">{t("agenda.blockNote")}</label>
@@ -1361,9 +1418,18 @@ function BlockModal({ initial, isEdit, defaultDate, onSave, onDelete, onClose }:
           </div>
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label">{t("agenda.date")}</label>
-              <input type="date" className="form-input" value={date} onChange={e => setDate(e.target.value)} required />
+              <label className="form-label">{isEdit ? t("agenda.date") : t("agenda.blockFrom")}</label>
+              <input type="date" className="form-input" value={date}
+                onChange={e => { const v = e.target.value; setDate(v); if (endDate < v) setEndDate(v); }} required />
             </div>
+            {!isEdit && (
+              <div className="form-group">
+                <label className="form-label">{t("agenda.blockTo")}</label>
+                <input type="date" className="form-input" value={endDate} min={date} onChange={e => setEndDate(e.target.value)} />
+              </div>
+            )}
+          </div>
+          <div className="form-row">
             <div className="form-group">
               <label className="form-label">{t("agenda.start")}</label>
               <input type="time" className="form-input" value={start} onChange={e => setStart(e.target.value)} required />
@@ -1373,6 +1439,9 @@ function BlockModal({ initial, isEdit, defaultDate, onSave, onDelete, onClose }:
               <input type="time" className="form-input" value={end} onChange={e => setEnd(e.target.value)} required />
             </div>
           </div>
+          {multiDay && (
+            <div style={{ fontSize: 11.5, color: "var(--muted)", marginTop: -4 }}>{t("agenda.blockSpanHint", { start, end })}</div>
+          )}
         </div>
         <div className="modal-footer">
           {isEdit && onDelete && (
@@ -1436,6 +1505,11 @@ export function AgendaPage() {
     const dot = (c: string) => (
       <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", background: c }} />
     );
+    // "None" marker — a hollow dashed ring, so the remove-label item keeps the same
+    // colour-dot column as its siblings instead of leaving an empty placeholder gap.
+    const noneDot = (
+      <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", border: "1.5px dashed var(--tertiary)", background: "transparent" }} />
+    );
     // Don't offer types the doctor hid from the legend (keep the appointment's own
     // current type available even if hidden, so it still shows/can be re-selected).
     const hidden = doctorProfile.hiddenConsultationTypes ?? [];
@@ -1458,6 +1532,7 @@ export function AgendaPage() {
       items.push({ label: t("agenda.changeLabel"), header: true });
       items.push({
         label:    t("agenda.noLabel"),
+        icon:     noneDot,
         disabled: !appt.labelId,
         onClick:  () => updateAppointment({ ...appt, labelId: undefined }),
       });
@@ -2664,10 +2739,9 @@ export function AgendaPage() {
           initial={blockModal.appt}
           isEdit={!!blockModal.appt}
           defaultDate={selDate}
-          onSave={a => {
-            if (blockModal.appt) updateAppointment({ ...a, id: blockModal.appt.id });
-            else addAppointment(a);
-            showToast(blockModal.appt ? t("agenda.apptModified") : t("agenda.apptAdded"));
+          onSave={list => {
+            if (blockModal.appt) { updateAppointment({ ...list[0], id: blockModal.appt.id }); showToast(t("agenda.apptModified")); }
+            else { list.forEach(a => addAppointment(a)); showToast(list.length > 1 ? t("agenda.apptsBatch", { n: list.length }) : t("agenda.apptAdded")); }
           }}
           onDelete={blockModal.appt ? async () => {
             const appt = blockModal.appt!;

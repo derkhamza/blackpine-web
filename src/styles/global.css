@@ -188,6 +188,35 @@ img { max-width: 100%; display: block; }
 .sidebar-logo-text { font-size: 13px; font-weight: 700; color: #fff; letter-spacing: -0.2px; }
 .sidebar-logo-sub { font-size: 9px; color: var(--gold); margin-top: 1px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
 
+/* ── Session identity ─────────────────────────────────────────────────────
+   Each session (the doctor's own, a real secretary's, the doctor's secretary
+   preview) carries a distinct accent so no one acts in the wrong context. The
+   accent tints a strip along the sidebar top edge + a labelled pill below the logo. */
+.app-shell { --session-accent: var(--blue); }
+.app-shell[data-session="secretary"] { --session-accent: #14B8A6; }
+.app-shell[data-session="preview"]   { --session-accent: var(--gold); }
+.sidebar::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: var(--session-accent); z-index: 3;
+}
+.sidebar-session {
+  display: flex; align-items: center; gap: 7px;
+  margin: 9px 10px 1px; padding: 5px 9px;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--session-accent) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--session-accent) 32%, transparent);
+}
+.sidebar-session-dot {
+  width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+  background: var(--session-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--session-accent) 22%, transparent);
+}
+.sidebar-session-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase;
+  color: color-mix(in srgb, var(--session-accent) 55%, #fff);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
 .sidebar-nav { flex: 1; padding: 8px 6px; overflow-y: auto; }
 .sidebar-section-label {
   font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px;
@@ -584,9 +613,17 @@ img { max-width: 100%; display: block; }
 .tx-category { font-size: 13px; font-weight: 600; color: var(--text); }
 .tx-date { font-size: 11px; color: var(--tertiary); margin-top: 1px; }
 .tx-amount { font-size: 15px; font-weight: 700; flex-shrink: 0; }
-.tx-delete { padding: 4px; border: none; background: none; color: var(--tertiary); opacity: 0; transition: opacity var(--trans); border-radius: 4px; }
+.tx-delete { padding: 4px; border: none; background: none; color: var(--tertiary); opacity: 0; transition: opacity var(--trans); border-radius: 4px; cursor: pointer; }
 .tx-row:hover .tx-delete { opacity: 1; }
 .tx-delete:hover { color: var(--coral); }
+/* Stock + payroll reuse .tx-delete but aren't inside a .tx-row, so the hover-reveal
+   above never fires — keep their delete button visible by default (also touch-friendly). */
+.stock-row .tx-delete,
+.employee-card .tx-delete { opacity: 0.55; }
+.stock-row:hover .tx-delete,
+.employee-card:hover .tx-delete,
+.stock-row .tx-delete:focus-visible,
+.employee-card .tx-delete:focus-visible { opacity: 1; }
 /* Read-only "auto" rows derived from another module (e.g. purchase orders) */
 .tx-auto-badge {
   display: inline-block; margin-inline-start: 7px; padding: 1px 7px;
@@ -1272,6 +1309,25 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 .block-cat-btn:hover { border-color: var(--border-strong, var(--muted)); }
 .block-cat-btn.active { font-weight: 700; }
 .block-cat-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+/* Editable event categories (add/remove/recolour) inside the event modal */
+.block-cat-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.block-cat-edit-toggle {
+  border: none; background: none; cursor: pointer; padding: 2px 4px;
+  font-size: 12px; font-weight: 600; color: var(--accent);
+}
+.block-cat-edit-toggle:hover { text-decoration: underline; }
+.block-cat-editor { display: flex; flex-direction: column; gap: 7px; }
+.block-cat-edit-row { display: flex; align-items: center; gap: 8px; }
+.block-cat-color {
+  width: 30px; height: 30px; flex-shrink: 0; padding: 0; border: 1px solid var(--border);
+  border-radius: 7px; background: none; cursor: pointer;
+}
+.block-cat-edit-row .form-input { flex: 1; min-width: 0; }
+.block-cat-remove {
+  flex-shrink: 0; width: 26px; height: 26px; border: none; background: transparent;
+  color: var(--muted); font-size: 17px; line-height: 1; cursor: pointer; border-radius: 6px;
+}
+.block-cat-remove:hover { background: rgba(232,91,91,0.12); color: var(--coral); }
 
 /* Founder's welcome note (new-account dashboard) */
 .welcome-note {
@@ -1366,31 +1422,31 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 .tgrid-col-off {
   background: repeating-linear-gradient(45deg, var(--surface-alt, #f6f7f9), var(--surface-alt, #f6f7f9) 9px, rgba(0,0,0,0.028) 9px, rgba(0,0,0,0.028) 18px);
 }
-.tgrid-col-holiday { background: rgba(225,29,72,0.055); }
+.tgrid-col-holiday { background: rgba(99,102,241,0.07); }
 [data-theme="dark"] .tgrid-col-off { background: repeating-linear-gradient(45deg, rgba(255,255,255,0.02), rgba(255,255,255,0.02) 9px, rgba(255,255,255,0.05) 9px, rgba(255,255,255,0.05) 18px); }
-[data-theme="dark"] .tgrid-col-holiday { background: rgba(244,63,94,0.10); }
+[data-theme="dark"] .tgrid-col-holiday { background: rgba(129,140,248,0.13); }
 .tgrid-col-hdr-off .tgrid-hdr-day, .tgrid-col-hdr-off .tgrid-hdr-num { color: var(--muted); }
 .tgrid-hdr-off-lbl {
   display: block; margin-top: 2px; font-size: 9px; line-height: 1.15; font-weight: 600;
-  color: #E11D48; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: #5457D4; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-[data-theme="dark"] .tgrid-hdr-off-lbl { color: #fb7185; }
+[data-theme="dark"] .tgrid-hdr-off-lbl { color: #A5B4FC; }
 .tgrid-col-hdr-off .tgrid-hdr-off-lbl { color: var(--muted); }
 
 .agenda-month-cell.am-off {
   background: repeating-linear-gradient(45deg, transparent, transparent 7px, rgba(0,0,0,0.035) 7px, rgba(0,0,0,0.035) 14px);
 }
-.agenda-month-cell.am-holiday { background: rgba(225,29,72,0.06); }
+.agenda-month-cell.am-holiday { background: rgba(99,102,241,0.075); }
 [data-theme="dark"] .agenda-month-cell.am-off { background: repeating-linear-gradient(45deg, transparent, transparent 7px, rgba(255,255,255,0.05) 7px, rgba(255,255,255,0.05) 14px); }
-[data-theme="dark"] .agenda-month-cell.am-holiday { background: rgba(244,63,94,0.11); }
+[data-theme="dark"] .agenda-month-cell.am-holiday { background: rgba(129,140,248,0.14); }
 .agenda-month-off-lbl {
-  font-size: 9px; line-height: 1.15; font-weight: 600; color: #E11D48;
+  font-size: 9px; line-height: 1.15; font-weight: 600; color: #5457D4;
   margin: 1px 0 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .agenda-day-off-badge {
   display: inline-flex; align-items: center; gap: 4px; margin-left: 8px;
   padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600;
-  color: #E11D48; background: rgba(225,29,72,0.10);
+  color: #5457D4; background: rgba(99,102,241,0.12);
 }
 .agenda-day-off-badge.is-off { color: var(--muted); background: var(--surface-alt, rgba(0,0,0,0.05)); }
 
@@ -1497,6 +1553,38 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   color: var(--muted); cursor: pointer; transition: background var(--trans), color var(--trans);
 }
 .doc-mode-btn.active { background: var(--blue); color: #fff; }
+/* Larger toggle for the picker-first flow (STEP 2) */
+.doc-mode-toggle-lg { border-radius: 10px; }
+.doc-mode-toggle-lg .doc-mode-btn { padding: 8px 22px; font-size: 13px; }
+
+/* ── Document picker (format flow STEP 1) ─────────────────────────────────── */
+.doc-picker { display: flex; flex-wrap: wrap; gap: 8px; }
+.doc-picker-chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 7px 12px; border: 1px solid var(--border); border-radius: 10px;
+  background: var(--surface); color: var(--text); cursor: pointer;
+  font-size: 13px; font-weight: 600;
+  transition: border-color var(--trans), background var(--trans), box-shadow var(--trans);
+}
+.doc-picker-chip:hover { border-color: color-mix(in srgb, var(--blue) 45%, var(--border)); }
+.doc-picker-chip.active {
+  border-color: var(--blue);
+  background: color-mix(in srgb, var(--blue) 10%, var(--surface));
+  box-shadow: inset 0 0 0 1px var(--blue);
+}
+.doc-picker-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.doc-picker-mode {
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.3px; text-transform: uppercase;
+  padding: 2px 7px; border-radius: 999px; flex-shrink: 0;
+}
+.doc-picker-mode-simple {
+  color: var(--muted);
+  background: color-mix(in srgb, var(--muted) 16%, transparent);
+}
+.doc-picker-mode-advanced {
+  color: var(--gold);
+  background: color-mix(in srgb, var(--gold) 18%, transparent);
+}
 .pd-simple-note { display: flex; flex-direction: column; align-items: flex-start; padding: 4px 0; }
 
 /* Prescription renewal proposal — "patient coming back to renew" */
@@ -4636,6 +4724,16 @@ a.wr-card-open:hover {
   transition: all var(--trans);
 }
 .fac-reprint-btn:hover { border-color: var(--blue); color: var(--blue); }
+/* Visible "Corriger" (edit) button — the facture edit path used to be hidden in the
+   right-click menu only; this surfaces it in the row and auto-opens the editor. */
+.fac-correct-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11.5px; font-weight: 600; padding: 4px 11px;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: transparent; color: var(--muted); cursor: pointer;
+  transition: all var(--trans);
+}
+.fac-correct-btn:hover { border-color: var(--gold); color: var(--gold); }
 .fac-rdv-link { font-size: 11.5px; color: var(--tertiary); text-decoration: none; }
 .fac-rdv-link:hover { color: var(--blue); text-decoration: underline; }
 
@@ -9421,6 +9519,13 @@ html { scroll-behavior: smooth; }
 }
 .chat-fab:hover { transform: translateY(-2px); box-shadow: 0 8px 26px rgba(10,78,126,0.45); }
 .chat-fab.open { background: var(--muted); }
+/* Pulse the chat button while there are unread messages, so it's hard to miss. */
+.chat-fab.has-unread:not(.open) { animation: chatUnreadPulse 2s ease-in-out infinite; }
+@keyframes chatUnreadPulse {
+  0%, 100% { box-shadow: 0 6px 22px rgba(10,78,126,0.35), 0 0 0 0 rgba(232,91,91,0.45); }
+  50%      { box-shadow: 0 6px 22px rgba(10,78,126,0.35), 0 0 0 8px rgba(232,91,91,0); }
+}
+@media (prefers-reduced-motion: reduce) { .chat-fab.has-unread { animation: none; } }
 .chat-fab-badge {
   position: absolute; inset-block-start: -2px; inset-inline-end: -2px;
   min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px;
@@ -9499,6 +9604,23 @@ html { scroll-behavior: smooth; }
   margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border);
 }
 .hist-foot-item { font-size: 12px; color: var(--muted); }
+/* Ordonnance foot item is a button → reprint straight from the history. */
+.hist-foot-rx {
+  display: inline-flex; align-items: center; gap: 6px; text-align: start;
+  border: none; background: none; padding: 0; cursor: pointer;
+  color: var(--muted); transition: color var(--trans);
+}
+.hist-foot-rx:hover { color: var(--blue); }
+.hist-foot-rx-cta { font-weight: 700; color: var(--blue); flex-shrink: 0; }
+/* Upcoming (future) consultation rows in the history tab. */
+.hist-upcoming {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 7px 11px; border: 1px solid var(--border); border-radius: 8px;
+  text-decoration: none; color: var(--text);
+  transition: border-color var(--trans), background var(--trans);
+}
+.hist-upcoming:hover { border-color: var(--blue); background: color-mix(in srgb, var(--blue) 6%, transparent); }
+.hist-upcoming-date { font-weight: 700; font-size: 13px; }
 @media (max-width: 560px) {
   .hist-note { grid-template-columns: 1fr; gap: 1px; }
   .hist-note-label { padding-top: 0; }

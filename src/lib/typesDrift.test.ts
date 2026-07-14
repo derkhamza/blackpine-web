@@ -32,7 +32,7 @@ const BASELINE_DRIFT: Record<string, { web: string[]; mobile: string[] }> = {
       "consultationDuration", "extraBilans", "bilanSource", "customMeasures", "billTxnId"],
     mobile: [],
   },
-  Patient: { web: ["arabicName", "mutuelle", "city"], mobile: ["examResults"] },
+  Patient: { web: ["arabicName", "mutuelle", "city", "socialHistory"], mobile: ["examResults"] },
   ConsultationNote: { web: ["extraFields"], mobile: [] },
   BillingLine: { web: ["remise", "remiseType"], mobile: [] },
 };

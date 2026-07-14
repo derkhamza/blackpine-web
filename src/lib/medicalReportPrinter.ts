@@ -128,7 +128,7 @@ export function printMedicalReport(opts: {
   <div class="footer" style="${bs("footer")}">
     ${ds.footerNote ? esc(ds.footerNote) : "Document médical"}
   </div>
-${brandFooterHtml()}</body>
+${brandFooterHtml(ds)}</body>
 </html>`;
 
   printHtmlDocument(html);

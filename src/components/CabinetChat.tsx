@@ -46,33 +46,30 @@ export function CabinetChat() {
     });
   }, []);
 
-  // Poll loop
+  // Poll loop. Runs even when the tab is BACKGROUNDED — a receptionist usually
+  // keeps Blackpine in a background tab, and the previous visibility gate meant
+  // she never saw new messages until she refocused. The unread badge + tab title
+  // now stay current; the toast/chime still only fire when the tab is in front.
   useEffect(() => {
     if (!show) return;
     let alive = true;
     let timer: ReturnType<typeof setTimeout>;
     const tick = async () => {
       if (!alive) return;
-      if (document.visibilityState === "visible") {
-        const res = await pollChat(cursorRef.current);
-        if (res && alive) {
-          cursorRef.current = res.now;
-          merge(res.messages);
-          if (!openRef.current) {
-            const ls = localStorage.getItem(LAST_SEEN_KEY);
-            const fresh = res.messages.filter(m => m.fromRole !== role && (!ls || m.createdAt > ls));
-            if (fresh.length) {
-              setUnread(u => u + fresh.length);
-              // Actively notify (not just a silent badge): toast + chime for the
-              // newest incoming message so the other party sees it right away.
-              const last = fresh[fresh.length - 1];
-              const who = last.fromRole === "doctor"
-                ? (last.fromName || t("chat.doctor"))
-                : t("chat.secretary");
-              toast(`💬 ${who} · ${last.body}`, "info");
-              chime();
-            }
-          }
+      const res = await pollChat(cursorRef.current);
+      if (res && alive) {
+        cursorRef.current = res.now;
+        const ls = localStorage.getItem(LAST_SEEN_KEY);
+        const fresh = res.messages.filter(m => m.fromRole !== role && (!ls || m.createdAt > ls));
+        merge(res.messages);   // the badge is derived from the merged list (effect below)
+        // Loud alert (toast + chime) only for brand-new incoming messages, and only
+        // when the tab is in front with the panel closed.
+        if (fresh.length && !openRef.current && document.visibilityState === "visible") {
+          const last = fresh[fresh.length - 1];
+          const who  = last.fromRole === "doctor" ? (last.fromName || t("chat.doctor")) : t("chat.secretary");
+          const many = fresh.length > 1 ? `(${fresh.length}) ` : "";
+          toast(`💬 ${many}${who} · ${last.body}`, "warning");   // warning = lingers ~7s (info died in 3.8s)
+          chime();
         }
       }
       if (alive) timer = setTimeout(tick, openRef.current ? POLL_OPEN_MS : POLL_BG_MS);
@@ -81,10 +78,24 @@ export function CabinetChat() {
     return () => { alive = false; clearTimeout(timer); };
   }, [show, role, merge, t, toast]);
 
-  // On open (and on new messages while open): clear unread + scroll to bottom.
+  // Unread badge — DERIVED from the message list vs lastSeen, so it's authoritative
+  // and survives a reload (no incremental drift / double-count). Zero while open.
+  useEffect(() => {
+    if (open) { setUnread(0); return; }
+    const ls = localStorage.getItem(LAST_SEEN_KEY);
+    setUnread(messages.filter(m => m.fromRole !== role && (!ls || m.createdAt > ls)).length);
+  }, [messages, open, role]);
+
+  // Reflect unread in the browser tab title, so a backgrounded secretary sees it.
+  useEffect(() => {
+    const base = document.title.replace(/^\(\d+\)\s+/, "");
+    document.title = unread > 0 ? `(${unread}) ${base}` : base;
+    return () => { document.title = document.title.replace(/^\(\d+\)\s+/, ""); };
+  }, [unread]);
+
+  // On open (and on new messages while open): mark seen + scroll to bottom.
   useEffect(() => {
     if (!open) return;
-    setUnread(0);
     if (messages.length) localStorage.setItem(LAST_SEEN_KEY, messages[messages.length - 1].createdAt);
     const el = listRef.current;
     if (el) el.scrollTop = el.scrollHeight;
@@ -105,7 +116,7 @@ export function CabinetChat() {
   return (
     <>
       <button
-        className={`chat-fab${open ? " open" : ""}`}
+        className={`chat-fab${open ? " open" : ""}${unread > 0 ? " has-unread" : ""}`}
         onClick={() => setOpen(o => !o)}
         aria-label={t("chat.title")}
         title={t("chat.title")}

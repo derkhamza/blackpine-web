@@ -356,6 +356,11 @@ export function Layout({ title, subtitle, actions, children }: Props) {
   const isRealSecretary = role === "secretary";
   // Product-owner accounts run a pure admin console (see lib/owner).
   const isAdmin = !isRealSecretary && isAdminEmail(user?.email);
+  // Session identity — the doctor's own session, a real secretary session, and the
+  // doctor's secretary-preview each get a distinct colour + badge so nobody acts in
+  // the wrong context by mistake. Drives `data-session` on the shell + a sidebar pill.
+  const sessionKind: "doctor" | "secretary" | "preview" =
+    isRealSecretary ? "secretary" : secretaryMode ? "preview" : "doctor";
   // Home page differs by role (owner → admin console, everyone else → "/").
   // "/" resolves to the secretary dashboard for a real secretary AND a doctor
   // previewing the secretary view, and to the clinical dashboard for the doctor's
@@ -610,6 +615,18 @@ export function Layout({ title, subtitle, actions, children }: Props) {
         </button>
       </div>
 
+      {/* Session identity badge — colour-coded so doctor / secretary / preview are never confused */}
+      <div className={`sidebar-session sidebar-session-${sessionKind}`}>
+        <span className="sidebar-session-dot" aria-hidden="true" />
+        <span className="sidebar-session-label">
+          {sessionKind === "doctor"
+            ? t("sidebar.roleDoctor")
+            : sessionKind === "secretary"
+              ? t("sidebar.roleSecretary")
+              : t("sidebar.rolePreview")}
+        </span>
+      </div>
+
       {/* Search */}
       <button className="sidebar-search" onClick={() => { setSearchOpen(true); closeDrawer(); }}>
         <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
@@ -766,7 +783,7 @@ export function Layout({ title, subtitle, actions, children }: Props) {
   const totalActions = Object.values(badges).reduce((s, n) => s + n, 0);
 
   return (
-    <div className="app-shell">
+    <div className="app-shell" data-session={sessionKind}>
       {/* ── Desktop sidebar ── */}
       <nav className="sidebar">
         {sidebarContent}

@@ -232,14 +232,20 @@ type DragMode =
   | { t: "margin"; edge: "top" | "right" | "bottom" | "left"; sx: number; sy: number; ov: number };
 
 export function PageDesigner({
-  settings, onChange, doctorProfile,
+  settings, onChange, doctorProfile, kind: kindProp, hideTabs,
 }: {
   settings: DocumentSettings;
   onChange: (s: DocumentSettings) => void;
   doctorProfile?: import("../lib/cabinetTypes").CabinetDoctorProfile;
+  /** When provided, the document kind is controlled by the parent and the
+      internal document tab strip is hidden (use with `hideTabs`). */
+  kind?: DocKind;
+  hideTabs?: boolean;
 }) {
   const { t } = useTranslation();
-  const [kind, setKind] = useState<DocKind>("ordonnance");
+  const [kindState, setKindState] = useState<DocKind>("ordonnance");
+  const kind = kindProp ?? kindState;
+  const setKind = (k: DocKind) => { if (!kindProp) setKindState(k); };
   const [selected, setSelected] = useState<string | null>(null);
   const pageRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -441,38 +447,40 @@ export function PageDesigner({
 
   return (
     <div className="pd-wrap">
-      {/* Doc selector */}
-      <div className="pd-tabs">
-        {DOC_KINDS.map(k => (
-          <button
-            key={k}
-            type="button"
-            className={`tx-cat-chip${kind === k ? " active" : ""}`}
-            onClick={() => { setKind(k); setSelected(null); }}
-          >
-            {t(`settings.pd.kind_${k}`)}
-          </button>
-        ))}
-        {editable && hasCustom && (
-          <button
-            type="button"
-            className="btn btn-ghost"
-            style={{ marginLeft: "auto", fontSize: 11, color: "var(--coral)" }}
-            onClick={async () => {
-              if (!await confirmDialog(t("settings.pd.resetConfirm"))) return;
-              const nextDesigns = { ...settings.designs };
-              delete nextDesigns[kind];
-              const next: DocumentSettings = { ...settings, designs: nextDesigns };
-              if (kind === "ordonnance") delete next.ordonnanceDesign;
-              if (kind === "facture")    delete next.factureDesign;
-              onChange(next);
-              setSelected(null);
-            }}
-          >
-            {t("settings.pd.reset")}
-          </button>
-        )}
-      </div>
+      {/* Doc selector — hidden when the parent controls the kind (picker-first flow) */}
+      {(!hideTabs || (editable && hasCustom)) && (
+        <div className="pd-tabs">
+          {!hideTabs && DOC_KINDS.map(k => (
+            <button
+              key={k}
+              type="button"
+              className={`tx-cat-chip${kind === k ? " active" : ""}`}
+              onClick={() => { setKind(k); setSelected(null); }}
+            >
+              {t(`settings.pd.kind_${k}`)}
+            </button>
+          ))}
+          {editable && hasCustom && (
+            <button
+              type="button"
+              className="btn btn-ghost"
+              style={{ marginLeft: "auto", fontSize: 11, color: "var(--coral)" }}
+              onClick={async () => {
+                if (!await confirmDialog(t("settings.pd.resetConfirm"))) return;
+                const nextDesigns = { ...settings.designs };
+                delete nextDesigns[kind];
+                const next: DocumentSettings = { ...settings, designs: nextDesigns };
+                if (kind === "ordonnance") delete next.ordonnanceDesign;
+                if (kind === "facture")    delete next.factureDesign;
+                onChange(next);
+                setSelected(null);
+              }}
+            >
+              {t("settings.pd.reset")}
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="pd-body">
         {/* ── Scaled, to-example page preview ── */}

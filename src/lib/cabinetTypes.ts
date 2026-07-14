@@ -32,6 +32,9 @@ export interface CabinetDoctorProfile {
   appointmentPrices?: Record<string, number>; // doctor-set fee (MAD) per RDV type (built-in or custom id)
   // Doctor-defined appointment types (added on top of the built-ins).
   customApptTypes?: CustomApptType[];
+  // Editable categories for non-patient agenda events (Événement blocks) — the
+  // doctor can add/remove/recolour them. Falls back to DEFAULT_BLOCK_TYPES.
+  customBlockTypes?: CustomApptType[];
   // Rename / recolour a BUILT-IN appointment type without deleting it.
   apptTypeOverrides?: Record<string, { label?: string; color?: string }>;
   // Second, optional agenda differentiation axis — colour-coded "labels"/tags
@@ -162,6 +165,7 @@ export interface DocumentSettings {
   showInpe?:   boolean;
   showIce?:    boolean;
   showRib?:    boolean;
+  showBrand?:  boolean;  // "Blackpine Cabinet" mark at the bottom; default shown (set false to hide)
   headerNote?: string;   // extra line under the doctor's identity
   footerNote?: string;   // custom footer text
   // Document-wide typography (applies to every printed document).
@@ -631,6 +635,10 @@ export interface Patient {
   allergies?: string;
   antecedents?: string;
   currentMedications?: string;
+  // Socio-economic & lifestyle context (profession, living situation, tobacco/
+  // alcohol, physical activity…) — persistent patient background, recorded during
+  // the consultation alongside antecedents.
+  socialHistory?: string;
   createdAt: string;
   cin?: string;
   cnopsNumber?: string;
@@ -705,7 +713,7 @@ let labelById = new Map<string, ApptLabel>();
 // Recompute the registry from a doctor profile. Idempotent; call on every
 // profile change. Built-ins come first (respecting label/colour overrides),
 // then the doctor's custom types.
-export function setApptTypeRegistry(profile?: { customApptTypes?: CustomApptType[]; apptTypeOverrides?: Record<string, { label?: string; color?: string }>; apptLabels?: ApptLabel[] } | null): void {
+export function setApptTypeRegistry(profile?: { customApptTypes?: CustomApptType[]; apptTypeOverrides?: Record<string, { label?: string; color?: string }>; apptLabels?: ApptLabel[]; customBlockTypes?: CustomApptType[] } | null): void {
   const map = new Map<string, ResolvedApptType>();
   for (const id of BUILTIN_APPT_TYPES) {
     const ov = profile?.apptTypeOverrides?.[id];
@@ -715,13 +723,20 @@ export function setApptTypeRegistry(profile?: { customApptTypes?: CustomApptType
     if (!c.id) continue;
     map.set(c.id, { id: c.id, label: c.label || c.id, color: c.color || DEFAULT_TYPE_COLOR, builtin: false });
   }
+  // Also register the (editable) block categories so apptTypeLabel/Color resolve
+  // custom block labels & colours on the agenda. They're kept out of the appt-type
+  // list (resolveApptTypes) so they never appear in the RDV type pickers/legend.
+  for (const c of resolveBlockTypes(profile)) {
+    if (c.id) map.set(c.id, { id: c.id, label: c.label || c.id, color: c.color || DEFAULT_TYPE_COLOR, builtin: false });
+  }
   typeById = map;
   labelById = new Map((profile?.apptLabels ?? []).filter(l => l.id).map(l => [l.id, l]));
 }
 
-// Full ordered list of types for selectors/settings (built-ins then custom).
+// Full ordered list of RDV types for selectors/settings (built-ins then custom) —
+// excludes block categories, which have their own picker (resolveBlockTypes).
 export function resolveApptTypes(): ResolvedApptType[] {
-  return [...typeById.values()];
+  return [...typeById.values()].filter(t => !isBlockType(t.id));
 }
 
 // ── Non-patient agenda blocks (indisponibilités) ─────────────────────────────
@@ -734,25 +749,34 @@ export const BLOCK_TYPE_META: Record<string, { label: string; color: string }> =
   "block:reunion": { label: "Réunion",         color: "#8B5CF6" },
   "block:blocOp":  { label: "Bloc opératoire", color: "#0EA5E9" },
   "block:absence": { label: "Absence / congé", color: "#F59E0B" },
-  "block:autre":   { label: "Indisponibilité", color: "#64748B" },
+  "block:autre":   { label: "Autre",           color: "#64748B" },
 };
 export const BLOCK_TYPES: string[] = Object.keys(BLOCK_TYPE_META);
+// The built-in categories as an editable list (id/label/color). The doctor can
+// add/remove/recolor them; the chosen set is stored on the profile as
+// customBlockTypes (falls back to these defaults).
+export const DEFAULT_BLOCK_TYPES: CustomApptType[] =
+  BLOCK_TYPES.map(id => ({ id, label: BLOCK_TYPE_META[id].label, color: BLOCK_TYPE_META[id].color }));
+export function resolveBlockTypes(profile?: { customBlockTypes?: CustomApptType[] } | null): CustomApptType[] {
+  const cbt = profile?.customBlockTypes;
+  return cbt && cbt.length ? cbt : DEFAULT_BLOCK_TYPES;
+}
 export function isBlockType(type: string | undefined | null): boolean {
   return typeof type === "string" && type.startsWith("block:");
 }
 
 export function apptTypeLabel(type: string): string {
-  if (isBlockType(type)) return BLOCK_TYPE_META[type]?.label ?? "Indisponibilité";
-  return typeById.get(type)?.label
-    ?? APPT_TYPE_LABELS[type as AppointmentType]
-    ?? type;
+  const reg = typeById.get(type);          // registry covers appt types + block categories
+  if (reg) return reg.label;
+  if (isBlockType(type)) return BLOCK_TYPE_META[type]?.label ?? "Autre";
+  return APPT_TYPE_LABELS[type as AppointmentType] ?? type;
 }
 
 export function apptTypeColor(type: string): string {
+  const reg = typeById.get(type);
+  if (reg) return reg.color;
   if (isBlockType(type)) return BLOCK_TYPE_META[type]?.color ?? "#64748B";
-  return typeById.get(type)?.color
-    ?? APPT_TYPE_COLORS[type as AppointmentType]
-    ?? DEFAULT_TYPE_COLOR;
+  return APPT_TYPE_COLORS[type as AppointmentType] ?? DEFAULT_TYPE_COLOR;
 }
 
 export function apptLabelById(id?: string): ApptLabel | undefined {

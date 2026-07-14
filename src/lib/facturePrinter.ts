@@ -306,7 +306,7 @@ export function printFacture(opts: FactureOptions): void {
   </div>
 
   <script>window.onload = function(){ window.print(); };<\/script>
-${brandFooterHtml()}</body>
+${brandFooterHtml(ds)}</body>
 </html>`;
 
   printHtmlDocument(html);

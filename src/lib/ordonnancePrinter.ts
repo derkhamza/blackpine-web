@@ -1,5 +1,6 @@
 import type { OrdonnanceLine, CabinetDoctorProfile } from "./cabinetTypes";
 import { DEFAULT_DOCUMENT_SETTINGS } from "./cabinetTypes";
+import { civilityPrefix } from "./nameFormat";
 import {
   ORDONNANCE_DEFAULT_MARGINS, resolveMargins, pageRule, resolvePageSize, backgroundHtml,
   blockStyle, blockHidden, logoHtml, designForKind,
@@ -493,8 +494,11 @@ export function printOrdonnance(opts: {
   patientName:  string;
   date:         string;           // ISO "YYYY-MM-DD"
   doctorProfile: CabinetDoctorProfile;
+  patient?:     { gender?: "M" | "F" | null; dateOfBirth?: string | null };
 }): void {
   const { lines, patientName, date, doctorProfile } = opts;
+  // Civilité before the name (Mr / Mme / l'enfant), when sex/age is known.
+  const civ = opts.patient ? civilityPrefix(opts.patient, date) : "";
   // Escape free-text before interpolating into the print HTML. Patient/secretary
   // -supplied values (names, drugs, dosages) would otherwise inject script into
   // the same-origin print window and steal the session token.
@@ -528,15 +532,20 @@ export function printOrdonnance(opts: {
     ? doctorProfile.address.split(",").pop()?.trim() ?? ""
     : "");
 
+  // Conventional Moroccan prescription line: numbered, the drug (with strength)
+  // on the first line, then the posology written plainly below — "{fréquence}
+  // pendant {durée}" with no "Prendre" preamble — and any note underneath.
   const lineHtml = lines.map((l, i) => {
-    const doseStr  = l.dosage    ? ` — ${esc(l.dosage)}`  : "";
-    const notesStr = l.notes     ? `<div class="rx-notes">${esc(l.notes)}</div>` : "";
+    const doseStr  = l.dosage ? ` ${esc(l.dosage)}` : "";
+    const posol    = [esc(l.frequency), l.duration ? `pendant ${esc(l.duration)}` : ""]
+      .filter(Boolean).join(" ");
+    const notesStr = l.notes ? `<div class="rx-notes">${esc(l.notes)}</div>` : "";
     return `
     <div class="rx-item">
       <div class="rx-num">${i + 1}.</div>
       <div class="rx-body">
         <div class="rx-drug">${esc(l.drug)}${doseStr}</div>
-        <div class="rx-posol">Prendre ${esc(l.frequency)} pendant ${esc(l.duration)}.</div>
+        ${posol ? `<div class="rx-posol">${posol}</div>` : ""}
         ${notesStr}
       </div>
     </div>`;
@@ -552,20 +561,17 @@ export function printOrdonnance(opts: {
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: "Times New Roman", Times, serif; font-size: 11pt; color: #111; background: #fff; position: relative; }
 
-    /* Header */
+    /* Header — a thin neutral separator (no heavy coloured bar). */
     .header {
       display: flex; justify-content: space-between; align-items: flex-start;
-      padding-bottom: 10px; border-bottom: 2px solid var(--doc-accent,#0A4E7E); margin-bottom: 12px;
+      padding-bottom: 8px; border-bottom: 1px solid #e3e3e3; margin-bottom: 12px;
     }
     .doc-name  { font-size: 13.5pt; font-weight: bold; color: var(--doc-accent,#0A4E7E); margin-bottom: 3px; }
     .doc-meta  { font-size: 8.5pt; color: #444; line-height: 1.7; }
     .date-bloc { text-align: right; font-size: 9pt; color: #333; line-height: 1.7; }
 
-    /* Patient */
-    .patient-line {
-      margin-bottom: 12px; font-size: 10pt;
-      border-left: 3px solid var(--doc-accent,#0A4E7E); padding-left: 8px;
-    }
+    /* Patient — plain line, no coloured bar before the name. */
+    .patient-line { margin-bottom: 12px; font-size: 10pt; }
 
     /* Medication items */
     .rx-list { display: flex; flex-direction: column; gap: 10px; min-height: 90mm; }
@@ -573,7 +579,7 @@ export function printOrdonnance(opts: {
     .rx-num  { font-size: 10pt; font-weight: bold; color: var(--doc-accent,#0A4E7E); width: 18px; flex-shrink: 0; padding-top: 1px; }
     .rx-body { flex: 1; }
     .rx-drug { font-size: 11pt; font-weight: bold; text-transform: uppercase; }
-    .rx-posol { font-size: 9.5pt; color: #333; margin-top: 2px; font-style: italic; }
+    .rx-posol { font-size: 9.5pt; color: #333; margin-top: 2px; }
     .rx-notes { font-size: 8.5pt; color: #666; margin-top: 1px; }
 
     /* Signature */
@@ -614,7 +620,7 @@ export function printOrdonnance(opts: {
   </div>
 
   <div class="patient-line" style="${bs("patient")}">
-    <strong>${eName}</strong>
+    <strong>${civ ? esc(civ) + " " : ""}${eName}</strong>
   </div>
 
   <div class="rx-list" style="${bs("body")}">
@@ -631,7 +637,7 @@ export function printOrdonnance(opts: {
   </div>
 
   <script>window.onload = function(){ window.print(); };<\/script>
-${brandFooterHtml()}</body>
+${brandFooterHtml(ds)}</body>
 </html>`;
 
   const win = window.open("", "_blank", "width=600,height=800");

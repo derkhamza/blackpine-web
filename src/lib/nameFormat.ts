@@ -18,6 +18,31 @@ export function personName(firstName: string, lastName?: string | null): string 
   return `${lastName ?? ""} ${firstName}`.trim();
 }
 
+/**
+ * Civilité prefix for a patient on French documents (prescriptions): a child
+ * (under 16 at the document date) → "l'enfant", otherwise "Mme" / "Mr" by sex.
+ * Returns "" when neither age nor sex is known, so the name prints bare.
+ */
+export function civilityPrefix(
+  opts: { gender?: "M" | "F" | null; dateOfBirth?: string | null },
+  atIso?: string,
+): string {
+  const { gender, dateOfBirth } = opts;
+  if (dateOfBirth) {
+    const at  = new Date((atIso || dateOfBirth) + "T12:00:00");
+    const dob = new Date(dateOfBirth + "T12:00:00");
+    if (!isNaN(at.getTime()) && !isNaN(dob.getTime())) {
+      let age = at.getFullYear() - dob.getFullYear();
+      const m = at.getMonth() - dob.getMonth();
+      if (m < 0 || (m === 0 && at.getDate() < dob.getDate())) age--;
+      if (age >= 0 && age < 16) return "l'enfant";
+    }
+  }
+  if (gender === "F") return "Mme";
+  if (gender === "M") return "Mr";
+  return "";
+}
+
 /** Two-letter initials in the same order (Nom, Prénom). */
 export function initials(p: NameParts): string {
   return `${(p.lastName ?? "")[0] ?? ""}${(p.firstName ?? "")[0] ?? ""}`.toUpperCase();

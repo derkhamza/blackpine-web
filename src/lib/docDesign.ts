@@ -138,10 +138,23 @@ export function typographyCss(ds: DocumentSettings | undefined): string {
     + `body{font-family:${family} !important;${scale !== 1 ? `zoom:${scale};` : ""}}`;
 }
 
-// Discrete "Blackpine Cabinet" mention on every printed document — a subtle
-// notoriety line, greyed out so it never competes with the medical content.
-export function brandFooterHtml(): string {
-  return `<div style="text-align:center;font-size:7pt;color:#c2c2c2;margin-top:6px;letter-spacing:.3px;">Blackpine Cabinet</div>`;
+// Compact Blackpine mark (navy tile + white stethoscope) inlined for print HTML.
+const BRAND_LOGO_SVG =
+  `<svg width="9" height="9" viewBox="0 0 72 72" style="display:inline-block;vertical-align:middle;border-radius:2px;">`
+  + `<rect width="72" height="72" rx="16" fill="#0A4E7E"/>`
+  + `<g fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" transform="translate(0 4.5)">`
+  + `<path d="M24 16 v10 a10 10 0 0 0 20 0 V16"/><path d="M34 44 a9 9 0 0 0 14 0"/><path d="M34 44 V36 M48 44 V36"/></g></svg>`;
+
+// Discrete "Blackpine Cabinet" mention at the very bottom of a printed document —
+// logo + small greyed label, so it never competes with the medical content. The
+// doctor can turn it off entirely via documentSettings.showBrand === false.
+export function brandFooterHtml(ds?: DocumentSettings): string {
+  if (ds?.showBrand === false) return "";
+  return `<div style="text-align:center;margin-top:9px;line-height:1;">`
+    + `<span style="display:inline-flex;align-items:center;gap:3px;opacity:.7;">`
+    + BRAND_LOGO_SVG
+    + `<span style="font-size:6.5pt;color:#b7b7b7;letter-spacing:.3px;">Blackpine Cabinet</span>`
+    + `</span></div>`;
 }
 
 /**

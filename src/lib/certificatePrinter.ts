@@ -150,7 +150,7 @@ function wrap(title: string, body: string, legalNote: string, doc: CabinetDoctor
   <div style="${bs("signature")}">${footer(doc)}</div>
   <div class="cert-legal" style="${bs("footer")}">${esc(legalNote)}</div>
   <script>window.onload=function(){window.print();};<\/script>
-${brandFooterHtml()}</body>
+${brandFooterHtml(doc.documentSettings)}</body>
 </html>`;
 }
 

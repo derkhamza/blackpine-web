@@ -1,6 +1,6 @@
 import { confirmDialog } from "../lib/confirm";
 import { useEffect, useRef, useState, useMemo } from "react";
-import { useNavigate, useParams, Link } from "react-router-dom";
+import { useNavigate, useParams, useLocation, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { tabProps } from "../lib/a11y";
 import { Layout } from "../components/Layout";
@@ -25,6 +25,7 @@ import { NOTE_TEMPLATES, TEMPLATE_CATEGORIES } from "../lib/noteTemplates";
 import { todayIso, formatMAD, formatDateShort, bmiClassify, calcAge } from "../lib/format";
 import { ckdEpiFromMgL, type Sex } from "../lib/ckdEpi";
 import { printReceipt } from "../lib/receiptPrinter";
+import { printOrdonnance } from "../lib/ordonnancePrinter";
 import { nextInvoiceNumber, printFacture } from "../lib/facturePrinter";
 import { OrdonnanceModal }  from "../components/OrdonnanceModal";
 import { CertificateModal } from "../components/CertificateModal";
@@ -257,6 +258,7 @@ export function AppointmentDetailPage() {
                : i18n.language?.slice(0, 2) === "en" ? "en-US" : "fr-FR";
   const { apptId } = useParams<{ apptId: string }>();
   const navigate    = useNavigate();
+  const location    = useLocation();
   const {
     appointments, patients, updateAppointment, deleteAppointment, addInvoice,
     addPatient, updatePatient, addAppointment, doctorProfile, setDoctorProfile, viewAsSecretary,
@@ -450,6 +452,7 @@ export function AppointmentDetailPage() {
   // back to the patient record so the doctor never leaves the appointment screen.
   const [antecedents, setAntecedents] = useState("");
   const [currentMeds, setCurrentMeds] = useState("");
+  const [socialHistory, setSocialHistory] = useState("");
 
   // "Fixer le prochain rendez-vous" — schedule the follow-up RDV in-flow.
   const [nextDate, setNextDate] = useState("");
@@ -617,8 +620,25 @@ export function AppointmentDetailPage() {
   useEffect(() => {
     setAntecedents(patient?.antecedents ?? "");
     setCurrentMeds(patient?.currentMedications ?? "");
+    setSocialHistory(patient?.socialHistory ?? "");
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patient?.id]);
+
+  // Auto-open the bill editor when arriving from Facturation → "Corriger la facture"
+  // (the list passes { openBill: true } in the navigation state). Held in a ref so
+  // this hook can sit above the early return without depending on openBillModal.
+  const openBillRef = useRef<() => void>(() => {});
+  const billAutoOpenedRef = useRef(false);
+  useEffect(() => {
+    if (!appt || billAutoOpenedRef.current) return;
+    const st = location.state as { openBill?: boolean } | null;
+    if (st?.openBill && appt.billedAt && !readOnly) {
+      billAutoOpenedRef.current = true;
+      openBillRef.current();
+      navigate(location.pathname, { replace: true });   // clear state so it won't reopen
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appt?.id, location.state, readOnly]);
 
   if (!appt) {
     return (
@@ -799,18 +819,23 @@ export function AppointmentDetailPage() {
   // file mid-consultation. Plain consts (not hooks) — computed after the appt
   // guard above, so they must stay out of the hook list. ──────────────────────
   const pid = appt.patientId;
-  const historyAppts = pid
-    ? appointments
-        .filter(a => a.patientId === pid && a.id !== appt.id)
-        .sort((a, b) => b.date.localeCompare(a.date) || (b.startTime || "").localeCompare(a.startTime || ""))
-    : [];
+  // History = the patient's OTHER consultations, split into past (most-recent
+  // first) and upcoming (soonest first). Today's other visits count as past.
+  const historyTodayIso = todayIso();
+  const historyApptsAll = pid ? appointments.filter(a => a.patientId === pid && a.id !== appt.id) : [];
+  const historyAppts = historyApptsAll
+    .filter(a => a.date <= historyTodayIso)
+    .sort((a, b) => b.date.localeCompare(a.date) || (b.startTime || "").localeCompare(a.startTime || ""));
+  const futureAppts = historyApptsAll
+    .filter(a => a.date > historyTodayIso)
+    .sort((a, b) => a.date.localeCompare(b.date) || (a.startTime || "").localeCompare(b.startTime || ""));
   const historyExams = pid
     ? examResults.filter(e => e.patientId === pid).sort((a, b) => b.date.localeCompare(a.date))
     : [];
   const historyRx = pid
     ? prescriptions.filter(p => p.patientId === pid).sort((a, b) => b.date.localeCompare(a.date))
     : [];
-  const historyCount = historyAppts.length + historyExams.length + historyRx.length;
+  const historyCount = historyAppts.length + futureAppts.length + historyExams.length + historyRx.length;
 
   // ── Two-section split (bilanSource) + custom measures ───────────────────────
   // Which section a group sits in: this appointment's choice, else the doctor's
@@ -943,6 +968,7 @@ export function AppointmentDetailPage() {
     setBillCollected(String(Math.max(0, appt.billedAt ? (appt.paidAmount ?? total) : total)));
     setShowBill(true);
   };
+  openBillRef.current = openBillModal;   // keep the ref current for the auto-open effect
 
   // Doctor saves the composed bill WITHOUT collecting — the secretary handles
   // encaissement (payment / partial / deferred) at the front desk.
@@ -1574,6 +1600,25 @@ export function AppointmentDetailPage() {
             )}
           </div>
 
+          {/* Contexte social & mode de vie (patient record) — persistent background.
+              Hidden for a read-only viewer when empty. */}
+          <div className="form-group appt-note-block" style={readOnly && !socialHistory.trim() ? { display: "none" } : undefined}>
+            <label className="form-label" style={{ marginBottom: 4, display: "block" }}>{t("apptDetail.socialHistory")}</label>
+            {patient ? (
+              <textarea
+                className="form-input appt-textarea"
+                rows={2}
+                placeholder={readOnly ? undefined : t("apptDetail.socialHistoryPlaceholder")}
+                value={socialHistory}
+                onChange={(e) => setSocialHistory(e.target.value)}
+                onBlur={() => savePatientField({ socialHistory: socialHistory.trim() || undefined })}
+                readOnly={readOnly}
+              />
+            ) : (
+              <div className="appt-note-nolink">{t("apptDetail.historyNeedsPatient")}</div>
+            )}
+          </div>
+
           {/* 4 · Examen clinique + mesures (displayed — entered in Mesures & bilan) */}
           <div className="form-group appt-note-block">
             <div className="appt-note-label-row">
@@ -2051,6 +2096,29 @@ export function AppointmentDetailPage() {
                 )}
               </div>
 
+              {/* Upcoming consultations — kept separate from the past history below. */}
+              {futureAppts.length > 0 && (
+                <>
+                  <div className="appt-section-header">
+                    <div className="appt-section-title">
+                      {t("apptDetail.upcomingVisits")}
+                      <span className="appt-docs-count">{futureAppts.length}</span>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 6 }}>
+                    {futureAppts.slice(0, 20).map(a => (
+                      <Link key={a.id} to={`/agenda/${a.id}`} className="hist-upcoming">
+                        <span className="hist-upcoming-date">{formatDateShort(a.date)}{a.startTime ? ` · ${a.startTime}` : ""}</span>
+                        <span className="hist-visit-type" style={{ color: apptTypeColor(a.type), background: apptTypeColor(a.type) + "18" }}>{apptTypeLabel(a.type)}</span>
+                        {apptLabelById(a.labelId) && (
+                          <span className="hist-visit-tag" style={{ background: apptLabelById(a.labelId)!.color + "22", color: apptLabelById(a.labelId)!.color }}>{apptLabelById(a.labelId)!.label}</span>
+                        )}
+                      </Link>
+                    ))}
+                  </div>
+                </>
+              )}
+
               <div className="appt-section-header">
                 <div className="appt-section-title">
                   {t("apptDetail.pastVisits")}
@@ -2093,10 +2161,10 @@ export function AppointmentDetailPage() {
                             <span className="hist-visit-tag" style={{ background: apptLabelById(a.labelId)!.color + "22", color: apptLabelById(a.labelId)!.color }}>{apptLabelById(a.labelId)!.label}</span>
                           )}
                         </div>
+                        {/* Field order mirrors the note-clinique entry order:
+                            motif → examen (+ signes vitaux) → mesures/bilans → diagnostic → traitement. */}
                         {n?.motif && <div className="hist-note"><span className="hist-note-label">{t("apptDetail.motif")}</span><span className="hist-note-text">{n.motif}</span></div>}
                         {n?.examination && <div className="hist-note"><span className="hist-note-label">{t("apptDetail.examination")}</span><span className="hist-note-text">{n.examination}</span></div>}
-                        {n?.diagnosis && <div className="hist-note"><span className="hist-note-label">{t("apptDetail.diagnosis")}</span><span className="hist-note-text">{n.diagnosis}</span></div>}
-                        {n?.treatment && <div className="hist-note"><span className="hist-note-label">{t("apptDetail.treatment")}</span><span className="hist-note-text">{n.treatment}</span></div>}
                         {vChips.length > 0 && (
                           <div className="hist-measures">
                             {vChips.map((c, i) => <span key={i} className="hist-measure-chip">{c}</span>)}
@@ -2113,10 +2181,22 @@ export function AppointmentDetailPage() {
                             ))}
                           </div>
                         )}
+                        {n?.diagnosis && <div className="hist-note"><span className="hist-note-label">{t("apptDetail.diagnosis")}</span><span className="hist-note-text">{n.diagnosis}</span></div>}
+                        {n?.treatment && <div className="hist-note"><span className="hist-note-label">{t("apptDetail.treatment")}</span><span className="hist-note-text">{n.treatment}</span></div>}
                         {hasFoot && (
                           <div className="hist-visit-foot">
                             {a.savedOrdonnance && (a.savedOrdonnance.lines?.length ?? 0) > 0 && (
-                              <span className="hist-foot-item">℞ {(a.savedOrdonnance.lines ?? []).map(l => l.drug).join(", ")}</span>
+                              <button type="button" className="hist-foot-item hist-foot-rx"
+                                title={t("apptDetail.reprOrd")}
+                                onClick={() => printOrdonnance({
+                                  lines: a.savedOrdonnance!.lines ?? [],
+                                  patientName: a.patientName,
+                                  date: a.date,
+                                  doctorProfile,
+                                  patient: patient ? { gender: patient.gender, dateOfBirth: patient.dateOfBirth } : undefined,
+                                })}>
+                                ℞ {(a.savedOrdonnance.lines ?? []).map(l => l.drug).join(", ")} <span className="hist-foot-rx-cta">↗</span>
+                              </button>
                             )}
                             {(a.savedCertificates?.length ?? 0) > 0 && (
                               <span className="hist-foot-item">📜 {t("apptDetail.certificate")} ({a.savedCertificates!.length})</span>
@@ -2729,6 +2809,7 @@ export function AppointmentDetailPage() {
           patientName={appt.patientName}
           date={appt.date}
           doctorProfile={doctorProfile}
+          patient={patient ? { gender: patient.gender, dateOfBirth: patient.dateOfBirth } : undefined}
           allergies={patient?.allergies}
           lastOrdonnance={lastRx?.lines}
           lastOrdonnanceDate={lastRx?.date}

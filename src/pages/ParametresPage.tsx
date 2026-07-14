@@ -1314,116 +1314,122 @@ function DocumentSettingsSection({
   ];
   const setMode = (kind: DocKind, mode: "simple" | "advanced") =>
     set({ docMode: { ...s.docMode, [kind]: mode } });
-  // The exact/advanced editor (STEP 3) is the tallest block and only needed
-  // occasionally — keep it collapsed so this section stays compact by default.
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  // Picker-first flow: (1) pick the document, (2) choose simple vs advanced for it,
+  // (3) tune the parameters adapted to that choice.
+  const [selectedDoc, setSelectedDoc] = useState<DocKind>("ordonnance");
+  const selMode = docModeForKind(s, selectedDoc);
+  const selLabel = t(`settings.pd.kind_${selectedDoc}`);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      {/* ── STEP 1 — Simple built-in style (shared by every document) ── */}
+      {/* ── STEP 1 — Choose the document to format ── */}
       <div>
-        <div className="secretary-info-title">{t("settings.docSimpleTitle")}</div>
-        <div className="secretary-info-desc" style={{ marginBottom: 10 }}>{t("settings.docSimpleDesc")}</div>
-        <DocumentPreview s={s} doc={doctorProfile} />
-        <div className="form-group" style={{ marginTop: 10 }}>
-          <label className="form-label">{t("settings.docLayout")}</label>
-          <select className="form-select" value={s.layout} onChange={e => set({ layout: e.target.value as DocumentLayout })}>
-            {LAYOUTS.map(l => <option key={l} value={l}>{DOCUMENT_LAYOUT_LABELS[l]}</option>)}
-          </select>
-          <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 3 }}>{t("settings.docLayoutHint")}</div>
-        </div>
-        {/* Document-wide typography — font, size, accent colour (applies to every doc). */}
-        <div className="form-row" style={{ marginBottom: 8 }}>
-          <div className="form-group" style={{ flex: 1 }}>
-            <label className="form-label">{t("settings.docFont", { defaultValue: "Police" })}</label>
-            <select className="form-select" value={s.fontFamily ?? "serif"} onChange={e => set({ fontFamily: e.target.value as DocumentSettings["fontFamily"] })}>
-              <option value="serif">Times (classique)</option>
-              <option value="sans">Arial</option>
-              <option value="georgia">Georgia</option>
-              <option value="condensed">Condensé</option>
-            </select>
-          </div>
-          <div className="form-group" style={{ flex: 1 }}>
-            <label className="form-label">{t("settings.docTextSize", { defaultValue: "Taille du texte" })}</label>
-            <select className="form-select" value={String(s.fontScale ?? 1)} onChange={e => set({ fontScale: Number(e.target.value) })}>
-              <option value="0.9">{t("settings.docSizeCompact", { defaultValue: "Compact" })}</option>
-              <option value="1">{t("settings.docSizeNormal", { defaultValue: "Normal" })}</option>
-              <option value="1.1">{t("settings.docSizeLarge", { defaultValue: "Grand" })}</option>
-            </select>
-          </div>
-          <div className="form-group" style={{ width: 84 }}>
-            <label className="form-label">{t("settings.docAccent", { defaultValue: "Couleur" })}</label>
-            <input type="color" className="form-input" style={{ height: 38, padding: 2, cursor: "pointer" }}
-              value={s.accentColor ?? "#0A4E7E"} onChange={e => set({ accentColor: e.target.value })} />
-          </div>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          {([["showInpe", "INPE"], ["showIce", "ICE"], ["showRib", "RIB"]] as [keyof DocumentSettings, string][]).map(([k, lbl]) => (
-            <label key={k} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-              <input type="checkbox" checked={!!s[k]} onChange={e => set({ [k]: e.target.checked })} />
-              <span>{t("settings.docShow", { field: lbl })}</span>
-            </label>
-          ))}
-        </div>
-        <div className="form-group" style={{ marginTop: 8 }}>
-          <label className="form-label">{t("settings.docHeaderNote")}</label>
-          <input className="form-input" value={s.headerNote ?? ""} onChange={e => set({ headerNote: e.target.value || undefined })}
-            placeholder={t("settings.docHeaderNotePlaceholder")} />
-        </div>
-        <div className="form-group">
-          <label className="form-label">{t("settings.docFooterNote")}</label>
-          <input className="form-input" value={s.footerNote ?? ""} onChange={e => set({ footerNote: e.target.value || undefined })}
-            placeholder={t("settings.docFooterNotePlaceholder")} />
-        </div>
-      </div>
-
-      {/* ── STEP 2 — Per-document choice: simple built-in OR advanced layout ── */}
-      <div style={{ borderTop: "1px solid var(--border)", paddingTop: 14 }}>
-        <div className="secretary-info-title">{t("settings.docModeTitle")}</div>
-        <div className="secretary-info-desc" style={{ marginBottom: 10 }}>{t("settings.docModeDesc")}</div>
-        <div className="doc-mode-list">
+        <div className="secretary-info-title">{t("settings.docPickTitle")}</div>
+        <div className="secretary-info-desc" style={{ marginBottom: 10 }}>{t("settings.docPickDesc")}</div>
+        <div className="doc-picker">
           {DOC_KINDS_LIST.map(kind => {
-            const mode = docModeForKind(s, kind);
+            const km = docModeForKind(s, kind);
             return (
-              <div key={kind} className="doc-mode-row">
-                <span className="doc-mode-label">{t(`settings.pd.kind_${kind}`)}</span>
-                <div className="doc-mode-toggle">
-                  {(["simple", "advanced"] as const).map(m => (
-                    <button key={m} type="button"
-                      className={`doc-mode-btn${mode === m ? " active" : ""}`}
-                      onClick={() => setMode(kind, m)}>
-                      {t(`settings.docMode_${m}`)}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <button key={kind} type="button"
+                className={`doc-picker-chip${selectedDoc === kind ? " active" : ""}`}
+                onClick={() => setSelectedDoc(kind)}>
+                <span className="doc-picker-name">{t(`settings.pd.kind_${kind}`)}</span>
+                <span className={`doc-picker-mode doc-picker-mode-${km}`}>{t(`settings.docMode_${km}`)}</span>
+              </button>
             );
           })}
         </div>
       </div>
 
-      {/* ── STEP 3 — Exact preview + advanced layout editor (collapsed by default) ── */}
-      {/* PageDesigner shows an exact, to-scale preview for EVERY document (real
-          size + text positions). Simple documents are read-only here (with a
-          "customise" button); documents set to Avancé are fully editable.
-          It is the tallest block, so it is folded away until the doctor opens it. */}
+      {/* ── STEP 2 — Simple vs advanced for the chosen document ── */}
       <div style={{ borderTop: "1px solid var(--border)", paddingTop: 14 }}>
-        <button
-          type="button"
-          className="doc-advanced-toggle"
-          aria-expanded={showAdvanced}
-          onClick={() => setShowAdvanced(v => !v)}
-        >
+        <div className="secretary-info-title">{t("settings.docModeTitle")}</div>
+        <div className="secretary-info-desc" style={{ marginBottom: 10 }}>{t("settings.docModeForDoc", { doc: selLabel })}</div>
+        <div className="doc-mode-toggle doc-mode-toggle-lg">
+          {(["simple", "advanced"] as const).map(m => (
+            <button key={m} type="button"
+              className={`doc-mode-btn${selMode === m ? " active" : ""}`}
+              onClick={() => setMode(selectedDoc, m)}>
+              {t(`settings.docMode_${m}`)}
+            </button>
+          ))}
+        </div>
+        <div style={{ fontSize: 11.5, color: "var(--muted)", marginTop: 6 }}>
+          {selMode === "simple" ? t("settings.docModeSimpleHint") : t("settings.docModeAdvancedHint")}
+        </div>
+      </div>
+
+      {/* ── STEP 3 — Parameters adapted to the chosen mode ── */}
+      <div style={{ borderTop: "1px solid var(--border)", paddingTop: 14 }}>
+        {selMode === "simple" ? (
+          /* Simple built-in style — a shared house style applied to every document
+             left in "simple" mode. The preview reflects it live. */
           <div>
-            <div className="secretary-info-title" style={{ marginBottom: 2 }}>{t("settings.docPreviewExactTitle")}</div>
-            <div className="secretary-info-desc">{t("settings.docPreviewExactDesc")}</div>
+            <div className="secretary-info-title">{t("settings.docSimpleTitle")}</div>
+            <div className="secretary-info-desc" style={{ marginBottom: 10 }}>{t("settings.docSimpleShared")}</div>
+            <DocumentPreview s={s} doc={doctorProfile} />
+            <div className="form-group" style={{ marginTop: 10 }}>
+              <label className="form-label">{t("settings.docLayout")}</label>
+              <select className="form-select" value={s.layout} onChange={e => set({ layout: e.target.value as DocumentLayout })}>
+                {LAYOUTS.map(l => <option key={l} value={l}>{DOCUMENT_LAYOUT_LABELS[l]}</option>)}
+              </select>
+              <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 3 }}>{t("settings.docLayoutHint")}</div>
+            </div>
+            {/* Document-wide typography — font, size, accent colour (applies to every doc). */}
+            <div className="form-row" style={{ marginBottom: 8 }}>
+              <div className="form-group" style={{ flex: 1 }}>
+                <label className="form-label">{t("settings.docFont", { defaultValue: "Police" })}</label>
+                <select className="form-select" value={s.fontFamily ?? "serif"} onChange={e => set({ fontFamily: e.target.value as DocumentSettings["fontFamily"] })}>
+                  <option value="serif">Times (classique)</option>
+                  <option value="sans">Arial</option>
+                  <option value="georgia">Georgia</option>
+                  <option value="condensed">Condensé</option>
+                </select>
+              </div>
+              <div className="form-group" style={{ flex: 1 }}>
+                <label className="form-label">{t("settings.docTextSize", { defaultValue: "Taille du texte" })}</label>
+                <select className="form-select" value={String(s.fontScale ?? 1)} onChange={e => set({ fontScale: Number(e.target.value) })}>
+                  <option value="0.9">{t("settings.docSizeCompact", { defaultValue: "Compact" })}</option>
+                  <option value="1">{t("settings.docSizeNormal", { defaultValue: "Normal" })}</option>
+                  <option value="1.1">{t("settings.docSizeLarge", { defaultValue: "Grand" })}</option>
+                </select>
+              </div>
+              <div className="form-group" style={{ width: 84 }}>
+                <label className="form-label">{t("settings.docAccent", { defaultValue: "Couleur" })}</label>
+                <input type="color" className="form-input" style={{ height: 38, padding: 2, cursor: "pointer" }}
+                  value={s.accentColor ?? "#0A4E7E"} onChange={e => set({ accentColor: e.target.value })} />
+              </div>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {([["showInpe", "INPE"], ["showIce", "ICE"], ["showRib", "RIB"]] as [keyof DocumentSettings, string][]).map(([k, lbl]) => (
+                <label key={k} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                  <input type="checkbox" checked={!!s[k]} onChange={e => set({ [k]: e.target.checked })} />
+                  <span>{t("settings.docShow", { field: lbl })}</span>
+                </label>
+              ))}
+              {/* Blackpine mark at the bottom of printed documents — default on, removable. */}
+              <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                <input type="checkbox" checked={s.showBrand !== false} onChange={e => set({ showBrand: e.target.checked })} />
+                <span>{t("settings.docShowBrand")}</span>
+              </label>
+            </div>
+            <div className="form-group" style={{ marginTop: 8 }}>
+              <label className="form-label">{t("settings.docHeaderNote")}</label>
+              <input className="form-input" value={s.headerNote ?? ""} onChange={e => set({ headerNote: e.target.value || undefined })}
+                placeholder={t("settings.docHeaderNotePlaceholder")} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">{t("settings.docFooterNote")}</label>
+              <input className="form-input" value={s.footerNote ?? ""} onChange={e => set({ footerNote: e.target.value || undefined })}
+                placeholder={t("settings.docFooterNotePlaceholder")} />
+            </div>
           </div>
-          <svg className={`doc-advanced-chevron${showAdvanced ? " open" : ""}`} width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
-            <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </button>
-        {showAdvanced && (
-          <div style={{ marginTop: 12 }}>
-            <PageDesigner settings={s} doctorProfile={doctorProfile} onChange={onChange} />
+        ) : (
+          /* Advanced layout — the exact, to-scale designer for the chosen document.
+             The parent drives the kind, so its internal tab strip is hidden. */
+          <div>
+            <div className="secretary-info-title">{t("settings.docPreviewExactTitle")}</div>
+            <div className="secretary-info-desc" style={{ marginBottom: 10 }}>{t("settings.docAdvancedForDoc", { doc: selLabel })}</div>
+            <PageDesigner settings={s} doctorProfile={doctorProfile} onChange={onChange} kind={selectedDoc} hideTabs />
           </div>
         )}
       </div>

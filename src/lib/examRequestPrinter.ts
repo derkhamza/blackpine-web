@@ -126,7 +126,7 @@ export function printExamRequest(opts: {
   </div>
 
   <script>window.onload = function(){ window.print(); };<\/script>
-${brandFooterHtml()}</body>
+${brandFooterHtml(ds)}</body>
 </html>`;
 
   const win = window.open("", "_blank", "width=600,height=800");

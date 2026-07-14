@@ -373,7 +373,7 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
                   a.invoiceNumber
                     ? { label: t("ctx.reprintInvoice"), icon: <ActionIcon name="print" />, onClick: () => reprintInvoice(a.id) }
                     : { label: t("ctx.emitInvoice"), icon: <ActionIcon name="file" />, onClick: () => emitInvoice(a.id) },
-                  { label: t("apptDetail.correctFacture"), icon: <ActionIcon name="edit" />, onClick: () => navigate(`/agenda/${a.id}`) },
+                  { label: t("apptDetail.correctFacture"), icon: <ActionIcon name="edit" />, onClick: () => navigate(`/agenda/${a.id}`, { state: { openBill: true } }) },
                   { label: t("ctx.openAppt"), icon: <ActionIcon name="clipboard" />, onClick: () => navigate(`/agenda/${a.id}`) },
                   ...(a.patientId
                     ? [{ label: t("ctx.patientFile"), icon: <ActionIcon name="user" />, onClick: () => navigate(`/patients/${a.patientId}`) }] : []),
@@ -434,6 +434,10 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
                             {t("factures.emit")}
                           </button>
                       }
+                      <button className="fac-correct-btn" title={t("apptDetail.correctFactureTitle")}
+                        onClick={() => navigate(`/agenda/${a.id}`, { state: { openBill: true } })}>
+                        {t("factures.correct")}
+                      </button>
                       <Link to={`/agenda/${a.id}`} className="fac-rdv-link">{t("factures.rdvLink")}</Link>
                     </div>
                   </td>

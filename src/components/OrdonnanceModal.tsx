@@ -194,6 +194,7 @@ interface Props {
   patientName:   string;
   date:          string;             // ISO "YYYY-MM-DD"
   doctorProfile: CabinetDoctorProfile;
+  patient?:      { gender?: "M" | "F" | null; dateOfBirth?: string | null }; // for the civilité prefix
   allergies?:    string;             // patient's recorded allergies (free text)
   lastOrdonnance?: OrdonnanceLine[];  // this patient's most recent prior prescription
   lastOrdonnanceDate?: string;        // YYYY-MM-DD of that prescription (for the proposal)
@@ -203,7 +204,7 @@ interface Props {
 }
 
 export function OrdonnanceModal({
-  patientName, date, doctorProfile, allergies, lastOrdonnance, lastOrdonnanceDate, initialLines, onSave, onClose,
+  patientName, date, doctorProfile, patient, allergies, lastOrdonnance, lastOrdonnanceDate, initialLines, onSave, onClose,
 }: Props) {
   const { dirtyRef, guardedClose } = useGuardedClose(onClose);
   const dialogRef = useModalA11y<HTMLDivElement>(guardedClose);
@@ -279,7 +280,7 @@ export function OrdonnanceModal({
   const handlePrint = () => {
     const clean = lines.filter(l => l.drug.trim());
     track("action:print_ordonnance");
-    printOrdonnance({ lines: clean, patientName, date, doctorProfile });
+    printOrdonnance({ lines: clean, patientName, date, doctorProfile, patient });
     onSave(clean);
     // Keep the modal open after printing (the print opens in a separate window);
     // the doctor closes it manually instead of being bounced to the prior screen.

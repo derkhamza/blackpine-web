@@ -285,7 +285,7 @@ export function printReceipt(opts: ReceiptOptions): void {
   </div>
 
   <script>window.onload = function(){ window.print(); };<\/script>
-${brandFooterHtml()}</body>
+${brandFooterHtml(doctorProfile.documentSettings)}</body>
 </html>`;
 
   printHtmlDocument(html);
