@@ -154,10 +154,10 @@ export function PatientDetailPage() {
     patients, appointments,
     examResults, prescriptions, teleSessions, certificates, examRequests,
     apptDocuments, addApptDocument, deleteApptDocument,
-    updatePatient, deletePatient, doctorProfile, role, syncState,
+    updatePatient, deletePatient, doctorProfile, viewAsSecretary, syncState,
   } = useCabinet();
   const { transactions } = useApp();
-  const readOnly = role === "secretary"; // secretary: contact edits ok, clinical read-only
+  const readOnly = viewAsSecretary; // secretary (incl. doctor preview): contact edits ok, clinical read-only
 
   const patient = useMemo(() => patients.find((p) => p.id === patientId), [patients, patientId]);
 
@@ -879,7 +879,7 @@ export function PatientDetailPage() {
               <span style={{ fontSize: 11, color: "var(--tertiary)" }}>
                 {t("patientDetail.tlEvents", { n: tlEntries.length, s: tlEntries.length !== 1 ? "s" : "" })}
               </span>
-              {role !== "secretary" && (
+              {!viewAsSecretary && (
                 <button className="btn btn-ghost btn-sm" onClick={() => setShowAddEvent(true)}>
                   + {t("patientDetail.tlAddEvent")}
                 </button>

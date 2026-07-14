@@ -17,9 +17,9 @@ export function ExamRequestsPage({ noLayout = false }: { noLayout?: boolean } = 
                : i18n.language?.slice(0, 2) === "en" ? "en-US" : "fr-FR";
   const {
     examRequests, addExamRequest, deleteExamRequest,
-    patients, doctorProfile, setDoctorProfile, role,
+    patients, doctorProfile, setDoctorProfile, viewAsSecretary,
   } = useCabinet();
-  const readOnly = role === "secretary";
+  const readOnly = viewAsSecretary;
 
   const [params] = useSearchParams();
   const focusId = params.get("focus");

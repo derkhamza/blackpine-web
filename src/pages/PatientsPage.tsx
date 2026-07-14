@@ -297,10 +297,11 @@ export function PatientsPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const patientCtx = useContextMenu();
-  const { patients, appointments, addPatient, updatePatient, deletePatient, updateAppointment, role, doctorProfile } = useCabinet();
+  const { patients, appointments, addPatient, updatePatient, deletePatient, updateAppointment, viewAsSecretary, doctorProfile } = useCabinet();
   // Doctor-controlled: a secretary may only create/edit/delete patient records
-  // when granted the editPatients permission (defaults on).
-  const canEditPatients = role !== "secretary"
+  // when granted the editPatients permission (defaults on). viewAsSecretary also
+  // applies the gate in the doctor's secretary preview.
+  const canEditPatients = !viewAsSecretary
     || (doctorProfile.secretaryPermissions ?? DEFAULT_SECRETARY_PERMISSIONS).editPatients !== false;
   const [search,    setSearch]    = useState("");
   const [modal,     setModal]     = useState<{ patient?: Patient } | null>(null);

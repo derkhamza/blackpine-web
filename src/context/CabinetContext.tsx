@@ -229,6 +229,8 @@ interface CabinetCtx {
 
   // Role of the current session
   role: "doctor" | "secretary";
+  // Secretary experience is active (real secretary OR doctor previewing it).
+  viewAsSecretary: boolean;
   secretaryOwnerName?: string;
 
   // Force an immediate snapshot pull (used by the live signal bus so a "patient
@@ -1387,6 +1389,11 @@ export function CabinetProvider({
     storagePrefix: pfx,
     syncState, lastSynced,
     role: isSecretary ? "secretary" : "doctor",
+    // True for a real secretary session OR a doctor previewing "Espace secrétaire".
+    // Use this (not `role`) to gate what the SECRETARY can do/see, so the preview
+    // faithfully matches the secretary experience. `role` stays tied to the real
+    // session so the layout can still tell a preview apart (exit-preview banner).
+    viewAsSecretary: isSecretary || secretaryMode,
     secretaryOwnerName: secretarySession?.ownerName,
     refreshNow: () => pullFromServer().then(() => undefined),
     listCabinetBackups, restoreCabinetBackup,

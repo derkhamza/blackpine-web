@@ -1400,7 +1400,7 @@ export function AgendaPage() {
   const {
     appointments, patients, doctorProfile, setDoctorProfile,
     addAppointment, updateAppointment, deleteAppointment, deleteAppointmentSeries,
-    waTemplates, role,
+    waTemplates, viewAsSecretary,
   } = useCabinet();
   const { addTransaction } = useApp();
   const apptCtx = useContextMenu();
@@ -1420,7 +1420,7 @@ export function AgendaPage() {
   // Doctor-only: toggle a one-off closure (congé) for a specific date straight from
   // the agenda — no trip to Paramètres. Recurring weekly closures stay in Paramètres.
   // Days-off are visual cues only (still bookable), so no appointments are touched.
-  const canEditDaysOff = role !== "secretary";
+  const canEditDaysOff = !viewAsSecretary;
   const toggleCustomDayOff = (iso: string) => {
     const cur = doctorProfile.customDaysOff ?? [];
     const exists = cur.some(c => c.date === iso);
@@ -1436,17 +1436,22 @@ export function AgendaPage() {
     const dot = (c: string) => (
       <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", background: c }} />
     );
+    // Don't offer types the doctor hid from the legend (keep the appointment's own
+    // current type available even if hidden, so it still shows/can be re-selected).
+    const hidden = doctorProfile.hiddenConsultationTypes ?? [];
     const items: CtxItem[] = [
       { label: t("agenda.changeType"), header: true },
-      ...resolveApptTypes().map(rt => ({
-        label:    rt.label,
-        icon:     dot(rt.color),
-        disabled: appt.type === rt.id,
-        onClick:  () => {
-          updateAppointment({ ...appt, type: rt.id });
-          showToast(t("agenda.typeChanged", { type: rt.label }));
-        },
-      })),
+      ...resolveApptTypes()
+        .filter(rt => !hidden.includes(rt.id) || rt.id === appt.type)
+        .map(rt => ({
+          label:    rt.label,
+          icon:     dot(rt.color),
+          disabled: appt.type === rt.id,
+          onClick:  () => {
+            updateAppointment({ ...appt, type: rt.id });
+            showToast(t("agenda.typeChanged", { type: rt.label }));
+          },
+        })),
     ];
     const labels = doctorProfile.apptLabels ?? [];
     if (labels.length > 0) {
@@ -1491,7 +1496,7 @@ export function AgendaPage() {
 
   // Inline legend editing — rename or recolour an appointment type straight from
   // the agenda's colour key. Doctor only: the secretary can't sync the profile.
-  const canEditLegend = role !== "secretary";
+  const canEditLegend = !viewAsSecretary;
   const updateLegendType = (id: string, patch: { label?: string; color?: string }) => {
     const customs = doctorProfile.customApptTypes ?? [];
     if ((BUILTIN_APPT_TYPES as string[]).includes(id)) {
@@ -1939,7 +1944,7 @@ export function AgendaPage() {
     // Cash entering the ledger is only what was actually collected — and never
     // from a secretary session (she doesn't write the doctor's finances).
     let billTxnId: string | undefined;
-    if (collected > 0 && role !== "secretary") {
+    if (collected > 0 && !viewAsSecretary) {
       billTxnId = addTransaction({
         type: "RECETTE", amount: collected,
         date: appt.date,

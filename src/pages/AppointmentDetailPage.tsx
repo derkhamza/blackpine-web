@@ -259,7 +259,7 @@ export function AppointmentDetailPage() {
   const navigate    = useNavigate();
   const {
     appointments, patients, updateAppointment, deleteAppointment, addInvoice,
-    addPatient, updatePatient, addAppointment, doctorProfile, setDoctorProfile, role,
+    addPatient, updatePatient, addAppointment, doctorProfile, setDoctorProfile, viewAsSecretary,
     examRequests, addExamRequest, updateExamRequest,
     apptDocuments, addApptDocument, deleteApptDocument,
     examResults, addExamResult, prescriptions,
@@ -267,7 +267,7 @@ export function AppointmentDetailPage() {
   } = useCabinet();
   const { addTransaction, deleteTransaction, transactions } = useApp();
   const toast = useToast();
-  const readOnly = role === "secretary"; // secretary: view clinical notes, no clinical edits
+  const readOnly = viewAsSecretary; // secretary (incl. doctor preview): view clinical notes, no clinical edits
   // A Moroccan secretary commonly takes the measurements, so vitals stay
   // editable for them when the doctor grants recordVitals (default on).
   const secretaryPerms = doctorProfile.secretaryPermissions ?? DEFAULT_SECRETARY_PERMISSIONS;
@@ -991,7 +991,7 @@ export function AppointmentDetailPage() {
       }
     }
     toRemove.forEach((id) => deleteTransaction(id));
-    if (role !== "secretary" && collected > 0) {
+    if (!viewAsSecretary && collected > 0) {
       return addTransaction({ type: "RECETTE", amount: collected, date: appt.date, category: cat,
         deductibilityStatus: "FULLY_DEDUCTIBLE", professionalUseRatio: 1, description: desc });
     }
@@ -1012,7 +1012,7 @@ export function AppointmentDetailPage() {
     let billTxnId: string | undefined;
     if (correcting) {
       billTxnId = reconcileBillTxn(collected);
-    } else if (role !== "secretary" && collected > 0) {
+    } else if (!viewAsSecretary && collected > 0) {
       billTxnId = addTransaction({
         type: "RECETTE", amount: collected, date: appt.date,
         category: appt.type === "procedure" ? "acte_chirurgical" : "consultation",
@@ -1051,7 +1051,7 @@ export function AppointmentDetailPage() {
     const amount = Math.min(balance, Math.max(0, parseFloat(payAmount.replace(",", ".")) || 0));
     if (amount <= 0) return;
     const now = new Date().toISOString();
-    if (role !== "secretary") {
+    if (!viewAsSecretary) {
       addTransaction({
         type: "RECETTE", amount, date: appt.date.slice(0, 10),
         category: appt.type === "procedure" ? "acte_chirurgical" : "consultation",
