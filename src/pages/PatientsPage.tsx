@@ -127,7 +127,7 @@ function PatientModal({ initial, existingPatients = [], onSave, onClose }: Patie
             <div className="form-row">
               <div className="form-group">
                 <label className="form-label">{t("patients.phone")}</label>
-                <input className="form-input" value={phone} onChange={e => setPhone(e.target.value)} type="tel" placeholder="06XXXXXXXX" />
+                <input className="form-input" value={phone} onChange={e => setPhone(e.target.value)} type="tel" placeholder="Numéro de téléphone" />
               </div>
               <div className="form-group">
                 <label className="form-label">{t("patients.dob")}</label>
@@ -153,7 +153,7 @@ function PatientModal({ initial, existingPatients = [], onSave, onClose }: Patie
               </div>
               <div className="form-group">
                 <label className="form-label">{t("patients.cin")}</label>
-                <input className="form-input" value={cin} onChange={e => setCin(e.target.value)} placeholder="AB123456" />
+                <input className="form-input" value={cin} onChange={e => setCin(e.target.value)} placeholder="Numéro CIN" />
               </div>
             </div>
             <div className="form-group">

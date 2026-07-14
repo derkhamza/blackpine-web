@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import type { DocumentSettings, PageDesign, DocBlockDesign, PaperSize, DocKind } from "../lib/cabinetTypes";
 import {
   DOC_DEFAULT_MARGINS, DOC_DEFAULT_SIZE, DOC_BLOCKS, isFlowDoc,
-  designForKind, docModeForKind, resolveMargins, resolvePageSize,
+  designForKind, docModeForKind, resolveMargins, resolvePageSize, docTypography,
 } from "../lib/docDesign";
 import { resolveDocImage, offloadDocImage, warmDocImages } from "../lib/docImages";
 
@@ -96,15 +96,23 @@ const MAX_BG_PX   = 1240;      // full-page background — larger, JPEG to stay 
 // Realistic sample lines per block so the preview reads like the real document.
 type SampleLine = { text: string; size: number; bold?: boolean; align?: "left" | "right" | "center"; muted?: boolean };
 
-function sampleLines(kind: DocKind, key: string): SampleLine[] {
+function sampleLines(kind: DocKind, key: string, profile?: import("../lib/cabinetTypes").CabinetDoctorProfile, ds?: DocumentSettings): SampleLine[] {
   const H = (t: string): SampleLine => ({ text: t, size: 4.4, bold: true });
   switch (key) {
-    case "header":
-      return [
-        { text: "Dr. Amina El Fassi", size: 4.6, bold: true },
-        { text: "Endocrinologie · Diabétologie", size: 3.2, muted: true },
-        { text: "12 av. Hassan II, Casablanca · 05 22 00 00 00", size: 2.8, muted: true },
+    case "header": {
+      // Use the doctor's REAL identity + header note so the exact preview matches
+      // the printout (previously hardcoded "Dr. Amina El Fassi" placeholder text).
+      const nm      = profile?.fullName?.trim() ? `Dr. ${profile.fullName}` : "Dr. Amina El Fassi";
+      const spec    = profile?.specialtyLabel || "Endocrinologie · Diabétologie";
+      const contact = [profile?.address, profile?.phone].filter(Boolean).join(" · ") || "12 av. Hassan II, Casablanca · 05 22 00 00 00";
+      const lines: SampleLine[] = [
+        { text: nm, size: 4.6, bold: true },
+        { text: spec, size: 3.2, muted: true },
+        { text: contact, size: 2.8, muted: true },
       ];
+      if (ds?.headerNote) lines.push({ text: ds.headerNote, size: 2.8, muted: true });
+      return lines;
+    }
     case "city":
       return [{ text: "Casablanca", size: 3, align: "right", muted: true }];
     case "date":
@@ -143,8 +151,13 @@ function sampleLines(kind: DocKind, key: string): SampleLine[] {
       ];
     case "signature":
       return [{ text: "Signature et cachet", size: 3, align: "right", muted: true }];
-    case "footer":
-      return [{ text: "INPE 00/00000 · Ordre 12345 · ICE 001234567000089", size: 2.6, align: "center", muted: true }];
+    case "footer": {
+      const chips: string[] = [];
+      if (ds?.showInpe !== false && profile?.inpe) chips.push(`INPE ${profile.inpe}`);
+      if (ds?.showIce  !== false && profile?.ice)  chips.push(`ICE ${profile.ice}`);
+      const foot = ds?.footerNote || (chips.length ? chips.join(" · ") : "INPE 00/00000 · ICE 001234567000089");
+      return [{ text: foot, size: 2.6, align: "center", muted: true }];
+    }
     case "items":
       return [H("Désignation")];
     case "body":
@@ -219,10 +232,11 @@ type DragMode =
   | { t: "margin"; edge: "top" | "right" | "bottom" | "left"; sx: number; sy: number; ov: number };
 
 export function PageDesigner({
-  settings, onChange,
+  settings, onChange, doctorProfile,
 }: {
   settings: DocumentSettings;
   onChange: (s: DocumentSettings) => void;
+  doctorProfile?: import("../lib/cabinetTypes").CabinetDoctorProfile;
 }) {
   const { t } = useTranslation();
   const [kind, setKind] = useState<DocKind>("ordonnance");
@@ -404,7 +418,7 @@ export function PageDesigner({
         </table>
       );
     }
-    return sampleLines(kind, key).map((ln, i) => (
+    return sampleLines(kind, key, doctorProfile, settings).map((ln, i) => (
       <div
         key={i}
         style={{
@@ -465,7 +479,12 @@ export function PageDesigner({
         <div
           ref={pageRef}
           className="pd-page"
-          style={{ width: PREVIEW_W, height: Math.round(page.h * scale) }}
+          style={{
+            width: PREVIEW_W, height: Math.round(page.h * scale),
+            fontFamily: docTypography(settings).family,
+            // @ts-expect-error CSS custom property
+            "--doc-accent": docTypography(settings).accent,
+          }}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerLeave={onPointerUp}

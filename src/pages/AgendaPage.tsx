@@ -1233,8 +1233,16 @@ function TGSlotGrid({
 // Finite colour palette for the legend editor — only these curated colours are
 // offered (no free-form picker), so the agenda stays visually consistent.
 const LEGEND_PALETTE = [
-  "#2563EB", "#0EA5E9", "#06B6D4", "#10B981", "#84CC16",
-  "#F59E0B", "#EF4444", "#EC4899", "#8B5CF6", "#64748B",
+  // Blues / cyans
+  "#2563EB", "#1D4ED8", "#0EA5E9", "#0891B2", "#06B6D4",
+  // Greens
+  "#059669", "#10B981", "#22C55E", "#84CC16", "#65A30D",
+  // Warm
+  "#EAB308", "#F59E0B", "#F97316", "#EF4444", "#DC2626",
+  // Pinks / purples
+  "#EC4899", "#DB2777", "#A855F7", "#8B5CF6", "#7C3AED",
+  // Neutrals / earth
+  "#0D9488", "#4F46E5", "#78716C", "#64748B", "#475569",
 ];
 
 // One legend entry. In display mode it's a plain dot + label (nothing editable on

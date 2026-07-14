@@ -572,8 +572,15 @@ export function CabinetProvider({
   const addAppointment = useCallback(
     (a: Omit<Appointment, "id">) => {
       const id = uid();
+      // Same waiting-room-timer guard as updateAppointment: an appointment created
+      // directly as "arrived"/"in_consultation" (e.g. via the agenda status select)
+      // must carry the timestamp, else its "attend depuis…" timer is missing.
+      const now = new Date().toISOString();
+      let rec = { ...a, id } as Appointment;
+      if (rec.status === "arrived" && !rec.checkedInAt) rec = { ...rec, checkedInAt: now };
+      if (rec.status === "in_consultation" && !rec.inConsultationAt) rec = { ...rec, inConsultationAt: now };
       touchedRef.current.appts.add(id);
-      setAppts(p => [...p, { ...a, id }]);
+      setAppts(p => [...p, rec]);
     }, []);
   const updateAppointment = useCallback(
     (a: Appointment) => {
@@ -773,7 +780,16 @@ export function CabinetProvider({
     if (Array.isArray(snapshot.medicalReports))        setMedicalReports(snapshot.medicalReports as MedicalReport[]);
     if (Array.isArray(snapshot.certificates))          setCertificates(snapshot.certificates as Certificate[]);
     if (Array.isArray(snapshot.stockItems))            setStock(snapshot.stockItems as StockItem[]);
-    if (Array.isArray(snapshot.waTemplates))           setWaTpls(snapshot.waTemplates as WaTemplate[]);
+    if (Array.isArray(snapshot.waTemplates)) {
+      // Merge in any missing built-in templates (notably the Arabic models) rather
+      // than blindly adopting the server copy — otherwise a snapshot that predates
+      // a new default (e.g. the Arabic set) permanently strips it. Existing (edited)
+      // templates keep their server version; only genuinely-absent ids are added.
+      const srv = snapshot.waTemplates as WaTemplate[];
+      const have = new Set(srv.map(t => t.id));
+      const missing = DEFAULT_WA_TEMPLATES.filter(t => !have.has(t.id));
+      setWaTpls(missing.length ? [...srv, ...missing] : srv);
+    }
     if (Array.isArray(snapshot.teleSessions))          setTele(snapshot.teleSessions as TeleSession[]);
     if (Array.isArray(snapshot.notes))                 setNotes(snapshot.notes as InternalNote[]);
     if (Array.isArray(snapshot.suppliers))             setSuppliers(snapshot.suppliers as Supplier[]);
@@ -1037,6 +1053,17 @@ export function CabinetProvider({
           persistPending();   // clean (or still-dirty) → sync the persisted pending marks
           setSyncState("synced");
           setLastSynced(new Date().toISOString());
+          // A successful push means the cabinet is safely on the server, which keeps
+          // rolling daily backups — i.e. backups ARE automatic. Stamp lastBackupAt
+          // (throttled ~daily) so the dashboard stops nagging "aucune sauvegarde".
+          try {
+            const last = localStorage.getItem(BACKUP_KEY);
+            if (!last || Date.now() - new Date(last).getTime() > 20 * 3600 * 1000) {
+              const nowIso = new Date().toISOString();
+              localStorage.setItem(BACKUP_KEY, nowIso);
+              setLastBackupAt(nowIso);
+            }
+          } catch { /* storage unavailable */ }
         })
         .catch((err) => {
           if (err instanceof CabinetConflictError) {

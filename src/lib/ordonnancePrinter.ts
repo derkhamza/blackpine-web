@@ -3,6 +3,7 @@ import { DEFAULT_DOCUMENT_SETTINGS } from "./cabinetTypes";
 import {
   ORDONNANCE_DEFAULT_MARGINS, resolveMargins, pageRule, resolvePageSize, backgroundHtml,
   blockStyle, blockHidden, logoHtml, designForKind,
+  typographyCss, brandFooterHtml,
 } from "./docDesign";
 
 // ── Common drug suggestions (datalist) ───────────────────────────────────────
@@ -554,22 +555,22 @@ export function printOrdonnance(opts: {
     /* Header */
     .header {
       display: flex; justify-content: space-between; align-items: flex-start;
-      padding-bottom: 10px; border-bottom: 2px solid #0A4E7E; margin-bottom: 12px;
+      padding-bottom: 10px; border-bottom: 2px solid var(--doc-accent,#0A4E7E); margin-bottom: 12px;
     }
-    .doc-name  { font-size: 13.5pt; font-weight: bold; color: #0A4E7E; margin-bottom: 3px; }
+    .doc-name  { font-size: 13.5pt; font-weight: bold; color: var(--doc-accent,#0A4E7E); margin-bottom: 3px; }
     .doc-meta  { font-size: 8.5pt; color: #444; line-height: 1.7; }
     .date-bloc { text-align: right; font-size: 9pt; color: #333; line-height: 1.7; }
 
     /* Patient */
     .patient-line {
       margin-bottom: 12px; font-size: 10pt;
-      border-left: 3px solid #0A4E7E; padding-left: 8px;
+      border-left: 3px solid var(--doc-accent,#0A4E7E); padding-left: 8px;
     }
 
     /* Medication items */
     .rx-list { display: flex; flex-direction: column; gap: 10px; min-height: 90mm; }
     .rx-item { display: flex; gap: 8px; break-inside: avoid; page-break-inside: avoid; }
-    .rx-num  { font-size: 10pt; font-weight: bold; color: #0A4E7E; width: 18px; flex-shrink: 0; padding-top: 1px; }
+    .rx-num  { font-size: 10pt; font-weight: bold; color: var(--doc-accent,#0A4E7E); width: 18px; flex-shrink: 0; padding-top: 1px; }
     .rx-body { flex: 1; }
     .rx-drug { font-size: 11pt; font-weight: bold; text-transform: uppercase; }
     .rx-posol { font-size: 9.5pt; color: #333; margin-top: 2px; font-style: italic; }
@@ -590,7 +591,7 @@ export function printOrdonnance(opts: {
     @media print {
       body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
     }
-  </style>
+  ${typographyCss(ds)}</style>
 </head>
 <body>
   ${backgroundHtml(design)}
@@ -630,7 +631,7 @@ export function printOrdonnance(opts: {
   </div>
 
   <script>window.onload = function(){ window.print(); };<\/script>
-</body>
+${brandFooterHtml()}</body>
 </html>`;
 
   const win = window.open("", "_blank", "width=600,height=800");

@@ -709,6 +709,16 @@ export async function secretaryAccountRevoke(id: string): Promise<void> {
   }
 }
 
+/** Permanently remove an already-revoked secretary account (frees its username). */
+export async function secretaryAccountPurge(id: string): Promise<void> {
+  const res = await request(`/secretary-accounts/${id}/purge`, { method: "DELETE" });
+  if (res.status === 401) { clearToken(); throw new Error("TOKEN_EXPIRED"); }
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error((d as any).error || "Suppression échouée");
+  }
+}
+
 // ── Online booking ─────────────────────────────────────────────────────────
 export interface BookingConfig {
   slug:        string | null;

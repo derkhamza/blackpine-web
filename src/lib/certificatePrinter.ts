@@ -2,6 +2,7 @@ import type { CabinetDoctorProfile } from "./cabinetTypes";
 import {
   DOC_DEFAULT_MARGINS, designForKind, resolveMargins, resolvePageSize,
   pageRule, backgroundHtml, blockStyle, logoHtml,
+  typographyCss, brandFooterHtml,
 } from "./docDesign";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -34,19 +35,19 @@ const BASE_CSS = `
     display: flex; justify-content: space-between; align-items: flex-start;
     margin-bottom: 8px;
   }
-  .cert-doc-name { font-size: 12pt; font-weight: bold; color: #0A4E7E; margin-bottom: 3px; }
+  .cert-doc-name { font-size: 12pt; font-weight: bold; color: var(--doc-accent,#0A4E7E); margin-bottom: 3px; }
   .cert-doc-meta { font-size: 8.5pt; color: #444; line-height: 1.6; }
   .cert-logo {
     width: 36px; height: 36px; border-radius: 8px;
-    background: #0A4E7E; color: #fff; display: flex; align-items: center;
+    background: var(--doc-accent,#0A4E7E); color: #fff; display: flex; align-items: center;
     justify-content: center; font-size: 18pt; font-weight: 900; font-family: Georgia, serif;
     flex-shrink: 0;
   }
-  .cert-rule { border: none; border-top: 2px solid #0A4E7E; margin: 8px 0 16px; }
+  .cert-rule { border: none; border-top: 2px solid var(--doc-accent,#0A4E7E); margin: 8px 0 16px; }
 
   /* Title */
   .cert-title {
-    text-align: center; font-size: 13pt; font-weight: 800; color: #0A4E7E;
+    text-align: center; font-size: 13pt; font-weight: 800; color: var(--doc-accent,#0A4E7E);
     letter-spacing: 0.8px; text-transform: uppercase; margin-bottom: 6px;
   }
   .cert-subtitle {
@@ -62,19 +63,19 @@ const BASE_CSS = `
   /* Arrêt de travail box */
   .cert-at-box {
     margin: 14px 0; padding: 10px 14px; text-align: center;
-    border: 1.5px solid #0A4E7E; border-radius: 6px; background: #EFF6FB;
+    border: 1.5px solid var(--doc-accent,#0A4E7E); border-radius: 6px; background: #EFF6FB;
   }
-  .cert-at-duration { font-size: 13pt; font-weight: 800; color: #0A4E7E; }
+  .cert-at-duration { font-size: 13pt; font-weight: 800; color: var(--doc-accent,#0A4E7E); }
   .cert-at-dates    { font-size: 9pt; color: #444; margin-top: 3px; }
   .cert-diag        { font-style: italic; color: #555; margin: 8px 0; }
 
   /* Orientation "to" block */
   .cert-ori-to {
-    background: #EFF6FB; border-left: 3px solid #0A4E7E;
+    background: #EFF6FB; border-left: 3px solid var(--doc-accent,#0A4E7E);
     padding: 8px 12px; margin: 12px 0; border-radius: 0 5px 5px 0;
   }
-  .cert-ori-to-label { font-size: 7.5pt; font-weight: 700; color: #0A4E7E; text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 4px; }
-  .cert-ori-specialist { font-size: 11pt; font-weight: 800; color: #0A4E7E; }
+  .cert-ori-to-label { font-size: 7.5pt; font-weight: 700; color: var(--doc-accent,#0A4E7E); text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 4px; }
+  .cert-ori-specialist { font-size: 11pt; font-weight: 800; color: var(--doc-accent,#0A4E7E); }
 
   /* Footer */
   .cert-footer {
@@ -139,7 +140,7 @@ function wrap(title: string, body: string, legalNote: string, doc: CabinetDoctor
 <head>
   <meta charset="UTF-8"/>
   <title>${esc(title)}</title>
-  <style>${pageRule(resolvePageSize(design, "A5").css, margins)}${BASE_CSS}</style>
+  <style>${pageRule(resolvePageSize(design, "A5").css, margins)}${BASE_CSS}${typographyCss(doc.documentSettings)}</style>
 </head>
 <body>
   ${backgroundHtml(design)}
@@ -149,7 +150,7 @@ function wrap(title: string, body: string, legalNote: string, doc: CabinetDoctor
   <div style="${bs("signature")}">${footer(doc)}</div>
   <div class="cert-legal" style="${bs("footer")}">${esc(legalNote)}</div>
   <script>window.onload=function(){window.print();};<\/script>
-</body>
+${brandFooterHtml()}</body>
 </html>`;
 }
 

@@ -70,7 +70,7 @@ function SupplierModal({ initial, onSave, onClose }: SupplierModalProps) {
             <div className="form-group">
               <label className="form-label">{t("fournisseurs.nameField")}</label>
               <input className="form-input" value={name} onChange={e => setName(e.target.value)}
-                placeholder="Ex : Pharma Maroc SARL" autoFocus required />
+                placeholder="Nom du fournisseur" autoFocus required />
             </div>
             <div className="form-row">
               <div className="form-group" style={{ flex: 1 }}>

@@ -46,7 +46,10 @@ export function SignalBus() {
         || (s.fromRole === "doctor" ? tr("signals.theDoctor") : tr("signals.theSecretary"));
       if (s.type === "patient_called") {
         const patient = s.payload?.patientName || tr("signals.aPatient");
-        toastRef.current("🔔 " + tr("signals.patientCalled", { who, patient }), "info");
+        // "warning" toast lingers ~9 s (vs ~3.8 s for info) so the secretary is far
+        // less likely to miss the call; a persistent banner (CalledPatientsBanner)
+        // keeps it visible after the toast fades.
+        toastRef.current("🔔 " + tr("signals.patientCalled", { who, patient }), "warning");
         // Reflect the board at once, then again after the doctor's debounced
         // snapshot push (~1.2 s) has landed on the server.
         void refreshRef.current();

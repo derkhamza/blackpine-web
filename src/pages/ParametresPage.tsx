@@ -14,7 +14,7 @@ import { useInstallPWA } from "../components/PWAPrompts";
 import { useTranslation } from "react-i18next";
 import i18n from "../i18n";
 import type { CabinetLocation, SecretaryPermissions, ActeCode, DocumentSettings, DocumentLayout, CabinetDoctorProfile, CustomApptType, ApptLabel, DocKind } from "../lib/cabinetTypes";
-import { docModeForKind } from "../lib/docDesign";
+import { docModeForKind, docTypography } from "../lib/docDesign";
 import { APPT_TYPE_LABELS, APPT_TYPE_COLORS, BUILTIN_APPT_TYPES, DEFAULT_SECRETARY_PERMISSIONS, DEFAULT_DOCUMENT_SETTINGS, DOCUMENT_LAYOUT_LABELS } from "../lib/cabinetTypes";
 import { COMMON_DRUGS } from "../lib/ordonnancePrinter";
 import { ActeCatalogModal } from "../components/ActeCatalogModal";
@@ -25,7 +25,7 @@ import { generateDemoData, isDemoAccount, EMPTY_CABINET_JSON, EMPTY_FINANCES_JSO
 import QRCode from "qrcode";
 import {
   type CabinetBackup,
-  secretaryAccountList, secretaryAccountCreate, secretaryAccountRevoke, type SecretaryAccount,
+  secretaryAccountList, secretaryAccountCreate, secretaryAccountRevoke, secretaryAccountPurge, type SecretaryAccount,
   bookingGetMe, bookingSave, type BookingConfig,
   smsGetConfig, smsSaveConfig, type SmsConfig,
 } from "../api/client";
@@ -1258,13 +1258,14 @@ function DocumentPreview({ s, doc }: { s: DocumentSettings; doc: CabinetDoctorPr
   if (s.showIce && doc.ice)   idChips.push(`ICE ${doc.ice}`);
   if (s.showRib && doc.rib)   idChips.push(`RIB ${doc.rib}`);
   const layout = s.layout ?? "classic";
+  const typo = docTypography(s);
   return (
     <div className="form-group">
       <label className="form-label">{t("settings.docPreview")}</label>
-      <div className={`docpv docpv-${layout}`} aria-hidden>
-        {layout === "letterhead" && <div className="docpv-band" />}
+      <div className={`docpv docpv-${layout}`} aria-hidden style={{ fontFamily: typo.family }}>
+        {layout === "letterhead" && <div className="docpv-band" style={{ background: typo.accent }} />}
         <div className="docpv-head">
-          <div className="docpv-name">{name}</div>
+          <div className="docpv-name" style={{ color: typo.accent }}>{name}</div>
           {doc.specialtyLabel && <div className="docpv-spec">{doc.specialtyLabel}</div>}
           {(doc.address || doc.phone) && (
             <div className="docpv-contact">
@@ -1327,6 +1328,31 @@ function DocumentSettingsSection({
           </select>
           <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 3 }}>{t("settings.docLayoutHint")}</div>
         </div>
+        {/* Document-wide typography — font, size, accent colour (applies to every doc). */}
+        <div className="form-row" style={{ marginBottom: 8 }}>
+          <div className="form-group" style={{ flex: 1 }}>
+            <label className="form-label">{t("settings.docFont", { defaultValue: "Police" })}</label>
+            <select className="form-select" value={s.fontFamily ?? "serif"} onChange={e => set({ fontFamily: e.target.value as DocumentSettings["fontFamily"] })}>
+              <option value="serif">Times (classique)</option>
+              <option value="sans">Arial</option>
+              <option value="georgia">Georgia</option>
+              <option value="condensed">Condensé</option>
+            </select>
+          </div>
+          <div className="form-group" style={{ flex: 1 }}>
+            <label className="form-label">{t("settings.docTextSize", { defaultValue: "Taille du texte" })}</label>
+            <select className="form-select" value={String(s.fontScale ?? 1)} onChange={e => set({ fontScale: Number(e.target.value) })}>
+              <option value="0.9">{t("settings.docSizeCompact", { defaultValue: "Compact" })}</option>
+              <option value="1">{t("settings.docSizeNormal", { defaultValue: "Normal" })}</option>
+              <option value="1.1">{t("settings.docSizeLarge", { defaultValue: "Grand" })}</option>
+            </select>
+          </div>
+          <div className="form-group" style={{ width: 84 }}>
+            <label className="form-label">{t("settings.docAccent", { defaultValue: "Couleur" })}</label>
+            <input type="color" className="form-input" style={{ height: 38, padding: 2, cursor: "pointer" }}
+              value={s.accentColor ?? "#0A4E7E"} onChange={e => set({ accentColor: e.target.value })} />
+          </div>
+        </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {([["showInpe", "INPE"], ["showIce", "ICE"], ["showRib", "RIB"]] as [keyof DocumentSettings, string][]).map(([k, lbl]) => (
             <label key={k} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
@@ -1379,7 +1405,7 @@ function DocumentSettingsSection({
       <div style={{ borderTop: "1px solid var(--border)", paddingTop: 14 }}>
         <div className="secretary-info-title" style={{ marginBottom: 2 }}>{t("settings.docPreviewExactTitle")}</div>
         <div className="secretary-info-desc" style={{ marginBottom: 10 }}>{t("settings.docPreviewExactDesc")}</div>
-        <PageDesigner settings={s} onChange={onChange} />
+        <PageDesigner settings={s} doctorProfile={doctorProfile} onChange={onChange} />
       </div>
     </div>
   );
@@ -1678,6 +1704,16 @@ export function ParametresPage() {
       await secretaryAccountRevoke(id);
       setSecAccts(prev => prev.map(a => a.id === id ? { ...a, revoked: true } : a));
       showToast(t("settings.acctRevoked"));
+    } catch (err) {
+      showToast((err as Error).message || t("settings.acctError"), "error");
+    }
+  };
+
+  const handlePurgeAccount = async (id: string) => {
+    if (!await confirmDialog(t("settings.acctPurgeConfirm", { defaultValue: "Supprimer définitivement ce compte révoqué ?" }))) return;
+    try {
+      await secretaryAccountPurge(id);
+      setSecAccts(prev => prev.filter(a => a.id !== id));
     } catch (err) {
       showToast((err as Error).message || t("settings.acctError"), "error");
     }
@@ -2010,9 +2046,10 @@ export function ParametresPage() {
                       <div style={{ fontWeight: 600 }}>{a.name || a.username}</div>
                       <div style={{ fontSize: 12, color: "var(--muted)" }}>@{a.username}{a.revoked ? ` · ${t("settings.acctRevokedTag")}` : ""}</div>
                     </div>
-                    {!a.revoked && (
-                      <button className="btn btn-danger-ghost" onClick={() => handleRevokeAccount(a.id)}>{t("settings.acctRevoke")}</button>
-                    )}
+                    {!a.revoked
+                      ? <button className="btn btn-danger-ghost" onClick={() => handleRevokeAccount(a.id)}>{t("settings.acctRevoke")}</button>
+                      : <button className="btn btn-ghost" title={t("common.delete")} onClick={() => handlePurgeAccount(a.id)} aria-label={t("common.delete")}>×</button>
+                    }
                   </div>
                 ))}
               </div>
@@ -2022,12 +2059,12 @@ export function ParametresPage() {
               <div style={{ flex: "1 1 140px" }}>
                 <label className="form-label">{t("settings.acctUsername")}</label>
                 <input className="form-input" value={acctForm.username} autoCapitalize="none"
-                  onChange={e => setAcctForm(f => ({ ...f, username: e.target.value }))} placeholder="sara.secretaire" />
+                  onChange={e => setAcctForm(f => ({ ...f, username: e.target.value }))} placeholder="Identifiant de connexion" />
               </div>
               <div style={{ flex: "1 1 120px" }}>
                 <label className="form-label">{t("settings.acctName")}</label>
                 <input className="form-input" value={acctForm.name}
-                  onChange={e => setAcctForm(f => ({ ...f, name: e.target.value }))} placeholder="Sara" />
+                  onChange={e => setAcctForm(f => ({ ...f, name: e.target.value }))} placeholder="Nom de la secrétaire" />
               </div>
               <div style={{ flex: "1 1 160px" }}>
                 <label className="form-label">{t("settings.acctPassword")}</label>

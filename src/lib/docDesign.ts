@@ -113,6 +113,37 @@ export function pageRule(size: string, m: PageMargins): string {
   return `@page { size: ${size}; margin: ${m.top}mm ${m.right}mm ${m.bottom}mm ${m.left}mm; }`;
 }
 
+// ── Document-wide typography (font / size / accent colour) ────────────────────
+const DOC_FONT_STACKS: Record<string, string> = {
+  serif:     `"Times New Roman", Times, serif`,
+  sans:      `Arial, Helvetica, sans-serif`,
+  georgia:   `Georgia, "Times New Roman", serif`,
+  condensed: `"Arial Narrow", Arial, sans-serif`,
+};
+
+export function docTypography(ds: DocumentSettings | undefined) {
+  const family = DOC_FONT_STACKS[ds?.fontFamily ?? "serif"] ?? DOC_FONT_STACKS.serif;
+  const scale  = typeof ds?.fontScale === "number" && ds.fontScale >= 0.7 && ds.fontScale <= 1.4 ? ds.fontScale : 1;
+  const accent = /^#[0-9a-fA-F]{3,8}$/.test(ds?.accentColor ?? "") ? (ds!.accentColor as string) : "#0A4E7E";
+  return { family, scale, accent };
+}
+
+// CSS injected at the END of every printer's <style> so the doctor's document-wide
+// font, size (via print zoom) and accent colour override the built-in defaults.
+// Printers reference the brand colour as var(--doc-accent) so a single variable
+// re-tints headings/borders/accents.
+export function typographyCss(ds: DocumentSettings | undefined): string {
+  const { family, scale, accent } = docTypography(ds);
+  return `:root{--doc-accent:${accent};}`
+    + `body{font-family:${family} !important;${scale !== 1 ? `zoom:${scale};` : ""}}`;
+}
+
+// Discrete "Blackpine Cabinet" mention on every printed document — a subtle
+// notoriety line, greyed out so it never competes with the medical content.
+export function brandFooterHtml(): string {
+  return `<div style="text-align:center;font-size:7pt;color:#c2c2c2;margin-top:6px;letter-spacing:.3px;">Blackpine Cabinet</div>`;
+}
+
 /**
  * Full-page background image (a scanned letterhead the doctor uploads), printed
  * only when they opt in — most use pre-printed paper and just want it for

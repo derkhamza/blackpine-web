@@ -366,7 +366,7 @@ export function PayrollPage() {
 
       {/* Summary cards */}
       {employees.length > 0 && (
-        <div className="stats-grid" style={{ marginBottom: 20 }}>
+        <div className="stats-grid" style={{ marginBottom: 20, gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))" }}>
           <div className="stat-card">
             <div className="stat-label">{t("payroll.kpiGross")}</div>
             <div className="stat-value">{fmtMAD(totals.grossSum)}</div>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import { useCabinet } from "../context/CabinetContext";
 import { emitSignal } from "../api/client";
@@ -40,6 +40,7 @@ interface CardProps {
 function WaitCard({ appt, now, canConsult, onArrive, onCall, onUncall, onStart, onDone, onNoShow }: CardProps) {
   // Cards can be dragged between columns to change status.
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const color = apptTypeColor(appt.type);
   const typeLabel = apptTypeLabel(appt.type);
 
@@ -52,17 +53,22 @@ function WaitCard({ appt, now, canConsult, onArrive, onCall, onUncall, onStart, 
 
   return (
     <div
-      className={`wr-card wr-s-${appt.status}`}
+      className={`wr-card wr-s-${appt.status} wr-card-clickable`}
       draggable
+      role="button"
+      tabIndex={0}
+      title={t("waiting.openAppt")}
+      onClick={() => navigate(`/agenda/${appt.id}`)}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); navigate(`/agenda/${appt.id}`); } }}
       onDragStart={(e) => {
         e.dataTransfer.setData("text/bp-appt", appt.id);
         e.dataTransfer.effectAllowed = "move";
       }}
     >
       <div className="wr-card-top">
-        <Link to={`/agenda/${appt.id}`} className="wr-card-time wr-card-open" title={t("waiting.openAppt")}>
+        <span className="wr-card-time">
           {appt.startTime} – {appt.endTime}
-        </Link>
+        </span>
         <span className="wr-type-chip" style={{ background: color + "22", color }}>
           {typeLabel}
         </span>
@@ -70,7 +76,7 @@ function WaitCard({ appt, now, canConsult, onArrive, onCall, onUncall, onStart, 
 
       <div className="wr-card-name">
         {appt.patientId
-          ? <Link to={`/patients/${appt.patientId}`} className="wr-patient-link">{appt.patientName}</Link>
+          ? <Link to={`/patients/${appt.patientId}`} className="wr-patient-link" onClick={e => e.stopPropagation()}>{appt.patientName}</Link>
           : <span>{appt.patientName}</span>
         }
       </div>
@@ -80,7 +86,7 @@ function WaitCard({ appt, now, canConsult, onArrive, onCall, onUncall, onStart, 
         <div className="wr-called-label">{t("waiting.calledIn")}</div>
       )}
 
-      <div className="wr-card-actions">
+      <div className="wr-card-actions" onClick={e => e.stopPropagation()}>
         {appt.status === "scheduled" && <>
           <button className="wr-btn wr-arrive" onClick={onArrive}>{t("waiting.btnArrive")}</button>
           <button className="wr-btn wr-absent" onClick={onNoShow}>{t("waiting.btnNoShow")}</button>

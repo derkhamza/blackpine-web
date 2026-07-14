@@ -677,19 +677,27 @@ export function Layout({ title, subtitle, actions, children }: Props) {
           <>
           <div className="sidebar-actions">
             <LangButton />
-            {/* Secretary preview — subtle eye icon (doctor only). Full control also
-                in Paramètres → Secrétariat. Exit via the top banner while previewing. */}
-            {role === "doctor" && !secretaryMode && !isAdmin && (
+            {/* Secretary preview — a single TOGGLE (doctor only): enter the preview,
+                and leave it via the same button (the icon flips to "eye-off"). */}
+            {role === "doctor" && !isAdmin && (
               <button
-                className="sidebar-dark-btn"
-                onClick={() => { setSecretaryMode(true); navigate("/agenda"); closeDrawer(); }}
-                title={t("sidebar.secretaryEnter")}
-                aria-label={t("sidebar.secretaryEnter")}
+                className={`sidebar-dark-btn${secretaryMode ? " active" : ""}`}
+                onClick={() => { const on = !secretaryMode; setSecretaryMode(on); navigate(on ? "/agenda" : "/"); closeDrawer(); }}
+                title={secretaryMode ? t("sidebar.returnDoctor") : t("sidebar.secretaryEnter")}
+                aria-label={secretaryMode ? t("sidebar.returnDoctor") : t("sidebar.secretaryEnter")}
+                aria-pressed={secretaryMode}
               >
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                  <path d="M1 7s2.2-4 6-4 6 4 6 4-2.2 4-6 4-6-4-6-4Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/>
-                  <circle cx="7" cy="7" r="1.7" stroke="currentColor" strokeWidth="1.3"/>
-                </svg>
+                {secretaryMode ? (
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                    <path d="M1 7s2.2-4 6-4c1 0 1.9.3 2.7.7M13 7s-2.2 4-6 4c-1 0-1.9-.3-2.7-.7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M2 2l10 10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                  </svg>
+                ) : (
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                    <path d="M1 7s2.2-4 6-4 6 4 6 4-2.2 4-6 4-6-4-6-4Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/>
+                    <circle cx="7" cy="7" r="1.7" stroke="currentColor" strokeWidth="1.3"/>
+                  </svg>
+                )}
               </button>
             )}
             <button

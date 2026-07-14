@@ -9,6 +9,7 @@ import { isAdminEmail } from "./lib/owner";
 import { OnboardingWizard } from "./pages/OnboardingWizard";
 import { WelcomeTour, hasSeenTour } from "./components/WelcomeTour";
 import { SignalBus } from "./components/SignalBus";
+import { CalledPatientsBanner } from "./components/CalledPatientsBanner";
 import { CabinetChat } from "./components/CabinetChat";
 import { WhatsNew } from "./components/WhatsNew";
 import { LockScreen } from "./components/LockScreen";
@@ -191,6 +192,7 @@ export function App() {
     {!isAdmin && <OnboardingGate />}
     {!isAdmin && <TourGate />}
     {!isAdmin && <SignalBus />}
+    {!isAdmin && <CalledPatientsBanner />}
     {!isAdmin && <CabinetChat />}
     {!isAdmin && <WhatsNew />}
     <Routes>

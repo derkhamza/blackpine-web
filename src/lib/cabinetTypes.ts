@@ -155,6 +155,8 @@ export interface PageDesign {
   blocks?: Record<string, DocBlockDesign>;
 }
 
+export type DocFontFamily = "serif" | "sans" | "georgia" | "condensed";
+
 export interface DocumentSettings {
   layout?:     DocumentLayout;
   showInpe?:   boolean;
@@ -162,6 +164,10 @@ export interface DocumentSettings {
   showRib?:    boolean;
   headerNote?: string;   // extra line under the doctor's identity
   footerNote?: string;   // custom footer text
+  // Document-wide typography (applies to every printed document).
+  fontFamily?: DocFontFamily; // default "serif" (Times) — the classic Rx look
+  fontScale?:  number;        // 0.9 | 1 | 1.1 — overall text size (via print zoom)
+  accentColor?: string;       // headings/accents colour; default brand navy #0A4E7E
   // Advanced per-document page designs (margins, block positions, logo).
   // ordonnance/facture keep their legacy fields for backward compatibility;
   // every document (including these two) is also read through `designs` below.

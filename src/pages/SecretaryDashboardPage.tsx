@@ -49,7 +49,6 @@ export function SecretaryDashboardPage() {
       inWaiting:  appointments.filter(a => a.date === today && a.status === "arrived").length,
       completed:  appointments.filter(a => a.date === today && a.status === "completed").length,
       upcoming:   todayAppts.filter(a => a.status === "scheduled").length,
-      monthTotal: appointments.filter(a => a.date.startsWith(today.slice(0, 7))).length,
       patients:   patients.length,
       // Actionable desk counts
       toConfirm:  appointments.filter(a => a.bookingSource === "online" && a.date >= today && a.status !== "cancelled").length,
@@ -70,7 +69,6 @@ export function SecretaryDashboardPage() {
     { key: "waiting",  value: stats.inWaiting,  label: t("dashboard.inWaiting"),     tone: stats.inWaiting > 0 ? "#D97706" : "#2563EB", to: "/salle-attente", icon: "waiting" },
     { key: "done",     value: stats.completed,  label: t("dashboard.completed"),     tone: "#12946B", to: "/agenda",        icon: "check" },
     { key: "upcoming", value: stats.upcoming,   label: t("secDash.upcoming"),        tone: "#0EA5E9", to: "/agenda",        icon: "clock" },
-    { key: "month",    value: stats.monthTotal, label: t("dashboard.apptMonth"),     tone: "#6366F1", to: "/agenda",        icon: "agenda" },
     { key: "patients", value: stats.patients,   label: t("dashboard.totalPatients"), tone: "#8B5CF6", to: "/patients",      icon: "patients" },
   ];
 

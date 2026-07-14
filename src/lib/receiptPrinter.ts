@@ -3,6 +3,7 @@ import { printHtmlDocument } from "./printDoc";
 import {
   DOC_DEFAULT_MARGINS, designForKind, resolveMargins, resolvePageSize,
   pageRule, backgroundHtml, blockStyle, logoHtml,
+  typographyCss, brandFooterHtml,
 } from "./docDesign";
 
 // Escape every user-controlled value before it enters the print HTML. The print
@@ -147,41 +148,41 @@ export function printReceipt(opts: ReceiptOptions): void {
     /* Header */
     .header {
       display: flex; justify-content: space-between; align-items: flex-start;
-      padding-bottom: 10px; border-bottom: 2px solid #0A4E7E;
+      padding-bottom: 10px; border-bottom: 2px solid var(--doc-accent,#0A4E7E);
       margin-bottom: 14px;
     }
-    .doc-name    { font-size: 13.5pt; font-weight: bold; color: #0A4E7E; margin-bottom: 3px; }
+    .doc-name    { font-size: 13.5pt; font-weight: bold; color: var(--doc-accent,#0A4E7E); margin-bottom: 3px; }
     .doc-meta    { font-size: 9pt; color: #444; line-height: 1.5; }
     .logo-block  { text-align: right; }
     .logo-mark   {
       width: 44px; height: 44px; border-radius: 10px;
-      background: #0A4E7E; display: flex; align-items: center;
+      background: var(--doc-accent,#0A4E7E); display: flex; align-items: center;
       justify-content: center; margin-left: auto; margin-bottom: 4px;
     }
-    .logo-text   { font-size: 8pt; color: #0A4E7E; font-weight: bold; }
+    .logo-text   { font-size: 8pt; color: var(--doc-accent,#0A4E7E); font-weight: bold; }
 
     /* Title */
     .title-block {
       text-align: center; margin-bottom: 16px;
       padding: 10px; background: #F0F7FD; border-radius: 8px;
     }
-    .title-main { font-size: 14pt; font-weight: bold; color: #0A4E7E; letter-spacing: 1px; }
+    .title-main { font-size: 14pt; font-weight: bold; color: var(--doc-accent,#0A4E7E); letter-spacing: 1px; }
     .title-sub  { font-size: 9pt; color: #555; margin-top: 3px; }
 
     /* Info rows */
     .info-table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
     .info-table tr td { padding: 5px 8px; font-size: 10pt; }
     .info-table tr:nth-child(even) { background: #f8fafc; }
-    .info-label { font-weight: 600; color: #0A4E7E; width: 38%; }
+    .info-label { font-weight: 600; color: var(--doc-accent,#0A4E7E); width: 38%; }
 
     /* Amount */
     .amount-block {
-      border: 2px solid #0A4E7E; border-radius: 10px;
+      border: 2px solid var(--doc-accent,#0A4E7E); border-radius: 10px;
       padding: 14px 18px; margin-bottom: 16px; text-align: center;
     }
     .amount-lbl  { font-size: 9pt; text-transform: uppercase; color: #555; letter-spacing: 1px; margin-bottom: 6px; }
-    .amount-val  { font-size: 26pt; font-weight: bold; color: #0A4E7E; }
-    .amount-unit { font-size: 13pt; font-weight: normal; color: #0A4E7E; }
+    .amount-val  { font-size: 26pt; font-weight: bold; color: var(--doc-accent,#0A4E7E); }
+    .amount-unit { font-size: 13pt; font-weight: normal; color: var(--doc-accent,#0A4E7E); }
     .amount-words {
       margin-top: 8px; font-size: 9pt; font-style: italic; color: #444;
       border-top: 1px dashed #ccc; padding-top: 6px;
@@ -204,7 +205,7 @@ export function printReceipt(opts: ReceiptOptions): void {
     @media print {
       body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
     }
-  </style>
+  ${typographyCss(doctorProfile.documentSettings)}</style>
 </head>
 <body>
   ${backgroundHtml(design)}
@@ -284,7 +285,7 @@ export function printReceipt(opts: ReceiptOptions): void {
   </div>
 
   <script>window.onload = function(){ window.print(); };<\/script>
-</body>
+${brandFooterHtml()}</body>
 </html>`;
 
   printHtmlDocument(html);

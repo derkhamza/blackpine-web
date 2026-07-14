@@ -102,7 +102,7 @@ function AssetModal({ initial, onSave, onClose }: AssetModalProps) {
             <div className="form-group">
               <label className="form-label">{t("comptabilite.labelField")}</label>
               <input className="form-input" value={label} onChange={e => setLabel(e.target.value)}
-                placeholder="ex. Échographe Mindray" required autoFocus />
+                placeholder="Désignation de l'équipement" required autoFocus />
             </div>
             <div className="form-row">
               <div className="form-group">
@@ -255,7 +255,7 @@ function RuleModal({ initial, fiscalYear, onSave, onClose }: RuleModalProps) {
             <div className="form-group">
               <label className="form-label">{t("comptabilite.labelField")}</label>
               <input className="form-input" value={label} onChange={e => setLabel(e.target.value)}
-                placeholder="ex. Loyer cabinet" required autoFocus />
+                placeholder="Libellé de la charge" required autoFocus />
             </div>
             <div className="form-row">
               <div className="form-group">

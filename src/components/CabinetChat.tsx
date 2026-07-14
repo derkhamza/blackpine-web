@@ -25,7 +25,9 @@ export function CabinetChat() {
   const openRef   = useRef(open); openRef.current = open;
 
   const hasSession = !!(getToken() || getSecretaryToken());
-  const show = hasSession && ((role === "doctor" && !secretaryMode) || role === "secretary");
+  // Show the chat for the doctor, a real secretary, AND the doctor's secretary
+  // preview — so the preview faithfully shows the secretary has chat access.
+  const show = hasSession && (role === "doctor" || role === "secretary");
   const myName = role === "doctor" ? (doctorProfile.fullName || undefined) : undefined;
 
   // Intercom — the doctor rings the secretary (a one-shot "come in" alert) from

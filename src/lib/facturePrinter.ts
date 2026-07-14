@@ -6,6 +6,7 @@ import { printHtmlDocument } from "./printDoc";
 import {
   FACTURE_DEFAULT_MARGINS, resolveMargins, pageRule, resolvePageSize, backgroundHtml,
   blockStyle, blockHidden, logoHtml, designForKind,
+  typographyCss, brandFooterHtml,
 } from "./docDesign";
 
 // ── Sequential invoice counter ────────────────────────────────────────────────
@@ -111,15 +112,15 @@ export function printFacture(opts: FactureOptions): void {
       display: flex; justify-content: space-between; align-items: flex-start;
       margin-bottom: 0;
     }
-    .doc-name  { font-size: 14pt; font-weight: bold; color: #0A4E7E; margin-bottom: 4px; }
+    .doc-name  { font-size: 14pt; font-weight: bold; color: var(--doc-accent,#0A4E7E); margin-bottom: 4px; }
     .doc-meta  { font-size: 9pt; color: #444; line-height: 1.65; }
     .inv-block { text-align: right; }
-    .inv-title { font-size: 22pt; font-weight: 900; color: #0A4E7E; letter-spacing: 1px; }
-    .inv-num   { font-size: 11pt; font-weight: 700; color: #0A4E7E; margin-top: 2px; }
+    .inv-title { font-size: 22pt; font-weight: 900; color: var(--doc-accent,#0A4E7E); letter-spacing: 1px; }
+    .inv-num   { font-size: 11pt; font-weight: 700; color: var(--doc-accent,#0A4E7E); margin-top: 2px; }
     .inv-date  { font-size: 9pt; color: #555; margin-top: 3px; }
 
     /* ── Divider ──────────────────────────────────────────────────────────── */
-    .rule { border: none; border-top: 2px solid #0A4E7E; margin: 12px 0; }
+    .rule { border: none; border-top: 2px solid var(--doc-accent,#0A4E7E); margin: 12px 0; }
     .rule-thin { border: none; border-top: 1px solid #C8DFF0; margin: 10px 0; }
 
     /* ── Parties ──────────────────────────────────────────────────────────── */
@@ -127,7 +128,7 @@ export function printFacture(opts: FactureOptions): void {
     .party { flex: 1; }
     .party-label {
       font-size: 8pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
-      color: #0A4E7E; border-bottom: 1.5px solid #C8DFF0; padding-bottom: 4px; margin-bottom: 8px;
+      color: var(--doc-accent,#0A4E7E); border-bottom: 1.5px solid #C8DFF0; padding-bottom: 4px; margin-bottom: 8px;
     }
     .party-name { font-size: 11pt; font-weight: 700; margin-bottom: 3px; }
     .party-detail { font-size: 9pt; color: #444; line-height: 1.6; }
@@ -140,24 +141,24 @@ export function printFacture(opts: FactureOptions): void {
     }
     .items thead { display: table-header-group; }
     .items tbody tr { break-inside: avoid; page-break-inside: avoid; }
-    .items thead tr { background: #0A4E7E; color: #fff; }
+    .items thead tr { background: var(--doc-accent,#0A4E7E); color: #fff; }
     .items thead th { padding: 6px 10px; text-align: left; font-size: 8pt; font-weight: 700; letter-spacing: 0.3px; }
     .items thead th.r { text-align: right; }
     .items tbody td { padding: 5px 10px; border-bottom: 1px solid #E2EFF8; vertical-align: top; font-size: 8.5pt; }
     .items tbody td.r { text-align: right; white-space: nowrap; }
     .items tbody tr:last-child td { border-bottom: none; }
     .items tfoot td { padding: 4px 10px; font-size: 8.5pt; }
-    .items tfoot .sep { border-top: 1.5px solid #0A4E7E; }
+    .items tfoot .sep { border-top: 1.5px solid var(--doc-accent,#0A4E7E); }
     .items tfoot .lbl { color: #666; text-align: right; padding-right: 14px; font-size: 8.5pt; }
     .items tfoot .val { text-align: right; white-space: nowrap; font-size: 8.5pt; }
     /* Emphasised grand-total row: larger type, heavy rule and a soft highlight. */
     .items tfoot .total-lbl {
       font-weight: 800; text-align: right; padding: 10px 14px 10px 0; font-size: 13pt;
-      color: #0A4E7E; border-top: 2.5px solid #0A4E7E; background: #EFF6FB;
+      color: var(--doc-accent,#0A4E7E); border-top: 2.5px solid var(--doc-accent,#0A4E7E); background: #EFF6FB;
     }
     .items tfoot .total-val {
-      font-weight: 900; text-align: right; font-size: 17pt; color: #0A4E7E; white-space: nowrap;
-      padding: 10px 10px; border-top: 2.5px solid #0A4E7E; background: #EFF6FB;
+      font-weight: 900; text-align: right; font-size: 17pt; color: var(--doc-accent,#0A4E7E); white-space: nowrap;
+      padding: 10px 10px; border-top: 2.5px solid var(--doc-accent,#0A4E7E); background: #EFF6FB;
     }
 
     /* ── Amount in words ──────────────────────────────────────────────────── */
@@ -166,7 +167,7 @@ export function printFacture(opts: FactureOptions): void {
       background: #EFF6FB; border-radius: 6px; font-size: 9.5pt;
       color: #333; font-style: italic;
     }
-    .amount-words strong { font-style: normal; color: #0A4E7E; }
+    .amount-words strong { font-style: normal; color: var(--doc-accent,#0A4E7E); }
 
     /* ── TVA note ─────────────────────────────────────────────────────────── */
     .tva-note {
@@ -187,7 +188,7 @@ export function printFacture(opts: FactureOptions): void {
     }
 
     @media print { body { print-color-adjust: exact; -webkit-print-color-adjust: exact; } }
-  </style>
+  ${typographyCss(ds)}</style>
 </head>
 <body>
 
@@ -301,7 +302,7 @@ export function printFacture(opts: FactureOptions): void {
   </div>
 
   <script>window.onload = function(){ window.print(); };<\/script>
-</body>
+${brandFooterHtml()}</body>
 </html>`;
 
   printHtmlDocument(html);
