@@ -4,6 +4,7 @@ import {
 import type { Appointment, ApptDocument, CabinetDoctorProfile, Certificate, Employee, InvoiceRecord, Patient, Prescription, PrescriptionTemplate, StockItem, WaTemplate, TeleSession, InternalNote, Supplier, PurchaseOrder, PurchaseOrderLine, ExamResult, ExamRequest, MedicalReport } from "../lib/cabinetTypes";
 import { BLANK_DOCTOR_PROFILE, setApptTypeRegistry } from "../lib/cabinetTypes";
 import { idbGet, idbSet } from "../lib/idbStore";
+import { cacheGet, cacheSet } from "../lib/cabinetStore";
 import { fullName } from "../lib/nameFormat";
 import { mergeConflict, shouldApplySnapshot } from "../lib/cabinetMerge";
 import { warmDocImages, offloadProfileImages } from "../lib/docImages";
@@ -33,38 +34,20 @@ const uid = (): string => {
   return `id-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 };
 
+// Cabinet collections persist through the IndexedDB-backed synchronous cache
+// (cabinetStore) — hydrated before render — so the ~5-10 MB localStorage cap no
+// longer bounds a growing practice. Reads/writes stay synchronous; migration from
+// any existing localStorage copy happens transparently on first read/write.
 function load<T>(key: string, fallback: T): T {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : fallback;
-  } catch {
-    return fallback;
-  }
+  const v = cacheGet(key);
+  return v === undefined ? fallback : (v as T);
 }
 
 function save(key: string, value: unknown) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch (e) {
-    // A QuotaExceededError means this write did NOT persist: the value is still
-    // in memory for this session, but a reload would lose it. We used to swallow
-    // this silently, so a doctor could lose work with no warning. Signal it so
-    // the provider can surface a banner (see storagePressure). Non-quota failures
-    // (e.g. Safari private mode blocking localStorage) trip the same path.
-    if (isQuotaError(e)) {
-      try { window.dispatchEvent(new Event("bp:storage-quota")); } catch { /* no window */ }
-    }
-  }
-}
-
-// Cross-browser QuotaExceededError detection (name + legacy numeric codes).
-function isQuotaError(e: unknown): boolean {
-  return (
-    e instanceof DOMException &&
-    (e.name === "QuotaExceededError" ||
-      e.name === "NS_ERROR_DOM_QUOTA_REACHED" ||  // Firefox
-      e.code === 22 || e.code === 1014)
-  );
+  // Writes go to IndexedDB (huge quota) via the cache; only if IDB is unavailable
+  // does it fall back to localStorage and, on quota failure there, dispatch
+  // "bp:storage-quota" for the storage-pressure banner (behaviour preserved).
+  cacheSet(key, value);
 }
 
 /** Estimate total localStorage usage for the bp. prefix (bytes, approximate). */

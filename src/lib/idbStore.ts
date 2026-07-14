@@ -45,17 +45,42 @@ export async function idbGet<T = unknown>(key: string): Promise<T | null> {
   });
 }
 
-export async function idbSet(key: string, value: unknown): Promise<void> {
+// Resolves true only when the write actually committed, so callers can safely
+// drop a localStorage fallback copy on success (and keep it on failure).
+export async function idbSet(key: string, value: unknown): Promise<boolean> {
   const db = await openDb();
-  if (!db) return;
+  if (!db) return false;
   return new Promise((resolve) => {
     try {
       const tx = db.transaction(STORE, "readwrite");
       tx.objectStore(STORE).put(value, key);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => resolve();
-      tx.onabort = () => resolve();
-    } catch { resolve(); }
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => resolve(false);
+      tx.onabort = () => resolve(false);
+    } catch { resolve(false); }
+  });
+}
+
+// All [key, value] pairs in the store — used to warm a synchronous in-memory
+// cache at startup (see cabinetStore). Returns [] if IndexedDB is unavailable.
+export async function idbEntries(): Promise<Array<[string, unknown]>> {
+  const db = await openDb();
+  if (!db) return [];
+  return new Promise((resolve) => {
+    try {
+      const store   = db.transaction(STORE, "readonly").objectStore(STORE);
+      const keysReq = store.getAllKeys();
+      const valsReq = store.getAll();
+      let keys: IDBValidKey[] | null = null;
+      let vals: unknown[] | null = null;
+      const done = () => {
+        if (keys && vals) resolve(keys.map((k, i) => [String(k), (vals as unknown[])[i]]));
+      };
+      keysReq.onsuccess = () => { keys = keysReq.result; done(); };
+      valsReq.onsuccess = () => { vals = valsReq.result; done(); };
+      keysReq.onerror = () => resolve([]);
+      valsReq.onerror = () => resolve([]);
+    } catch { resolve([]); }
   });
 }
 
