@@ -75,19 +75,8 @@ function WaitCard({ appt, now, canConsult, onArrive, onCall, onUncall, onStart, 
       </div>
 
       <div className="wr-card-name">
-        {appt.patientId
-          ? <span
-              className="wr-patient-link"
-              role="link"
-              tabIndex={0}
-              title={t("waiting.openPatient")}
-              // Explicit stop + navigate: the card itself opens the RDV, but the
-              // patient name must reliably open the PATIENT file instead.
-              onClick={(e) => { e.stopPropagation(); navigate(`/patients/${appt.patientId}`); }}
-              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); navigate(`/patients/${appt.patientId}`); } }}
-            >{appt.patientName}</span>
-          : <span>{appt.patientName}</span>
-        }
+        {/* Plain text — the whole card opens the RDV (name is not a separate link). */}
+        <span>{appt.patientName}</span>
       </div>
 
       {waitLabel && <div className="wr-wait-label">{waitLabel}</div>}

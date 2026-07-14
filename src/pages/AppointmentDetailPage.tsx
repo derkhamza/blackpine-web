@@ -35,6 +35,7 @@ import { MedicalReportModal } from "../components/MedicalReportModal";
 import { findLastPrescription } from "../lib/prescriptions";
 import { buildPatientMeasurements, buildTrendSeries } from "../lib/patientMeasurements";
 import { MEASURE_CATALOG, measureByLabel } from "../lib/measureCatalog";
+import { TrendChart } from "../components/TrendChart";
 import { Icd10Picker }      from "../components/Icd10Picker";
 import type { Icd10Entry }  from "../lib/icd10";
 import { getSpecialtyGroups, getSpecialtyBilans, DEFAULT_BILANS, BILAN_CATALOG, fieldMeta } from "../lib/specialtyFields";
@@ -825,6 +826,19 @@ export function AppointmentDetailPage() {
   const allGroupDefs = [...bilanGroupDefs, ...specGroupDefs];
 
   const specialtyRelevant = getSpecialtyBilans(doctorProfile.specialtyLabel);
+  // Evolution panel: full charts for measures with history, a compact list for
+  // single-value ones, and quick-add chips for the specialty's common numeric
+  // measures (a reduced in-session bilan).
+  const chartedTrends = patientTrends.filter(s => s.points.length >= 2).slice(0, 8);
+  const singleTrends  = patientTrends.filter(s => s.points.length < 2);
+  const quickBilan = (() => {
+    const keys = new Set(specialtyRelevant);
+    const out: { key: string; label: string }[] = [];
+    const seen = new Set<string>();
+    for (const g of BILAN_CATALOG) if (keys.has(g.key)) for (const f of g.fields)
+      if (f.type === "number" && !seen.has(f.label)) { seen.add(f.label); out.push({ key: f.key, label: f.label }); }
+    return out.slice(0, 10);
+  })();
   const profileGroupKeys = doctorProfile.extraBilans ?? DEFAULT_BILANS;
   const apptGroupKeys    = appt.extraBilans ?? [];
   const enabledKeys      = new Set([...profileGroupKeys, ...apptGroupKeys]);
@@ -862,7 +876,7 @@ export function AppointmentDetailPage() {
   // Merged, timeline-style history (like the patient-file timeline): consultations +
   // exams + prescriptions + custom events for this patient, most-recent first.
   const EXAM_ICON: Record<string, string> = { biologie: "flask", imagerie: "xray", ecg: "heart", autre: "clipboard" };
-  interface HistTL { id: string; kind: string; date: string; sortKey: string; icon: string; color: string; title: string; subtitle?: string; detail?: string; appt?: Appointment; link?: string; }
+  interface HistTL { id: string; kind: string; date: string; sortKey: string; icon: string; color: string; title: string; subtitle?: string; detail?: string; appt?: Appointment; link?: string; evId?: string; }
   const pastTimeline: HistTL[] = (() => {
     if (!pid) return [];
     const out: HistTL[] = [];
@@ -885,7 +899,7 @@ export function AppointmentDetailPage() {
       out.push({ id: `rx-${p.id}`, kind: "rx", date: p.date, sortKey: `${p.date}T00:01`, icon: "pills", color: "#15A876",
         title: t("apptDetail.rxHistory"), subtitle: first ? `${first.drug}${nMore > 0 ? ` +${nMore}` : ""}` : undefined, link: `/ordonnances?focus=${p.id}` }); }
     for (const ev of patient?.timelineEvents ?? []) if (ev.date <= historyTodayIso)
-      out.push({ id: `evt-${ev.id}`, kind: "event", date: ev.date, sortKey: `${ev.date}T00:03`, icon: "pin", color: "#D4962A", title: ev.title, subtitle: ev.notes || undefined });
+      out.push({ id: `evt-${ev.id}`, kind: "event", date: ev.date, sortKey: `${ev.date}T00:03`, icon: "pin", color: "#D4962A", title: ev.title, subtitle: ev.notes || undefined, evId: ev.id });
     return out.sort((a, b) => b.sortKey.localeCompare(a.sortKey));
   })();
 
@@ -1048,6 +1062,11 @@ export function AppointmentDetailPage() {
     updatePatient({ ...patient, timelineEvents: [...(patient.timelineEvents ?? []), ev] });
     setShowAddEvent(false);
     toast(t("apptDetail.eventAdded"));
+  };
+  const removeTimelineEvent = async (id: string) => {
+    if (!patient) return;
+    if (!await confirmDialog(t("apptDetail.eventRemoveConfirm"))) return;
+    updatePatient({ ...patient, timelineEvents: (patient.timelineEvents ?? []).filter(e => e.id !== id) });
   };
 
   // Doctor saves the composed bill WITHOUT collecting — the secretary handles
@@ -1920,7 +1939,17 @@ export function AppointmentDetailPage() {
           {(patientTrends.length > 0 || !readOnly) && (
             <div className="measure-evo">
               <div className="measure-evo-head">{t("apptDetail.recordedMeasures")}</div>
-              {!readOnly && (
+              {!readOnly && (<>
+                {/* Reduced in-session bilan — quick-add the specialty's common measures. */}
+                {quickBilan.length > 0 && (
+                  <div className="measure-evo-quick">
+                    <span className="measure-evo-quick-lbl">{t("apptDetail.quickBilan")}</span>
+                    {quickBilan.map(m => (
+                      <button type="button" key={m.key} className="measure-evo-chip"
+                        onClick={() => setNewMeasLabel(m.label)}>{m.label}</button>
+                    ))}
+                  </div>
+                )}
                 <div className="measure-evo-add">
                   <input list="measure-catalog-list" className="form-input" placeholder={t("apptDetail.measureLabel")}
                     value={newMeasLabel} onChange={e => setNewMeasLabel(e.target.value)} />
@@ -1931,35 +1960,34 @@ export function AppointmentDetailPage() {
                   <button type="button" className="btn btn-ghost measure-evo-add-btn" onClick={addPatientMeasure}
                     disabled={!newMeasLabel.trim() || !newMeasValue.trim()}>+ {t("common.add")}</button>
                 </div>
-              )}
+              </>)}
               {patientTrends.length === 0 && <div className="measure-evo-empty">{t("apptDetail.noMeasuresYet")}</div>}
-              <div className="measure-evo-list">
-                {patientTrends.slice(0, 24).map(s => (
-                  <div key={s.seriesKey} className="measure-evo-row">
-                    <div className="measure-evo-info">
-                      <span className="measure-evo-label">{s.label}</span>
-                      <span className={`measure-evo-val${s.latest.bad ? " bad" : ""}`}>
-                        {s.latest.value}{s.unit ? ` ${s.unit}` : ""}
-                      </span>
-                      {s.count > 1 && <span className="measure-evo-count">{s.count}×</span>}
+              {/* Evolution charts for measures with a history (≥2 points). */}
+              {chartedTrends.length > 0 && (
+                <div className="measure-evo-charts">
+                  {chartedTrends.map(s => (
+                    <TrendChart key={s.seriesKey} label={s.label} unit={s.unit}
+                      points={s.points.map(p => ({ date: p.date, val: p.num, bad: p.bad }))}
+                      yMin={s.yMin} yMax={s.yMax}
+                      dangerHigh={s.latest.refMax} dangerLow={s.latest.refMin} />
+                  ))}
+                </div>
+              )}
+              {/* Single-value measures — compact list. */}
+              {singleTrends.length > 0 && (
+                <div className="measure-evo-list">
+                  {singleTrends.map(s => (
+                    <div key={s.seriesKey} className="measure-evo-row">
+                      <div className="measure-evo-info">
+                        <span className="measure-evo-label">{s.label}</span>
+                        <span className={`measure-evo-val${s.latest.bad ? " bad" : ""}`}>
+                          {s.latest.value}{s.unit ? ` ${s.unit}` : ""}
+                        </span>
+                      </div>
                     </div>
-                    {s.points.length >= 2 && (() => {
-                      const W = 96, H = 26, pad = 3, xs = s.points.length;
-                      const toX = (i: number) => pad + (i / (xs - 1)) * (W - 2 * pad);
-                      const rng = (s.yMax - s.yMin) || 1;
-                      const toY = (v: number) => pad + (1 - (v - s.yMin) / rng) * (H - 2 * pad);
-                      const poly = s.points.map((p, i) => `${toX(i).toFixed(1)},${toY(p.num).toFixed(1)}`).join(" ");
-                      const last = s.points[xs - 1];
-                      return (
-                        <svg className="measure-evo-spark" width={W} height={H} aria-hidden="true">
-                          <polyline points={poly} fill="none" stroke="var(--blue)" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
-                          <circle cx={toX(xs - 1)} cy={toY(last.num)} r="2.4" fill={last.bad ? "var(--coral)" : "var(--blue)"} />
-                        </svg>
-                      );
-                    })()}
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -2268,6 +2296,9 @@ export function AppointmentDetailPage() {
                             )}
                             {a && <Link to={`/agenda/${a.id}`} className="tl-link">{t("patientDetail.tlViewDetail")} →</Link>}
                             {!a && entry.link && <Link to={entry.link} className="tl-link">{t("patientDetail.tlViewDetail")} →</Link>}
+                            {entry.evId && !readOnly && (
+                              <button type="button" className="tl-link-btn tl-link-del" onClick={() => removeTimelineEvent(entry.evId!)}>{t("common.delete")}</button>
+                            )}
                           </div>
                         </div>
                       </div>

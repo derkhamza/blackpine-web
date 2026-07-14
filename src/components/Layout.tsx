@@ -232,6 +232,7 @@ const PAGE_ICONS: Record<string, { icon: string; tone: string }> = {
   fournisseurs:    { icon: "fournisseurs",  tone: "#8B5CF6" },
   facturation:     { icon: "factures",      tone: "#F59E0B" },
   factures:        { icon: "factures",      tone: "#F59E0B" },
+  finances:        { icon: "analytiques",   tone: "#F59E0B" },
   remboursements:  { icon: "remboursements",tone: "#F59E0B" },
   rapports:        { icon: "report",        tone: "#F59E0B" },
   rapport:         { icon: "report",        tone: "#F59E0B" },
@@ -556,6 +557,7 @@ export function Layout({ title, subtitle, actions, children }: Props) {
     { to: "/stocks",        label: t("nav.stocks"),       icon: "stocks",       group: "Gestion" },
     // ── Finances — secondary ───────────────────────────────────────────────
     { to: "/facturation",   label: t("nav.billing"),      icon: "factures",     group: "Finances" },
+    { to: "/finances",      label: t("nav.finances"),     icon: "analytiques",  group: "Finances" },
     { to: "/rapports",      label: t("nav.reports"),      icon: "report",       group: "Finances" },
     { to: "/comptabilite",  label: t("nav.accounting"),   icon: "comptabilite", group: "Finances" },
     { to: "/salaires",      label: t("nav.payroll"),      icon: "payroll",      group: "Finances" },

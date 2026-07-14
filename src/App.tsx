@@ -39,6 +39,7 @@ import { ParametresPage }        from "./pages/ParametresPage";
 import { DocumentsPage }         from "./pages/DocumentsPage";
 import { CommunicationPage }     from "./pages/CommunicationPage";
 import { RapportsPage }          from "./pages/RapportsPage";
+import { FinancesPage }          from "./pages/FinancesPage";
 import { FacturationPage }       from "./pages/FacturationPage";
 
 function RequireAuth({ children, secretaryOk = false, perm, adminOk = false }: {
@@ -220,6 +221,9 @@ export function App() {
       } />
       <Route path="/rapports" element={
         <RequireAuth><RapportsPage /></RequireAuth>
+      } />
+      <Route path="/finances" element={
+        <RequireAuth><FinancesPage /></RequireAuth>
       } />
       <Route path="/facturation" element={
         <RequireAuth perm="handleBilling"><FacturationPage /></RequireAuth>

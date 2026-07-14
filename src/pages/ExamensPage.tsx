@@ -8,7 +8,7 @@ import { useCabinet } from "../context/CabinetContext";
 import { todayIso } from "../lib/format";
 import { fullName as fmtFullName } from "../lib/nameFormat";
 import type { ExamResult, ExamType, ExamValue } from "../lib/cabinetTypes";
-import { COMMON_LABS, MEASURE_CATALOG, measureByLabel } from "../lib/measureCatalog";
+import { COMMON_LABS, MEASURE_CATALOG, MEASURE_GROUPS, measureByLabel } from "../lib/measureCatalog";
 import { EXAM_TYPE_LABELS, EXAM_TYPE_COLORS } from "../lib/cabinetTypes";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -222,6 +222,22 @@ function ExamModal({ initial, patients, doctorName, onSave, onClose }: ExamModal
   const updateValue = (i: number, v: ExamValue) => setValues(prev => prev.map((x, j) => j === i ? v : x));
   const removeValue = (i: number) => setValues(prev => prev.filter((_, j) => j !== i));
 
+  // Insert a whole structured bilan (e.g. Bilan métabolique) with its parameters
+  // pre-filled (label + unit + reference range) — the same catalog as "Mesures & bilan".
+  const addBilanGroup = (title: string) => {
+    const grp = MEASURE_GROUPS.find(g => g.title === title);
+    if (!grp) return;
+    setValues(prev => {
+      const have = new Set(prev.map(v => v.label.trim().toLowerCase()));
+      const rows: ExamValue[] = grp.items
+        .filter(m => !have.has(m.label.toLowerCase()))
+        .map(m => ({ label: m.label, value: "", unit: m.unit, refMin: m.refMin, refMax: m.refMax }));
+      // Drop a single empty starter row so the bilan lands clean.
+      const base = prev.length === 1 && !prev[0].label && !prev[0].value ? [] : prev;
+      return [...base, ...rows];
+    });
+  };
+
   const autoFillFromTitle = () => {
     const lower = title.toLowerCase();
     let presets: typeof COMMON_LABS = [];
@@ -368,12 +384,21 @@ function ExamModal({ initial, patients, doctorName, onSave, onClose }: ExamModal
                   <ValueRow key={i} value={v} onChange={nv => updateValue(i, nv)}
                     onRemove={() => removeValue(i)} showRemove={values.length > 1} examType={type} />
                 ))}
-                <button type="button" className="po-add-line-btn" onClick={addValue}>
-                  <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
-                    <path d="M6 1v10M1 6h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                  </svg>
-                  {t("examens.addParam")}
-                </button>
+                <div className="exam-add-row">
+                  <button type="button" className="po-add-line-btn" onClick={addValue}>
+                    <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                      <path d="M6 1v10M1 6h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                    </svg>
+                    {t("examens.addParam")}
+                  </button>
+                  {/* Insert a full structured bilan (all its parameters pre-filled) —
+                      same catalog as "Mesures & bilan", identical for doctor & secretary. */}
+                  <select className="form-select exam-bilan-select" value=""
+                    onChange={e => { if (e.target.value) addBilanGroup(e.target.value); e.target.value = ""; }}>
+                    <option value="">{t("examens.addBilan", { defaultValue: "+ Ajouter un bilan…" })}</option>
+                    {MEASURE_GROUPS.map(g => <option key={g.title} value={g.title}>{g.title} ({g.items.length})</option>)}
+                  </select>
+                </div>
               </div>
             </div>
 
