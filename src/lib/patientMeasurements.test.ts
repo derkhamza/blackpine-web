@@ -1,9 +1,16 @@
 import { describe, it, expect } from "vitest";
-import type { Appointment, ExamResult } from "./cabinetTypes";
+import type { Appointment, ExamResult, Measurement } from "./cabinetTypes";
 import {
   parseNum, projectAppointment, projectExamResult,
   buildPatientMeasurements, buildTrendSeries,
 } from "./patientMeasurements";
+
+const meas = (over: Partial<Measurement>): Measurement => ({
+  id: "m1", patientId: "p1", patientName: "Doe John",
+  date: "2026-03-01", label: "Glycémie", value: "1.0", source: "lab",
+  createdAt: "2026-03-01T10:00:00.000Z",
+  ...over,
+} as Measurement);
 
 const appt = (over: Partial<Appointment>): Appointment => ({
   id: "a1", patientId: "p1", patientName: "Doe John",
@@ -117,5 +124,37 @@ describe("buildTrendSeries", () => {
     expect(s.length).toBe(1);
     expect(s[0].points.length).toBe(0);
     expect(s[0].latest.value).toBe("Négatif");
+  });
+});
+
+describe("canonical measurements + supersede", () => {
+  it("includes canonical rows and merges them into series with projections", () => {
+    const views = buildPatientMeasurements(
+      "p1",
+      [appt({ id: "a1", date: "2026-01-10", customMeasures: [{ id: "c1", label: "Glycémie", value: "0.9", unit: "g/L", source: "office" }] as any })],
+      [],
+      [meas({ id: "m1", date: "2026-03-01", label: "Glycémie", value: "1.3", unit: "g/L" })],
+    );
+    const gly = buildTrendSeries(views).find(s => s.label.toLowerCase() === "glycémie")!;
+    expect(gly.count).toBe(2);                    // canonical + projected consultation value
+    expect(gly.points.map(p => p.num)).toEqual([0.9, 1.3]);
+  });
+
+  it("supersedes a projected legacy value when a canonical row carries its sourceRef", () => {
+    const views = buildPatientMeasurements(
+      "p1",
+      [],
+      [exam({ id: "e1", date: "2026-02-01", values: [{ label: "Glycémie", value: "1.0", unit: "g/L" }] as any })],
+      // A canonical row promoted from that exam value (corrected to 1.20).
+      [meas({ id: "m1", date: "2026-02-01", label: "Glycémie", value: "1.20", unit: "g/L", sourceRef: "exam:e1:0" })],
+    );
+    const gly = buildTrendSeries(views).find(s => s.label.toLowerCase() === "glycémie")!;
+    expect(gly.count).toBe(1);                    // projection dropped, canonical kept
+    expect(gly.latest.value).toBe("1.20");
+    expect(gly.latest.derived).toBe(false);
+  });
+
+  it("returns nothing for a patient with no data", () => {
+    expect(buildPatientMeasurements("pX", [], [], [meas({ patientId: "p1" })])).toEqual([]);
   });
 });

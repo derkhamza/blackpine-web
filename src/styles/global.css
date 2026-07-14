@@ -9656,6 +9656,11 @@ html { scroll-behavior: smooth; }
 .measure-evo-val.bad { color: var(--coral); }
 .measure-evo-count { font-size: 10.5px; color: var(--tertiary); flex-shrink: 0; }
 .measure-evo-spark { flex-shrink: 0; }
+.measure-evo-add { display: flex; gap: 6px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+.measure-evo-add > .form-input { flex: 1 1 auto; min-width: 120px; }
+.measure-evo-add-val { flex: 0 0 auto !important; width: 96px; min-width: 0 !important; }
+.measure-evo-add-btn { flex: 0 0 auto; font-size: 12.5px; padding: 6px 12px; }
+.measure-evo-empty { font-size: 12.5px; color: var(--muted); padding: 2px 0 4px; }
 /* Upcoming (future) consultation rows in the history tab. */
 .hist-upcoming {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;

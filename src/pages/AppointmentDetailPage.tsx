@@ -33,6 +33,7 @@ import { ExamRequestModal } from "../components/ExamRequestModal";
 import { MedicalReportModal } from "../components/MedicalReportModal";
 import { findLastPrescription } from "../lib/prescriptions";
 import { buildPatientMeasurements, buildTrendSeries } from "../lib/patientMeasurements";
+import { MEASURE_CATALOG, measureByLabel } from "../lib/measureCatalog";
 import { Icd10Picker }      from "../components/Icd10Picker";
 import type { Icd10Entry }  from "../lib/icd10";
 import { getSpecialtyGroups, getSpecialtyBilans, DEFAULT_BILANS, BILAN_CATALOG, fieldMeta } from "../lib/specialtyFields";
@@ -266,6 +267,7 @@ export function AppointmentDetailPage() {
     examRequests, addExamRequest, updateExamRequest,
     apptDocuments, addApptDocument, deleteApptDocument,
     examResults, addExamResult, prescriptions,
+    measurements, upsertMeasurements,
     medicalReports, addMedicalReport, updateMedicalReport,
   } = useCabinet();
   const { addTransaction, deleteTransaction, transactions } = useApp();
@@ -396,6 +398,8 @@ export function AppointmentDetailPage() {
 
   // ── Billing modal ─────────────────────────────────────────────────────────
   const [showBill,  setShowBill]  = useState(false);
+  const [newMeasLabel,  setNewMeasLabel]  = useState("");
+  const [newMeasValue,  setNewMeasValue]  = useState("");
   const [billItems,     setBillItems]     = useState<BillingLine[]>([]);
   const [billReduction, setBillReduction] = useState("");
   // Global réduction is an occasional case — hidden behind a link so the bill entry
@@ -632,8 +636,8 @@ export function AppointmentDetailPage() {
   // custom measures across consultations, plus external lab/imaging results). Read
   // model only — the underlying records are never mutated (deep-merge Stage 1).
   const patientTrends = useMemo(
-    () => appt?.patientId ? buildTrendSeries(buildPatientMeasurements(appt.patientId, appointments, examResults)) : [],
-    [appt?.patientId, appointments, examResults],
+    () => appt?.patientId ? buildTrendSeries(buildPatientMeasurements(appt.patientId, appointments, examResults, measurements)) : [],
+    [appt?.patientId, appointments, examResults, measurements],
   );
 
   // Auto-open the bill editor when arriving from Facturation → "Corriger la facture"
@@ -982,6 +986,23 @@ export function AppointmentDetailPage() {
     setShowBill(true);
   };
   openBillRef.current = openBillModal;   // keep the ref current for the auto-open effect
+
+  // Record a measurement straight into the patient's unified dossier (canonical
+  // `measurements` store) — the writable side of the deep-merge. Catalog-resolved
+  // for consistent units/ranges/trend grouping with Examens & Bio.
+  const addPatientMeasure = () => {
+    const label = newMeasLabel.trim(); const val = newMeasValue.trim();
+    if (!label || !val || !appt.patientId) return;
+    const def = measureByLabel(label);
+    upsertMeasurements([{
+      patientId: appt.patientId, patientName: appt.patientName,
+      date: appt.date, catalogKey: def?.key, label,
+      value: val, unit: def?.unit, refMin: def?.refMin, refMax: def?.refMax,
+      source: "consultation", appointmentId: appt.id,
+    }]);
+    setNewMeasLabel(""); setNewMeasValue("");
+    toast(t("apptDetail.measureAdded"));
+  };
 
   // Doctor saves the composed bill WITHOUT collecting — the secretary handles
   // encaissement (payment / partial / deferred) at the front desk.
@@ -1847,11 +1868,25 @@ export function AppointmentDetailPage() {
           </div>
 
           {/* Every measure already on record for this patient + its evolution — pulled
-              from past consultations and lab results, so the doctor sees the trend
-              before entering today's values. Read-only. */}
-          {patientTrends.length > 0 && (
+              from past consultations, lab results and the unified measurements store,
+              so the doctor sees the trend before entering today's values, and can add
+              a measure straight to the patient's dossier. */}
+          {(patientTrends.length > 0 || !readOnly) && (
             <div className="measure-evo">
               <div className="measure-evo-head">{t("apptDetail.recordedMeasures")}</div>
+              {!readOnly && (
+                <div className="measure-evo-add">
+                  <input list="measure-catalog-list" className="form-input" placeholder={t("apptDetail.measureLabel")}
+                    value={newMeasLabel} onChange={e => setNewMeasLabel(e.target.value)} />
+                  <datalist id="measure-catalog-list">{MEASURE_CATALOG.map(m => <option key={m.key} value={m.label} />)}</datalist>
+                  <input className="form-input measure-evo-add-val" placeholder={t("apptDetail.measureValue")}
+                    value={newMeasValue} onChange={e => setNewMeasValue(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addPatientMeasure(); } }} />
+                  <button type="button" className="btn btn-ghost measure-evo-add-btn" onClick={addPatientMeasure}
+                    disabled={!newMeasLabel.trim() || !newMeasValue.trim()}>+ {t("common.add")}</button>
+                </div>
+              )}
+              {patientTrends.length === 0 && <div className="measure-evo-empty">{t("apptDetail.noMeasuresYet")}</div>}
               <div className="measure-evo-list">
                 {patientTrends.slice(0, 24).map(s => (
                   <div key={s.seriesKey} className="measure-evo-row">

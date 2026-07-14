@@ -1,7 +1,7 @@
 import {
   createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode,
 } from "react";
-import type { Appointment, ApptDocument, CabinetDoctorProfile, Certificate, Employee, InvoiceRecord, Patient, Prescription, PrescriptionTemplate, StockItem, WaTemplate, TeleSession, InternalNote, Supplier, PurchaseOrder, PurchaseOrderLine, ExamResult, ExamRequest, MedicalReport } from "../lib/cabinetTypes";
+import type { Appointment, ApptDocument, CabinetDoctorProfile, Certificate, Employee, InvoiceRecord, Patient, Prescription, PrescriptionTemplate, StockItem, WaTemplate, TeleSession, InternalNote, Supplier, PurchaseOrder, PurchaseOrderLine, ExamResult, ExamRequest, MedicalReport, Measurement } from "../lib/cabinetTypes";
 import { BLANK_DOCTOR_PROFILE, setApptTypeRegistry } from "../lib/cabinetTypes";
 import { idbGet, idbSet } from "../lib/idbStore";
 import { cacheGet, cacheSet } from "../lib/cabinetStore";
@@ -78,7 +78,7 @@ const CABINET_SUBKEYS = [
   "appts", "patients", "employees", "doctor", "prescriptionTemplates",
   "stock", "waTemplates", "teleSessions", "notes", "suppliers",
   "purchaseOrders", "examResults", "examRequests", "prescriptions", "certificates",
-  "invoices", "apptDocs", "medicalReports",
+  "invoices", "apptDocs", "medicalReports", "measurements",
 ] as const;
 
 /**
@@ -187,6 +187,13 @@ interface CabinetCtx {
   addExamResult:       (e: Omit<ExamResult, "id" | "createdAt">) => void;
   updateExamResult:    (e: ExamResult) => void;
   deleteExamResult:    (id: string) => void;
+
+  // Unified patient measurements (deep-merge canonical store)
+  measurements:        Measurement[];
+  addMeasurement:      (m: Omit<Measurement, "id" | "createdAt">) => void;
+  upsertMeasurements:  (rows: Omit<Measurement, "id" | "createdAt">[]) => void;
+  updateMeasurement:   (m: Measurement) => void;
+  deleteMeasurement:   (id: string) => void;
 
   // Standalone certificates
   certificates:        Certificate[];
@@ -410,6 +417,9 @@ export function CabinetProvider({
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>(
     () => load(`${pfx}.purchaseOrders`, [])
   );
+  const [measurements, setMeasurements] = useState<Measurement[]>(
+    () => load(`${pfx}.measurements`, [])
+  );
   const [examResults, setExamResults] = useState<ExamResult[]>(
     () => load(`${pfx}.examResults`, [])
   );
@@ -480,6 +490,7 @@ export function CabinetProvider({
   useEffect(() => { save(`${pfx}.suppliers`,      suppliers);      }, [suppliers, pfx]);
   useEffect(() => { save(`${pfx}.purchaseOrders`, purchaseOrders); }, [purchaseOrders, pfx]);
   useEffect(() => { save(`${pfx}.examResults`,    examResults);    }, [examResults, pfx]);
+  useEffect(() => { save(`${pfx}.measurements`,   measurements);   }, [measurements, pfx]);
   useEffect(() => { save(`${pfx}.prescriptions`,  prescriptions);  }, [prescriptions, pfx]);
   useEffect(() => { save(`${pfx}.examRequests`,   examRequests);   }, [examRequests, pfx]);
   useEffect(() => { save(`${pfx}.medicalReports`, medicalReports); }, [medicalReports, pfx]);
@@ -685,7 +696,7 @@ export function CabinetProvider({
     check();
     const id = setInterval(check, 60_000);
     return () => clearInterval(id);
-  }, [pfx, appointments, patients, examResults, prescriptions, certificates, invoices, doctorProfile]);
+  }, [pfx, appointments, patients, examResults, prescriptions, certificates, invoices, doctorProfile, measurements]);
   const storagePressure: "ok" | "warning" | "critical" =
     quotaHit ? "critical" : nearFull ? "warning" : "ok";
 
@@ -797,6 +808,7 @@ export function CabinetProvider({
     if (Array.isArray(snapshot.suppliers))             setSuppliers(snapshot.suppliers as Supplier[]);
     if (Array.isArray(snapshot.purchaseOrders))        setPurchaseOrders(snapshot.purchaseOrders as PurchaseOrder[]);
     if (Array.isArray(snapshot.examResults))           setExamResults(snapshot.examResults as ExamResult[]);
+    if (Array.isArray(snapshot.measurements))          setMeasurements(snapshot.measurements as Measurement[]);
     if (Array.isArray(snapshot.invoices))              setInvoices(snapshot.invoices as InvoiceRecord[]);
     if (Array.isArray(snapshot.apptDocuments)) {
       // Server copy is authoritative; block the IDB hydration from overwriting it
@@ -1049,7 +1061,7 @@ export function CabinetProvider({
         appointments, patients, doctorProfile,
         employees, prescriptionTemplates, prescriptions, examRequests, certificates,
         stockItems, waTemplates, teleSessions, notes, suppliers,
-        purchaseOrders, examResults, invoices, apptDocuments, medicalReports,
+        purchaseOrders, examResults, invoices, apptDocuments, medicalReports, measurements,
       }, baseUpdatedAt.current)
         .then((newUpdatedAt) => {
           if (newUpdatedAt) baseUpdatedAt.current = newUpdatedAt;
@@ -1111,7 +1123,7 @@ export function CabinetProvider({
     appointments, patients, doctorProfile,
     employees, prescriptionTemplates, prescriptions, examRequests, certificates,
     stockItems, waTemplates, teleSessions, notes, suppliers,
-    purchaseOrders, examResults, invoices, apptDocuments, medicalReports,
+    purchaseOrders, examResults, invoices, apptDocuments, medicalReports, measurements,
   ]);
 
   // ── Backup / restore ─────────────────────────────────────────────────────
@@ -1128,6 +1140,8 @@ export function CabinetProvider({
       prescriptions, examRequests, certificates, medicalReports,
       // Exams & tele
       examResults, teleSessions,
+      // Unified measurements
+      measurements,
       // Messaging
       waTemplates,
       // Notes
@@ -1139,7 +1153,7 @@ export function CabinetProvider({
     }, null, 2);
   }, [appointments, patients, employees, doctorProfile,
      prescriptions, examRequests, certificates, medicalReports, examResults, teleSessions,
-     waTemplates, notes, stockItems, suppliers, purchaseOrders, invoices]);
+     waTemplates, notes, stockItems, suppliers, purchaseOrders, invoices, measurements]);
 
   const importCabinetJSON = useCallback((json: string) => {
     try {
@@ -1156,6 +1170,7 @@ export function CabinetProvider({
       if (Array.isArray(d.certificates))   setCertificates(d.certificates as Certificate[]);
       // Exams & tele
       if (Array.isArray(d.examResults))    setExamResults(d.examResults as ExamResult[]);
+      if (Array.isArray(d.measurements))   setMeasurements(d.measurements as Measurement[]);
       if (Array.isArray(d.teleSessions))   setTele(d.teleSessions as TeleSession[]);
       // Messaging
       if (Array.isArray(d.waTemplates))    setWaTpls(d.waTemplates as WaTemplate[]);
@@ -1326,6 +1341,21 @@ export function CabinetProvider({
   const deleteExamResult = useCallback(
     (id: string) => setExamResults(prev => prev.filter(x => x.id !== id)), []);
 
+  // ── Unified measurements (canonical store) ────────────────────────────────
+  const addMeasurement = useCallback(
+    (m: Omit<Measurement, "id" | "createdAt">) =>
+      setMeasurements(prev => [...prev, { ...m, id: uid(), createdAt: new Date().toISOString() }]), []);
+  const upsertMeasurements = useCallback(
+    (rows: Omit<Measurement, "id" | "createdAt">[]) =>
+      setMeasurements(prev => {
+        const now = new Date().toISOString();
+        return [...prev, ...rows.map(m => ({ ...m, id: uid(), createdAt: now }))];
+      }), []);
+  const updateMeasurement = useCallback(
+    (m: Measurement) => setMeasurements(prev => prev.map(x => x.id === m.id ? m : x)), []);
+  const deleteMeasurement = useCallback(
+    (id: string) => setMeasurements(prev => prev.filter(x => x.id !== id)), []);
+
   // ── Invoice records ───────────────────────────────────────────────────────
   const addInvoice = useCallback(
     (inv: Omit<InvoiceRecord, "id">) =>
@@ -1380,6 +1410,7 @@ export function CabinetProvider({
     suppliers, addSupplier, updateSupplier, deleteSupplier,
     purchaseOrders, addPurchaseOrder, updatePurchaseOrder, deletePurchaseOrder, receiveOrder,
     examResults, addExamResult, updateExamResult, deleteExamResult,
+    measurements, addMeasurement, upsertMeasurements, updateMeasurement, deleteMeasurement,
     invoices, addInvoice, deleteInvoice,
     apptDocuments, addApptDocument, deleteApptDocument,
     secretaryMode, setSecretaryMode,

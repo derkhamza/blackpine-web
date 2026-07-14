@@ -8,6 +8,7 @@ import { useCabinet } from "../context/CabinetContext";
 import { todayIso } from "../lib/format";
 import { fullName as fmtFullName } from "../lib/nameFormat";
 import type { ExamResult, ExamType, ExamValue } from "../lib/cabinetTypes";
+import { COMMON_LABS, MEASURE_CATALOG, measureByLabel } from "../lib/measureCatalog";
 import { EXAM_TYPE_LABELS, EXAM_TYPE_COLORS } from "../lib/cabinetTypes";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -34,27 +35,11 @@ function examHasAbnormal(exam: ExamResult): boolean {
   return exam.values.some(v => isValueAbnormal(v));
 }
 
-// Medical lab reference values — kept in professional notation (no translation needed)
-const COMMON_LABS: Array<{ label: string; unit: string; refMin: number; refMax: number }> = [
-  { label: "Hémoglobine",      unit: "g/dL",    refMin: 12,  refMax: 17 },
-  { label: "Globules rouges",  unit: "×10⁶/µL", refMin: 3.8, refMax: 5.9 },
-  { label: "Globules blancs",  unit: "×10³/µL", refMin: 4,   refMax: 11 },
-  { label: "Plaquettes",       unit: "×10³/µL", refMin: 150, refMax: 400 },
-  { label: "Glycémie",         unit: "g/L",     refMin: 0.7, refMax: 1.1 },
-  { label: "Créatinine",       unit: "µmol/L",  refMin: 50,  refMax: 110 },
-  { label: "Urée",             unit: "mmol/L",  refMin: 2.5, refMax: 7.5 },
-  { label: "ASAT (GOT)",       unit: "UI/L",    refMin: 0,   refMax: 40 },
-  { label: "ALAT (GPT)",       unit: "UI/L",    refMin: 0,   refMax: 40 },
-  { label: "Cholestérol total",unit: "g/L",     refMin: 0,   refMax: 2 },
-  { label: "LDL",              unit: "g/L",     refMin: 0,   refMax: 1.6 },
-  { label: "HDL",              unit: "g/L",     refMin: 0.4, refMax: 1.6 },
-  { label: "Triglycérides",    unit: "g/L",     refMin: 0,   refMax: 1.5 },
-  { label: "TSH",              unit: "mUI/L",   refMin: 0.4, refMax: 4 },
-  { label: "CRP",              unit: "mg/L",    refMin: 0,   refMax: 10 },
-  { label: "Vitamine D",       unit: "ng/mL",   refMin: 30,  refMax: 100 },
-  { label: "Ferritine",        unit: "ng/mL",   refMin: 15,  refMax: 300 },
-  { label: "HbA1c",            unit: "%",       refMin: 0,   refMax: 5.7 },
-];
+// COMMON_LABS + the full measure catalog (vitals + every bilan type + labs) now
+// come from the shared measureCatalog, so Examens & Bio offers exactly the same
+// parameters as "Mesures & bilan" (deep-merge). The value-label datalist below is
+// built from MEASURE_CATALOG, deduped by label.
+const CATALOG_LABELS = Array.from(new Set(MEASURE_CATALOG.map(m => m.label)));
 
 // Print function — intentionally kept in French (official medical document)
 function printExam(exam: ExamResult, doctorName?: string) {
@@ -134,7 +119,7 @@ function ValueRow({ value, onChange, onRemove, showRemove, examType }: ValueRowP
   const { t } = useTranslation();
   const labelRef = useRef<HTMLInputElement>(null);
 
-  const selectPreset = (preset: typeof COMMON_LABS[0]) => {
+  const selectPreset = (preset: { label: string; unit?: string; refMin?: number; refMax?: number }) => {
     onChange({ ...value, label: preset.label, unit: preset.unit, refMin: preset.refMin, refMax: preset.refMax });
   };
 
@@ -151,7 +136,7 @@ function ValueRow({ value, onChange, onRemove, showRemove, examType }: ValueRowP
             list={examType === "biologie" ? "common-labs-list" : undefined} required />
           {examType === "biologie" && (
             <datalist id="common-labs-list">
-              {COMMON_LABS.map(l => <option key={l.label} value={l.label} />)}
+              {CATALOG_LABELS.map(l => <option key={l} value={l} />)}
             </datalist>
           )}
         </div>
@@ -175,7 +160,7 @@ function ValueRow({ value, onChange, onRemove, showRemove, examType }: ValueRowP
         {examType === "biologie" && value.label && (
           <button type="button" className="exam-preset-btn"
             onClick={() => {
-              const preset = COMMON_LABS.find(l => l.label.toLowerCase() === value.label.toLowerCase());
+              const preset = measureByLabel(value.label);
               if (preset) selectPreset(preset);
             }}>
             <svg width="11" height="11" viewBox="0 0 12 12" fill="none">

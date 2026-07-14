@@ -454,6 +454,7 @@ export interface CabinetSnapshot {
   suppliers?:             unknown[];
   purchaseOrders?:        unknown[];
   examResults?:           unknown[];
+  measurements?:          unknown[];
   invoices?:              unknown[];
   apptDocuments?:         unknown[];
   // Content version of apptDocuments. When it's unchanged the server omits the

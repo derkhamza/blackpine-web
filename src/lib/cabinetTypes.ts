@@ -1055,6 +1055,38 @@ export interface ExamResult {
   createdAt:    string;   // ISO
 }
 
+// Where a measured value was captured (provenance).
+export type MeasureSource = "consultation" | "lab" | "imaging" | "home" | "external";
+
+/**
+ * Unified patient-level measurement — the single store that "Mesures & bilan" and
+ * "Examens & Bio" both read/write (deep-merge). One row = one measured parameter,
+ * catalog-keyed when it maps to a known measure, ad-hoc otherwise. Values entered
+ * together (a lab panel) share a `panelId`. Legacy values on appointments / exam
+ * results are read via projection and superseded here by `sourceRef`.
+ */
+export interface Measurement {
+  id:            string;
+  patientId?:    string;
+  patientName:   string;
+  date:          string;          // YYYY-MM-DD — clinical date
+  catalogKey?:   string;          // MEASURE_CATALOG key (units/refs/trend grouping)
+  label:         string;
+  value:         string;
+  unit?:         string;
+  refMin?:       number;
+  refMax?:       number;
+  isAbnormal?:   boolean;
+  source:        MeasureSource;
+  appointmentId?: string;         // link to the consultation it was taken in
+  panelId?:      string;          // groups values entered together (a lab report)
+  panelTitle?:   string;          // "NFS", "Bilan lipidique" — panel header
+  labName?:      string;
+  notes?:        string;
+  sourceRef?:    string;          // supersedes a projected legacy value (appt:… / exam:…)
+  createdAt:     string;          // ISO
+}
+
 // ── Invoice record ─────────────────────────────────────────────────────────────
 // Lightweight history entry created each time a formal invoice (Note d'honoraires)
 // is generated, mirroring the mobile app's InvoiceRecord.
