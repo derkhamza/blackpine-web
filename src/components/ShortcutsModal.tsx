@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { useModalA11y } from "../lib/a11y";
 
 // ── Keyboard shortcuts help overlay ──────────────────────────────────────────
 
@@ -9,6 +10,7 @@ function Key({ label }: { label: string }) {
 interface Props { onClose: () => void; }
 
 export function ShortcutsModal({ onClose }: Props) {
+  const dialogRef = useModalA11y<HTMLDivElement>(onClose);
   const { t } = useTranslation();
 
   const GROUPS = [
@@ -43,7 +45,7 @@ export function ShortcutsModal({ onClose }: Props) {
 
   return (
     <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="shortcuts-modal">
+      <div className="shortcuts-modal" ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1}>
         <div className="shortcuts-header">
           <div className="shortcuts-title">{t("shortcuts.title")}</div>
           <button className="modal-close" onClick={onClose}>×</button>

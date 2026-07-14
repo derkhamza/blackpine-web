@@ -4,6 +4,7 @@ import type { CabinetDoctorProfile, ExamRequestLine, ExamRequestCategory, ExamRe
 import { printExamRequest } from "../lib/examRequestPrinter";
 import { PatientPicker, type PickerPatient } from "./PatientPicker";
 import { ModalPortal } from "./ModalPortal";
+import { useModalA11y } from "../lib/a11y";
 import {
   EXAM_CATALOG, EXAM_REQ_CATEGORIES, EXAM_REQ_CATEGORY_COLORS, EXAM_REQUEST_MODELS,
 } from "../lib/examCatalog";
@@ -36,6 +37,7 @@ export function ExamRequestModal({
   patientName, patientId, date, doctorProfile, patients, initialLines, initialIndication,
   savedTemplates, onSaveTemplate, onDeleteTemplate, onSave, onClose,
 }: Props) {
+  const dialogRef = useModalA11y<HTMLDivElement>(onClose);
   const { t, i18n } = useTranslation();
   const locale = i18n.language?.slice(0, 2) === "ar" ? "ar-MA"
                : i18n.language?.slice(0, 2) === "en" ? "en-US" : "fr-FR";
@@ -105,7 +107,7 @@ export function ExamRequestModal({
   return (
     <ModalPortal>
     <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="modal exr-modal" style={{ maxWidth: 640, maxHeight: "92vh", overflowY: "auto" }}>
+      <div className="modal exr-modal" ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1} style={{ maxWidth: 640, maxHeight: "92vh", overflowY: "auto" }}>
         <div className="modal-header">
           <h2 className="modal-title">{t("examReq.title", { name: patientName })}</h2>
           <button className="modal-close" onClick={onClose}>×</button>

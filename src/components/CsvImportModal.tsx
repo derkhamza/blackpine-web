@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Patient } from "../lib/cabinetTypes";
+import { useModalA11y } from "../lib/a11y";
 import {
   parseCSV, autoDetectMapping, rowToPatient,
   type ColumnMapping, type ImportField,
@@ -18,6 +19,7 @@ interface Props {
 }
 
 export function CsvImportModal({ existingPatients, onImport, onClose }: Props) {
+  const dialogRef = useModalA11y<HTMLDivElement>(onClose);
   const { t } = useTranslation();
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -106,7 +108,7 @@ export function CsvImportModal({ existingPatients, onImport, onClose }: Props) {
 
   return (
     <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="modal csv-modal" onClick={e => e.stopPropagation()}>
+      <div className="modal csv-modal" ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1} onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <h2 className="modal-title">{t("csvModal.title")}</h2>
           <button className="modal-close" onClick={onClose}>×</button>

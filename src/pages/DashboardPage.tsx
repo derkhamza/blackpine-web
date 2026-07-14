@@ -4,6 +4,7 @@ import { Layout } from "../components/Layout";
 import { useApp } from "../context/AppContext";
 import { useCabinet, estimateStorageBytes } from "../context/CabinetContext";
 import { formatMAD, todayIso } from "../lib/format";
+import { clickable } from "../lib/a11y";
 import { AnimatedNumber } from "../components/AnimatedNumber";
 import { NOTE_COLOR_VALUES } from "../lib/cabinetTypes";
 import { useTranslation } from "react-i18next";
@@ -382,29 +383,29 @@ export function DashboardPage() {
           CLINICAL HERO — today at a glance
       ══════════════════════════════════════════════════ */}
       <div className="dash-hero-grid rv-stagger">
-        <div className="dash-hero-tile rv-press rv-lift" onClick={() => navigate("/agenda")} style={{ cursor: "pointer" }}>
+        <div className="dash-hero-tile rv-press rv-lift" {...clickable(() => navigate("/agenda"))} style={{ cursor: "pointer" }}>
           <div className="dash-hero-val" style={{ color: "var(--blue)" }}><AnimatedNumber value={heroStats.todayTotal} /></div>
           <div className="dash-hero-lbl">{t("dashboard.apptToday")}</div>
         </div>
-        <div className="dash-hero-tile rv-press rv-lift" onClick={() => navigate("/salle-attente")} style={{ cursor: "pointer" }}>
+        <div className="dash-hero-tile rv-press rv-lift" {...clickable(() => navigate("/salle-attente"))} style={{ cursor: "pointer" }}>
           <div className="dash-hero-val" style={{ color: heroStats.inWaiting > 0 ? "#d97706" : "var(--text)" }}>
             <AnimatedNumber value={heroStats.inWaiting} />
           </div>
           <div className="dash-hero-lbl">{t("dashboard.inWaiting")}</div>
         </div>
-        <div className="dash-hero-tile rv-press rv-lift" onClick={() => navigate("/agenda")} style={{ cursor: "pointer" }}>
+        <div className="dash-hero-tile rv-press rv-lift" {...clickable(() => navigate("/agenda"))} style={{ cursor: "pointer" }}>
           <div className="dash-hero-val" style={{ color: "var(--green)" }}><AnimatedNumber value={heroStats.completed} /></div>
           <div className="dash-hero-lbl">{t("dashboard.completed")}</div>
         </div>
-        <div className="dash-hero-tile rv-press rv-lift" onClick={() => navigate("/communication")} style={{ cursor: "pointer" }}>
+        <div className="dash-hero-tile rv-press rv-lift" {...clickable(() => navigate("/communication"))} style={{ cursor: "pointer" }}>
           <div className="dash-hero-val" style={{ color: "#2D8CFF" }}><AnimatedNumber value={heroStats.todayTele} /></div>
           <div className="dash-hero-lbl">{t("dashboard.teleconsults")}</div>
         </div>
-        <div className="dash-hero-tile rv-press rv-lift" onClick={() => navigate("/agenda")} style={{ cursor: "pointer" }}>
+        <div className="dash-hero-tile rv-press rv-lift" {...clickable(() => navigate("/agenda"))} style={{ cursor: "pointer" }}>
           <div className="dash-hero-val" style={{ color: "var(--blue)" }}><AnimatedNumber value={heroStats.monthTotal} /></div>
           <div className="dash-hero-lbl">{t("dashboard.apptMonth")}</div>
         </div>
-        <div className="dash-hero-tile rv-press rv-lift" onClick={() => navigate("/patients")} style={{ cursor: "pointer" }}>
+        <div className="dash-hero-tile rv-press rv-lift" {...clickable(() => navigate("/patients"))} style={{ cursor: "pointer" }}>
           <div className="dash-hero-val"><AnimatedNumber value={heroStats.totalPatients} /></div>
           <div className="dash-hero-lbl">{t("dashboard.totalPatients")}</div>
         </div>
@@ -551,7 +552,7 @@ export function DashboardPage() {
               <div className="dash-today-list">
                 {todayAppts.slice(0, 6).map(a => (
                   <div key={a.id} className="dash-today-item"
-                    onClick={() => navigate("/agenda/" + a.id)} style={{ cursor: "pointer" }}
+                    {...clickable(() => navigate("/agenda/" + a.id), a.patientName)} style={{ cursor: "pointer" }}
                   >
                     <div className="dash-today-time">{a.startTime}</div>
                     <div
@@ -646,7 +647,7 @@ export function DashboardPage() {
                   key={n.id}
                   className="dash-pinned-card"
                   style={{ background: cv.bg, borderColor: isOverdue ? "var(--coral)" : cv.border, color: cv.text, cursor: "pointer" }}
-                  onClick={() => navigate("/notes")}
+                  {...clickable(() => navigate("/notes"), n.title)}
                 >
                   <div className="dash-pinned-card-header">
                     {n.type === "task" && (

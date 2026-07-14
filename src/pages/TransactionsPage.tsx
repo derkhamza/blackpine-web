@@ -7,6 +7,7 @@ import { Layout } from "../components/Layout";
 import { useToast } from "../components/Toast";
 import { useApp } from "../context/AppContext";
 import { formatMAD, formatDateShort, todayIso } from "../lib/format";
+import { clickable } from "../lib/a11y";
 import { AnimatedNumber } from "../components/AnimatedNumber";
 
 // ── Categories ────────────────────────────────────────────────────────────────
@@ -544,7 +545,7 @@ export function TransactionsPage({ noLayout = false }: { noLayout?: boolean } = 
           {filtered.map((tx) => {
             const isRec = tx.type === "RECETTE";
             return (
-              <div key={tx.id} className="tx-row" onClick={() => setModal({ tx })} style={{ cursor: "pointer" }}>
+              <div key={tx.id} className="tx-row" {...clickable(() => setModal({ tx }), tx.description || tx.category)} style={{ cursor: "pointer" }}>
                 <div
                   className="tx-type-badge"
                   style={{

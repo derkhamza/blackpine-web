@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { ACTE_CATALOG, type ActeCatalogItem } from "../lib/acteCatalog";
+import { useModalA11y } from "../lib/a11y";
 
 function norm(s: string) {
   return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
@@ -15,6 +16,7 @@ interface Props {
 }
 
 export function ActeCatalogModal({ existingLabels, onAdd, onClose }: Props) {
+  const dialogRef = useModalA11y<HTMLDivElement>(onClose);
   const { t } = useTranslation();
   const [q, setQ] = useState("");
 
@@ -31,7 +33,7 @@ export function ActeCatalogModal({ existingLabels, onAdd, onClose }: Props) {
   // the overlay inline inside the section instead of covering the viewport.
   return createPortal(
     <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="modal" style={{ maxWidth: 560, maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
+      <div className="modal" ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1} style={{ maxWidth: 560, maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
         <div className="modal-header">
           <h2 className="modal-title">{t("acteCatalog.title")}</h2>
           <button className="modal-close" onClick={onClose}>×</button>

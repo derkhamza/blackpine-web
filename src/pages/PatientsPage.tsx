@@ -8,6 +8,7 @@ import { useCabinet } from "../context/CabinetContext";
 import { CsvImportModal } from "../components/CsvImportModal";
 import { exportPatientsCsv } from "../lib/csvExport";
 import { findOrphanAppts } from "../lib/orphanAppts";
+import { clickable } from "../lib/a11y";
 import type { Patient, PatientGender } from "../lib/cabinetTypes";
 import { MOROCCAN_CITIES, MUTUELLES } from "../lib/cabinetTypes";
 import { useTranslation } from "react-i18next";
@@ -236,7 +237,7 @@ function PatientCard({
   const color = avatarColor(patient.firstName + patient.lastName);
 
   return (
-    <div className="patient-card rv-press rv-lift" onClick={onDetail} onContextMenu={onContextMenu}>
+    <div className="patient-card rv-press rv-lift" {...clickable(onDetail, fullName(patient))} onContextMenu={onContextMenu}>
       <div className="patient-avatar" style={{ background: color + "22", color }}>
         {initials(patient)}
       </div>
