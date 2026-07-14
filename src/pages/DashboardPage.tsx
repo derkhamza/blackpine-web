@@ -217,7 +217,7 @@ export function DashboardPage() {
         icon: <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><rect x="1" y="2" width="12" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.3"/><path d="M4 6h6M4 8.5h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>,
         text: t("dashboard.overdueOrders", { n: overduePO.length, s: overduePO.length > 1 ? "s" : "" }),
         subtext: overduePO.slice(0, 2).map(o => o.supplierName ?? "Fournisseur").join(", "),
-        route: "/fournisseurs", weight: overduePO.length,
+        route: "/stocks", weight: overduePO.length,
       });
     }
 
@@ -272,7 +272,7 @@ export function DashboardPage() {
         icon: <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M3 2h6l3 3v7a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/><path d="M9 2v3h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/><path d="M5 8h4M5 10h2.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>,
         text: t("dashboard.unbilledToday", { n: unbilledToday.length, s: unbilledToday.length > 1 ? "s" : "" }),
         // One unbilled visit → open it (the Bill button lives there); many → billing list.
-        route: unbilledToday.length === 1 ? `/agenda/${unbilledToday[0].id}` : "/factures",
+        route: unbilledToday.length === 1 ? `/agenda/${unbilledToday[0].id}` : "/facturation",
         weight: unbilledToday.length,
       });
     }
@@ -286,7 +286,7 @@ export function DashboardPage() {
         text: t("dashboard.overdueFollowUps", { n: overdueFollowUps.length, s: overdueFollowUps.length > 1 ? "s" : "" }),
         subtext: overdueFollowUps.slice(0, 2).map(a => a.patientName).join(", "),
         // One overdue follow-up → open that appointment; many → the reminders list.
-        route: overdueFollowUps.length === 1 ? `/agenda/${overdueFollowUps[0].id}` : "/rappels",
+        route: overdueFollowUps.length === 1 ? `/agenda/${overdueFollowUps[0].id}` : "/communication",
         weight: overdueFollowUps.length,
       });
     }
@@ -396,7 +396,7 @@ export function DashboardPage() {
           <div className="dash-hero-val" style={{ color: "var(--green)" }}><AnimatedNumber value={heroStats.completed} /></div>
           <div className="dash-hero-lbl">{t("dashboard.completed")}</div>
         </div>
-        <div className="dash-hero-tile rv-press rv-lift" onClick={() => navigate("/teleconsult")} style={{ cursor: "pointer" }}>
+        <div className="dash-hero-tile rv-press rv-lift" onClick={() => navigate("/communication")} style={{ cursor: "pointer" }}>
           <div className="dash-hero-val" style={{ color: "#2D8CFF" }}><AnimatedNumber value={heroStats.todayTele} /></div>
           <div className="dash-hero-lbl">{t("dashboard.teleconsults")}</div>
         </div>
@@ -434,7 +434,7 @@ export function DashboardPage() {
           </div>
         </div>
         {caisse.unpaidCount > 0 && (
-          <button className="dash-caisse-unpaid" onClick={() => navigate("/factures")}>
+          <button className="dash-caisse-unpaid" onClick={() => navigate("/facturation")}>
             <span className="dash-caisse-unpaid-count">{caisse.unpaidCount}</span>
             <span className="dash-caisse-unpaid-lbl">
               {t("dashboard.caisseUnpaid")}
@@ -478,7 +478,7 @@ export function DashboardPage() {
           </svg>
           {t("dashboard.waitingRoom")}
         </button>
-        <button className="dash-quick-btn" onClick={() => navigate("/ordonnances")}>
+        <button className="dash-quick-btn" onClick={() => navigate("/documents")}>
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
             <path d="M3 1h6l3 3v8a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/>
             <path d="M9 1v3h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
@@ -586,7 +586,7 @@ export function DashboardPage() {
             <div className="card dash-today-card" style={{ flex: "0 0 240px" }}>
               <div className="dash-section-header">
                 <div className="card-title" style={{ margin: 0 }}>{t("dashboard.teleconsultations")}</div>
-                <button className="dash-see-all" onClick={() => navigate("/teleconsult")}>{t("common.see")}</button>
+                <button className="dash-see-all" onClick={() => navigate("/communication")}>{t("common.see")}</button>
               </div>
               <div className="dash-today-list">
                 {todayTele.slice(0, 4).map(s => (
@@ -736,13 +736,13 @@ export function DashboardPage() {
               </div>
             </div>
             <div className="dash-finance-actions">
-              <button className="btn btn-ghost" onClick={() => navigate("/transactions")}>
+              <button className="btn btn-ghost" onClick={() => navigate("/facturation")}>
                 {t("nav.transactions")}
               </button>
-              <button className="btn btn-ghost" onClick={() => navigate("/rapport")}>
+              <button className="btn btn-ghost" onClick={() => navigate("/rapports")}>
                 {t("dashboard.taxReport")}
               </button>
-              <button className="btn btn-ghost" onClick={() => navigate("/expliquer")}>
+              <button className="btn btn-ghost" onClick={() => navigate("/rapports")}>
                 {t("dashboard.taxCalc")}
               </button>
             </div>

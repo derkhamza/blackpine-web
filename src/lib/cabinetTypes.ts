@@ -187,8 +187,7 @@ export interface SecretaryPermissions {
   recordVitals?:        boolean; // take measurements (TA, poids, taille, T°, SpO₂…)
   handleBilling?:       boolean; // facturation: encaisser, émettre factures/reçus
   viewFinances?:        boolean; // full accounting: comptabilité, transactions, rapports
-  viewClinical?:        boolean; // consultation notes, diagnoses, ordonnances
-  viewDocuments?:       boolean; // attachments, certificates
+  viewClinical?:        boolean; // consultation notes, diagnoses, ordonnances (also gates documents)
   editPatients?:        boolean; // create/edit patient records
   managePayroll?:       boolean; // salaries / bulletins
   useCommunication?:    boolean; // WhatsApp / messaging module (/communication)
@@ -205,7 +204,6 @@ export const DEFAULT_SECRETARY_PERMISSIONS: SecretaryPermissions = {
   handleBilling: true,
   viewFinances:  false,
   viewClinical:  false,
-  viewDocuments: false,
   editPatients:  true,
   managePayroll: false,
   useCommunication: false,

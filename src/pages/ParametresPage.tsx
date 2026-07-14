@@ -871,7 +871,6 @@ function SecretaryPermissionsSection({
     { key: "handleBilling", label: t("settings.permHandleBilling"), hint: t("settings.permHandleBillingHint") },
     { key: "editPatients",  label: t("settings.permEditPatients"),  hint: t("settings.permEditPatientsHint") },
     { key: "viewClinical",  label: t("settings.permViewClinical"),  hint: t("settings.permViewClinicalHint") },
-    { key: "viewDocuments", label: t("settings.permViewDocuments"), hint: t("settings.permViewDocumentsHint") },
     { key: "viewFinances",  label: t("settings.permViewFinances"),  hint: t("settings.permViewFinancesHint") },
     { key: "managePayroll", label: t("settings.permManagePayroll"), hint: t("settings.permManagePayrollHint") },
     { key: "useCommunication", label: t("settings.permUseCommunication"), hint: t("settings.permUseCommunicationHint") },
