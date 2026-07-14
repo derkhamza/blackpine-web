@@ -225,6 +225,7 @@ const PAGE_ICONS: Record<string, { icon: string; tone: string }> = {
   messages:        { icon: "messages",      tone: "#0EA5E9" },
   teleconsult:     { icon: "teleconsult",   tone: "#0EA5E9" },
   calculateurs:    { icon: "calculateurs",  tone: "#0EA5E9" },
+  analytiques:     { icon: "analytiques",   tone: "#0EA5E9" },
   notes:           { icon: "notes",         tone: "#8B5CF6" },
   stocks:          { icon: "stocks",        tone: "#8B5CF6" },
   fournisseurs:    { icon: "fournisseurs",  tone: "#8B5CF6" },
@@ -544,6 +545,7 @@ export function Layout({ title, subtitle, actions, children }: Props) {
     { to: "/examens",       label: t("nav.exams"),        icon: "examens",      group: "Clinique" },
     { to: "/communication", label: t("nav.communication"),icon: "messages",     group: "Clinique" },
     { to: "/calculateurs",  label: t("nav.calculators"),  icon: "calculateurs", group: "Clinique" },
+    { to: "/analytiques",   label: t("nav.analytics"),    icon: "analytiques",  group: "Clinique" },
     // ── Gestion — practice management ─────────────────────────────────────
     { to: "/notes",         label: t("nav.notes"),        icon: "notes",        group: "Gestion" },
     { to: "/stocks",        label: t("nav.stocks"),       icon: "stocks",       group: "Gestion" },

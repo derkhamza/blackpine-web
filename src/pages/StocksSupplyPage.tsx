@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { tabProps } from "../lib/a11y";
 import { Layout } from "../components/Layout";
 import { StockPage } from "./StockPage";
 import { FournisseursPage } from "./FournisseursPage";
@@ -13,15 +14,15 @@ export function StocksSupplyPage() {
   return (
     <Layout title={t("stocksSupply.title")} subtitle={t("stocksSupply.subtitle")}>
       {/* ── Tab bar ── */}
-      <div className="tab-bar" style={{ marginBottom: 20 }}>
+      <div className="tab-bar" role="tablist" style={{ marginBottom: 20 }}>
         <button
-          className={`tab-btn${tab === "stocks" ? " active" : ""}`}
+          className={`tab-btn${tab === "stocks" ? " active" : ""}`} {...tabProps(tab === "stocks")}
           onClick={() => setTab("stocks")}
         >
           {t("stocksSupply.tabStock")}
         </button>
         <button
-          className={`tab-btn${tab === "fournisseurs" ? " active" : ""}`}
+          className={`tab-btn${tab === "fournisseurs" ? " active" : ""}`} {...tabProps(tab === "fournisseurs")}
           onClick={() => setTab("fournisseurs")}
         >
           {t("stocksSupply.tabFournisseurs")}

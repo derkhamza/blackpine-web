@@ -1,6 +1,7 @@
 import { confirmDialog } from "../lib/confirm";
 import { FormEvent, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { tabProps } from "../lib/a11y";
 import { Layout } from "../components/Layout";
 import { useToast } from "../components/Toast";
 import { useCabinet } from "../context/CabinetContext";
@@ -439,8 +440,8 @@ export function FournisseursPage({ noLayout = false }: { noLayout?: boolean } = 
         </div>
       </div>
 
-      <div className="four-tabs">
-        <button className={`four-tab${tab === "suppliers" ? " active" : ""}`} onClick={() => setTab("suppliers")}>
+      <div className="four-tabs" role="tablist">
+        <button className={`four-tab${tab === "suppliers" ? " active" : ""}`} {...tabProps(tab === "suppliers")} onClick={() => setTab("suppliers")}>
           <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
             <circle cx="5" cy="5" r="2.5" stroke="currentColor" strokeWidth="1.3"/>
             <path d="M1 12c0-2.2 1.8-4 4-4s4 1.8 4 4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
@@ -449,7 +450,7 @@ export function FournisseursPage({ noLayout = false }: { noLayout?: boolean } = 
           {t("fournisseurs.tabSuppliers")}
           <span className="stock-pill-count">{suppliers.length}</span>
         </button>
-        <button className={`four-tab${tab === "orders" ? " active" : ""}`} onClick={() => setTab("orders")}>
+        <button className={`four-tab${tab === "orders" ? " active" : ""}`} {...tabProps(tab === "orders")} onClick={() => setTab("orders")}>
           <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
             <rect x="1" y="2" width="12" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.3"/>
             <path d="M4 5h6M4 7.5h4M4 10h2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>

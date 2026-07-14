@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { tabProps } from "../lib/a11y";
 import { Layout } from "../components/Layout";
 import { MessagesPage } from "./MessagesPage";
 import { TeleconsultPage } from "./TeleconsultPage";
@@ -14,21 +15,21 @@ export function CommunicationPage() {
   return (
     <Layout title={t("communication.title")} subtitle={t("communication.subtitle")}>
       {/* ── Tab bar ── */}
-      <div className="tab-bar" style={{ marginBottom: 20 }}>
+      <div className="tab-bar" role="tablist" style={{ marginBottom: 20 }}>
         <button
-          className={`tab-btn${tab === "messages" ? " active" : ""}`}
+          className={`tab-btn${tab === "messages" ? " active" : ""}`} {...tabProps(tab === "messages")}
           onClick={() => setTab("messages")}
         >
           {t("communication.tabMessages")}
         </button>
         <button
-          className={`tab-btn${tab === "teleconsult" ? " active" : ""}`}
+          className={`tab-btn${tab === "teleconsult" ? " active" : ""}`} {...tabProps(tab === "teleconsult")}
           onClick={() => setTab("teleconsult")}
         >
           {t("communication.tabTeleconsult")}
         </button>
         <button
-          className={`tab-btn${tab === "rappels" ? " active" : ""}`}
+          className={`tab-btn${tab === "rappels" ? " active" : ""}`} {...tabProps(tab === "rappels")}
           onClick={() => setTab("rappels")}
         >
           {t("communication.tabRappels")}

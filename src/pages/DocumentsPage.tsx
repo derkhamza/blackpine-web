@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { tabProps } from "../lib/a11y";
 import { Layout } from "../components/Layout";
 import { OrdonancesPage } from "./OrdonancesPage";
 import { CertificatsPage } from "./CertificatsPage";
@@ -20,27 +21,27 @@ export function DocumentsPage() {
   return (
     <Layout title={t("documents.title")} subtitle={t("documents.subtitle")}>
       {/* ── Tab bar ── */}
-      <div className="tab-bar" style={{ marginBottom: 20 }}>
+      <div className="tab-bar" role="tablist" style={{ marginBottom: 20 }}>
         <button
-          className={`tab-btn${tab === "ordonnances" ? " active" : ""}`}
+          className={`tab-btn${tab === "ordonnances" ? " active" : ""}`} {...tabProps(tab === "ordonnances")}
           onClick={() => setTab("ordonnances")}
         >
           {t("documents.tabOrd")}
         </button>
         <button
-          className={`tab-btn${tab === "certificats" ? " active" : ""}`}
+          className={`tab-btn${tab === "certificats" ? " active" : ""}`} {...tabProps(tab === "certificats")}
           onClick={() => setTab("certificats")}
         >
           {t("documents.tabCert")}
         </button>
         <button
-          className={`tab-btn${tab === "examens" ? " active" : ""}`}
+          className={`tab-btn${tab === "examens" ? " active" : ""}`} {...tabProps(tab === "examens")}
           onClick={() => setTab("examens")}
         >
           {t("documents.tabExam")}
         </button>
         <button
-          className={`tab-btn${tab === "comptesRendus" ? " active" : ""}`}
+          className={`tab-btn${tab === "comptesRendus" ? " active" : ""}`} {...tabProps(tab === "comptesRendus")}
           onClick={() => setTab("comptesRendus")}
         >
           {t("documents.tabReports")}

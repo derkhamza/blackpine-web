@@ -1,6 +1,7 @@
 import { confirmDialog } from "../lib/confirm";
 import { useState, useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import { tabProps } from "../lib/a11y";
 import { Layout } from "../components/Layout";
 import { useCabinet } from "../context/CabinetContext";
 import type { Certificate, CertificateType } from "../lib/cabinetTypes";
@@ -229,12 +230,12 @@ function CertModal({ editing, patients, today, onSave, onClose }: CertModalProps
         <div className="modal-body">
           <div className="form-group">
             <label className="form-label">{t("certificats.typeLabel")}</label>
-            <div className="cert-type-tabs">
+            <div className="cert-type-tabs" role="tablist">
               {(["medical", "arret_travail", "orientation"] as CertificateType[]).map(ct => (
                 <button
                   key={ct}
                   type="button"
-                  className={`cert-type-tab${type === ct ? " active" : ""}`}
+                  className={`cert-type-tab${type === ct ? " active" : ""}`} {...tabProps(type === ct)}
                   style={type === ct ? { borderColor: CERT_TYPE_COLORS[ct], color: CERT_TYPE_COLORS[ct], background: CERT_TYPE_COLORS[ct] + "18" } : {}}
                   onClick={() => setType(ct)}
                 >
@@ -532,11 +533,11 @@ export function CertificatsPage({ noLayout = false }: { noLayout?: boolean } = {
         </div>
       </div>
 
-      <div className="four-tabs" style={{ marginBottom: 16 }}>
+      <div className="four-tabs" role="tablist" style={{ marginBottom: 16 }}>
         {tabs.map(([val, lbl, count]) => (
           <button
             key={val}
-            className={`four-tab${filterType === val ? " active" : ""}`}
+            className={`four-tab${filterType === val ? " active" : ""}`} {...tabProps(filterType === val)}
             onClick={() => setFilterType(val)}
             style={filterType === val && val !== "all"
               ? { borderColor: CERT_TYPE_COLORS[val as CertificateType], color: CERT_TYPE_COLORS[val as CertificateType] }

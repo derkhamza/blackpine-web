@@ -337,6 +337,26 @@
         "q": "Premiers pas",
         "a": "Commencez par compléter votre profil (Profil) : nom, spécialité, INPE, ICE et coordonnées apparaissent sur vos documents. Créez ensuite votre premier patient, puis planifiez un rendez-vous depuis l'Agenda. Le tableau de bord résume votre activité du jour."
       },
+      "notes": {
+        "q": "Notes & tâches",
+        "a": "L'espace Notes regroupe vos mémos et vos tâches. Créez une note colorée, épinglez-la pour la garder en haut, ou transformez-la en tâche avec une date d'échéance. Les tâches en retard remontent sur le tableau de bord."
+      },
+      "calculators": {
+        "q": "Calculateurs cliniques",
+        "a": "La page Calculateurs propose des outils prêts à l'emploi : IMC, DFG (fonction rénale), risque cardiovasculaire, HbA1c, âge gestationnel, poids idéal, clairance de la créatinine… Saisissez les valeurs et le résultat s'affiche avec son interprétation."
+      },
+      "accounting": {
+        "q": "Comptabilité",
+        "a": "La Comptabilité tient votre journal de recettes et de charges, gère les immobilisations et l'amortissement, et prépare vos états. Ajoutez une transaction, catégorisez-la, et la déductibilité fiscale est appliquée automatiquement selon le barème marocain."
+      },
+      "payroll": {
+        "q": "Salaires & paie",
+        "a": "La Paie gère vos employés (secrétaire, aide…) : enregistrez le salaire, générez le bulletin, et l'écriture comptable correspondante est créée automatiquement. Retrouvez l'historique par employé."
+      },
+      "optimisation": {
+        "q": "Optimisation fiscale",
+        "a": "L'Optimisation analyse vos données de l'année et suggère des pistes légales pour réduire votre impôt (CGI) : charges déductibles oubliées, choix du régime, cotisations… Ce sont des recommandations informatives, à valider avec votre comptable."
+      },
       "agenda": {
         "q": "Agenda & rendez-vous",
         "a": "Créez un RDV en cliquant sur un créneau. Choisissez le type (consultation, contrôle, suivi…), le patient et l'heure. Les RDV récurrents et multi-cabinets sont pris en charge. Depuis un RDV, marquez le patient « arrivé » pour l'envoyer en salle d'attente, puis « en consultation »."
@@ -2790,7 +2810,7 @@
     "todayLabel": "Aujourd'hui",
     "emptyNone": "Aucune session",
     "emptyNoResults": "Aucune session trouvée",
-    "emptyNoneSub": "Créez votre première session de téléconsultation.",
+    "emptyNoneSub": "Planifiez une téléconsultation et partagez le lien de réunion (Google Meet, Zoom, Teams…) avec votre patient.",
     "emptyFilterSub": "Ajustez les filtres pour voir d'autres sessions.",
     "createFirst": "Créer une session",
     "toastStarted": "Session démarrée",

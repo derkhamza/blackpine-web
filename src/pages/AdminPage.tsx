@@ -1,4 +1,5 @@
 import { confirmDialog } from "../lib/confirm";
+import { tabProps } from "../lib/a11y";
 import { useEffect, useState } from "react";
 import { Layout } from "../components/Layout";
 import { adminGetStats, adminGetEvents, adminGetRetention, adminGetDoctors, adminGetDoctor, adminSetPlan, adminResetTrial, adminExpireAccount, adminDeleteAccount, adminGetConsumption, adminForceLogout, adminSetPassword, adminExtendDays, adminGetFinance, type AdminStats, type AdminEvents, type AdminRetention, type AdminDoctor, type AdminDoctorDetail, type AdminConsumption, type AdminFinance } from "../api/client";
@@ -1073,11 +1074,11 @@ export function AdminPage() {
   return (
     <Layout title="Supervision" subtitle={`Données au ${new Date(stats.generatedAt).toLocaleString("fr-FR")}`}>
       {/* ── Console section tabs ── */}
-      <div className="admin-tabs">
+      <div className="admin-tabs" role="tablist">
         {ADMIN_TABS.map(tb => (
           <button
             key={tb.key}
-            className={`admin-tab${tab === tb.key ? " active" : ""}`}
+            className={`admin-tab${tab === tb.key ? " active" : ""}`} {...tabProps(tab === tb.key)}
             onClick={() => setTab(tb.key)}
           >
             {tb.label}

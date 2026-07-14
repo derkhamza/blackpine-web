@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { tabProps } from "../lib/a11y";
 import { Layout } from "../components/Layout";
 import { useCabinet } from "../context/CabinetContext";
 import { todayIso, formatMAD, calcAge } from "../lib/format";
@@ -97,14 +98,14 @@ export function AnalytiquesPage({ noLayout = false }: { noLayout?: boolean } = {
   const [anaTab, setAnaTab] = useState<ATab>("patients");
   const inner = (
     <>
-      <div className="tab-bar" style={{ marginBottom: 20 }}>
-        <button className={`tab-btn${anaTab === "patients" ? " active" : ""}`} onClick={() => setAnaTab("patients")}>
+      <div className="tab-bar" role="tablist" style={{ marginBottom: 20 }}>
+        <button className={`tab-btn${anaTab === "patients" ? " active" : ""}`} {...tabProps(anaTab === "patients")} onClick={() => setAnaTab("patients")}>
           {t("analytiques.tabPatients")}
         </button>
-        <button className={`tab-btn${anaTab === "activite" ? " active" : ""}`} onClick={() => setAnaTab("activite")}>
+        <button className={`tab-btn${anaTab === "activite" ? " active" : ""}`} {...tabProps(anaTab === "activite")} onClick={() => setAnaTab("activite")}>
           {t("analytiques.tabActivite")}
         </button>
-        <button className={`tab-btn${anaTab === "clinique" ? " active" : ""}`} onClick={() => setAnaTab("clinique")}>
+        <button className={`tab-btn${anaTab === "clinique" ? " active" : ""}`} {...tabProps(anaTab === "clinique")} onClick={() => setAnaTab("clinique")}>
           {t("analytiques.tabClinique")}
         </button>
       </div>

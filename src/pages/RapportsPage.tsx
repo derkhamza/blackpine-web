@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { tabProps } from "../lib/a11y";
 import { Layout } from "../components/Layout";
 import { useApp } from "../context/AppContext";
 import { ReportPage } from "./ReportPage";
@@ -9,9 +10,9 @@ import { AnalytiquesPage } from "./AnalytiquesPage";
 
 type RTab = "rapport" | "calcul" | "optimisation" | "analytiques";
 
-export function RapportsPage() {
+export function RapportsPage({ initialTab = "rapport" }: { initialTab?: RTab } = {}) {
   const { t } = useTranslation();
-  const [tab, setTab] = useState<RTab>("rapport");
+  const [tab, setTab] = useState<RTab>(initialTab);
   const { fiscalYear, setFiscalYear, FISCAL_MIN, FISCAL_MAX } = useApp();
 
   const yearOptions = Array.from(
@@ -37,27 +38,27 @@ export function RapportsPage() {
       }
     >
       {/* ── Tab bar ── */}
-      <div className="tab-bar" style={{ marginBottom: 20 }}>
+      <div className="tab-bar" role="tablist" style={{ marginBottom: 20 }}>
         <button
-          className={`tab-btn${tab === "rapport" ? " active" : ""}`}
+          className={`tab-btn${tab === "rapport" ? " active" : ""}`} {...tabProps(tab === "rapport")}
           onClick={() => setTab("rapport")}
         >
           {t("rapports.tabRapport")}
         </button>
         <button
-          className={`tab-btn${tab === "calcul" ? " active" : ""}`}
+          className={`tab-btn${tab === "calcul" ? " active" : ""}`} {...tabProps(tab === "calcul")}
           onClick={() => setTab("calcul")}
         >
           {t("rapports.tabCalc")}
         </button>
         <button
-          className={`tab-btn${tab === "optimisation" ? " active" : ""}`}
+          className={`tab-btn${tab === "optimisation" ? " active" : ""}`} {...tabProps(tab === "optimisation")}
           onClick={() => setTab("optimisation")}
         >
           {t("rapports.tabOptimisation")}
         </button>
         <button
-          className={`tab-btn${tab === "analytiques" ? " active" : ""}`}
+          className={`tab-btn${tab === "analytiques" ? " active" : ""}`} {...tabProps(tab === "analytiques")}
           onClick={() => setTab("analytiques")}
         >
           {t("rapports.tabAnalytiques")}

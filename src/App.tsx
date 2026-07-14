@@ -254,7 +254,9 @@ export function App() {
         <RequireAuth secretaryOk><WaitingRoomPage /></RequireAuth>
       } />
       <Route path="/rappels" element={<Navigate to="/communication" replace />} />
-      <Route path="/analytiques" element={<Navigate to="/rapports" replace />} />
+      <Route path="/analytiques" element={
+        <RequireAuth perm="viewFinances"><RapportsPage initialTab="analytiques" /></RequireAuth>
+      } />
       <Route path="/stocks" element={
         <RequireAuth perm="manageStock"><StocksSupplyPage /></RequireAuth>
       } />

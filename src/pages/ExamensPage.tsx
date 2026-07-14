@@ -1,7 +1,7 @@
 import { confirmDialog } from "../lib/confirm";
 import { FormEvent, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { clickable } from "../lib/a11y";
+import { clickable, tabProps } from "../lib/a11y";
 import { Layout } from "../components/Layout";
 import { useToast } from "../components/Toast";
 import { useCabinet } from "../context/CabinetContext";
@@ -635,9 +635,9 @@ export function ExamensPage() {
         </div>
       )}
 
-      <div className="four-tabs">
+      <div className="four-tabs" role="tablist">
         {tabs.filter(([tab2, , cnt]) => cnt > 0 || tab2 === "all" || tab2 === "abnormal").map(([tab2, label, cnt]) => (
-          <button key={tab2} className={`four-tab${tab === tab2 ? " active" : ""}`}
+          <button key={tab2} className={`four-tab${tab === tab2 ? " active" : ""}`} {...tabProps(tab === tab2)}
             onClick={() => setTab(tab2)}>
             {label}
             <span className="stock-pill-count">{cnt}</span>

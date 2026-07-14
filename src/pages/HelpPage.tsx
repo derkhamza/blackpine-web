@@ -12,9 +12,9 @@ import { PRICING } from "../lib/pricing";
 // each category to help.cat.<id>.
 const CATEGORIES: { id: string; emoji: string; topics: string[] }[] = [
   { id: "start",    emoji: "🚀", topics: ["gettingStarted"] },
-  { id: "daily",    emoji: "📅", topics: ["agenda", "waitingRoom", "patients"] },
-  { id: "clinical", emoji: "🩺", topics: ["consultation", "bilans", "documents"] },
-  { id: "money",    emoji: "🧾", topics: ["billing"] },
+  { id: "daily",    emoji: "📅", topics: ["agenda", "waitingRoom", "patients", "notes"] },
+  { id: "clinical", emoji: "🩺", topics: ["consultation", "bilans", "documents", "calculators"] },
+  { id: "money",    emoji: "🧾", topics: ["billing", "accounting", "payroll", "optimisation"] },
   { id: "team",     emoji: "🤝", topics: ["secretary"] },
   { id: "app",      emoji: "⚙️", topics: ["sync", "languages", "subscription"] },
 ];

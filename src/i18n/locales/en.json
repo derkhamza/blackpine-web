@@ -337,6 +337,26 @@
         "q": "Getting started",
         "a": "Start by completing your profile (Profile): name, specialty, INPE, ICE and contact details appear on your documents. Then create your first patient and book an appointment from the Agenda. The dashboard summarises your day's activity."
       },
+      "notes": {
+        "q": "Notes & tasks",
+        "a": "The Notes area holds your memos and tasks. Create a colour-coded note, pin it to keep it on top, or turn it into a task with a due date. Overdue tasks surface on the dashboard."
+      },
+      "calculators": {
+        "q": "Clinical calculators",
+        "a": "The Calculators page offers ready-to-use tools: BMI, GFR (kidney function), cardiovascular risk, HbA1c, gestational age, ideal weight, creatinine clearance… Enter the values and the result appears with its interpretation."
+      },
+      "accounting": {
+        "q": "Accounting",
+        "a": "Accounting keeps your income/expense ledger, tracks fixed assets and depreciation, and prepares your statements. Add a transaction, categorise it, and Moroccan tax deductibility is applied automatically."
+      },
+      "payroll": {
+        "q": "Payroll",
+        "a": "Payroll manages your employees (secretary, assistant…): record the salary, generate the payslip, and the matching accounting entry is created automatically. History is kept per employee."
+      },
+      "optimisation": {
+        "q": "Tax optimisation",
+        "a": "Optimisation reviews your year's data and suggests legal ways to reduce your tax (CGI): missed deductible expenses, regime choice, contributions… These are informational suggestions to confirm with your accountant."
+      },
       "agenda": {
         "q": "Agenda & appointments",
         "a": "Create an appointment by clicking a slot. Choose the type (consultation, check-up, follow-up…), the patient and the time. Recurring and multi-location appointments are supported. From an appointment, mark the patient \"arrived\" to send them to the waiting room, then \"in consultation\"."
@@ -2790,7 +2810,7 @@
     "todayLabel": "Today",
     "emptyNone": "No sessions",
     "emptyNoResults": "No sessions found",
-    "emptyNoneSub": "Create your first teleconsultation session.",
+    "emptyNoneSub": "Schedule a teleconsultation and share the meeting link (Google Meet, Zoom, Teams…) with your patient.",
     "emptyFilterSub": "Adjust filters to see other sessions.",
     "createFirst": "Create a session",
     "toastStarted": "Session started",
