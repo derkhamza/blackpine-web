@@ -1938,8 +1938,9 @@ export function AgendaPage() {
     const collected = net != null ? Math.min(net, raw) : raw;
     // Cash entering the ledger is only what was actually collected — and never
     // from a secretary session (she doesn't write the doctor's finances).
+    let billTxnId: string | undefined;
     if (collected > 0 && role !== "secretary") {
-      addTransaction({
+      billTxnId = addTransaction({
         type: "RECETTE", amount: collected,
         date: appt.date,
         category: "consultation",
@@ -1966,11 +1967,12 @@ export function AgendaPage() {
         payments: collected > 0 ? [{ amount: collected, date: now, method: "cash" }] : [],
         preparedItems: null,
         preparedReduction: null,
+        billTxnId,
         ...(invoiceNumber ? { invoiceNumber, invoiceIssuedAt: now } : {}),
       });
     } else {
       updateAppointment({
-        ...appt, billedAt: now, billedAmount: collected,
+        ...appt, billedAt: now, billedAmount: collected, billTxnId,
         ...(invoiceNumber ? { invoiceNumber, invoiceIssuedAt: now } : {}),
       });
     }

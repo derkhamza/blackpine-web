@@ -8,6 +8,7 @@ import { Layout } from "../components/Layout";
 import { useToast } from "../components/Toast";
 import { useApp } from "../context/AppContext";
 import { useCabinet } from "../context/CabinetContext";
+import { isBlockType } from "../lib/cabinetTypes";
 import { formatMAD, formatDateShort, todayIso } from "../lib/format";
 import { clickable } from "../lib/a11y";
 import { AnimatedNumber } from "../components/AnimatedNumber";
@@ -427,7 +428,7 @@ export function TransactionsPage({ noLayout = false }: { noLayout?: boolean } = 
   const { t } = useTranslation();
   const { transactions, fiscalYear, setFiscalYear, FISCAL_MIN, FISCAL_MAX,
           addTransaction, updateTransaction, deleteTransaction } = useApp();
-  const { purchaseOrders } = useCabinet();
+  const { purchaseOrders, appointments } = useCabinet();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [filters,  setFilters]  = useState<FilterState>({
@@ -446,28 +447,60 @@ export function TransactionsPage({ noLayout = false }: { noLayout?: boolean } = 
 
   const showToast = useToast();
 
-  // Purchase orders live in the cabinet store and never post to the ledger, so
-  // surface committed ones as read-only "auto" charges. The tab then reflects
-  // every charge, not just manual entries — billing and payroll already post
-  // real transactions, so only purchases are derived (no double-counting).
-  const derivedTx = useMemo<DisplayTx[]>(() =>
-    purchaseOrders
-      .filter((po) => po.status === "ordered" || po.status === "partial" || po.status === "received")
-      .map((po) => ({
-        id:          "po:" + po.id,
-        type:        "CHARGE" as const,
-        amount:      po.lines.reduce((s, l) => s + (l.quantity || 0) * (l.unitPrice ?? 0), 0),
-        date:        (po.receivedAt || po.orderedAt || po.createdAt || "").slice(0, 10),
-        category:    "consommables_medicaux",
+  // Money recorded in the cabinet store that never posts a real ledger entry is
+  // surfaced here as read-only "auto" rows, so the tab reflects EVERY charge and
+  // income — not just manual entries. Payroll already posts real transactions.
+  const derivedTx = useMemo<DisplayTx[]>(() => {
+    const rows: DisplayTx[] = [];
+
+    // (1) Purchase orders → charges. POs never post to the ledger.
+    for (const po of purchaseOrders) {
+      if (!(po.status === "ordered" || po.status === "partial" || po.status === "received")) continue;
+      const amount = po.lines.reduce((s, l) => s + (l.quantity || 0) * (l.unitPrice ?? 0), 0);
+      const date = (po.receivedAt || po.orderedAt || po.createdAt || "").slice(0, 10);
+      if (amount <= 0 || !date) continue;
+      rows.push({
+        id: "po:" + po.id, type: "CHARGE", amount, date,
+        category: "consommables_medicaux",
         description: `${t("transactions.autoPurchase")}${po.supplierName ? " — " + po.supplierName : ""}`,
-        deductibilityStatus: "FULLY_DEDUCTIBLE" as const,
-        derived:     true,
-        originLabel: t("transactions.autoBadge"),
-        originLink:  "/stocks",
-      }))
-      .filter((tx) => tx.amount > 0 && !!tx.date),
-    [purchaseOrders, t]
-  );
+        deductibilityStatus: "FULLY_DEDUCTIBLE",
+        derived: true, originLabel: t("transactions.autoBadge"), originLink: "/stocks",
+      });
+    }
+
+    // (2) Billing income that was collected but never booked — cash taken in a
+    // secretary session, or a deferred balance later collected. We recognise the
+    // cash actually collected (paidAmount) and subtract whatever the ledger already
+    // holds for that patient on that day, so a normal doctor-billed visit (already
+    // posted) nets to zero and only the un-booked remainder shows. No double count,
+    // no data migration — it's recomputed live.
+    const recetteByDate = new Map<string, Transaction[]>();
+    for (const tx of transactions) {
+      if (tx.type !== "RECETTE") continue;
+      const list = recetteByDate.get(tx.date);
+      if (list) list.push(tx); else recetteByDate.set(tx.date, [tx]);
+    }
+    for (const a of appointments) {
+      if (!a.billedAt || isBlockType(a.type)) continue;
+      const cash = a.paidAmount ?? a.billedAmount ?? 0;
+      if (cash <= 0) continue;
+      const name = (a.patientName || "").trim();
+      const sameDay = recetteByDate.get(a.date) ?? [];
+      const booked = sameDay.reduce((s, tx) =>
+        (name && (tx.description ?? "").includes(name)) ? s + tx.amount : s, 0);
+      const shortfall = cash - booked;
+      if (shortfall <= 0.5) continue;
+      rows.push({
+        id: "appt:" + a.id, type: "RECETTE", amount: shortfall, date: a.date,
+        category: a.type === "procedure" ? "acte_chirurgical" : "consultation",
+        description: `${t("transactions.autoBilling")}${name ? " — " + name : ""}`,
+        deductibilityStatus: "FULLY_DEDUCTIBLE",
+        derived: true, originLabel: t("transactions.autoBadge"), originLink: "/agenda/" + a.id,
+      });
+    }
+
+    return rows;
+  }, [purchaseOrders, appointments, transactions, t]);
 
   const yearTx   = useMemo<DisplayTx[]>(
     () => [...transactions, ...derivedTx].filter((tx) => tx.date.startsWith(String(fiscalYear))),

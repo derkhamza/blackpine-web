@@ -1023,6 +1023,10 @@
     "payTransfer": "Transfer",
     "payRecord": "Record payment",
     "payLedgerNote": "Deferred payment",
+    "correctFacture": "Correct invoice",
+    "correctFactureTitle": "Edit the amount, acts or collected cash if there was a mistake",
+    "correctSave": "Save correction",
+    "factureCorrected": "Invoice corrected",
     "payStatusPaid": "Paid",
     "payStatusPartial": "Partial · {{amount}} left",
     "payStatusDeferred": "Deferred · {{amount}}",
@@ -2332,6 +2336,7 @@
   },
   "transactions": {
     "autoPurchase": "Supplier purchase",
+    "autoBilling": "Payment collected",
     "autoBadge": "Auto",
     "autoOpenSource": "Open in Stock & purchases",
     "title": "Transactions",

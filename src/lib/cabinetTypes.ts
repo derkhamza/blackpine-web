@@ -546,6 +546,10 @@ export interface Appointment {
   // Undefined on a billed appointment means a legacy record paid in full.
   paidAmount?: number;
   payments?:   PaymentRecord[];   // individual instalments (audit trail)
+  // Id of the RECETTE ledger transaction created when this appointment was billed
+  // (doctor sessions only). Lets a facture correction update that exact income row
+  // instead of duplicating it; cleared/adjusted on correction or void.
+  billTxnId?:  string;
   // Mutuelle paperwork — doctors have no visibility on the actual reimbursement,
   // so we only track whether the mutuelle forms were filled, and when.
   mutuellePapersFilled?: boolean;

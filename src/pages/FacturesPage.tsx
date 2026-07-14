@@ -7,6 +7,7 @@ import { useToast } from "../components/Toast";
 import { useContextMenu, type CtxItem } from "../components/ContextMenu";
 import { ActionIcon } from "../components/ActionIcon";
 import { useCabinet } from "../context/CabinetContext";
+import { useApp } from "../context/AppContext";
 import { apptTypeLabel } from "../lib/cabinetTypes";
 import { nextInvoiceNumber, printFacture } from "../lib/facturePrinter";
 import { paymentSummary, lineGross, lineDiscount, billLineDiscounts } from "../lib/billing";
@@ -27,6 +28,7 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
                : i18n.language?.slice(0, 2) === "en" ? "en-US" : "fr-FR";
 
   const { appointments, patients, updateAppointment, doctorProfile } = useCabinet();
+  const { transactions, deleteTransaction } = useApp();
   const facCtx = useContextMenu();
   const navigate = useNavigate();
 
@@ -181,12 +183,22 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
     const appt = appointments.find(a => a.id === apptId);
     if (!appt) return;
     if (!await confirmDialog(t("factures.removeConfirm", { name: appt.patientName }))) return;
+    // Reverse the ledger income this facture created (linked row + its instalment
+    // rows, matched by exact auto-description so manual entries stay untouched).
+    const billDesc = `${apptTypeLabel(appt.type)} – ${appt.patientName}`;
+    const payDesc  = `${t("apptDetail.payLedgerNote")} – ${appt.patientName}`;
+    const ids = new Set<string>();
+    if (appt.billTxnId) ids.add(appt.billTxnId);
+    for (const x of transactions) {
+      if (x.type === "RECETTE" && x.date === appt.date && (x.description === billDesc || x.description === payDesc)) ids.add(x.id);
+    }
+    ids.forEach((id) => deleteTransaction(id));
     const cleared: any = {
       ...appt,
       billedAt: null, billedAmount: null,
       invoiceNumber: null, invoiceIssuedAt: null,
       billedItems: null, billedReduction: null,
-      paidAmount: null, payments: null,
+      paidAmount: null, payments: null, billTxnId: null,
     };
     updateAppointment(cleared);
   };
@@ -361,6 +373,7 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
                   a.invoiceNumber
                     ? { label: t("ctx.reprintInvoice"), icon: <ActionIcon name="print" />, onClick: () => reprintInvoice(a.id) }
                     : { label: t("ctx.emitInvoice"), icon: <ActionIcon name="file" />, onClick: () => emitInvoice(a.id) },
+                  { label: t("apptDetail.correctFacture"), icon: <ActionIcon name="edit" />, onClick: () => navigate(`/agenda/${a.id}`) },
                   { label: t("ctx.openAppt"), icon: <ActionIcon name="clipboard" />, onClick: () => navigate(`/agenda/${a.id}`) },
                   ...(a.patientId
                     ? [{ label: t("ctx.patientFile"), icon: <ActionIcon name="user" />, onClick: () => navigate(`/patients/${a.patientId}`) }] : []),

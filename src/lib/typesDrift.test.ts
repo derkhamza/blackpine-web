@@ -29,7 +29,7 @@ const BASELINE_DRIFT: Record<string, { web: string[]; mobile: string[] }> = {
   Appointment: {
     web: ["labelId", "preparedItems", "preparedReduction", "savedOrdonnance", "checkedInAt",
       "calledInAt", "inConsultationAt", "savedCertificates", "invoiceNumber", "invoiceIssuedAt",
-      "consultationDuration", "extraBilans", "bilanSource", "customMeasures"],
+      "consultationDuration", "extraBilans", "bilanSource", "customMeasures", "billTxnId"],
     mobile: [],
   },
   Patient: { web: ["arabicName", "mutuelle", "city"], mobile: ["examResults"] },

@@ -87,7 +87,7 @@ interface AppCtx {
   profile: DoctorProfile;
   setProfile: (p: DoctorProfile) => void;
   transactions: Transaction[];
-  addTransaction:    (tx: Omit<Transaction, "id">) => void;
+  addTransaction:    (tx: Omit<Transaction, "id">) => string;
   updateTransaction: (id: string, patch: Partial<Transaction>) => void;
   deleteTransaction: (id: string) => void;
   assets: FixedAsset[];
@@ -322,7 +322,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const setProfile = useCallback((p: DoctorProfile) => { setProfileState(p); }, []);
 
   // ── Transactions ───────────────────────────────────────────────────────
-  const addTransaction    = useCallback((tx: Omit<Transaction, "id">) => setTx(p => [...p, { ...tx, id: uid() }]), []);
+  const addTransaction    = useCallback((tx: Omit<Transaction, "id">) => {
+    const id = uid();
+    setTx(p => [...p, { ...tx, id }]);
+    return id;                       // returned so billing can link it to the appointment (facture correction)
+  }, []);
   const updateTransaction = useCallback((id: string, patch: Partial<Transaction>) =>
     setTx(p => p.map(t => t.id === id ? { ...t, ...patch } : t)), []);
   const deleteTransaction = useCallback((id: string) => setTx(p => p.filter(t => t.id !== id)), []);

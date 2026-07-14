@@ -265,7 +265,7 @@ export function AppointmentDetailPage() {
     examResults, addExamResult, prescriptions,
     medicalReports, addMedicalReport, updateMedicalReport,
   } = useCabinet();
-  const { addTransaction } = useApp();
+  const { addTransaction, deleteTransaction, transactions } = useApp();
   const toast = useToast();
   const readOnly = role === "secretary"; // secretary: view clinical notes, no clinical edits
   // A Moroccan secretary commonly takes the measurements, so vitals stay
@@ -938,8 +938,9 @@ export function AppointmentDetailPage() {
       total = Number(base) || 0;
     }
     // Default to collecting the full amount; the secretary lowers it if the
-    // patient pays part now and defers the rest.
-    setBillCollected(String(Math.max(0, total)));
+    // patient pays part now and defers the rest. When correcting an already-billed
+    // facture, pre-fill with what was actually collected.
+    setBillCollected(String(Math.max(0, appt.billedAt ? (appt.paidAmount ?? total) : total)));
     setShowBill(true);
   };
 
@@ -973,11 +974,32 @@ export function AppointmentDetailPage() {
     setBillItems(prev => prev.map((l, idx) => idx === i ? { ...l, ...patch } : l));
   const removeBillLine = (i: number) => setBillItems(prev => prev.filter((_, idx) => idx !== i));
 
+  // Reconcile ledger income for a bill correction so it never duplicates. Removes
+  // the ledger rows this appointment auto-created (the linked bill txn + any of ITS
+  // instalment rows, matched by exact auto-description so manual entries are never
+  // touched) and reposts a single row for the corrected cash. Returns the new txn id
+  // to store. Secretaries never write the doctor's ledger (handled by the derived view).
+  const reconcileBillTxn = (collected: number): string | undefined => {
+    const cat = appt.type === "procedure" ? "acte_chirurgical" : "consultation";
+    const desc = `${apptTypeLabel(appt.type)} – ${appt.patientName}`;
+    const payDesc = `${t("apptDetail.payLedgerNote")} – ${appt.patientName}`;
+    const toRemove = new Set<string>();
+    if (appt.billTxnId) toRemove.add(appt.billTxnId);
+    for (const x of transactions) {
+      if (x.type === "RECETTE" && x.date === appt.date && (x.description === desc || x.description === payDesc)) {
+        toRemove.add(x.id);
+      }
+    }
+    toRemove.forEach((id) => deleteTransaction(id));
+    if (role !== "secretary" && collected > 0) {
+      return addTransaction({ type: "RECETTE", amount: collected, date: appt.date, category: cat,
+        deductibilityStatus: "FULLY_DEDUCTIBLE", professionalUseRatio: 1, description: desc });
+    }
+    return undefined;
+  };
+
   const handleBill = () => {
-    // Guard against double-billing: an already-billed appointment must go through
-    // "Encaisser" (instalments) or be removed first — re-running the full bill
-    // would add a second RECETTE to the ledger and reset the payment history.
-    if (appt.billedAt) { setShowBill(false); return; }
+    const correcting = !!appt.billedAt;   // opened via "Corriger" on a billed facture
     const items = billItems.map(cleanLine).filter(l => l.label.length > 0);
     if (items.length === 0) return;
     // 0 MAD is a valid bill (free consultation): stamped billed, no ledger entry.
@@ -985,10 +1007,13 @@ export function AppointmentDetailPage() {
     // The patient may pay all, part, or none of it now — the rest is deferred.
     const collected = Math.min(total, Math.max(0, parseFloat(billCollected.replace(",", ".")) || 0));
     const now = new Date().toISOString();
-    // The ledger is credited with cash actually received (deferred amounts are
-    // recognised later when paid). Secretaries never touch the doctor's ledger.
-    if (role !== "secretary" && collected > 0) {
-      addTransaction({
+    // Ledger income: reconcile it on a correction (no duplicate); otherwise credit
+    // the cash actually received. Secretaries never write the doctor's ledger.
+    let billTxnId: string | undefined;
+    if (correcting) {
+      billTxnId = reconcileBillTxn(collected);
+    } else if (role !== "secretary" && collected > 0) {
+      billTxnId = addTransaction({
         type: "RECETTE", amount: collected, date: appt.date,
         category: appt.type === "procedure" ? "acte_chirurgical" : "consultation",
         deductibilityStatus: "FULLY_DEDUCTIBLE", professionalUseRatio: 1,
@@ -997,18 +1022,20 @@ export function AppointmentDetailPage() {
     }
     updateAppointment({
       ...appt,
-      billedAt: now,
+      billedAt: appt.billedAt ?? now,   // keep the original billing date on a correction
       billedAmount: total,
       billedItems: items,
       billedReduction: billReductionN > 0 ? billReductionN : undefined,
       paidAmount: collected,
       payments: collected > 0 ? [{ amount: collected, date: now, method: "cash" }] : [],
+      billTxnId,
       // The prepared bill is consumed once invoiced (null survives JSON so the
       // secretary's merge-push actually clears it on the server).
       preparedItems: null,
       preparedReduction: null,
     });
     setShowBill(false);
+    if (correcting) toast(t("apptDetail.factureCorrected"));
   };
 
   // Record a later instalment on an already-billed appointment.
@@ -2279,6 +2306,19 @@ export function AppointmentDetailPage() {
                 </svg>
                 {t("apptDetail.receipt")}
               </button>
+              {/* Corriger la facture (doctor only) — re-opens the bill editor to fix an error */}
+              {!readOnly && (
+                <button
+                  className="btn btn-ghost receipt-print-btn"
+                  onClick={openBillModal}
+                  title={t("apptDetail.correctFactureTitle")}
+                >
+                  <svg width="13" height="13" viewBox="0 0 12 12" fill="none" style={{ marginRight: 5 }}>
+                    <path d="M8.5 1.5a1.5 1.5 0 0 1 2 2L4 10H2v-2L8.5 1.5Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/>
+                  </svg>
+                  {t("apptDetail.correctFacture")}
+                </button>
+              )}
               {/* Facture */}
               {appt.invoiceNumber ? (
                 <button
@@ -2409,7 +2449,7 @@ export function AppointmentDetailPage() {
         <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setShowBill(false); }}>
           <div className="modal" style={{ maxWidth: 480 }}>
             <div className="modal-header">
-              <h2 className="modal-title">{t("apptDetail.billConsult")}</h2>
+              <h2 className="modal-title">{appt.billedAt ? t("apptDetail.correctFacture") : t("apptDetail.billConsult")}</h2>
               <button className="modal-close" onClick={() => setShowBill(false)}>×</button>
             </div>
             <div className="modal-body">
@@ -2609,7 +2649,7 @@ export function AppointmentDetailPage() {
             </div>
             <div className="modal-footer">
               <button className="btn btn-ghost" onClick={() => setShowBill(false)}>{t("common.cancel")}</button>
-              {!readOnly && (
+              {!readOnly && !appt.billedAt && (
                 <button
                   className="btn btn-ghost"
                   onClick={handlePrepareBill}
@@ -2625,7 +2665,7 @@ export function AppointmentDetailPage() {
                 onClick={handleBill}
                 disabled={billItems.every(l => !l.label.trim())}
               >
-                {t("apptDetail.addRevenue")}
+                {appt.billedAt ? t("apptDetail.correctSave") : t("apptDetail.addRevenue")}
               </button>
             </div>
           </div>
