@@ -474,7 +474,7 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
                                       </span>
                                     )}
                                   </td>
-                                  <td className="fac-acts-qty">×{it.qty}</td>
+                                  <td className="fac-acts-qty">{it.qty > 1 ? `×${it.qty}` : ""}</td>
                                   <td className="fac-acts-unit">{formatMAD(it.unitPrice)}</td>
                                   <td className="fac-acts-sub fac-r">{formatMAD(lineGross(it))}</td>
                                 </tr>

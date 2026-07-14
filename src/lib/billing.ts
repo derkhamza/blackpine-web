@@ -1,4 +1,17 @@
-import type { Appointment, BillingLine } from "./cabinetTypes";
+import type { Appointment, BillingLine, CabinetDoctorProfile } from "./cabinetTypes";
+import { isTeleType, isBlockType } from "./cabinetTypes";
+
+// A completed consultation whose fee wasn't collected in-app. Excludes teleconsults
+// and non-patient "événement" blocks (settled outside the app, if at all).
+export function isUnbilledConsult(a: Appointment): boolean {
+  return a.status === "completed" && !a.billedAt && !isTeleType(a.type) && !isBlockType(a.type);
+}
+// Whether to surface "consultation non facturée" reminders at all. Doctors who bill
+// outside the app can turn these off (billingReminders === false).
+export function billingRemindersOn(profile: CabinetDoctorProfile | undefined): boolean {
+  return profile?.billingReminders !== false;
+}
+
 
 // ── Bill line math (per-act discount + global reduction) ─────────────────────
 // A line can carry an optional discount: a percentage of the line, or a fixed

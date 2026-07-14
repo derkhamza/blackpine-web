@@ -30,6 +30,7 @@ export interface CabinetDoctorProfile {
   customDrugs?:    string[]; // Custom medications added by the doctor
   hiddenConsultationTypes?: string[]; // types hidden from the type selector (built-in ids or custom ids)
   appointmentPrices?: Record<string, number>; // doctor-set fee (MAD) per RDV type (built-in or custom id)
+  billingReminders?: boolean; // show "consultation non facturée" reminders; default true. Off = doctor bills outside the app.
   // Doctor-defined appointment types (added on top of the built-ins).
   customApptTypes?: CustomApptType[];
   // Editable categories for non-patient agenda events (Événement blocks) — the

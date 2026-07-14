@@ -20,6 +20,7 @@ import { paymentSummary, billSubtotal as calcSubtotal, billLineDiscounts, billNe
 import {
   APPT_STATUS_LABELS, DEFAULT_SECRETARY_PERMISSIONS,
   apptTypeLabel, apptTypeColor, resolveApptTypes, apptLabelById,
+  EXAM_TYPE_LABELS, EXAM_TYPE_COLORS,
 } from "../lib/cabinetTypes";
 import { NOTE_TEMPLATES, TEMPLATE_CATEGORIES } from "../lib/noteTemplates";
 import { todayIso, formatMAD, formatDateShort, bmiClassify, calcAge } from "../lib/format";
@@ -400,6 +401,11 @@ export function AppointmentDetailPage() {
   const [showBill,  setShowBill]  = useState(false);
   const [newMeasLabel,  setNewMeasLabel]  = useState("");
   const [newMeasValue,  setNewMeasValue]  = useState("");
+  // Add-event (timeline) modal
+  const [showAddEvent,  setShowAddEvent]  = useState(false);
+  const [evtDate,       setEvtDate]       = useState("");
+  const [evtTitle,      setEvtTitle]      = useState("");
+  const [evtNotes,      setEvtNotes]      = useState("");
   const [billItems,     setBillItems]     = useState<BillingLine[]>([]);
   const [billReduction, setBillReduction] = useState("");
   // Global réduction is an occasional case — hidden behind a link so the bill entry
@@ -853,6 +859,36 @@ export function AppointmentDetailPage() {
     : [];
   const historyCount = historyAppts.length + futureAppts.length + historyExams.length + historyRx.length;
 
+  // Merged, timeline-style history (like the patient-file timeline): consultations +
+  // exams + prescriptions + custom events for this patient, most-recent first.
+  const EXAM_ICON: Record<string, string> = { biologie: "flask", imagerie: "xray", ecg: "heart", autre: "clipboard" };
+  interface HistTL { id: string; kind: string; date: string; sortKey: string; icon: string; color: string; title: string; subtitle?: string; detail?: string; appt?: Appointment; link?: string; }
+  const pastTimeline: HistTL[] = (() => {
+    if (!pid) return [];
+    const out: HistTL[] = [];
+    for (const a of historyAppts) {
+      const done = a.status === "completed";
+      let sub = a.consultationNote?.motif || a.consultationNote?.diagnosis || undefined;
+      if (sub && sub.length > 90) sub = sub.slice(0, 90) + "…";
+      const chips: string[] = [];
+      if (a.vitalSigns && Object.values(a.vitalSigns).some(v => v != null)) chips.push(t("patientDetail.tlVitals"));
+      if (a.savedOrdonnance?.lines?.length) chips.push(t("patientDetail.tlMeds", { n: a.savedOrdonnance.lines.length }));
+      out.push({ id: `rdv-${a.id}`, kind: "rdv", date: a.date, sortKey: `${a.date}T${a.startTime || "00:00"}`,
+        icon: done ? "stethoscope" : "calendar", color: done ? apptTypeColor(a.type) : "var(--tertiary)",
+        title: apptTypeLabel(a.type) + (done ? "" : ` · ${APPT_STATUS_LABELS[a.status]}`), subtitle: sub,
+        detail: chips.join(" · ") || undefined, appt: a });
+    }
+    for (const e of historyExams) out.push({ id: `exam-${e.id}`, kind: "exam", date: e.date, sortKey: `${e.date}T00:00`,
+      icon: EXAM_ICON[e.type] ?? "clipboard", color: EXAM_TYPE_COLORS[e.type], title: e.title,
+      subtitle: EXAM_TYPE_LABELS[e.type] + (e.labName ? ` · ${e.labName}` : ""), link: `/examens?focus=${e.id}` });
+    for (const p of historyRx) { const first = p.lines?.[0]; const nMore = (p.lines?.length ?? 0) - 1;
+      out.push({ id: `rx-${p.id}`, kind: "rx", date: p.date, sortKey: `${p.date}T00:01`, icon: "pills", color: "#15A876",
+        title: t("apptDetail.rxHistory"), subtitle: first ? `${first.drug}${nMore > 0 ? ` +${nMore}` : ""}` : undefined, link: `/ordonnances?focus=${p.id}` }); }
+    for (const ev of patient?.timelineEvents ?? []) if (ev.date <= historyTodayIso)
+      out.push({ id: `evt-${ev.id}`, kind: "event", date: ev.date, sortKey: `${ev.date}T00:03`, icon: "pin", color: "#D4962A", title: ev.title, subtitle: ev.notes || undefined });
+    return out.sort((a, b) => b.sortKey.localeCompare(a.sortKey));
+  })();
+
   // ── Two-section split (bilanSource) + custom measures ───────────────────────
   // Which section a group sits in: this appointment's choice, else the doctor's
   // saved preference, else a sensible default (specialty exam → "Mesures du jour",
@@ -1002,6 +1038,16 @@ export function AppointmentDetailPage() {
     }]);
     setNewMeasLabel(""); setNewMeasValue("");
     toast(t("apptDetail.measureAdded"));
+  };
+
+  // Add a custom event to the patient's timeline (same model as the patient-file timeline).
+  const openAddEvent = () => { setEvtDate(todayIso()); setEvtTitle(""); setEvtNotes(""); setShowAddEvent(true); };
+  const saveTimelineEvent = () => {
+    if (!patient || !evtTitle.trim()) return;
+    const ev = { id: `tl_${crypto.randomUUID().replace(/-/g, "").slice(0, 10)}`, date: evtDate || todayIso(), title: evtTitle.trim(), notes: evtNotes.trim() || undefined };
+    updatePatient({ ...patient, timelineEvents: [...(patient.timelineEvents ?? []), ev] });
+    setShowAddEvent(false);
+    toast(t("apptDetail.eventAdded"));
   };
 
   // Doctor saves the composed bill WITHOUT collecting — the secretary handles
@@ -1472,7 +1518,7 @@ export function AppointmentDetailPage() {
           { key: "history", label: t("apptDetail.historyTab"),   dot: historyCount > 0 },
           // Suivi & AMO: the secretary handles the mutuelle/AMO paperwork and the
           // encaissement, so this tab is shown to secretaries too.
-          { key: "suivi" as const, label: t("apptDetail.followup"), dot: !!appt.mutuellePapersFilled || !!appt.followUpDate },
+          { key: "suivi" as const, label: t(viewAsSecretary ? "apptDetail.followup" : "apptDetail.billingTitle"), dot: viewAsSecretary ? (!!appt.mutuellePapersFilled || !!appt.followUpDate) : (appt.status === "completed" && !appt.billedAt) },
         ] as const).map(({ key, label, dot }) => (
           <button
             key={key}
@@ -2180,10 +2226,60 @@ export function AppointmentDetailPage() {
                 )}
               </div>
 
-              {/* Upcoming consultations — kept separate from the past history below. */}
+              {/* Merged, timeline-style history (like the patient-file timeline):
+                  consultations + exams + ordonnances + custom events, newest first,
+                  with an "add event" affordance. Past first, upcoming after. */}
+              <div className="appt-section-header">
+                <div className="appt-section-title">
+                  {t("apptDetail.historyTab")}
+                  {pastTimeline.length > 0 && <span className="appt-docs-count">{pastTimeline.length}</span>}
+                </div>
+                {!readOnly && (
+                  <button className="btn btn-ghost btn-sm" onClick={openAddEvent}>+ {t("apptDetail.addEvent")}</button>
+                )}
+              </div>
+              {pastTimeline.length === 0 ? (
+                <div className="appt-docs-empty">{t("apptDetail.noHistory")}</div>
+              ) : (
+                <div className="tl-list">
+                  {pastTimeline.slice(0, 60).map((entry, idx, arr) => {
+                    const a = entry.appt;
+                    const isLast = idx === arr.length - 1;
+                    return (
+                      <div key={entry.id} className="tl-entry">
+                        <div className="tl-icon-col">
+                          <div className="tl-icon" style={{ background: entry.color + "18", color: entry.color }}><ActionIcon name={entry.icon} /></div>
+                          {!isLast && <div className="tl-connector" />}
+                        </div>
+                        <div className="tl-body">
+                          <div className="tl-row-top">
+                            <span className="tl-title">{entry.title}</span>
+                            <span className="tl-date">{formatDateShort(entry.date)}</span>
+                          </div>
+                          {entry.subtitle && <div className="tl-subtitle">{entry.subtitle}</div>}
+                          {entry.detail && <div className="tl-detail">{entry.detail}</div>}
+                          <div className="tl-actions">
+                            {a && (a.savedOrdonnance?.lines?.length ?? 0) > 0 && (
+                              <button type="button" className="tl-link tl-link-btn" title={t("apptDetail.reprOrd")}
+                                onClick={() => printOrdonnance({
+                                  lines: a.savedOrdonnance!.lines ?? [], patientName: a.patientName, date: a.date, doctorProfile,
+                                  patient: patient ? { gender: patient.gender, dateOfBirth: patient.dateOfBirth } : undefined,
+                                })}>℞ {t("apptDetail.reprOrd")}</button>
+                            )}
+                            {a && <Link to={`/agenda/${a.id}`} className="tl-link">{t("patientDetail.tlViewDetail")} →</Link>}
+                            {!a && entry.link && <Link to={entry.link} className="tl-link">{t("patientDetail.tlViewDetail")} →</Link>}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Upcoming consultations — AFTER the past history. */}
               {futureAppts.length > 0 && (
                 <>
-                  <div className="appt-section-header">
+                  <div className="appt-section-header" style={{ marginTop: 16 }}>
                     <div className="appt-section-title">
                       {t("apptDetail.upcomingVisits")}
                       <span className="appt-docs-count">{futureAppts.length}</span>
@@ -2202,148 +2298,6 @@ export function AppointmentDetailPage() {
                   </div>
                 </>
               )}
-
-              <div className="appt-section-header">
-                <div className="appt-section-title">
-                  {t("apptDetail.pastVisits")}
-                  {historyAppts.length > 0 && <span className="appt-docs-count">{historyAppts.length}</span>}
-                </div>
-              </div>
-              {historyAppts.length === 0 ? (
-                <div className="appt-docs-empty">{t("apptDetail.noHistory")}</div>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {historyAppts.slice(0, 40).map(a => {
-                    const n = a.consultationNote; const vs = a.vitalSigns;
-                    // Every captured vital, incl. computed BMI — nothing hidden.
-                    const vChips: string[] = [];
-                    if (vs) {
-                      if (vs.bpSys != null && vs.bpDia != null) vChips.push(`TA ${vs.bpSys}/${vs.bpDia} mmHg`);
-                      if (vs.hr != null)     vChips.push(`FC ${vs.hr} bpm`);
-                      if (vs.temp != null)   vChips.push(`T° ${vs.temp} °C`);
-                      if (vs.spo2 != null)   vChips.push(`SpO₂ ${vs.spo2} %`);
-                      if (vs.weight != null) vChips.push(`${vs.weight} kg`);
-                      if (vs.height != null) vChips.push(`${vs.height} cm`);
-                      if (vs.weight != null && vs.height) {
-                        const bmi = vs.weight / Math.pow(vs.height / 100, 2);
-                        if (isFinite(bmi)) vChips.push(`IMC ${bmi.toFixed(1)}`);
-                      }
-                    }
-                    // Every specialty / bilan measure stored on the note.
-                    const extra = n?.extraFields ? Object.entries(n.extraFields).filter(([, v]) => v != null && String(v).trim()) : [];
-                    // Ad-hoc measures typed at the desk.
-                    const custom = a.customMeasures ?? [];
-                    const docs = apptDocuments.filter(d => d.appointmentId === a.id);
-                    const hasFoot = (a.savedOrdonnance && (a.savedOrdonnance.lines?.length ?? 0) > 0)
-                      || (a.savedCertificates?.length ?? 0) > 0 || docs.length > 0;
-                    return (
-                      <div key={a.id} className="hist-visit">
-                        <div className="hist-visit-head">
-                          <Link to={`/agenda/${a.id}`} className="hist-visit-date">{formatDateShort(a.date)}</Link>
-                          <span className="hist-visit-type" style={{ color: apptTypeColor(a.type), background: apptTypeColor(a.type) + "18" }}>{apptTypeLabel(a.type)}</span>
-                          {apptLabelById(a.labelId) && (
-                            <span className="hist-visit-tag" style={{ background: apptLabelById(a.labelId)!.color + "22", color: apptLabelById(a.labelId)!.color }}>{apptLabelById(a.labelId)!.label}</span>
-                          )}
-                        </div>
-                        {/* Field order mirrors the note-clinique entry order:
-                            motif → examen (+ signes vitaux) → mesures/bilans → diagnostic → traitement. */}
-                        {n?.motif && <div className="hist-note"><span className="hist-note-label">{t("apptDetail.motif")}</span><span className="hist-note-text">{n.motif}</span></div>}
-                        {n?.examination && <div className="hist-note"><span className="hist-note-label">{t("apptDetail.examination")}</span><span className="hist-note-text">{n.examination}</span></div>}
-                        {vChips.length > 0 && (
-                          <div className="hist-measures">
-                            {vChips.map((c, i) => <span key={i} className="hist-measure-chip">{c}</span>)}
-                          </div>
-                        )}
-                        {(extra.length > 0 || custom.length > 0) && (
-                          <div className="hist-measures">
-                            {extra.map(([k, v]) => {
-                              const m = fieldMeta(k);
-                              return <span key={k} className="hist-measure-chip"><b>{m.label}:</b> {v}{m.unit ? ` ${m.unit}` : ""}</span>;
-                            })}
-                            {custom.map((cm) => (
-                              <span key={cm.id} className="hist-measure-chip"><b>{cm.label}:</b> {cm.value}{cm.unit ? ` ${cm.unit}` : ""}</span>
-                            ))}
-                          </div>
-                        )}
-                        {n?.diagnosis && <div className="hist-note"><span className="hist-note-label">{t("apptDetail.diagnosis")}</span><span className="hist-note-text">{n.diagnosis}</span></div>}
-                        {n?.treatment && <div className="hist-note"><span className="hist-note-label">{t("apptDetail.treatment")}</span><span className="hist-note-text">{n.treatment}</span></div>}
-                        {hasFoot && (
-                          <div className="hist-visit-foot">
-                            {a.savedOrdonnance && (a.savedOrdonnance.lines?.length ?? 0) > 0 && (
-                              <button type="button" className="hist-foot-item hist-foot-rx"
-                                title={t("apptDetail.reprOrd")}
-                                onClick={() => printOrdonnance({
-                                  lines: a.savedOrdonnance!.lines ?? [],
-                                  patientName: a.patientName,
-                                  date: a.date,
-                                  doctorProfile,
-                                  patient: patient ? { gender: patient.gender, dateOfBirth: patient.dateOfBirth } : undefined,
-                                })}>
-                                ℞ {(a.savedOrdonnance.lines ?? []).map(l => l.drug).join(", ")} <span className="hist-foot-rx-cta">↗</span>
-                              </button>
-                            )}
-                            {(a.savedCertificates?.length ?? 0) > 0 && (
-                              <span className="hist-foot-item">📜 {t("apptDetail.certificate")} ({a.savedCertificates!.length})</span>
-                            )}
-                            {docs.length > 0 && (
-                              <div className="hist-docs">
-                                <span className="hist-docs-label">📎 {t("apptDetail.attachments")} ({docs.length})</span>
-                                <div className="hist-docs-list">
-                                  {docs.map(doc => (
-                                    <AttachmentLink key={doc.id} doc={doc} download={!doc.mimeType.startsWith("image/")} className="hist-doc-chip">{docIcon(doc.mimeType)} {doc.filename}</AttachmentLink>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {historyExams.length > 0 && (
-                <>
-                  <div className="appt-section-header" style={{ marginTop: 16 }}>
-                    <div className="appt-section-title">{t("apptDetail.examResultsHistory")}<span className="appt-docs-count">{historyExams.length}</span></div>
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {historyExams.slice(0, 20).map(e => (
-                      <div key={e.id} style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "8px 12px" }}>
-                        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4 }}>
-                          <span style={{ fontWeight: 700 }}>{formatDateShort(e.date)}</span>
-                          <span style={{ fontSize: 12 }}>{e.title}</span>
-                          {e.labName && <span style={{ fontSize: 11, color: "var(--muted)" }}>· {e.labName}</span>}
-                        </div>
-                        {e.values.length > 0 && (
-                          <div style={{ fontSize: 12.5 }}>
-                            {e.values.slice(0, 6).map(v => `${v.label}: ${v.value}${v.unit ? ` ${v.unit}` : ""}`).join(" · ")}
-                          </div>
-                        )}
-                        {e.notes && <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>{e.notes}</div>}
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-
-              {historyRx.length > 0 && (
-                <>
-                  <div className="appt-section-header" style={{ marginTop: 16 }}>
-                    <div className="appt-section-title">{t("apptDetail.rxHistory")}<span className="appt-docs-count">{historyRx.length}</span></div>
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {historyRx.slice(0, 20).map(p => (
-                      <div key={p.id} style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "8px 12px" }}>
-                        <div style={{ fontWeight: 700, fontSize: 12.5, marginBottom: 2 }}>{formatDateShort(p.date)}</div>
-                        <div style={{ fontSize: 12.5 }}>℞ {(p.lines ?? []).map(l => l.drug).join(", ")}</div>
-                        {p.notes && <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>{p.notes}</div>}
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
             </>
           )}
         </div>
@@ -2353,6 +2307,9 @@ export function AppointmentDetailPage() {
       {tab === "suivi" && (
         <div className="appt-tab-panel">
 
+          {/* Mutuelle/AMO + follow-up are secretary tasks — hidden from the doctor's
+              RDV screen (shown only in the secretary view / preview). */}
+          {viewAsSecretary && (<>
           {/* Mutuelle paperwork — doctors don't see the actual reimbursement, so we
               only track whether the mutuelle forms were filled, and when. */}
           <div className="appt-section-header">
@@ -2418,6 +2375,7 @@ export function AppointmentDetailPage() {
               />
             </div>
           </div>
+          </>)}
 
           {/* Billing */}
           <div className="appt-section-header" style={{ marginTop: 20 }}>
@@ -2609,6 +2567,35 @@ export function AppointmentDetailPage() {
       </div>
 
       {/* ── Bill modal ── */}
+      {showAddEvent && (
+        <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setShowAddEvent(false); }}>
+          <form className="modal" style={{ maxWidth: 420 }} onSubmit={(e) => { e.preventDefault(); saveTimelineEvent(); }}>
+            <div className="modal-header">
+              <h2 className="modal-title">{t("apptDetail.addEvent")}</h2>
+              <button type="button" className="modal-close" onClick={() => setShowAddEvent(false)} aria-label={t("common.close")}>×</button>
+            </div>
+            <div className="modal-body">
+              <div className="form-group">
+                <label className="form-label">{t("agenda.date")}</label>
+                <input type="date" className="form-input" value={evtDate} onChange={(e) => setEvtDate(e.target.value)} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">{t("apptDetail.eventTitle")}</label>
+                <input className="form-input" autoFocus value={evtTitle} onChange={(e) => setEvtTitle(e.target.value)} placeholder={t("apptDetail.eventTitlePh")} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">{t("apptDetail.eventNotes")}</label>
+                <textarea className="form-input" rows={3} value={evtNotes} onChange={(e) => setEvtNotes(e.target.value)} />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="btn btn-ghost" onClick={() => setShowAddEvent(false)}>{t("common.cancel")}</button>
+              <button type="submit" className="btn btn-primary" disabled={!evtTitle.trim()}>{t("common.add")}</button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {showBill && (
         <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setShowBill(false); }}>
           <div className="modal" style={{ maxWidth: 480 }}>
@@ -2631,7 +2618,7 @@ export function AppointmentDetailPage() {
                 {billItems.map((l, i) => readOnly ? (
                   <div className="bill-line bill-line-ro" key={i}>
                     <span className="bill-line-ro-label">{l.label || "—"}</span>
-                    <span className="bill-line-ro-qty">{l.qty} ×</span>
+                    {l.qty > 1 && <span className="bill-line-ro-qty">{l.qty} ×</span>}
                     <span className="bill-line-ro-price">{formatMAD(l.unitPrice)}</span>
                     {lineDiscount(l) > 0 && (
                       <span className="bill-line-ro-remise" title={t("apptDetail.billActRemise")}>

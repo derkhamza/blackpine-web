@@ -14,7 +14,7 @@ import { useInstallPWA } from "../components/PWAPrompts";
 import { useTranslation } from "react-i18next";
 import i18n from "../i18n";
 import type { CabinetLocation, SecretaryPermissions, ActeCode, DocumentSettings, DocumentLayout, CabinetDoctorProfile, CustomApptType, ApptLabel, DocKind } from "../lib/cabinetTypes";
-import { docModeForKind, docTypography } from "../lib/docDesign";
+import { docModeForKind } from "../lib/docDesign";
 import { APPT_TYPE_LABELS, APPT_TYPE_COLORS, BUILTIN_APPT_TYPES, DEFAULT_SECRETARY_PERMISSIONS, DEFAULT_DOCUMENT_SETTINGS, DOCUMENT_LAYOUT_LABELS } from "../lib/cabinetTypes";
 import { COMMON_DRUGS } from "../lib/ordonnancePrinter";
 import { ActeCatalogModal } from "../components/ActeCatalogModal";
@@ -984,6 +984,17 @@ function ConsultationTypesSection({
 
   return (
     <div className="consult-types-list">
+      {/* Turn off "consultation non facturée" reminders (for doctors who bill on paper). */}
+      <label style={{ display: "flex", alignItems: "flex-start", gap: 8, cursor: "pointer", padding: "6px 2px 10px", borderBottom: "1px solid var(--border)", marginBottom: 6 }}>
+        <input type="checkbox" style={{ marginTop: 2 }} checked={profile.billingReminders !== false}
+          onChange={e => onChange({ ...profile, billingReminders: e.target.checked ? undefined : false })} />
+        <span style={{ fontSize: 13 }}>
+          {t("settings.billingReminders", { defaultValue: "Rappels de consultations non facturées" })}
+          <span style={{ display: "block", fontSize: 11.5, color: "var(--muted)", marginTop: 1 }}>
+            {t("settings.billingRemindersHint", { defaultValue: "Décochez si vous facturez en dehors de l'application." })}
+          </span>
+        </span>
+      </label>
       {rows.map((row) => {
         const visible = !hidden.includes(row.id);
         return (
@@ -1249,51 +1260,8 @@ function ActeCodesSection({
 }
 
 // ── Document format settings ────────────────────────────────────────────────────
-
-function DocumentPreview({ s, doc }: { s: DocumentSettings; doc: CabinetDoctorProfile }) {
-  const { t } = useTranslation();
-  const name = doc.fullName?.trim() ? `Dr. ${doc.fullName}` : t("profile.fullNamePlaceholder");
-  const idChips: string[] = [];
-  if (s.showInpe && doc.inpe) idChips.push(`INPE ${doc.inpe}`);
-  if (s.showIce && doc.ice)   idChips.push(`ICE ${doc.ice}`);
-  if (s.showRib && doc.rib)   idChips.push(`RIB ${doc.rib}`);
-  const layout = s.layout ?? "classic";
-  const typo = docTypography(s);
-  return (
-    <div className="form-group">
-      <label className="form-label">{t("settings.docPreview")}</label>
-      <div className={`docpv docpv-${layout}`} aria-hidden style={{ fontFamily: typo.family }}>
-        {layout === "letterhead" && <div className="docpv-band" style={{ background: typo.accent }} />}
-        <div className="docpv-head">
-          <div className="docpv-name" style={{ color: typo.accent }}>{name}</div>
-          {doc.specialtyLabel && <div className="docpv-spec">{doc.specialtyLabel}</div>}
-          {(doc.address || doc.phone) && (
-            <div className="docpv-contact">
-              {[doc.address, doc.phone].filter(Boolean).join(" · ")}
-            </div>
-          )}
-        </div>
-        {s.headerNote && <div className="docpv-note">{s.headerNote}</div>}
-        <div className="docpv-body">
-          <span className="docpv-line" style={{ width: "55%" }} />
-          <span className="docpv-line" style={{ width: "82%" }} />
-          <span className="docpv-line" style={{ width: "70%" }} />
-        </div>
-        {(idChips.length > 0 || s.footerNote) && (
-          <div className="docpv-foot">
-            {s.footerNote && <div className="docpv-footnote">{s.footerNote}</div>}
-            {idChips.length > 0 && (
-              <div className="docpv-ids">
-                {idChips.map(c => <span key={c} className="docpv-chip">{c}</span>)}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-      <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>{t("settings.docPreviewHint")}</div>
-    </div>
-  );
-}
+// (Simple mode now reuses the exact PageDesigner canvas — the old approximate
+//  DocumentPreview was removed.)
 
 function DocumentSettingsSection({
   settings,
@@ -1366,7 +1334,8 @@ function DocumentSettingsSection({
           <div>
             <div className="secretary-info-title">{t("settings.docSimpleTitle")}</div>
             <div className="secretary-info-desc" style={{ marginBottom: 10 }}>{t("settings.docSimpleShared")}</div>
-            <DocumentPreview s={s} doc={doctorProfile} />
+            {/* Exact, to-scale aperçu (same canvas as advanced), with inline colour/size. */}
+            <PageDesigner settings={s} doctorProfile={doctorProfile} onChange={onChange} kind={selectedDoc} hideTabs />
             <div className="form-group" style={{ marginTop: 10 }}>
               <label className="form-label">{t("settings.docLayout")}</label>
               <select className="form-select" value={s.layout} onChange={e => set({ layout: e.target.value as DocumentLayout })}>
@@ -1374,30 +1343,15 @@ function DocumentSettingsSection({
               </select>
               <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 3 }}>{t("settings.docLayoutHint")}</div>
             </div>
-            {/* Document-wide typography — font, size, accent colour (applies to every doc). */}
-            <div className="form-row" style={{ marginBottom: 8 }}>
-              <div className="form-group" style={{ flex: 1 }}>
-                <label className="form-label">{t("settings.docFont", { defaultValue: "Police" })}</label>
-                <select className="form-select" value={s.fontFamily ?? "serif"} onChange={e => set({ fontFamily: e.target.value as DocumentSettings["fontFamily"] })}>
-                  <option value="serif">Times (classique)</option>
-                  <option value="sans">Arial</option>
-                  <option value="georgia">Georgia</option>
-                  <option value="condensed">Condensé</option>
-                </select>
-              </div>
-              <div className="form-group" style={{ flex: 1 }}>
-                <label className="form-label">{t("settings.docTextSize", { defaultValue: "Taille du texte" })}</label>
-                <select className="form-select" value={String(s.fontScale ?? 1)} onChange={e => set({ fontScale: Number(e.target.value) })}>
-                  <option value="0.9">{t("settings.docSizeCompact", { defaultValue: "Compact" })}</option>
-                  <option value="1">{t("settings.docSizeNormal", { defaultValue: "Normal" })}</option>
-                  <option value="1.1">{t("settings.docSizeLarge", { defaultValue: "Grand" })}</option>
-                </select>
-              </div>
-              <div className="form-group" style={{ width: 84 }}>
-                <label className="form-label">{t("settings.docAccent", { defaultValue: "Couleur" })}</label>
-                <input type="color" className="form-input" style={{ height: 38, padding: 2, cursor: "pointer" }}
-                  value={s.accentColor ?? "#0A4E7E"} onChange={e => set({ accentColor: e.target.value })} />
-              </div>
+            {/* Font family — text colour + size are edited directly on the aperçu above. */}
+            <div className="form-group" style={{ marginBottom: 8 }}>
+              <label className="form-label">{t("settings.docFont", { defaultValue: "Police" })}</label>
+              <select className="form-select" value={s.fontFamily ?? "serif"} onChange={e => set({ fontFamily: e.target.value as DocumentSettings["fontFamily"] })}>
+                <option value="serif">Times (classique)</option>
+                <option value="sans">Arial</option>
+                <option value="georgia">Georgia</option>
+                <option value="condensed">Condensé</option>
+              </select>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {([["showInpe", "INPE"], ["showIce", "ICE"], ["showRib", "RIB"]] as [keyof DocumentSettings, string][]).map(([k, lbl]) => (

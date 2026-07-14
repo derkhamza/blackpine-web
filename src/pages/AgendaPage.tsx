@@ -16,7 +16,7 @@ import {
   BLOCK_TYPE_META, isBlockType, resolveBlockTypes, DEFAULT_BLOCK_TYPES,
 } from "../lib/cabinetTypes";
 import { todayIso, calcAge } from "../lib/format";
-import { billSubtotal as calcSubtotal, billNet, lineDiscount, lineNet } from "../lib/billing";
+import { billSubtotal as calcSubtotal, billNet, lineDiscount, lineNet, isUnbilledConsult, billingRemindersOn } from "../lib/billing";
 import { fullName as fmtFullName } from "../lib/nameFormat";
 import {
   WA_MSG_LANGS, WA_MSG_LOCALE, BUILTIN_WA_MESSAGES, type WaMsgLang,
@@ -1806,8 +1806,8 @@ export function AgendaPage() {
 
   // Unbilled completed RDVs for the selected day
   const unbilledCompleted = useMemo(() =>
-    dayAppts.filter(a => a.status === "completed" && !a.billedAt && !isBlockType(a.type)),
-    [dayAppts]);
+    billingRemindersOn(doctorProfile) ? dayAppts.filter(isUnbilledConsult) : [],
+    [dayAppts, doctorProfile]);
 
   const apptsPendingWa = useMemo(() => {
     return dayAppts.filter(a => {

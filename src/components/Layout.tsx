@@ -10,6 +10,7 @@ import { todayIso } from "../lib/format";
 import { isAdminEmail } from "../lib/owner";
 import { CURRENT_VERSION as APP_VERSION } from "../lib/changelog";
 import { DEFAULT_SECRETARY_PERMISSIONS } from "../lib/cabinetTypes";
+import { isUnbilledConsult, billingRemindersOn } from "../lib/billing";
 import { useDarkMode } from "../lib/useDarkMode";
 import { useTranslation } from "react-i18next";
 import i18n from "../i18n";
@@ -493,9 +494,10 @@ export function Layout({ title, subtitle, actions, children }: Props) {
   const today = todayIso();
 
   const badges = useMemo(() => {
-    const unbilledToday = appointments.filter(
-      a => a.date === today && a.status === "completed" && !a.billedAt,
-    ).length;
+    // Billing reminders can be turned off (doctor bills outside the app).
+    const remindBilling = billingRemindersOn(doctorProfile);
+    const unbilledToday = remindBilling
+      ? appointments.filter(a => a.date === today && isUnbilledConsult(a)).length : 0;
 
     const followUpsSoon = appointments.filter(a => {
       if (!a.followUpDate) return false;
@@ -506,9 +508,7 @@ export function Layout({ title, subtitle, actions, children }: Props) {
     }).length;
 
     // Completed visits whose fee has not been collected yet — actionable billing.
-    const unbilledTotal = appointments.filter(
-      a => a.status === "completed" && !a.billedAt,
-    ).length;
+    const unbilledTotal = remindBilling ? appointments.filter(isUnbilledConsult).length : 0;
 
     const waitingNow = appointments.filter(
       a => a.date === today && a.status === "arrived",
@@ -530,7 +530,7 @@ export function Layout({ title, subtitle, actions, children }: Props) {
       "/rappels":      overdueFollowUps,
       "/stocks":       lowStock,
     } as Record<string, number>;
-  }, [appointments, stockItems, today]);
+  }, [appointments, stockItems, today, doctorProfile]);
 
   // ── Nav items ─────────────────────────────────────────────────────────────
   // Product-owner accounts get a pure admin console: a single Supervision entry,

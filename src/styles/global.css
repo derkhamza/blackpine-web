@@ -2320,6 +2320,9 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 .tl-detail { font-size: 11.5px; color: var(--muted); margin-bottom: 3px; }
 .tl-link { font-size: 11.5px; color: var(--blue); text-decoration: none; font-weight: 500; }
 .tl-link:hover { text-decoration: underline; }
+.tl-actions { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 4px; }
+.tl-link-btn { border: none; background: none; padding: 0; cursor: pointer; font: inherit; font-size: 11.5px; color: var(--blue); font-weight: 500; }
+.tl-link-btn:hover { text-decoration: underline; }
 
 /* ── Patient ordonnance history ─────────────────────────────────────────── */
 .ord-history-list { display: flex; flex-direction: column; gap: 12px; }
@@ -4235,6 +4238,14 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 .pd-wrap { display: flex; flex-direction: column; gap: 10px; }
 .pd-tabs { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .pd-body { display: flex; gap: 16px; flex-wrap: wrap; }
+/* Inline color + size controls sitting above the aperçu. */
+.pd-preview-toolbar {
+  display: flex; gap: 14px; align-items: center; flex-wrap: wrap;
+  padding: 7px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface);
+}
+.pd-tb-item { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.pd-tb-item input[type="color"] { width: 30px; height: 26px; padding: 1px; border: 1px solid var(--border); border-radius: 5px; cursor: pointer; }
+.pd-tb-item select { font-size: 12px; padding: 3px 6px; border: 1px solid var(--border); border-radius: 5px; background: var(--surface); color: var(--text); }
 .pd-page {
   position: relative;
   background: #fff;
@@ -4446,12 +4457,18 @@ a.wr-card-open:hover {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* Make the patient name read as a link (opens the patient file) so it's clearly
+   distinct from clicking the card, which opens the RDV. */
 .wr-patient-link {
-  color: var(--text);
-  text-decoration: none;
+  color: var(--blue);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--blue) 45%, transparent);
+  text-underline-offset: 2px;
   transition: color var(--trans);
 }
-.wr-patient-link:hover { color: var(--blue); }
+.wr-patient-link:hover { color: var(--navy); text-decoration-color: currentColor; }
+.wr-patient-link:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; border-radius: 3px; }
 
 .wr-wait-label {
   font-size: 11.5px;

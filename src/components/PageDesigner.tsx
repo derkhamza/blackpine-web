@@ -424,15 +424,17 @@ export function PageDesigner({
         </table>
       );
     }
+    const scaleFactor = docTypography(settings).scale;
     return sampleLines(kind, key, doctorProfile, settings).map((ln, i) => (
       <div
         key={i}
         style={{
-          fontSize: Math.max(4, px(ln.size)),
+          fontSize: Math.max(4, px(ln.size) * scaleFactor),   // reflect the chosen text size
           fontWeight: ln.bold ? 700 : 400,
           textAlign: ln.align ?? "left",
-          // Preview paper is always white, so use fixed ink colours (not theme vars).
-          color: ln.muted ? "#7a8896" : "#1a2733",
+          // The header's lead line (doctor name) takes the accent, so the colour
+          // picker visibly changes the aperçu; other text uses fixed ink on white.
+          color: key === "header" && i === 0 ? "var(--doc-accent)" : (ln.muted ? "#7a8896" : "#1a2733"),
           lineHeight: 1.25,
           whiteSpace: "nowrap",
           overflow: "hidden",
@@ -481,6 +483,24 @@ export function PageDesigner({
           )}
         </div>
       )}
+
+      {/* Edit text colour + size straight from the aperçu (applies to the whole document). */}
+      <div className="pd-preview-toolbar">
+        <label className="pd-tb-item">
+          <span>{t("settings.docAccent", { defaultValue: "Couleur" })}</span>
+          <input type="color" value={docTypography(settings).accent}
+            onChange={e => onChange({ ...settings, accentColor: e.target.value })} />
+        </label>
+        <label className="pd-tb-item">
+          <span>{t("settings.docTextSize", { defaultValue: "Taille du texte" })}</span>
+          <select value={String(docTypography(settings).scale)}
+            onChange={e => onChange({ ...settings, fontScale: Number(e.target.value) })}>
+            <option value="0.9">{t("settings.docSizeCompact", { defaultValue: "Compact" })}</option>
+            <option value="1">{t("settings.docSizeNormal", { defaultValue: "Normal" })}</option>
+            <option value="1.1">{t("settings.docSizeLarge", { defaultValue: "Grand" })}</option>
+          </select>
+        </label>
+      </div>
 
       <div className="pd-body">
         {/* ── Scaled, to-example page preview ── */}
@@ -602,15 +622,8 @@ export function PageDesigner({
             ))}
           </div>
 
-          {/* Margin readout (set by dragging the guides) */}
-          <div className="pd-ctl-title">{t("settings.pd.margins")}</div>
-          <div className="pd-margin-readout">
-            <span>↑ {margins.top}mm</span>
-            <span>↓ {margins.bottom}mm</span>
-            <span>← {margins.left}mm</span>
-            <span>→ {margins.right}mm</span>
-          </div>
-          <div className="pd-hint">{t("settings.pd.marginDragHint")}</div>
+          {/* Margins are edited by dragging the guides on the preview — no separate
+              readout section here (kept the drag handles on the canvas). */}
 
           {/* Blocks: show/hide + selection */}
           <div className="pd-ctl-title">{t("settings.pd.blocks")}</div>

@@ -8,6 +8,7 @@ import { ActionIcon } from "../components/ActionIcon";
 import { useApp } from "../context/AppContext";
 import { useCabinet } from "../context/CabinetContext";
 import { formatMAD } from "../lib/format";
+import { isUnbilledConsult, billingRemindersOn } from "../lib/billing";
 
 // ── IR simulation helpers ──────────────────────────────────────────────────────
 
@@ -146,7 +147,7 @@ export function OptimisationPage({ noLayout = false }: { noLayout?: boolean } = 
   const {
     result, fiscalYear, assets, recurringRules, transactions,
   } = useApp();
-  const { appointments } = useCabinet();
+  const { appointments, doctorProfile } = useCabinet();
 
   const config = useMemo(() => {
     try { return loadFiscalYearConfig(fiscalYear); }
@@ -191,9 +192,8 @@ export function OptimisationPage({ noLayout = false }: { noLayout?: boolean } = 
   const simNewRes = Math.max(0, resFiscal - simCharges);
   const simNewIR  = Math.max(0, calcGrossIR(simNewRes, brackets) - familyDed);
 
-  const unbilledAppts = appointments.filter(
-    a => a.status === "completed" && !a.billedAt,
-  ).length;
+  const unbilledAppts = billingRemindersOn(doctorProfile)
+    ? appointments.filter(isUnbilledConsult).length : 0;
   const cnopsPending = appointments.filter(
     a => a.reimbursementStatus === "pending",
   ).length;

@@ -4,6 +4,7 @@ import { Layout } from "../components/Layout";
 import { useApp } from "../context/AppContext";
 import { useCabinet, estimateStorageBytes } from "../context/CabinetContext";
 import { formatMAD, todayIso } from "../lib/format";
+import { isUnbilledConsult, billingRemindersOn } from "../lib/billing";
 import { clickable } from "../lib/a11y";
 import { AnimatedNumber } from "../components/AnimatedNumber";
 import { NOTE_COLOR_VALUES, isBlockType } from "../lib/cabinetTypes";
@@ -277,10 +278,10 @@ export function DashboardPage() {
       });
     }
 
-    // Unbilled completed appointments today
-    const unbilledToday = appointments.filter(
-      a => a.date === today && a.status === "completed" && !a.billedAt
-    );
+    // Unbilled completed appointments today (skipped when billing reminders are off)
+    const unbilledToday = billingRemindersOn(doctorProfile)
+      ? appointments.filter(a => a.date === today && isUnbilledConsult(a))
+      : [];
     if (unbilledToday.length > 0) {
       list.push({
         id: "unbilled", level: "info",
