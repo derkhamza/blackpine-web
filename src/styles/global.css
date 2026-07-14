@@ -316,6 +316,10 @@ img { max-width: 100%; display: block; }
 /* ── Main content ───────────────────────────────────────────────────────── */
 .main-content {
   flex: 1;
+  /* Without min-width:0 a flex child refuses to shrink below its widest content,
+     so wide rows/tables push the whole column past the viewport and the shell
+     (overflow:hidden) clips the right side of every screen when narrowed. */
+  min-width: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -417,7 +421,7 @@ img { max-width: 100%; display: block; }
 .year-sub { font-size: 10px; color: var(--tertiary); text-align: center; margin-top: 2px; }
 
 /* ── Stats grid ─────────────────────────────────────────────────────────── */
-.stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
 .stat-card {
   background: var(--surface); border-radius: var(--r-lg); border: 1px solid var(--border);
   border-left-width: 3px; padding: 12px 14px; box-shadow: var(--shadow-card);
@@ -548,7 +552,7 @@ img { max-width: 100%; display: block; }
 .filter-btn:hover { border-color: var(--blue); color: var(--blue); }
 .filter-btn.active { background: var(--blue); border-color: var(--blue); color: #fff; }
 
-.tx-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+.tx-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 16px; }
 .tx-summary-card {
   background: var(--surface); border-radius: var(--r-lg); border: 1px solid var(--border);
   border-left-width: 4px; padding: 14px 16px;
@@ -734,6 +738,7 @@ input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 560px) { .form-row { grid-template-columns: 1fr; } }
 
 /* ── Buttons ────────────────────────────────────────────────────────────── */
 .btn {
@@ -2278,7 +2283,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
 .dash-hero-grid {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 0;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -3142,7 +3147,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
 /* KPI grid */
 .rpt-kpi-grid {
-  display: grid; grid-template-columns: repeat(4,1fr); gap: 14px;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px;
   margin-bottom: 16px;
 }
 .rpt-kpi {
@@ -3450,7 +3455,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
 /* Data summary */
 .settings-data-summary {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px 0;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 14px 0;
   padding: 16px 20px; border-bottom: 1px solid var(--border);
 }
 .settings-data-stat {
@@ -3505,7 +3510,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
 /* ── Optimisation fiscale page ───────────────────────────────────────────── */
 .opt-hero-grid {
-  display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 14px;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px;
   margin-bottom: 20px;
 }
 .opt-hero-card {
@@ -3750,10 +3755,10 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
 /* ── Comptabilité page ───────────────────────────────────────────────────── */
 .compta-tabs {
-  display: flex; gap: 4px;
+  display: flex; gap: 4px; flex-wrap: wrap;
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--r); padding: 4px;
-  margin-bottom: 20px; width: fit-content;
+  margin-bottom: 20px; width: fit-content; max-width: 100%;
 }
 .compta-tab {
   display: flex; align-items: center; gap: 7px;
@@ -4094,7 +4099,10 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   .wr-page > .wr-tele-strip { flex-shrink: 0; }
   .wr-page > .wr-board {
     flex: 1 1 auto; min-height: 0;
-    grid-auto-rows: 1fr; align-items: stretch;
+    /* One row exactly as tall as the board so a column can cap at it and scroll,
+       while align-items:start lets a short column size to its content (ending
+       right after the last card) instead of stretching to full height. */
+    grid-template-rows: 100%; align-items: start;
   }
   .wr-board > .wr-col { max-height: 100%; display: flex; flex-direction: column; }
   .wr-col-hdr { flex-shrink: 0; }
@@ -4630,7 +4638,7 @@ a.wr-card-open:hover {
 /* ── Rappels & Suivis Page ──────────────────────────────────────────────── */
 
 .rpl-kpi-strip {
-  display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 18px;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 18px;
 }
 .rpl-kpi {
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--r);

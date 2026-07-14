@@ -829,7 +829,7 @@ export function Layout({ title, subtitle, actions, children }: Props) {
             <div className="page-title">{title}</div>
             {subtitle && <div className="page-sub">{subtitle}</div>}
           </div>
-          {actions && <div style={{ display: "flex", gap: 10, flexShrink: 0 }}>{actions}</div>}
+          {actions && <div style={{ display: "flex", gap: 10, flexShrink: 0, flexWrap: "wrap", justifyContent: "flex-end" }}>{actions}</div>}
         </div>
         {/* A real secretary's session identity now lives in the sidebar footer
             (with the disconnect button) rather than a top banner that pushed the
