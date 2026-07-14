@@ -1139,7 +1139,7 @@ function BulkBillModal({ items, onChange, onConfirm, onClose }: BulkBillModalPro
 // ── Time-slot grid body ────────────────────────────────────────────────────────
 
 function TGSlotGrid({
-  appts, isToday, nowTop, gridStart, gridEnd, onSlotClick, onApptClick, onApptPointerDown, onApptContextMenu, draggingId,
+  appts, isToday, nowTop, gridStart, gridEnd, onSlotClick, onSlotContextMenu, onApptClick, onApptPointerDown, onApptContextMenu, draggingId,
 }: {
   appts:       Appointment[];
   isToday:     boolean;
@@ -1147,6 +1147,7 @@ function TGSlotGrid({
   gridStart:   number;
   gridEnd:     number;
   onSlotClick: (startTime: string, endTime: string) => void;
+  onSlotContextMenu?: (e: React.MouseEvent, startTime: string, endTime: string) => void;
   onApptClick: (appt: Appointment) => void;
   onApptPointerDown?: (e: React.PointerEvent, appt: Appointment) => void;
   onApptContextMenu?: (e: React.MouseEvent, appt: Appointment) => void;
@@ -1166,6 +1167,12 @@ function TGSlotGrid({
         const t    = snapTime(y, gridStart, gridEnd);
         onSlotClick(t, addMinutes(t, 30));
       }}
+      onContextMenu={onSlotContextMenu ? (e) => {
+        if ((e.target as HTMLElement).closest(".tgrid-event")) return;   // appts have their own menu
+        const rect = e.currentTarget.getBoundingClientRect();
+        const t    = snapTime(e.clientY - rect.top, gridStart, gridEnd);
+        onSlotContextMenu(e, t, addMinutes(t, 30));
+      } : undefined}
     >
       {/* Grid lines */}
       {hours.map((h, idx) => (
@@ -1624,7 +1631,7 @@ export function AgendaPage() {
   const [calYear,   setCalYear]   = useState(new Date().getFullYear());
   const [calMonth,  setCalMonth]  = useState(new Date().getMonth());
   const [modal,          setModal]          = useState<{ appt?: Appointment; prefill?: Partial<Appointment> } | null>(null);
-  const [blockModal,     setBlockModal]     = useState<{ appt?: Appointment } | null>(null);
+  const [blockModal,     setBlockModal]     = useState<{ appt?: Appointment; prefill?: { date: string; startTime: string; endTime: string } } | null>(null);
   // Opening an entry: a patient RDV goes to its detail page; a non-patient block
   // opens the lightweight block editor (the detail page is patient-centric).
   const openAppt = (appt: Appointment) => {
@@ -2233,19 +2240,19 @@ export function AgendaPage() {
             style={{ display: "none" }}
             onChange={handleIcalImport}
           />
-          <button className="btn btn-ghost" onClick={() => setBlockModal({})}>
+          <button className="btn btn-primary" onClick={() => setModal({})}>
+            <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 6 }}>
+              <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+            </svg>
+            {t("agenda.newAppt")}
+          </button>
+          <button className="btn btn-ghost" onClick={() => setBlockModal({})} title={t("agenda.newBlockHint")}>
             <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 6 }}>
               <rect x="2" y="2.5" width="10" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.4"/>
               <path d="M4.5 6.5l2 2 3-3.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" opacity="0"/>
               <path d="M2 5h10" stroke="currentColor" strokeWidth="1.4"/>
             </svg>
             {t("agenda.newBlock")}
-          </button>
-          <button className="btn btn-primary" onClick={() => setModal({})}>
-            <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 6 }}>
-              <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-            </svg>
-            {t("agenda.newAppt")}
           </button>
         </>
       }
@@ -2505,6 +2512,13 @@ export function AgendaPage() {
                           setSelDate(iso);
                           setModal({ prefill: { date: iso, startTime: start, endTime: end } });
                         }}
+                        onSlotContextMenu={(e, start, end) => {
+                          setSelDate(iso);
+                          apptCtx.open(e, [
+                            { label: t("agenda.newApptHere"), icon: <ActionIcon name="calendar" />, onClick: () => setModal({ prefill: { date: iso, startTime: start, endTime: end } }) },
+                            { label: t("agenda.newBlockHere"), icon: <ActionIcon name="pin" />, onClick: () => setBlockModal({ prefill: { date: iso, startTime: start, endTime: end } }) },
+                          ]);
+                        }}
                         onApptClick={appt => { if (tgDragMovedRef.current) return; openAppt(appt); }}
                         onApptPointerDown={onApptPointerDown}
                         onApptContextMenu={(e, appt) => apptCtx.open(e, weekApptMenu(appt))}
@@ -2736,9 +2750,9 @@ export function AgendaPage() {
       {/* ── Block (indisponibilité) modal ── */}
       {blockModal !== null && (
         <BlockModal
-          initial={blockModal.appt}
+          initial={blockModal.appt ?? blockModal.prefill}
           isEdit={!!blockModal.appt}
-          defaultDate={selDate}
+          defaultDate={blockModal.prefill?.date ?? selDate}
           onSave={list => {
             if (blockModal.appt) { updateAppointment({ ...list[0], id: blockModal.appt.id }); showToast(t("agenda.apptModified")); }
             else { list.forEach(a => addAppointment(a)); showToast(list.length > 1 ? t("agenda.apptsBatch", { n: list.length }) : t("agenda.apptAdded")); }

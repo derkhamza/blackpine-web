@@ -398,6 +398,9 @@ export function AppointmentDetailPage() {
   const [showBill,  setShowBill]  = useState(false);
   const [billItems,     setBillItems]     = useState<BillingLine[]>([]);
   const [billReduction, setBillReduction] = useState("");
+  // Global réduction is an occasional case — hidden behind a link so the bill entry
+  // form stays lean; revealed on demand or when an existing facture already has one.
+  const [showGlobalRemise, setShowGlobalRemise] = useState(false);
   const [billCollected, setBillCollected] = useState("");   // cash taken at billing time
   // Recording a later instalment on an already-billed appointment
   const [showPay,    setShowPay]    = useState(false);
@@ -975,6 +978,7 @@ export function AppointmentDetailPage() {
     // patient pays part now and defers the rest. When correcting an already-billed
     // facture, pre-fill with what was actually collected.
     setBillCollected(String(Math.max(0, appt.billedAt ? (appt.paidAmount ?? total) : total)));
+    setShowGlobalRemise(!!(appt.billedReduction || appt.preparedReduction));
     setShowBill(true);
   };
   openBillRef.current = openBillModal;   // keep the ref current for the auto-open effect
@@ -2648,12 +2652,16 @@ export function AppointmentDetailPage() {
                             onChange={(e) => updateBillLine(i, { remise: parseFloat(e.target.value.replace(",", ".")) || 0, remiseType: l.remiseType ?? "mad" })}
                             title={t("apptDetail.billActRemise")}
                           />
-                          <button
-                            type="button"
-                            className="bill-line-remise-toggle"
-                            onClick={() => updateBillLine(i, { remiseType: l.remiseType === "pct" ? "mad" : "pct" })}
-                            title={t("apptDetail.billActRemiseToggle")}
-                          >{l.remiseType === "pct" ? "%" : "MAD"}</button>
+                          <div className="bill-remise-seg" role="group" aria-label={t("apptDetail.billActRemiseToggle")}>
+                            <button type="button"
+                              className={`bill-remise-seg-btn${(l.remiseType ?? "mad") === "mad" ? " active" : ""}`}
+                              onClick={() => updateBillLine(i, { remiseType: "mad" })}
+                              title={t("apptDetail.billRemiseInMad")}>MAD</button>
+                            <button type="button"
+                              className={`bill-remise-seg-btn${l.remiseType === "pct" ? " active" : ""}`}
+                              onClick={() => updateBillLine(i, { remiseType: "pct" })}
+                              title={t("apptDetail.billRemiseInPct")}>%</button>
+                          </div>
                           <button
                             type="button"
                             className="bill-line-remise-clear"
@@ -2709,19 +2717,32 @@ export function AppointmentDetailPage() {
               </div>
               )}
 
-              {/* Reduction — the DOCTOR's decision. The secretary sees it applied
+              {/* Reduction — the DOCTOR's decision, an OCCASIONAL case: hidden behind
+                  a link so it isn't an ever-present field. The secretary sees it applied
                   in the totals below (sum due) but does not edit it. */}
               {!readOnly && (
-              <div className="form-group" style={{ marginTop: 12 }}>
-                <label className="form-label">{t("apptDetail.billReduction")}</label>
-                <input
-                  className="form-input"
-                  type="number" min="0" step="0.01"
-                  placeholder="0"
-                  value={billReduction}
-                  onChange={(e) => setBillReduction(e.target.value)}
-                />
-              </div>
+                showGlobalRemise ? (
+                  <div className="form-group" style={{ marginTop: 12 }}>
+                    <label className="form-label">{t("apptDetail.billReduction")}</label>
+                    <div className="bill-collect-row">
+                      <input
+                        className="form-input"
+                        type="number" min="0" step="0.01"
+                        placeholder="0" autoFocus
+                        value={billReduction}
+                        onChange={(e) => setBillReduction(e.target.value)}
+                      />
+                      <button type="button" className="bill-collect-chip"
+                        onClick={() => { setBillReduction(""); setShowGlobalRemise(false); }}>
+                        {t("common.delete")}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button type="button" className="bill-add-remise" onClick={() => setShowGlobalRemise(true)}>
+                    + {t("apptDetail.billAddReduction")}
+                  </button>
+                )
               )}
 
               {/* Totals */}

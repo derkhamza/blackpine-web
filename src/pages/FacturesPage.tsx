@@ -9,8 +9,9 @@ import { ActionIcon } from "../components/ActionIcon";
 import { useCabinet } from "../context/CabinetContext";
 import { useApp } from "../context/AppContext";
 import { apptTypeLabel } from "../lib/cabinetTypes";
+import type { Appointment, BillingLine } from "../lib/cabinetTypes";
 import { nextInvoiceNumber, printFacture } from "../lib/facturePrinter";
-import { paymentSummary, lineGross, lineDiscount, billLineDiscounts } from "../lib/billing";
+import { paymentSummary, lineGross, lineNet, lineDiscount, billNet, billSubtotal, billLineDiscounts } from "../lib/billing";
 import { todayIso, formatMAD } from "../lib/format";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -27,10 +28,12 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
   const locale = i18n.language?.slice(0, 2) === "ar" ? "ar-MA"
                : i18n.language?.slice(0, 2) === "en" ? "en-US" : "fr-FR";
 
-  const { appointments, patients, updateAppointment, doctorProfile } = useCabinet();
-  const { transactions, deleteTransaction } = useApp();
+  const { appointments, patients, updateAppointment, doctorProfile, viewAsSecretary } = useCabinet();
+  const { transactions, addTransaction, deleteTransaction } = useApp();
   const facCtx = useContextMenu();
   const navigate = useNavigate();
+  // Facture correction happens right here (a modal), instead of jumping to the RDV.
+  const [correctAppt, setCorrectAppt] = useState<Appointment | null>(null);
 
   const today = todayIso();
   const currentYear = today.slice(0, 4);
@@ -373,7 +376,7 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
                   a.invoiceNumber
                     ? { label: t("ctx.reprintInvoice"), icon: <ActionIcon name="print" />, onClick: () => reprintInvoice(a.id) }
                     : { label: t("ctx.emitInvoice"), icon: <ActionIcon name="file" />, onClick: () => emitInvoice(a.id) },
-                  { label: t("apptDetail.correctFacture"), icon: <ActionIcon name="edit" />, onClick: () => navigate(`/agenda/${a.id}`, { state: { openBill: true } }) },
+                  ...(!viewAsSecretary ? [{ label: t("apptDetail.correctFacture"), icon: <ActionIcon name="edit" />, onClick: () => setCorrectAppt(a) }] : []),
                   { label: t("ctx.openAppt"), icon: <ActionIcon name="clipboard" />, onClick: () => navigate(`/agenda/${a.id}`) },
                   ...(a.patientId
                     ? [{ label: t("ctx.patientFile"), icon: <ActionIcon name="user" />, onClick: () => navigate(`/patients/${a.patientId}`) }] : []),
@@ -434,10 +437,12 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
                             {t("factures.emit")}
                           </button>
                       }
-                      <button className="fac-correct-btn" title={t("apptDetail.correctFactureTitle")}
-                        onClick={() => navigate(`/agenda/${a.id}`, { state: { openBill: true } })}>
-                        {t("factures.correct")}
-                      </button>
+                      {!viewAsSecretary && (
+                        <button className="fac-correct-btn" title={t("apptDetail.correctFactureTitle")}
+                          onClick={() => setCorrectAppt(a)}>
+                          {t("factures.correct")}
+                        </button>
+                      )}
                       <Link to={`/agenda/${a.id}`} className="fac-rdv-link">{t("factures.rdvLink")}</Link>
                     </div>
                   </td>
@@ -523,6 +528,7 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
         </div>
       )}
       {facCtx.menu}
+      {correctAppt && <FactureCorrectModal appt={correctAppt} onClose={() => setCorrectAppt(null)} />}
     </>
   );
   if (noLayout) return body;
@@ -533,5 +539,147 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
     >
       {body}
     </Layout>
+  );
+}
+
+// Correct a facture WITHOUT leaving Facturation. Self-contained editor mirroring the
+// consultation bill modal's correction path (edit acts/prices/remises + collected,
+// then reconcile the auto ledger income so revenue isn't double-counted).
+function FactureCorrectModal({ appt, onClose }: { appt: Appointment; onClose: () => void }) {
+  const { t } = useTranslation();
+  const toast = useToast();
+  const { updateAppointment, doctorProfile } = useCabinet();
+  const { transactions, addTransaction, deleteTransaction } = useApp();
+
+  const [items, setItems] = useState<BillingLine[]>(() =>
+    appt.billedItems && appt.billedItems.length
+      ? appt.billedItems.map(l => ({ ...l }))
+      : [{ label: apptTypeLabel(appt.type), qty: 1, unitPrice: appt.billedAmount ?? 0 }]);
+  const [reduction, setReduction] = useState(appt.billedReduction ? String(appt.billedReduction) : "");
+  const [showRemise, setShowRemise] = useState(!!appt.billedReduction);
+  const [collected, setCollected] = useState(String(appt.paidAmount ?? 0));
+
+  const reductionN = Math.max(0, parseFloat(reduction.replace(",", ".")) || 0);
+  const subtotal = billSubtotal(items);
+  const lineDisc = billLineDiscounts(items);
+  const total    = billNet(items, reductionN);
+
+  const update = (i: number, patch: Partial<BillingLine>) => setItems(prev => prev.map((l, idx) => idx === i ? { ...l, ...patch } : l));
+  const removeLine = (i: number) => setItems(prev => prev.filter((_, idx) => idx !== i));
+  const addLine = (line: BillingLine) => setItems(prev => [...prev, line]);
+
+  const save = () => {
+    const clean = items.map(l => {
+      const out: BillingLine = { label: l.label.trim(), qty: l.qty || 1, unitPrice: l.unitPrice || 0 };
+      if (l.remise && l.remise > 0) { out.remise = l.remise; out.remiseType = l.remiseType ?? "mad"; }
+      return out;
+    }).filter(l => l.label.length > 0);
+    if (clean.length === 0) return;
+    const tot  = billNet(clean, reductionN);
+    const coll = Math.min(tot, Math.max(0, parseFloat(collected.replace(",", ".")) || 0));
+    // Ledger reconcile — drop this facture's prior auto RECETTE rows, repost the
+    // corrected cash (mirror of AppointmentDetailPage.reconcileBillTxn).
+    const cat     = appt.type === "procedure" ? "acte_chirurgical" : "consultation";
+    const desc    = `${apptTypeLabel(appt.type)} – ${appt.patientName}`;
+    const payDesc = `${t("apptDetail.payLedgerNote")} – ${appt.patientName}`;
+    const toRemove = new Set<string>();
+    if (appt.billTxnId) toRemove.add(appt.billTxnId);
+    for (const x of transactions) {
+      if (x.type === "RECETTE" && x.date === appt.date && (x.description === desc || x.description === payDesc)) toRemove.add(x.id);
+    }
+    toRemove.forEach(id => deleteTransaction(id));
+    let billTxnId: string | undefined;
+    if (coll > 0) {
+      billTxnId = addTransaction({ type: "RECETTE", amount: coll, date: appt.date, category: cat,
+        deductibilityStatus: "FULLY_DEDUCTIBLE", professionalUseRatio: 1, description: desc });
+    }
+    const now = new Date().toISOString();
+    updateAppointment({
+      ...appt,
+      billedAmount: tot, billedItems: clean,
+      billedReduction: reductionN > 0 ? reductionN : undefined,
+      paidAmount: coll,
+      payments: coll > 0 ? [{ amount: coll, date: now, method: "cash" }] : [],
+      billTxnId,
+    });
+    toast(t("apptDetail.factureCorrected"));
+    onClose();
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <form className="modal" style={{ maxWidth: 500 }} onClick={e => e.stopPropagation()} onSubmit={e => { e.preventDefault(); save(); }}>
+        <div className="modal-header">
+          <h2 className="modal-title">{t("apptDetail.correctFacture")}</h2>
+          <button type="button" className="modal-close" onClick={onClose} aria-label={t("common.close")}>×</button>
+        </div>
+        <div className="modal-body">
+          <div className="fac-correct-sub">{appt.patientName} · {appt.invoiceNumber ?? t("factures.notEmitted")}</div>
+          <div className="bill-lines">
+            {items.map((l, i) => (
+              <div className="bill-line bill-line-editable" key={i}>
+                <div className="bill-line-main">
+                  <input className="form-input bill-line-label" placeholder={t("apptDetail.billItemLabel")} value={l.label} onChange={e => update(i, { label: e.target.value })} />
+                  <input className="form-input bill-line-qty" type="number" min="1" step="1" value={l.qty || ""} onChange={e => update(i, { qty: Math.max(0, parseInt(e.target.value, 10) || 0) })} title={t("apptDetail.billQty")} />
+                  <input className="form-input bill-line-price" type="number" min="0" step="0.01" value={l.unitPrice || ""} onChange={e => update(i, { unitPrice: parseFloat(e.target.value.replace(",", ".")) || 0 })} title={t("apptDetail.billUnitPrice")} />
+                  {l.remise == null ? (
+                    <button type="button" className="bill-line-remise-btn" onClick={() => update(i, { remise: 0, remiseType: l.remiseType ?? "mad" })} title={t("apptDetail.billApplyRemise")}>{t("apptDetail.billRemiseShort")}</button>
+                  ) : (
+                    <>
+                      <input className="form-input bill-line-remise-input" type="number" min="0" step="0.01" value={l.remise || ""} onChange={e => update(i, { remise: parseFloat(e.target.value.replace(",", ".")) || 0 })} />
+                      <div className="bill-remise-seg" role="group">
+                        <button type="button" className={`bill-remise-seg-btn${(l.remiseType ?? "mad") === "mad" ? " active" : ""}`} onClick={() => update(i, { remiseType: "mad" })}>MAD</button>
+                        <button type="button" className={`bill-remise-seg-btn${l.remiseType === "pct" ? " active" : ""}`} onClick={() => update(i, { remiseType: "pct" })}>%</button>
+                      </div>
+                      <button type="button" className="bill-line-remise-clear" onClick={() => update(i, { remise: undefined, remiseType: undefined })} aria-label={t("apptDetail.billRemoveRemise")}>×</button>
+                    </>
+                  )}
+                </div>
+                <button type="button" className="bill-line-remove" onClick={() => removeLine(i)} disabled={items.length <= 1} title={t("common.delete")} aria-label={t("common.delete")}>×</button>
+              </div>
+            ))}
+          </div>
+          <div className="bill-add-row">
+            {doctorProfile.acteCodes && doctorProfile.acteCodes.length > 0 && (
+              <select className="form-select bill-act-select" value=""
+                onChange={e => { const a = doctorProfile.acteCodes!.find(x => x.id === e.target.value); if (a) addLine({ label: a.label || a.code, qty: 1, unitPrice: a.price ?? 0 }); e.target.value = ""; }}>
+                <option value="">{t("apptDetail.billAddAct")}</option>
+                {doctorProfile.acteCodes!.map(a => <option key={a.id} value={a.id}>{a.code} · {a.label}{a.price != null ? ` · ${a.price} MAD` : ""}</option>)}
+              </select>
+            )}
+            <button type="button" className="btn btn-ghost bill-add-custom" onClick={() => addLine({ label: "", qty: 1, unitPrice: 0 })}>+ {t("apptDetail.billAddLine")}</button>
+          </div>
+          {showRemise ? (
+            <div className="form-group" style={{ marginTop: 12 }}>
+              <label className="form-label">{t("apptDetail.billReduction")}</label>
+              <div className="bill-collect-row">
+                <input className="form-input" type="number" min="0" step="0.01" placeholder="0" autoFocus value={reduction} onChange={e => setReduction(e.target.value)} />
+                <button type="button" className="bill-collect-chip" onClick={() => { setReduction(""); setShowRemise(false); }}>{t("common.delete")}</button>
+              </div>
+            </div>
+          ) : (
+            <button type="button" className="bill-add-remise" onClick={() => setShowRemise(true)}>+ {t("apptDetail.billAddReduction")}</button>
+          )}
+          <div className="bill-totals">
+            <div className="bill-total-row"><span>{t("apptDetail.billSubtotal")}</span><span>{formatMAD(subtotal)}</span></div>
+            {lineDisc > 0 && <div className="bill-total-row bill-total-reduction"><span>{t("apptDetail.billActRemises")}</span><span>− {formatMAD(lineDisc)}</span></div>}
+            {reductionN > 0 && <div className="bill-total-row bill-total-reduction"><span>{t("apptDetail.billReduction")}</span><span>− {formatMAD(reductionN)}</span></div>}
+            <div className="bill-total-row bill-total-net"><span>{t("apptDetail.billTotal")}</span><span>{formatMAD(total)}</span></div>
+          </div>
+          <div className="form-group" style={{ marginTop: 14 }}>
+            <label className="form-label">{t("apptDetail.billCollected")}</label>
+            <div className="bill-collect-row">
+              <input className="form-input" type="number" min="0" step="0.01" value={collected} onChange={e => setCollected(e.target.value)} />
+              <button type="button" className="bill-collect-chip" onClick={() => setCollected(String(total))}>{t("apptDetail.billPayFull")}</button>
+              <button type="button" className="bill-collect-chip" onClick={() => setCollected("0")}>{t("apptDetail.billDefer")}</button>
+            </div>
+          </div>
+        </div>
+        <div className="modal-footer">
+          <button type="button" className="btn btn-ghost" onClick={onClose}>{t("common.cancel")}</button>
+          <button type="submit" className="btn btn-primary">{t("apptDetail.correctSave")}</button>
+        </div>
+      </form>
+    </div>
   );
 }
