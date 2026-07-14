@@ -1,3 +1,4 @@
+import { confirmDialog } from "../lib/confirm";
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -201,10 +202,10 @@ export function RappelsPage({ noLayout = false }: { noLayout?: boolean } = {}) {
     week:    withFollowUp.filter(a => { const d = diffDays(a.followUpDate!, today); return d > 0 && d <= 7; }).length,
   }), [withFollowUp, today]);
 
-  const handleDone = (apptId: string) => {
+  const handleDone = async (apptId: string) => {
     const a = appointments.find(x => x.id === apptId);
     if (!a) return;
-    if (!window.confirm(t("rappels.doneConfirm", { name: a.patientName }))) return;
+    if (!await confirmDialog(t("rappels.doneConfirm", { name: a.patientName }))) return;
     updateAppointment({ ...a, followUpDate: undefined });
   };
 

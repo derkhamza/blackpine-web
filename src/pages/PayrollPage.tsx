@@ -1,3 +1,4 @@
+import { confirmDialog } from "../lib/confirm";
 import { FormEvent, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Layout } from "../components/Layout";
@@ -491,8 +492,8 @@ export function PayrollPage() {
               employee={e}
               locale={locale}
               onEdit={() => setModal({ employee: e })}
-              onDelete={() => {
-                if (confirm(t("payroll.deleteConfirm", { name: personName(e.firstName, e.lastName) }))) {
+              onDelete={async () => {
+                if (await confirmDialog(t("payroll.deleteConfirm", { name: personName(e.firstName, e.lastName) }))) {
                   deleteEmployee(e.id);
                   showToast(t("payroll.deleted"));
                 }

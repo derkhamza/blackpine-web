@@ -1,3 +1,4 @@
+import { confirmDialog } from "../lib/confirm";
 import { FormEvent, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { FixedAsset } from "../engine";
@@ -509,8 +510,8 @@ export function ComptabilitePage() {
                                 <path d="M8.5 1.5a1.5 1.5 0 0 1 2 2L4 10H2v-2L8.5 1.5Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
                               </svg>
                             </button>
-                            <button className="tx-delete" onClick={() => {
-                              if (confirm(t("comptabilite.deleteAssetConfirm", { label: asset.label }))) {
+                            <button className="tx-delete" onClick={async () => {
+                              if (await confirmDialog(t("comptabilite.deleteAssetConfirm", { label: asset.label }))) {
                                 deleteAsset(asset.id);
                                 showToast(t("comptabilite.toastAssetDeleted"));
                               }
@@ -626,8 +627,8 @@ export function ComptabilitePage() {
                               <path d="M8.5 1.5a1.5 1.5 0 0 1 2 2L4 10H2v-2L8.5 1.5Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
                             </svg>
                           </button>
-                          <button className="tx-delete" onClick={() => {
-                            if (confirm(t("comptabilite.deleteRuleConfirm", { label: rule.label }))) {
+                          <button className="tx-delete" onClick={async () => {
+                            if (await confirmDialog(t("comptabilite.deleteRuleConfirm", { label: rule.label }))) {
                               deleteRecurringRule(rule.id);
                               showToast(t("comptabilite.toastRuleDeleted"));
                             }

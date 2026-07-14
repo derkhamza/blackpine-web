@@ -1,3 +1,4 @@
+import { confirmDialog } from "../lib/confirm";
 import { useState, useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Layout } from "../components/Layout";
@@ -675,7 +676,7 @@ export function OrdonancesPage({ noLayout = false }: { noLayout?: boolean } = {}
               {filteredRx.map(rx => (
                 <RxCard key={rx.id} rx={rx} locale={locale} doctor={doctorProfile}
                   onEdit={() => { setEditingRx(rx); setPreFillTpl(undefined); setRxModal(true); }}
-                  onDelete={() => { if (confirm(t("ordonnances.deleteConfirm"))) deletePrescription(rx.id); }}
+                  onDelete={async () => { if (await confirmDialog(t("ordonnances.deleteConfirm"))) deletePrescription(rx.id); }}
                 />
               ))}
             </div>
@@ -708,7 +709,7 @@ export function OrdonancesPage({ noLayout = false }: { noLayout?: boolean } = {}
               {prescriptionTemplates.map(tpl => (
                 <TplCard key={tpl.id} tpl={tpl}
                   onEdit={() => { setEditingTpl(tpl); setTplModal(true); }}
-                  onDelete={() => { if (confirm(t("ordonnances.deleteTplConfirm"))) deletePrescriptionTemplate(tpl.id); }}
+                  onDelete={async () => { if (await confirmDialog(t("ordonnances.deleteTplConfirm"))) deletePrescriptionTemplate(tpl.id); }}
                   onUse={() => openNewRx(tpl)}
                 />
               ))}

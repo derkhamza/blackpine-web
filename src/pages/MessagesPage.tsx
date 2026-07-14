@@ -1,3 +1,4 @@
+import { confirmDialog } from "../lib/confirm";
 import { FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Layout } from "../components/Layout";
@@ -276,8 +277,8 @@ export function MessagesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
                     <button
                       className="msg-tpl-btn danger"
                       title={t("messages.deleteTitle")}
-                      onClick={() => {
-                        if (confirm(t("messages.deleteConfirm", { name: tpl.name }))) {
+                      onClick={async () => {
+                        if (await confirmDialog(t("messages.deleteConfirm", { name: tpl.name }))) {
                           deleteWaTemplate(tpl.id);
                           if (editId === tpl.id) setEditId(null);
                         }

@@ -1,3 +1,4 @@
+import { confirmDialog } from "../lib/confirm";
 import { FormEvent, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Layout } from "../components/Layout";
@@ -434,8 +435,8 @@ export function StockPage({ noLayout = false }: { noLayout?: boolean } = {}) {
                       <path d="M8.5 1.5a1.5 1.5 0 0 1 2 2L4 10H2v-2L8.5 1.5Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
                     </svg>
                   </button>
-                  <button className="tx-delete" onClick={() => {
-                    if (confirm(`${item.name}?`)) {
+                  <button className="tx-delete" onClick={async () => {
+                    if (await confirmDialog(`${item.name}?`)) {
                       deleteStockItem(item.id);
                       showToast(t("stock.toastDeleted"));
                     }

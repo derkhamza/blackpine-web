@@ -1,3 +1,4 @@
+import { confirmDialog } from "../lib/confirm";
 import { FormEvent, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "../components/Layout";
@@ -406,8 +407,8 @@ export function PatientsPage() {
               {group.map(p => {
                 const openFile = () => navigate(`/patients/${p.id}`);
                 const doEdit = () => setModal({ patient: p });
-                const doDelete = () => {
-                  if (confirm(t("patients.deleteConfirmName", { name: fullName(p) }))) {
+                const doDelete = async () => {
+                  if (await confirmDialog(t("patients.deleteConfirmName", { name: fullName(p) }))) {
                     deletePatient(p.id);
                     showToast(t("patients.deleted"));
                   }

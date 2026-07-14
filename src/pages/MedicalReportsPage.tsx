@@ -1,3 +1,4 @@
+import { confirmDialog } from "../lib/confirm";
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Layout } from "../components/Layout";
@@ -95,8 +96,8 @@ export function MedicalReportsPage({ noLayout = false }: { noLayout?: boolean } 
                   <button className="exr-del-link" onClick={() => setModal({ editId: r.id })}>{t("common.edit")}</button>
                 )}
                 {!readOnly && (
-                  <button className="exr-del-link" onClick={() => {
-                    if (window.confirm(t("medReport.deleteConfirm"))) deleteMedicalReport(r.id);
+                  <button className="exr-del-link" onClick={async () => {
+                    if (await confirmDialog(t("medReport.deleteConfirm"))) deleteMedicalReport(r.id);
                   }}>{t("common.delete")}</button>
                 )}
               </div>

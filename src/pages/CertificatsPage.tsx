@@ -1,3 +1,4 @@
+import { confirmDialog } from "../lib/confirm";
 import { useState, useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Layout } from "../components/Layout";
@@ -588,7 +589,7 @@ export function CertificatsPage({ noLayout = false }: { noLayout?: boolean } = {
               locale={locale}
               doctor={doctorProfile}
               onEdit={() => { setEditing(cert); setShowModal(true); }}
-              onDelete={() => { if (confirm(t("certificats.deleteConfirm"))) deleteCertificate(cert.id); }}
+              onDelete={async () => { if (await confirmDialog(t("certificats.deleteConfirm"))) deleteCertificate(cert.id); }}
             />
           ))}
         </div>

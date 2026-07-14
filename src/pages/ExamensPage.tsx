@@ -1,3 +1,4 @@
+import { confirmDialog } from "../lib/confirm";
 import { FormEvent, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Layout } from "../components/Layout";
@@ -676,8 +677,8 @@ export function ExamensPage() {
           {filtered.map(e => (
             <ExamCard key={e.id} exam={e} locale={locale}
               onEdit={() => setModal({ exam: e })}
-              onDelete={() => {
-                if (confirm(t("examens.deleteConfirm", { title: e.title }))) {
+              onDelete={async () => {
+                if (await confirmDialog(t("examens.deleteConfirm", { title: e.title }))) {
                   deleteExamResult(e.id);
                   showToast(t("examens.toastDeleted"));
                 }

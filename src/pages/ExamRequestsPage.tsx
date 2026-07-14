@@ -1,3 +1,4 @@
+import { confirmDialog } from "../lib/confirm";
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Layout } from "../components/Layout";
@@ -89,8 +90,8 @@ export function ExamRequestsPage({ noLayout = false }: { noLayout?: boolean } = 
               <div className="exr-card-actions">
                 <button className="fac-reprint-btn" onClick={() => reprint(r)}>{t("examReq.print")}</button>
                 {!readOnly && (
-                  <button className="exr-del-link" onClick={() => {
-                    if (window.confirm(t("examReq.deleteConfirm"))) deleteExamRequest(r.id);
+                  <button className="exr-del-link" onClick={async () => {
+                    if (await confirmDialog(t("examReq.deleteConfirm"))) deleteExamRequest(r.id);
                   }}>{t("common.delete")}</button>
                 )}
               </div>

@@ -1,3 +1,4 @@
+import { confirmDialog } from "../lib/confirm";
 import { useEffect, useState } from "react";
 import { Layout } from "../components/Layout";
 import { adminGetStats, adminGetEvents, adminGetRetention, adminGetDoctors, adminGetDoctor, adminSetPlan, adminResetTrial, adminExpireAccount, adminDeleteAccount, adminGetConsumption, adminForceLogout, adminSetPassword, adminExtendDays, adminGetFinance, type AdminStats, type AdminEvents, type AdminRetention, type AdminDoctor, type AdminDoctorDetail, type AdminConsumption, type AdminFinance } from "../api/client";
@@ -367,8 +368,8 @@ function AdminZone({ doctor, onChanged, onDeleted }: {
         <button className="admin-btn" disabled={busy} onClick={() => run(() => adminResetTrial(doctor.id), "Essai prolongé de 30 jours.", onChanged)}>
           Prolonger l'essai (30 j)
         </button>
-        <button className="admin-btn warn" disabled={busy} onClick={() => {
-          if (window.confirm(`Expirer immédiatement l'accès de ${doctor.email} ?`)) run(() => adminExpireAccount(doctor.id), "Compte expiré.", onChanged);
+        <button className="admin-btn warn" disabled={busy} onClick={async () => {
+          if (await confirmDialog(`Expirer immédiatement l'accès de ${doctor.email} ?`)) run(() => adminExpireAccount(doctor.id), "Compte expiré.", onChanged);
         }}>
           Expirer maintenant
         </button>
@@ -388,15 +389,15 @@ function AdminZone({ doctor, onChanged, onDeleted }: {
 
       {/* Deep powers: force logout + set password */}
       <div className="admin-danger-row">
-        <button className="admin-btn warn" disabled={busy} onClick={() => {
-          if (window.confirm(`Déconnecter ${doctor.email} de tous ses appareils ?`)) run(() => adminForceLogout(doctor.id), "Sessions révoquées — reconnexion requise.", () => {});
+        <button className="admin-btn warn" disabled={busy} onClick={async () => {
+          if (await confirmDialog(`Déconnecter ${doctor.email} de tous ses appareils ?`)) run(() => adminForceLogout(doctor.id), "Sessions révoquées — reconnexion requise.", () => {});
         }}>
           Déconnecter partout
         </button>
         <input className="admin-select" type="text" placeholder="Nouveau mot de passe (8+)" value={newPw}
           onChange={(e) => setNewPw(e.target.value)} disabled={busy} style={{ flex: 1, minWidth: 180 }} />
-        <button className="admin-btn warn" disabled={busy || newPw.trim().length < 8} onClick={() => {
-          if (window.confirm(`Définir un nouveau mot de passe pour ${doctor.email} ? Ses sessions seront révoquées.`))
+        <button className="admin-btn warn" disabled={busy || newPw.trim().length < 8} onClick={async () => {
+          if (await confirmDialog(`Définir un nouveau mot de passe pour ${doctor.email} ? Ses sessions seront révoquées.`))
             run(() => adminSetPassword(doctor.id, newPw), "Mot de passe réinitialisé.", () => setNewPw(""));
         }}>
           Réinitialiser
@@ -416,8 +417,8 @@ function AdminZone({ doctor, onChanged, onDeleted }: {
         <button
           className="admin-btn danger"
           disabled={busy || !canDelete}
-          onClick={() => {
-            if (window.confirm(`SUPPRIMER définitivement ${doctor.email} et TOUTES ses données (patients, rendez-vous…) ? Cette action est irréversible.`))
+          onClick={async () => {
+            if (await confirmDialog(`SUPPRIMER définitivement ${doctor.email} et TOUTES ses données (patients, rendez-vous…) ? Cette action est irréversible.`))
               run(() => adminDeleteAccount(doctor.id, confirmEmail.trim()), "Compte supprimé.", onDeleted);
           }}
         >

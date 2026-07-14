@@ -1,3 +1,4 @@
+import { confirmDialog } from "../lib/confirm";
 import { FormEvent, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Layout } from "../components/Layout";
@@ -448,8 +449,8 @@ export function TeleconsultPage({ noLayout = false }: { noLayout?: boolean } = {
                     </button>
                     <button className="tx-delete"
                       aria-label={t("common.delete")} title={t("common.delete")}
-                      onClick={() => {
-                        if (confirm(t("teleconsult.deleteConfirm"))) {
+                      onClick={async () => {
+                        if (await confirmDialog(t("teleconsult.deleteConfirm"))) {
                           deleteTeleSession(s.id);
                           showToast(t("teleconsult.toastDeleted"));
                         }

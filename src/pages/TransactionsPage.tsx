@@ -1,3 +1,4 @@
+import { confirmDialog } from "../lib/confirm";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -453,8 +454,8 @@ export function TransactionsPage({ noLayout = false }: { noLayout?: boolean } = 
     else           { addTransaction(tx);                  showToast(t("transactions.saved")); }
   };
 
-  const handleDelete = (id: string) => {
-    if (!window.confirm(t("transactions.deleteConfirm"))) return;
+  const handleDelete = async (id: string) => {
+    if (!await confirmDialog(t("transactions.deleteConfirm"))) return;
     deleteTransaction(id);
     showToast(t("transactions.deleted"));
   };

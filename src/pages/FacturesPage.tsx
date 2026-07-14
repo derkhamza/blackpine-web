@@ -1,3 +1,4 @@
+import { confirmDialog } from "../lib/confirm";
 import { Fragment, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
@@ -172,10 +173,10 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
   // Remove a facture: void the billing so the appointment reverts to unbilled.
   // Fields are cleared with null (not undefined) so the clear also survives the
   // secretary whitelist merge, which only copies keys that are actually present.
-  const removeInvoice = (apptId: string) => {
+  const removeInvoice = async (apptId: string) => {
     const appt = appointments.find(a => a.id === apptId);
     if (!appt) return;
-    if (!confirm(t("factures.removeConfirm", { name: appt.patientName }))) return;
+    if (!await confirmDialog(t("factures.removeConfirm", { name: appt.patientName }))) return;
     const cleared: any = {
       ...appt,
       billedAt: null, billedAmount: null,

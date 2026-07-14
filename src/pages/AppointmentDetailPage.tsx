@@ -1,3 +1,4 @@
+import { confirmDialog } from "../lib/confirm";
 import { useEffect, useRef, useState, useMemo } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -551,7 +552,7 @@ export function AppointmentDetailPage() {
       <button
         className="appt-doc-delete"
         title={t("common.delete")}
-        onClick={() => { if (confirm(t("apptDetail.deleteFileConfirm", { name: doc.filename }))) deleteApptDocument(doc.id); }}
+        onClick={async () => { if (await confirmDialog(t("apptDetail.deleteFileConfirm", { name: doc.filename }))) deleteApptDocument(doc.id); }}
       >
         ×
       </button>
@@ -759,8 +760,8 @@ export function AppointmentDetailPage() {
     toast(t("apptDetail.tplSaved", { name: tpl.label }), "success");
   };
 
-  const deleteMyTemplate = (id: string) => {
-    if (!window.confirm(t("apptDetail.tplDeleteConfirm"))) return;
+  const deleteMyTemplate = async (id: string) => {
+    if (!await confirmDialog(t("apptDetail.tplDeleteConfirm"))) return;
     setDoctorProfile({ ...doctorProfile, noteTemplates: myTemplates.filter(x => x.id !== id) });
   };
 
@@ -1038,8 +1039,8 @@ export function AppointmentDetailPage() {
     setShowPay(false);
   };
 
-  const handleDelete = () => {
-    if (!window.confirm(t("apptDetail.deleteConfirm", { name: appt.patientName }))) return;
+  const handleDelete = async () => {
+    if (!await confirmDialog(t("apptDetail.deleteConfirm", { name: appt.patientName }))) return;
     deleteAppointment(appt.id);
     navigate("/agenda");
   };

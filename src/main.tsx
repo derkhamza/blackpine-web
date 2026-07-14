@@ -7,6 +7,7 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { App } from "./App";
 import { OfflineBanner, PWAUpdateToast } from "./components/PWAPrompts"
 import { ToastProvider } from "./components/Toast";
+import { ConfirmHost } from "./lib/confirm";
 import { initDarkMode } from "./lib/useDarkMode";
 import "./styles/global.css";
 import "./i18n";   // initialise i18next before first render
@@ -54,6 +55,7 @@ createRoot(document.getElementById("root")!).render(
               <OfflineBanner />
               <PWAUpdateToast />
               <App />
+              <ConfirmHost />
             </ToastProvider>
           </AccountBoundary>
         </AppProvider>

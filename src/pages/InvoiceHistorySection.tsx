@@ -1,3 +1,4 @@
+import { confirmDialog } from "../lib/confirm";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useCabinet } from "../context/CabinetContext";
@@ -101,8 +102,8 @@ export function InvoiceHistorySection() {
                   <button
                     className="tx-delete"
                     title={t("invoiceHistory.deleteTitle")}
-                    onClick={() => {
-                      if (confirm(t("invoiceHistory.deleteConfirm", { num: inv.invoiceNumber }))) {
+                    onClick={async () => {
+                      if (await confirmDialog(t("invoiceHistory.deleteConfirm", { num: inv.invoiceNumber }))) {
                         deleteInvoice(inv.id);
                       }
                     }}

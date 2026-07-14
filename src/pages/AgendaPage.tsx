@@ -1,3 +1,4 @@
+import { confirmDialog } from "../lib/confirm";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Layout } from "../components/Layout";
@@ -1358,9 +1359,9 @@ export function AgendaPage() {
   // the day list and the consultation screen).
   const weekApptMenu = (appt: Appointment): CtxItem[] => {
     const isDone = appt.status === "completed";
-    const doDelete = () => {
+    const doDelete = async () => {
       if (appt.recurringRuleId) setSeriesDeleteTarget(appt);
-      else if (confirm(t("agenda.deleteAppt"))) { deleteAppointment(appt.id); showToast(t("agenda.apptDeleted")); }
+      else if (await confirmDialog(t("agenda.deleteAppt"))) { deleteAppointment(appt.id); showToast(t("agenda.apptDeleted")); }
     };
     return [
       { label: t("ctx.openConsult"), icon: <ActionIcon name="clipboard" />, onClick: () => navigate(`/agenda/${appt.id}`) },
@@ -2394,10 +2395,10 @@ export function AgendaPage() {
                 });
                 const doEdit = () => setModal({ appt });
                 const doWa = phone ? () => setWaPickerTarget({ appt, phone }) : undefined;
-                const doDelete = () => {
+                const doDelete = async () => {
                   if (appt.recurringRuleId) {
                     setSeriesDeleteTarget(appt);
-                  } else if (confirm(t("agenda.deleteAppt"))) {
+                  } else if (await confirmDialog(t("agenda.deleteAppt"))) {
                     deleteAppointment(appt.id);
                     showToast(t("agenda.apptDeleted"));
                   }

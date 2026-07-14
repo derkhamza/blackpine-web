@@ -419,6 +419,8 @@
   },
   "common": {
     "cancel": "Cancel",
+    "confirm": "Confirm",
+    "confirmTitle": "Confirm",
     "save": "Save",
     "delete": "Delete",
     "edit": "Edit",

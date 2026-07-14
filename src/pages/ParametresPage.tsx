@@ -1,3 +1,4 @@
+import { confirmDialog } from "../lib/confirm";
 import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { Layout } from "../components/Layout";
@@ -317,8 +318,8 @@ function LocationsSection({
     setEditId(null);
   }
 
-  function handleDelete(id: string) {
-    if (confirm(t("settings.locDeleteConfirm"))) {
+  async function handleDelete(id: string) {
+    if (await confirmDialog(t("settings.locDeleteConfirm"))) {
       onChange(locations.filter(l => l.id !== id));
     }
   }
@@ -969,8 +970,8 @@ function ConsultationTypesSection({
     onChange({ ...profile, customApptTypes: [...customs, { id, label: t("settings.newTypeName"), color: AGENDA_PALETTE[customs.length % AGENDA_PALETTE.length] }] });
   };
 
-  const removeCustom = (id: string) => {
-    if (!window.confirm(t("settings.removeTypeConfirm"))) return;
+  const removeCustom = async (id: string) => {
+    if (!await confirmDialog(t("settings.removeTypeConfirm"))) return;
     const nextPrices = { ...prices }; delete nextPrices[id];
     const nextHidden = hidden.filter(h => h !== id);
     onChange({
@@ -1604,8 +1605,8 @@ export function ParametresPage() {
   // ── Demonstration data (demo account only) ──────────────────────────────────
   const demoAccount = isDemoAccount(user?.email);
   const [demoBusy, setDemoBusy] = useState(false);
-  const loadDemoData = () => {
-    if (!window.confirm(t("settings.demoLoadConfirm"))) return;
+  const loadDemoData = async () => {
+    if (!await confirmDialog(t("settings.demoLoadConfirm"))) return;
     setDemoBusy(true);
     try {
       const { cabinetJSON, financesJSON, summary } = generateDemoData();
@@ -1614,8 +1615,8 @@ export function ParametresPage() {
       showToast(t("settings.demoLoaded", { summary }));
     } finally { setDemoBusy(false); }
   };
-  const clearDemoData = () => {
-    if (!window.confirm(t("settings.demoClearConfirm"))) return;
+  const clearDemoData = async () => {
+    if (!await confirmDialog(t("settings.demoClearConfirm"))) return;
     setDemoBusy(true);
     try {
       importCabinetJSON(EMPTY_CABINET_JSON);
@@ -1672,7 +1673,7 @@ export function ParametresPage() {
     navigator.clipboard?.writeText(text).then(() => showToast(t("settings.acctCredsCopied")), () => {});
   };
   const handleRevokeAccount = async (id: string) => {
-    if (!confirm(t("settings.acctRevokeConfirm"))) return;
+    if (!await confirmDialog(t("settings.acctRevokeConfirm"))) return;
     try {
       await secretaryAccountRevoke(id);
       setSecAccts(prev => prev.map(a => a.id === id ? { ...a, revoked: true } : a));
@@ -1697,7 +1698,7 @@ export function ParametresPage() {
   useEffect(() => { refreshBackups(); /* eslint-disable-next-line */ }, []);
 
   const handleRestore = async (b: CabinetBackup) => {
-    if (!confirm(t("settings.restoreConfirm", { date: new Date(b.createdAt).toLocaleString() }))) return;
+    if (!await confirmDialog(t("settings.restoreConfirm", { date: new Date(b.createdAt).toLocaleString() }))) return;
     setRestoringId(b.id);
     try {
       await restoreCabinetBackup(b.id);

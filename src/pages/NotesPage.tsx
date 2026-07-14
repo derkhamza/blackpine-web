@@ -1,3 +1,4 @@
+import { confirmDialog } from "../lib/confirm";
 import { FormEvent, useMemo, useState } from "react";
 import { Layout } from "../components/Layout";
 import { AnimatedNumber } from "../components/AnimatedNumber";
@@ -487,8 +488,8 @@ export function NotesPage() {
               key={note.id}
               note={note}
               onEdit={() => setModal({ note })}
-              onDelete={() => {
-                if (confirm(t("notes.deleteConfirm", { title: note.title }))) {
+              onDelete={async () => {
+                if (await confirmDialog(t("notes.deleteConfirm", { title: note.title }))) {
                   deleteNote(note.id);
                   showToast(t("notes.deleted"));
                 }

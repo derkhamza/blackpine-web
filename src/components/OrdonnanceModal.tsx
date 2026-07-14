@@ -1,3 +1,4 @@
+import { confirmDialog } from "../lib/confirm";
 import { useEffect, useState } from "react";
 import { useModalA11y } from "../lib/a11y";
 import { useTranslation } from "react-i18next";
@@ -248,17 +249,17 @@ export function OrdonnanceModal({
   };
 
   // ── Template operations ───────────────────────────────────────────────────
-  const loadTemplate = (tpl: { lines: OrdonnanceLine[] }) => {
+  const loadTemplate = async (tpl: { lines: OrdonnanceLine[] }) => {
     const hasContent = lines.some(l => l.drug.trim());
-    if (hasContent && !window.confirm(t("ordModal.loadConfirm"))) return;
+    if (hasContent && !await confirmDialog(t("ordModal.loadConfirm"))) return;
     setLines(tpl.lines.map(l => ({ ...l, _key: uid() })));
     setShowTpl(false);
   };
 
-  const repeatLast = () => {
+  const repeatLast = async () => {
     if (!lastOrdonnance || lastOrdonnance.length === 0) return;
     const hasContent = lines.some(l => l.drug.trim());
-    if (hasContent && !window.confirm(t("ordModal.loadConfirm"))) return;
+    if (hasContent && !await confirmDialog(t("ordModal.loadConfirm"))) return;
     setLines(lastOrdonnance.map(l => ({ ...l, _key: uid() })));
   };
 
@@ -441,8 +442,8 @@ export function OrdonnanceModal({
                         </button>
                         <button
                           className="tpl-del-btn"
-                          onClick={() => {
-                            if (window.confirm(t("ordModal.tplDeleteConfirm", { name: tpl.name })))
+                          onClick={async () => {
+                            if (await confirmDialog(t("ordModal.tplDeleteConfirm", { name: tpl.name })))
                               deletePrescriptionTemplate(tpl.id);
                           }}
                           title={t("common.delete")}

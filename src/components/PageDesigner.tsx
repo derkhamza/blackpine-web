@@ -1,3 +1,4 @@
+import { confirmDialog } from "../lib/confirm";
 import { useEffect, useReducer, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { DocumentSettings, PageDesign, DocBlockDesign, PaperSize, DocKind } from "../lib/cabinetTypes";
@@ -443,8 +444,8 @@ export function PageDesigner({
             type="button"
             className="btn btn-ghost"
             style={{ marginLeft: "auto", fontSize: 11, color: "var(--coral)" }}
-            onClick={() => {
-              if (!window.confirm(t("settings.pd.resetConfirm"))) return;
+            onClick={async () => {
+              if (!await confirmDialog(t("settings.pd.resetConfirm"))) return;
               const nextDesigns = { ...settings.designs };
               delete nextDesigns[kind];
               const next: DocumentSettings = { ...settings, designs: nextDesigns };

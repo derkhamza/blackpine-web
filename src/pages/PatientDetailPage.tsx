@@ -1,3 +1,4 @@
+import { confirmDialog } from "../lib/confirm";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -647,8 +648,8 @@ export function PatientDetailPage() {
   const color = avatarColor(fullName);
   const age   = calcAge(patient.dateOfBirth);
 
-  const handleDelete = () => {
-    if (!window.confirm(t("patientDetail.deleteConfirm", { name: fullName }))) return;
+  const handleDelete = async () => {
+    if (!await confirmDialog(t("patientDetail.deleteConfirm", { name: fullName }))) return;
     deletePatient(patient.id);
     navigate("/patients");
   };
@@ -1392,7 +1393,7 @@ export function PatientDetailPage() {
                       <button
                         className="doc-row-del"
                         title={t("common.delete")}
-                        onClick={() => { if (confirm(t("patientDetail.docDeleteConfirm", { name: d.filename }))) deleteApptDocument(d.id); }}
+                        onClick={async () => { if (await confirmDialog(t("patientDetail.docDeleteConfirm", { name: d.filename }))) deleteApptDocument(d.id); }}
                       >×</button>
                     </div>
                   </div>

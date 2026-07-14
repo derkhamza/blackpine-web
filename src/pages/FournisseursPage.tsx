@@ -1,3 +1,4 @@
+import { confirmDialog } from "../lib/confirm";
 import { FormEvent, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Layout } from "../components/Layout";
@@ -553,8 +554,8 @@ export function FournisseursPage({ noLayout = false }: { noLayout?: boolean } = 
                       </svg>
                     </button>
                     <button className="tx-delete"
-                      onClick={() => {
-                        if (confirm(t("fournisseurs.deleteSupConfirm", { name: s.name }))) {
+                      onClick={async () => {
+                        if (await confirmDialog(t("fournisseurs.deleteSupConfirm", { name: s.name }))) {
                           deleteSupplier(s.id);
                           showToast(t("fournisseurs.toastSupDeleted"));
                         }
@@ -643,8 +644,8 @@ export function FournisseursPage({ noLayout = false }: { noLayout?: boolean } = 
                       </svg>
                     </button>
                     <button className="tx-delete"
-                      onClick={() => {
-                        if (confirm(t("fournisseurs.deleteOrderConfirm"))) {
+                      onClick={async () => {
+                        if (await confirmDialog(t("fournisseurs.deleteOrderConfirm"))) {
                           deletePurchaseOrder(order.id);
                           showToast(t("fournisseurs.toastOrderDeleted"));
                         }
