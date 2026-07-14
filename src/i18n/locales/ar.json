@@ -970,6 +970,7 @@
     "bilanExamTitle": "حصيلة {{date}}",
     "bilanSavedAsExam": "تم حفظ {{n}} نتيجة في الفحوصات والتحاليل",
     "measuresTab": "القياسات والفحص",
+    "recordedMeasures": "القياسات المسجّلة وتطوّرها",
     "measuresGlance": "القياسات والفحص",
     "openMeasuresTab": "التعديل في القياسات والفحص →",
     "followup": "المتابعة والتأمين",

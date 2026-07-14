@@ -32,6 +32,7 @@ import { CertificateModal } from "../components/CertificateModal";
 import { ExamRequestModal } from "../components/ExamRequestModal";
 import { MedicalReportModal } from "../components/MedicalReportModal";
 import { findLastPrescription } from "../lib/prescriptions";
+import { buildPatientMeasurements, buildTrendSeries } from "../lib/patientMeasurements";
 import { Icd10Picker }      from "../components/Icd10Picker";
 import type { Icd10Entry }  from "../lib/icd10";
 import { getSpecialtyGroups, getSpecialtyBilans, DEFAULT_BILANS, BILAN_CATALOG, fieldMeta } from "../lib/specialtyFields";
@@ -623,6 +624,14 @@ export function AppointmentDetailPage() {
     setSocialHistory(patient?.socialHistory ?? "");
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patient?.id]);
+
+  // Unified evolution of every measure recorded for this patient (vitals + bilan +
+  // custom measures across consultations, plus external lab/imaging results). Read
+  // model only — the underlying records are never mutated (deep-merge Stage 1).
+  const patientTrends = useMemo(
+    () => appt?.patientId ? buildTrendSeries(buildPatientMeasurements(appt.patientId, appointments, examResults)) : [],
+    [appt?.patientId, appointments, examResults],
+  );
 
   // Auto-open the bill editor when arriving from Facturation → "Corriger la facture"
   // (the list passes { openBill: true } in the navigation state). Held in a ref so
@@ -1832,6 +1841,42 @@ export function AppointmentDetailPage() {
           <div className="appt-section-header">
             <div className="appt-section-title">{t("apptDetail.measuresTab")}</div>
           </div>
+
+          {/* Every measure already on record for this patient + its evolution — pulled
+              from past consultations and lab results, so the doctor sees the trend
+              before entering today's values. Read-only. */}
+          {patientTrends.length > 0 && (
+            <div className="measure-evo">
+              <div className="measure-evo-head">{t("apptDetail.recordedMeasures")}</div>
+              <div className="measure-evo-list">
+                {patientTrends.slice(0, 24).map(s => (
+                  <div key={s.seriesKey} className="measure-evo-row">
+                    <div className="measure-evo-info">
+                      <span className="measure-evo-label">{s.label}</span>
+                      <span className={`measure-evo-val${s.latest.bad ? " bad" : ""}`}>
+                        {s.latest.value}{s.unit ? ` ${s.unit}` : ""}
+                      </span>
+                      {s.count > 1 && <span className="measure-evo-count">{s.count}×</span>}
+                    </div>
+                    {s.points.length >= 2 && (() => {
+                      const W = 96, H = 26, pad = 3, xs = s.points.length;
+                      const toX = (i: number) => pad + (i / (xs - 1)) * (W - 2 * pad);
+                      const rng = (s.yMax - s.yMin) || 1;
+                      const toY = (v: number) => pad + (1 - (v - s.yMin) / rng) * (H - 2 * pad);
+                      const poly = s.points.map((p, i) => `${toX(i).toFixed(1)},${toY(p.num).toFixed(1)}`).join(" ");
+                      const last = s.points[xs - 1];
+                      return (
+                        <svg className="measure-evo-spark" width={W} height={H} aria-hidden="true">
+                          <polyline points={poly} fill="none" stroke="var(--blue)" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+                          <circle cx={toX(xs - 1)} cy={toY(last.num)} r="2.4" fill={last.bad ? "var(--coral)" : "var(--blue)"} />
+                        </svg>
+                      );
+                    })()}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* ── Mesures & bilan — ENTERED here; displayed read-only in Notes.
               Two sections: vital signs live inside the first. ── */}

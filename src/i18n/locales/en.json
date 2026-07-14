@@ -970,6 +970,7 @@
     "bilanExamTitle": "Lab panel of {{date}}",
     "bilanSavedAsExam": "{{n}} result(s) saved to Exams & Labs",
     "measuresTab": "Measurements & workup",
+    "recordedMeasures": "Recorded measures & evolution",
     "measuresGlance": "Measurements & workup",
     "openMeasuresTab": "Edit in Measurements & workup →",
     "followup": "Follow-up & AMO",

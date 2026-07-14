@@ -9612,6 +9612,28 @@ html { scroll-behavior: smooth; }
 }
 .hist-foot-rx:hover { color: var(--blue); }
 .hist-foot-rx-cta { font-weight: 700; color: var(--blue); flex-shrink: 0; }
+/* Recorded measures + evolution panel (Mesures & bilan tab). */
+.measure-evo {
+  margin-top: 14px; padding: 12px 14px;
+  border: 1px solid var(--border); border-radius: 10px; background: var(--surface);
+}
+.measure-evo-head {
+  font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px;
+  color: var(--muted); margin-bottom: 10px;
+}
+.measure-evo-list {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px 16px;
+}
+.measure-evo-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 5px 0; border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+}
+.measure-evo-info { display: flex; align-items: baseline; gap: 7px; min-width: 0; }
+.measure-evo-label { font-size: 12.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.measure-evo-val { font-size: 13.5px; font-weight: 700; color: var(--text); flex-shrink: 0; }
+.measure-evo-val.bad { color: var(--coral); }
+.measure-evo-count { font-size: 10.5px; color: var(--tertiary); flex-shrink: 0; }
+.measure-evo-spark { flex-shrink: 0; }
 /* Upcoming (future) consultation rows in the history tab. */
 .hist-upcoming {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;

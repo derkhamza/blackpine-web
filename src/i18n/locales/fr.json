@@ -970,6 +970,7 @@
     "bilanExamTitle": "Bilan du {{date}}",
     "bilanSavedAsExam": "{{n}} résultat(s) enregistré(s) dans Examens & Bio",
     "measuresTab": "Mesures & bilan",
+    "recordedMeasures": "Mesures enregistrées & évolution",
     "measuresGlance": "Mesures & bilan",
     "openMeasuresTab": "Modifier dans Mesures & bilan →",
     "followup": "Suivi & AMO",
