@@ -6,7 +6,7 @@ import { useCabinet, estimateStorageBytes } from "../context/CabinetContext";
 import { formatMAD, todayIso } from "../lib/format";
 import { clickable } from "../lib/a11y";
 import { AnimatedNumber } from "../components/AnimatedNumber";
-import { NOTE_COLOR_VALUES } from "../lib/cabinetTypes";
+import { NOTE_COLOR_VALUES, isBlockType } from "../lib/cabinetTypes";
 import { useTranslation } from "react-i18next";
 
 const DISMISSED_KEY = "bp.dashDismissedAlerts";
@@ -101,6 +101,18 @@ export function DashboardPage() {
   const [alertsCollapsed, setAlertsCollapsed] = useState(false);
   const [financeOpen,     setFinanceOpen]     = useState(false);
 
+  // A warm hand-written welcome from the founder, shown to brand-new accounts
+  // until they dismiss it (or naturally, once the practice has a few patients).
+  const welcomeKey = storagePrefix + "welcomeSeen";
+  const [welcomeSeen, setWelcomeSeen] = useState(() => {
+    try { return localStorage.getItem(welcomeKey) === "1"; } catch { return false; }
+  });
+  const showWelcome = !welcomeSeen && patients.length < 3;
+  const dismissWelcome = () => {
+    try { localStorage.setItem(welcomeKey, "1"); } catch { /* ignore */ }
+    setWelcomeSeen(true);
+  };
+
   // Dismissed alerts: id → weight at time of dismissal. An alert reappears only
   // if its current weight exceeds that value (i.e. the situation got worse), so
   // acknowledging a nudge silences it without hiding a genuine escalation.
@@ -118,7 +130,9 @@ export function DashboardPage() {
   // ── Today's agenda ─────────────────────────────────────────────────────────
   const todayAppts = useMemo(() =>
     appointments
-      .filter(a => a.date === today && a.status !== "cancelled")
+      // Non-patient blocks (breaks, meetings, leave) aren't RDVs — keep them out
+      // of the dashboard counts and lists.
+      .filter(a => a.date === today && a.status !== "cancelled" && !isBlockType(a.type))
       .sort((a, b) => a.startTime.localeCompare(b.startTime)),
     [appointments, today]);
 
@@ -141,7 +155,7 @@ export function DashboardPage() {
     const inWaiting  = appointments.filter(a => a.date === today && a.status === "arrived").length;
     const completed  = appointments.filter(a => a.date === today && a.status === "completed").length;
     const thisMonth  = today.slice(0, 7);
-    const monthTotal = appointments.filter(a => a.date.startsWith(thisMonth)).length;
+    const monthTotal = appointments.filter(a => a.date.startsWith(thisMonth) && !isBlockType(a.type)).length;
     return {
       todayTotal:  todayAppts.length,
       inWaiting,
@@ -378,6 +392,17 @@ export function DashboardPage() {
 
   return (
     <Layout title={t("dashboard.title")} subtitle={todayLabel}>
+
+      {/* ── Founder's welcome note (new accounts only) ── */}
+      {showWelcome && (
+        <div className="welcome-note">
+          <button className="welcome-note-close" onClick={dismissWelcome} aria-label={t("common.close")}>×</button>
+          <div className="welcome-note-title">{t("dashboard.welcomeTitle")}</div>
+          <p className="welcome-note-body">{t("dashboard.welcomeBody")}</p>
+          <div className="welcome-note-sign">Hamza</div>
+          <div className="welcome-note-founder">{t("dashboard.welcomeFounder")}</div>
+        </div>
+      )}
 
       {/* ══════════════════════════════════════════════════
           CLINICAL HERO — today at a glance

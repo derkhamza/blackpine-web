@@ -442,17 +442,22 @@ function DoctorsSection() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [detail, setDetail] = useState<AdminDoctorDetail | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const [detailDays, setDetailDays] = useState(30);   // per-doctor analytics window
 
   const reloadList = () => adminGetDoctors().then((r) => setDoctors(r.doctors)).catch(() => setDoctors([]));
   useEffect(() => { reloadList(); }, []);
 
-  const reloadDetail = (id: string) => {
+  const reloadDetail = (id: string, days = detailDays) => {
     setLoadingDetail(true);
-    adminGetDoctor(id).then(setDetail).catch(() => setDetail(null)).finally(() => setLoadingDetail(false));
+    adminGetDoctor(id, days).then(setDetail).catch(() => setDetail(null)).finally(() => setLoadingDetail(false));
   };
   const toggle = (id: string) => {
     if (openId === id) { setOpenId(null); setDetail(null); return; }
     setOpenId(id); setDetail(null); reloadDetail(id);
+  };
+  const setRange = (days: number) => {
+    setDetailDays(days);
+    if (openId) reloadDetail(openId, days);
   };
   const onChanged = (id: string) => { void reloadList(); reloadDetail(id); };
   const onDeleted = () => { void reloadList(); setOpenId(null); setDetail(null); };
@@ -580,11 +585,14 @@ function DoctorsSection() {
                       Réservation en ligne : {detail.features.bookingEnabled ? "activée" : "non"} · Rappels SMS : {detail.features.smsEnabled ? "activés" : "non"}
                       {detail.doctor.lastEvent ? ` · Dernier événement : ${shortDate(detail.doctor.lastEvent)}` : ""}
                     </div>
-                    {detail.byDay.length > 0 && (
-                      <div style={{ marginTop: 14 }}>
-                        <div className="admin-doc-subtitle">Activité — 30 derniers jours</div>
+                    <RangePicker value={detailDays} onChange={setRange} />
+                    {detail.byDay.length > 0 ? (
+                      <div style={{ marginTop: 8 }}>
+                        <div className="admin-doc-subtitle">Activité — {detailDays} derniers jours</div>
                         <AreaChart data={detail.byDay} color="var(--blue)" />
                       </div>
+                    ) : (
+                      <div className="admin-sub" style={{ marginTop: 8 }}>Aucune activité sur les {detailDays} derniers jours.</div>
                     )}
                     {detail.byHour && detail.byHour.length > 0 && (
                       <div style={{ marginTop: 14 }}>

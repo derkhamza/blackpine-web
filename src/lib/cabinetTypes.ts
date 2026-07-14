@@ -720,13 +720,32 @@ export function resolveApptTypes(): ResolvedApptType[] {
   return [...typeById.values()];
 }
 
+// ── Non-patient agenda blocks (indisponibilités) ─────────────────────────────
+// A "block" is an appointment that isn't a patient RDV — a lunch break, a
+// meeting, operating-room time, leave, etc. Like teleconsults it carries no
+// structured flag; it's identified purely by a reserved `type` id prefixed
+// "block:", so every appointment filter can include/exclude it uniformly.
+export const BLOCK_TYPE_META: Record<string, { label: string; color: string }> = {
+  "block:pause":   { label: "Pause",           color: "#94A3B8" },
+  "block:reunion": { label: "Réunion",         color: "#8B5CF6" },
+  "block:blocOp":  { label: "Bloc opératoire", color: "#0EA5E9" },
+  "block:absence": { label: "Absence / congé", color: "#F59E0B" },
+  "block:autre":   { label: "Indisponibilité", color: "#64748B" },
+};
+export const BLOCK_TYPES: string[] = Object.keys(BLOCK_TYPE_META);
+export function isBlockType(type: string | undefined | null): boolean {
+  return typeof type === "string" && type.startsWith("block:");
+}
+
 export function apptTypeLabel(type: string): string {
+  if (isBlockType(type)) return BLOCK_TYPE_META[type]?.label ?? "Indisponibilité";
   return typeById.get(type)?.label
     ?? APPT_TYPE_LABELS[type as AppointmentType]
     ?? type;
 }
 
 export function apptTypeColor(type: string): string {
+  if (isBlockType(type)) return BLOCK_TYPE_META[type]?.color ?? "#64748B";
   return typeById.get(type)?.color
     ?? APPT_TYPE_COLORS[type as AppointmentType]
     ?? DEFAULT_TYPE_COLOR;

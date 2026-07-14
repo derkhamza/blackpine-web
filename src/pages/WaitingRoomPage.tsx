@@ -6,7 +6,7 @@ import { emitSignal } from "../api/client";
 import { todayIso } from "../lib/format";
 import { AnimatedNumber } from "../components/AnimatedNumber";
 import type { Appointment } from "../lib/cabinetTypes";
-import { apptTypeLabel, apptTypeColor, isTeleType } from "../lib/cabinetTypes";
+import { apptTypeLabel, apptTypeColor, isTeleType, isBlockType } from "../lib/cabinetTypes";
 import { useTranslation } from "react-i18next";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -199,7 +199,8 @@ export function WaitingRoomPage() {
   // Today's appointments sorted by startTime
   const todayAppts = useMemo(
     () => [...appointments]
-      .filter(a => a.date === today)
+      // Non-patient blocks (breaks, meetings, leave) never enter the waiting room.
+      .filter(a => a.date === today && !isBlockType(a.type))
       .sort((a, b) => a.startTime.localeCompare(b.startTime)),
     [appointments, today],
   );
@@ -279,6 +280,9 @@ export function WaitingRoomPage() {
       title={t("waiting.title")}
       subtitle={`${dateStr.charAt(0).toUpperCase() + dateStr.slice(1)} · ${timeStr}`}
     >
+      {/* Fixed-height page on desktop: the KPI strip + column headers stay put and
+          each column body scrolls on its own, so the board never pushes the page. */}
+      <div className="wr-page">
       {/* KPI strip */}
       <div className="wr-kpi-strip">
         {kpis.map(({ label, count, accent }) => (
@@ -367,6 +371,7 @@ export function WaitingRoomPage() {
           </Col>
         </div>
       )}
+      </div>
     </Layout>
   );
 }

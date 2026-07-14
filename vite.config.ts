@@ -70,7 +70,11 @@ export default defineConfig({
   },
   build: {
     outDir: "dist",
-    sourcemap: true,
+    // Production source maps are the single biggest chunk of build CPU/memory on
+    // Vercel (a ~4 MB map for a ~1.7 MB bundle). No map-consuming error tracker is
+    // wired up, so skip them in prod builds — flip back to true only when actively
+    // debugging a minified prod stack trace.
+    sourcemap: false,
     rollupOptions: {
       // Suppress "not exported by" warnings that come from type-only re-exports
       // in the engine's internal files. They're TypeScript types stripped at
@@ -78,6 +82,15 @@ export default defineConfig({
       onwarn(warning, defaultHandler) {
         if (warning.code === "MISSING_EXPORT") return;
         defaultHandler(warning);
+      },
+      output: {
+        // Split third-party dependencies into one long-lived vendor chunk, out of
+        // the app chunk. It minifies with less peak memory and caches across deploys
+        // (an app change no longer re-downloads React/i18n/etc). A single vendor
+        // chunk avoids the inter-vendor circular-chunk edges a finer split creates.
+        manualChunks(id) {
+          if (id.includes("node_modules")) return "vendor";
+        },
       },
     },
   },

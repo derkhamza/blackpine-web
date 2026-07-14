@@ -11,7 +11,7 @@ import { exportPatientsCsv } from "../lib/csvExport";
 import { findOrphanAppts } from "../lib/orphanAppts";
 import { clickable } from "../lib/a11y";
 import type { Patient, PatientGender } from "../lib/cabinetTypes";
-import { MOROCCAN_CITIES, MUTUELLES } from "../lib/cabinetTypes";
+import { MOROCCAN_CITIES, MUTUELLES, DEFAULT_SECRETARY_PERMISSIONS } from "../lib/cabinetTypes";
 import { useTranslation } from "react-i18next";
 import { track } from "../lib/analytics";
 import { fullName, initials, avatarColor } from "../lib/nameFormat";
@@ -230,7 +230,7 @@ function PatientCard({
   patient, apptCount, onDetail, onEdit, onDelete, onContextMenu,
 }: {
   patient: Patient; apptCount: number;
-  onDetail: () => void; onEdit: () => void; onDelete: () => void;
+  onDetail: () => void; onEdit?: () => void; onDelete?: () => void;
   onContextMenu?: (e: React.MouseEvent) => void;
 }) {
   const { t } = useTranslation();
@@ -269,18 +269,24 @@ function PatientCard({
           )}
         </div>
       </div>
-      <div className="patient-card-actions" onClick={(e) => e.stopPropagation()}>
-        <button className="appt-edit-btn" title={t("common.edit")} onClick={(e) => { e.stopPropagation(); onEdit(); }}>
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-            <path d="M8.5 1.5a1.5 1.5 0 0 1 2 2L4 10H2v-2L8.5 1.5Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
-          </svg>
-        </button>
-        <button className="tx-delete" title={t("common.delete")} onClick={(e) => { e.stopPropagation(); onDelete(); }}>
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <path d="M2 3h10M5 3V2h4v1M4 3v9h6V3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </button>
-      </div>
+      {(onEdit || onDelete) && (
+        <div className="patient-card-actions" onClick={(e) => e.stopPropagation()}>
+          {onEdit && (
+            <button className="appt-edit-btn" title={t("common.edit")} onClick={(e) => { e.stopPropagation(); onEdit(); }}>
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                <path d="M8.5 1.5a1.5 1.5 0 0 1 2 2L4 10H2v-2L8.5 1.5Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
+              </svg>
+            </button>
+          )}
+          {onDelete && (
+            <button className="tx-delete" title={t("common.delete")} onClick={(e) => { e.stopPropagation(); onDelete(); }}>
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M2 3h10M5 3V2h4v1M4 3v9h6V3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -291,7 +297,11 @@ export function PatientsPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const patientCtx = useContextMenu();
-  const { patients, appointments, addPatient, updatePatient, deletePatient, updateAppointment } = useCabinet();
+  const { patients, appointments, addPatient, updatePatient, deletePatient, updateAppointment, role, doctorProfile } = useCabinet();
+  // Doctor-controlled: a secretary may only create/edit/delete patient records
+  // when granted the editPatients permission (defaults on).
+  const canEditPatients = role !== "secretary"
+    || (doctorProfile.secretaryPermissions ?? DEFAULT_SECRETARY_PERMISSIONS).editPatients !== false;
   const [search,    setSearch]    = useState("");
   const [modal,     setModal]     = useState<{ patient?: Patient } | null>(null);
   const [csvOpen,   setCsvOpen]   = useState(false);
@@ -351,19 +361,23 @@ export function PatientsPage() {
             </svg>
             {t("patients.exportCsv")}
           </button>
-          <button className="btn btn-ghost" onClick={() => setCsvOpen(true)}>
-            <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 6 }}>
-              <path d="M7 10V2M4 5l3-3 3 3M2 12h10"
-                stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            {t("patients.importCsv")}
-          </button>
-          <button className="btn btn-primary" onClick={() => setModal({})}>
-            <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 6 }}>
-              <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-            </svg>
-            {t("patients.newPatient")}
-          </button>
+          {canEditPatients && (
+            <button className="btn btn-ghost" onClick={() => setCsvOpen(true)}>
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 6 }}>
+                <path d="M7 10V2M4 5l3-3 3 3M2 12h10"
+                  stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              {t("patients.importCsv")}
+            </button>
+          )}
+          {canEditPatients && (
+            <button className="btn btn-primary" onClick={() => setModal({})}>
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 6 }}>
+                <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+              </svg>
+              {t("patients.newPatient")}
+            </button>
+          )}
         </div>
       }
     >
@@ -393,7 +407,7 @@ export function PatientsPage() {
           <div style={{ fontSize: 36, marginBottom: 10 }}>👥</div>
           <div style={{ fontWeight: 700, marginBottom: 6 }}>{t("patients.noPatients")}</div>
           <div style={{ marginBottom: 16 }}>{t("patients.noPatientsHint")}</div>
-          <button className="btn btn-primary" onClick={() => setModal({})}>{t("patients.addPatient")}</button>
+          {canEditPatients && <button className="btn btn-primary" onClick={() => setModal({})}>{t("patients.addPatient")}</button>}
         </div>
       ) : sections.length === 0 ? (
         <div className="tx-empty">
@@ -416,10 +430,10 @@ export function PatientsPage() {
                 const menu: CtxItem[] = [
                   { label: t("ctx.openFile"), icon: <ActionIcon name="folder" />, onClick: openFile },
                   { label: t("ctx.newAppt"), icon: <ActionIcon name="calendar" />, onClick: () => navigate(`/agenda?newAppt=${p.id}`) },
-                  { label: t("ctx.edit"), icon: <ActionIcon name="edit" />, onClick: doEdit },
+                  ...(canEditPatients ? [{ label: t("ctx.edit"), icon: <ActionIcon name="edit" />, onClick: doEdit }] : []),
                   ...(p.phone
                     ? [{ label: t("ctx.call"), icon: <ActionIcon name="phone" />, onClick: () => { window.location.href = `tel:${p.phone}`; } }] : []),
-                  { label: t("ctx.deletePatient"), icon: <ActionIcon name="trash" />, onClick: doDelete, danger: true, divider: true },
+                  ...(canEditPatients ? [{ label: t("ctx.deletePatient"), icon: <ActionIcon name="trash" />, onClick: doDelete, danger: true, divider: true }] : []),
                 ];
                 return (
                   <PatientCard
@@ -427,8 +441,8 @@ export function PatientsPage() {
                     patient={p}
                     apptCount={apptCountMap[p.id] ?? 0}
                     onDetail={openFile}
-                    onEdit={doEdit}
-                    onDelete={doDelete}
+                    onEdit={canEditPatients ? doEdit : undefined}
+                    onDelete={canEditPatients ? doDelete : undefined}
                     onContextMenu={e => patientCtx.open(e, menu)}
                   />
                 );
@@ -439,7 +453,7 @@ export function PatientsPage() {
       )}
 
       {/* Modal */}
-      {modal !== null && (
+      {modal !== null && canEditPatients && (
         <PatientModal
           initial={modal.patient}
           existingPatients={patients}

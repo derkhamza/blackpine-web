@@ -861,6 +861,7 @@ export interface AdminDoctorDetail {
   topActions: { name: string; count: number }[];
   byDay: { date: string; count: number }[];
   byHour?: { hour: number; count: number }[];
+  days?: number;
 }
 export async function adminGetDoctors(): Promise<{ generatedAt: string; count: number; doctors: AdminDoctor[] }> {
   const res = await request(`/admin/doctors`);
@@ -868,8 +869,8 @@ export async function adminGetDoctors(): Promise<{ generatedAt: string; count: n
   if (!res.ok) throw new Error("Erreur");
   return res.json();
 }
-export async function adminGetDoctor(id: string): Promise<AdminDoctorDetail> {
-  const res = await request(`/admin/doctors/${encodeURIComponent(id)}`);
+export async function adminGetDoctor(id: string, days = 30): Promise<AdminDoctorDetail> {
+  const res = await request(`/admin/doctors/${encodeURIComponent(id)}?days=${days}`);
   if (res.status === 403) throw new Error("FORBIDDEN");
   if (!res.ok) throw new Error("Erreur");
   return res.json();

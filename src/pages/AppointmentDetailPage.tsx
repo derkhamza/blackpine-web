@@ -1042,8 +1042,9 @@ export function AppointmentDetailPage() {
 
   const handleDelete = async () => {
     if (!await confirmDialog(t("apptDetail.deleteConfirm", { name: appt.patientName }))) return;
+    const backDate = appt.date;
     deleteAppointment(appt.id);
-    navigate("/agenda");
+    navigate(`/agenda?d=${backDate}`);
   };
 
   // ── BMI ───────────────────────────────────────────────────────────────────
@@ -1134,9 +1135,10 @@ export function AppointmentDetailPage() {
       title={appt.patientName}
       subtitle={`${fmtDate(appt.date, locale)} · ${appt.startTime} → ${appt.endTime}`}
     >
-      {/* ── Back link ── */}
+      {/* ── Back link — returns to the week containing this appointment so the
+           doctor lands where they were, not on today. ── */}
       <div style={{ marginBottom: 16 }}>
-        <Link to="/agenda" className="appt-back-link">
+        <Link to={`/agenda?d=${appt.date}`} className="appt-back-link">
           {t("apptDetail.backLink")}
         </Link>
       </div>
@@ -1490,8 +1492,9 @@ export function AppointmentDetailPage() {
               1 motif · 2 antécédents · 3 médicaments · 4 examen (+ mesures)
               · 5 bilans bio/radio · 6 diagnostic · 7 traitement · prochain RDV */}
 
-          {/* 1 · Motif */}
-          <div className="form-group appt-note-block">
+          {/* 1 · Motif — hidden for a read-only viewer when empty (no point showing
+              an empty labelled box with placeholder filler). */}
+          <div className="form-group appt-note-block" style={readOnly && !motif.trim() ? { display: "none" } : undefined}>
             <div className="appt-note-label-row">
               <label className="form-label" style={{ margin: 0 }}>{t("apptDetail.motif")}</label>
               {!motifReadOnly && <DictationButton lang={locale} onText={dictateInto("motif", setMotif, motif)} />}
@@ -1553,7 +1556,7 @@ export function AppointmentDetailPage() {
             <textarea
               className="form-input appt-textarea"
               rows={4}
-              placeholder={t("apptDetail.examPlaceholder")}
+              placeholder={readOnly ? undefined : t("apptDetail.examPlaceholder")}
               value={exam}
               onChange={(e) => setExam(e.target.value)}
               onBlur={() => saveNotes()}
@@ -1634,7 +1637,7 @@ export function AppointmentDetailPage() {
           </div>
 
           {/* 6 · Diagnostic */}
-          <div className="form-group appt-note-block">
+          <div className="form-group appt-note-block" style={readOnly && !diag.trim() ? { display: "none" } : undefined}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
               <label className="form-label" style={{ margin: 0 }}>{t("apptDetail.diagnosis")}</label>
               {!readOnly && (
@@ -1664,7 +1667,7 @@ export function AppointmentDetailPage() {
           </div>
 
           {/* 7 · Traitement */}
-          <div className="form-group appt-note-block">
+          <div className="form-group appt-note-block" style={readOnly && !treatment.trim() ? { display: "none" } : undefined}>
             <div className="appt-note-label-row">
               <label className="form-label" style={{ margin: 0 }}>{t("apptDetail.treatment")}</label>
               {!readOnly && <DictationButton lang={locale} onText={dictateInto("treatment", setTreatment, treatment)} />}

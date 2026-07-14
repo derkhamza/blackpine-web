@@ -854,6 +854,15 @@ export function CabinetProvider({
           doctorProfile: snap.doctorProfile,
           apptDocuments: snap.apptDocuments,
         } as CabinetSnapshot);
+        // The secretary never edits the doctor profile, so an incoming profile
+        // change (e.g. a day-off the doctor just added, working hours, custom
+        // types) is always safe to adopt — even mid-edit when the full snapshot
+        // apply above is skipped. Without this, the delta pull marks the profile
+        // version "seen" yet never applies it, so the change only surfaces on the
+        // next periodic full pull ("day off doesn't appear on the secretary").
+        else if (snap !== NOT_MODIFIED && snap.doctorProfile && typeof snap.doctorProfile === "object") {
+          setDoctorProfileState(snap.doctorProfile as CabinetDoctorProfile);
+        }
         hydrated.current = true;
         // Restored un-pushed edits (dirty on a boot pull) → flush them now.
         if (boot && dirtyRef.current) setPushKick(k => k + 1);

@@ -105,33 +105,37 @@ export function printFacture(opts: FactureOptions): void {
   <style>
     ${pageRule(resolvePageSize(design, "A4").css, margins)}
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: Arial, sans-serif; font-size: 10.5pt; color: #111; line-height: 1.5; position: relative; }
+    body { font-family: Arial, sans-serif; font-size: 10.5pt; color: #111; line-height: 1.4; position: relative; }
 
     /* ── Top band ─────────────────────────────────────────────────────────── */
     .top-band {
       display: flex; justify-content: space-between; align-items: flex-start;
       margin-bottom: 0;
     }
-    .doc-name  { font-size: 14pt; font-weight: bold; color: var(--doc-accent,#0A4E7E); margin-bottom: 4px; }
-    .doc-meta  { font-size: 9pt; color: #444; line-height: 1.65; }
+    .doc-name  { font-size: 14pt; font-weight: bold; color: var(--doc-accent,#0A4E7E); margin-bottom: 3px; }
+    .doc-meta  { font-size: 9pt; color: #444; line-height: 1.5; }
     .inv-block { text-align: right; }
     .inv-title { font-size: 22pt; font-weight: 900; color: var(--doc-accent,#0A4E7E); letter-spacing: 1px; }
     .inv-num   { font-size: 11pt; font-weight: 700; color: var(--doc-accent,#0A4E7E); margin-top: 2px; }
     .inv-date  { font-size: 9pt; color: #555; margin-top: 3px; }
 
     /* ── Divider ──────────────────────────────────────────────────────────── */
-    .rule { border: none; border-top: 2px solid var(--doc-accent,#0A4E7E); margin: 12px 0; }
-    .rule-thin { border: none; border-top: 1px solid #C8DFF0; margin: 10px 0; }
+    .rule { border: none; border-top: 2px solid var(--doc-accent,#0A4E7E); margin: 9px 0; }
+    .rule-thin { border: none; border-top: 1px solid #C8DFF0; margin: 8px 0; }
 
     /* ── Parties ──────────────────────────────────────────────────────────── */
-    .parties { display: flex; gap: 20px; margin-bottom: 20px; }
-    .party { flex: 1; }
+    /* Two tidy side-by-side panels so prestataire / destinataire read cleanly. */
+    .parties { display: flex; gap: 14px; margin-bottom: 14px; }
+    .party {
+      flex: 1; background: #F7FAFC; border: 1px solid #E2EFF8;
+      border-radius: 7px; padding: 9px 12px;
+    }
     .party-label {
       font-size: 8pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
-      color: var(--doc-accent,#0A4E7E); border-bottom: 1.5px solid #C8DFF0; padding-bottom: 4px; margin-bottom: 8px;
+      color: var(--doc-accent,#0A4E7E); border-bottom: 1.5px solid #C8DFF0; padding-bottom: 3px; margin-bottom: 6px;
     }
-    .party-name { font-size: 11pt; font-weight: 700; margin-bottom: 3px; }
-    .party-detail { font-size: 9pt; color: #444; line-height: 1.6; }
+    .party-name { font-size: 11pt; font-weight: 700; margin-bottom: 2px; }
+    .party-detail { font-size: 9pt; color: #444; line-height: 1.5; }
 
     /* ── Line items ───────────────────────────────────────────────────────── */
     /* The per-act / per-consultation lines and their remises stay small; the
@@ -163,7 +167,7 @@ export function printFacture(opts: FactureOptions): void {
 
     /* ── Amount in words ──────────────────────────────────────────────────── */
     .amount-words {
-      margin: 14px 0; padding: 10px 14px;
+      margin: 10px 0; padding: 8px 12px;
       background: #EFF6FB; border-radius: 6px; font-size: 9.5pt;
       color: #333; font-style: italic;
     }
@@ -171,19 +175,19 @@ export function printFacture(opts: FactureOptions): void {
 
     /* ── TVA note ─────────────────────────────────────────────────────────── */
     .tva-note {
-      font-size: 8pt; color: #777; margin: 10px 0;
+      font-size: 8pt; color: #777; margin: 8px 0;
       border-left: 3px solid #C8DFF0; padding-left: 10px;
     }
 
     /* ── Signature ────────────────────────────────────────────────────────── */
-    .sig-row { display: flex; justify-content: flex-end; margin-top: 28px; }
-    .sig-block { width: 200px; text-align: center; }
-    .sig-label { font-size: 9pt; color: #555; margin-bottom: 40px; }
+    .sig-row { display: flex; justify-content: flex-end; margin-top: 16px; }
+    .sig-block { width: 210px; text-align: center; }
+    .sig-label { font-size: 9pt; color: #555; margin-bottom: 30px; }
     .sig-box   { border-top: 1px solid #aaa; padding-top: 4px; font-size: 8.5pt; color: #333; }
 
     /* ── Footer ───────────────────────────────────────────────────────────── */
     .footer {
-      margin-top: 30px; padding-top: 8px; border-top: 1px solid #ddd;
+      margin-top: 16px; padding-top: 8px; border-top: 1px solid #ddd;
       font-size: 8pt; color: #aaa; text-align: center;
     }
 

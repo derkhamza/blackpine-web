@@ -1246,6 +1246,51 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 .tgrid-hdr-off-toggle.on { opacity: 1; color: #d97706; }
 .tgrid-col-hdr-today .tgrid-hdr-off-toggle { color: rgba(255,255,255,0.7); }
 .tgrid-col-hdr-today .tgrid-hdr-off-toggle.on { color: #fbbf24; }
+
+/* Block (indisponibilité) modal — category picker */
+.block-cat-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+.block-cat-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 11px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--surface);
+  color: var(--text); font-size: 12.5px; font-weight: 600; cursor: pointer;
+  transition: border-color .12s, background .12s, color .12s;
+}
+.block-cat-btn:hover { border-color: var(--border-strong, var(--muted)); }
+.block-cat-btn.active { font-weight: 700; }
+.block-cat-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+
+/* Founder's welcome note (new-account dashboard) */
+.welcome-note {
+  position: relative;
+  margin-bottom: 18px;
+  padding: 18px 22px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: linear-gradient(135deg, rgba(10,78,126,0.06), rgba(10,78,126,0.01));
+  box-shadow: var(--shadow-card);
+}
+[data-theme="dark"] .welcome-note {
+  background: linear-gradient(135deg, rgba(56,140,196,0.12), rgba(56,140,196,0.02));
+}
+.welcome-note-title { font-size: 16px; font-weight: 800; color: var(--text); margin-bottom: 7px; }
+.welcome-note-body {
+  font-size: 14px; line-height: 1.65; color: var(--secondary, var(--text));
+  max-width: 660px; margin: 0;
+}
+.welcome-note-sign {
+  margin-top: 12px; line-height: 1;
+  font-family: "Segoe Script", "Bradley Hand", "Brush Script MT", "Snell Roundhand", cursive;
+  font-size: 27px; color: var(--accent, #0A4E7E);
+}
+[data-theme="dark"] .welcome-note-sign { color: #6cb6e6; }
+.welcome-note-founder { font-size: 11.5px; color: var(--muted); margin-top: 3px; letter-spacing: .2px; }
+.welcome-note-close {
+  position: absolute; top: 9px; inset-inline-end: 11px;
+  border: none; background: transparent; color: var(--muted);
+  font-size: 20px; line-height: 1; cursor: pointer; padding: 2px 7px; border-radius: 6px;
+}
+.welcome-note-close:hover { background: rgba(128,128,128,0.14); color: var(--text); }
 .tgrid-col-hdr-today { background: var(--navy); }
 .tgrid-hdr-btn {
   width: 100%; border: none; background: none; padding: 7px 4px 6px;
@@ -3954,7 +3999,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 12px;
-  margin-bottom: 18px;
+  margin-bottom: 14px;
 }
 /* Teleconsultations aren't in-cabinet — a compact reference strip above the board. */
 .wr-tele-strip {
@@ -3979,16 +4024,16 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   border: 1px solid var(--border);
   border-radius: var(--r);
   border-top: 3px solid transparent;
-  padding: 14px 16px;
+  padding: 10px 14px;
   text-align: center;
   box-shadow: var(--shadow-card);
 }
 .wr-kpi-val {
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 800;
   line-height: 1;
   letter-spacing: -0.5px;
-  margin-bottom: 5px;
+  margin-bottom: 4px;
 }
 .wr-kpi-lbl {
   font-size: 11px;
@@ -4039,6 +4084,21 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   flex-direction: column;
   gap: 8px;
   min-height: 80px;
+}
+
+/* Desktop: the whole page is pinned to the viewport (no page scroll); the KPI
+   strip and column headers stay put and each column body scrolls on its own. */
+@media (min-width: 900px) {
+  .wr-page { height: 100%; display: flex; flex-direction: column; min-height: 0; }
+  .wr-page > .wr-kpi-strip,
+  .wr-page > .wr-tele-strip { flex-shrink: 0; }
+  .wr-page > .wr-board {
+    flex: 1 1 auto; min-height: 0;
+    grid-auto-rows: 1fr; align-items: stretch;
+  }
+  .wr-board > .wr-col { max-height: 100%; display: flex; flex-direction: column; }
+  .wr-col-hdr { flex-shrink: 0; }
+  .wr-page .wr-col-body { overflow-y: auto; min-height: 0; }
 }
 .wr-col-empty {
   text-align: center;
@@ -4207,7 +4267,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: var(--r);
-  padding: 11px 12px;
+  padding: 9px 11px;
   transition: box-shadow var(--trans);
   cursor: grab;
 }
@@ -4223,6 +4283,8 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
   margin-bottom: 6px;
 }
 .wr-card-time {
@@ -4230,6 +4292,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   font-weight: 700;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
 }
 a.wr-card-open {
   text-decoration: none;
@@ -4246,6 +4309,9 @@ a.wr-card-open:hover {
   padding: 2px 7px;
   border-radius: var(--r-pill);
   white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .wr-card-name {
   font-size: 14px;

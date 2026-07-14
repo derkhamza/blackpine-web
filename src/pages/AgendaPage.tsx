@@ -13,6 +13,7 @@ import {
   APPT_STATUS_LABELS, BUILTIN_APPT_TYPES,
   apptTypeLabel, apptTypeColor, resolveApptTypes, apptLabelById,
   WA_TEMPLATE_CATEGORY_LABELS, WA_TEMPLATE_CATEGORY_COLORS,
+  BLOCK_TYPE_META, BLOCK_TYPES, isBlockType,
 } from "../lib/cabinetTypes";
 import { todayIso, calcAge } from "../lib/format";
 import { billSubtotal as calcSubtotal, billNet, lineDiscount, lineNet } from "../lib/billing";
@@ -1296,6 +1297,99 @@ function LegendItem({ name, color, ring, editable, onRename, onRecolor, colorTit
   );
 }
 
+// ── Non-patient block (indisponibilité) create/edit modal ─────────────────────
+// A lightweight form for closures that aren't patient RDVs (breaks, meetings,
+// operating-room time, leave). Saved as an appointment with a reserved block:
+// type so it never pollutes the waiting room, dashboard counts or billing.
+function BlockModal({ initial, isEdit, defaultDate, onSave, onDelete, onClose }: {
+  initial?: Partial<Appointment>;
+  isEdit: boolean;
+  defaultDate: string;
+  onSave: (a: Omit<Appointment, "id">) => void;
+  onDelete?: () => void;
+  onClose: () => void;
+}) {
+  const { t } = useTranslation();
+  const [cat,   setCat]   = useState<string>(isBlockType(initial?.type) ? (initial!.type as string) : "block:pause");
+  const [note,  setNote]  = useState<string>(() => {
+    const lbl = BLOCK_TYPE_META[(initial?.type as string) ?? ""]?.label;
+    return initial?.patientName && initial.patientName !== lbl ? initial.patientName : "";
+  });
+  const [date,  setDate]  = useState(initial?.date || defaultDate);
+  const [start, setStart] = useState(initial?.startTime || "12:00");
+  const [end,   setEnd]   = useState(initial?.endTime || "13:00");
+
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    if (!date || !start || !end) return;
+    onSave({
+      patientName: note.trim() || (BLOCK_TYPE_META[cat]?.label ?? "Indisponibilité"),
+      patientId:   undefined,
+      date, startTime: start, endTime: end,
+      type: cat, status: "scheduled",
+    });
+    onClose();
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <form className="modal" style={{ maxWidth: 430 }} onClick={e => e.stopPropagation()} onSubmit={submit}>
+        <div className="modal-header">
+          <h2 className="modal-title">{t(isEdit ? "agenda.blockEdit" : "agenda.blockNew")}</h2>
+          <button type="button" className="modal-close" onClick={onClose}>×</button>
+        </div>
+        <div className="modal-body">
+          <div className="form-group">
+            <label className="form-label">{t("agenda.blockCategory")}</label>
+            <div className="block-cat-grid">
+              {BLOCK_TYPES.map(id => (
+                <button
+                  type="button" key={id}
+                  className={`block-cat-btn${cat === id ? " active" : ""}`}
+                  style={cat === id ? { borderColor: BLOCK_TYPE_META[id].color, background: BLOCK_TYPE_META[id].color + "18", color: BLOCK_TYPE_META[id].color } : undefined}
+                  onClick={() => setCat(id)}
+                >
+                  <span className="block-cat-dot" style={{ background: BLOCK_TYPE_META[id].color }} />
+                  {BLOCK_TYPE_META[id].label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="form-group">
+            <label className="form-label">{t("agenda.blockNote")}</label>
+            <input className="form-input" value={note} onChange={e => setNote(e.target.value)} placeholder={t("agenda.blockNotePh")} />
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">{t("agenda.date")}</label>
+              <input type="date" className="form-input" value={date} onChange={e => setDate(e.target.value)} required />
+            </div>
+            <div className="form-group">
+              <label className="form-label">{t("agenda.start")}</label>
+              <input type="time" className="form-input" value={start} onChange={e => setStart(e.target.value)} required />
+            </div>
+            <div className="form-group">
+              <label className="form-label">{t("agenda.end")}</label>
+              <input type="time" className="form-input" value={end} onChange={e => setEnd(e.target.value)} required />
+            </div>
+          </div>
+        </div>
+        <div className="modal-footer">
+          {isEdit && onDelete && (
+            <button type="button" className="btn btn-ghost" style={{ color: "var(--coral)", marginRight: "auto" }} onClick={onDelete}>
+              {t("common.delete")}
+            </button>
+          )}
+          <button type="button" className="btn btn-ghost" onClick={onClose}>{t("common.cancel")}</button>
+          <button type="submit" className="btn btn-primary" style={{ background: BLOCK_TYPE_META[cat]?.color }}>
+            {t(isEdit ? "common.save" : "common.add")}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 export function AgendaPage() {
   const { t, i18n } = useTranslation();
   const locale = i18n.language?.slice(0, 2) === "ar" ? "ar-MA"
@@ -1438,11 +1532,25 @@ export function AgendaPage() {
   // Legend stays in read-only display mode until the doctor opts into editing.
   const [legendEditMode, setLegendEditMode] = useState(false);
 
-  const [selDate,   setSelDate]   = useState(today);
-  const [view,      setView]      = useState<AgendaView>("week");
+  // Date & view are backed by the URL (?d=YYYY-MM-DD&v=week|day|month) so that
+  // opening an appointment and coming back — or a browser back — restores the
+  // exact week/day the doctor was on, instead of snapping to today.
+  const spDate0 = searchParams.get("d");
+  const spView0 = searchParams.get("v");
+  const [selDate,   setSelDate]   = useState(spDate0 && /^\d{4}-\d{2}-\d{2}$/.test(spDate0) ? spDate0 : today);
+  const [view,      setView]      = useState<AgendaView>(
+    spView0 === "day" || spView0 === "week" || spView0 === "month" ? spView0 : "week",
+  );
   const [calYear,   setCalYear]   = useState(new Date().getFullYear());
   const [calMonth,  setCalMonth]  = useState(new Date().getMonth());
   const [modal,          setModal]          = useState<{ appt?: Appointment; prefill?: Partial<Appointment> } | null>(null);
+  const [blockModal,     setBlockModal]     = useState<{ appt?: Appointment } | null>(null);
+  // Opening an entry: a patient RDV goes to its detail page; a non-patient block
+  // opens the lightweight block editor (the detail page is patient-centric).
+  const openAppt = (appt: Appointment) => {
+    if (isBlockType(appt.type)) setBlockModal({ appt });
+    else navigate(`/agenda/${appt.id}`);
+  };
   const [billModal,      setBillModal]      = useState<{ appt: Appointment } | null>(null);
   const [waPickerTarget, setWaPickerTarget] = useState<{ appt: Appointment; phone: string } | null>(null);
   const [showBulkWa, setShowBulkWa] = useState(false);
@@ -1535,6 +1643,19 @@ export function AgendaPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Mirror the current date/view into the URL so navigating away and back keeps
+  // the doctor's place (see selDate/view init above). Skip while the new-appt
+  // prefill flow owns the query string.
+  useEffect(() => {
+    const sp = new URLSearchParams(searchParams);
+    if (sp.get("newAppt")) return;
+    if (sp.get("d") === selDate && sp.get("v") === view) return;
+    sp.set("d", selDate);
+    sp.set("v", view);
+    setSearchParams(sp, { replace: true });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selDate, view]);
+
   // Patient phone lookup map
   const patientPhoneMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -1587,15 +1708,18 @@ export function AgendaPage() {
     appointments.filter(a => a.date === today),
     [appointments, today]);
 
-  const stats = useMemo(() => ({
-    total:   todayAppts.length,
-    done:    todayAppts.filter(a => a.status === "completed").length,
-    waiting: todayAppts.filter(a => a.status === "scheduled").length,
-  }), [todayAppts]);
+  const stats = useMemo(() => {
+    const rdv = todayAppts.filter(a => !isBlockType(a.type));   // blocks aren't RDVs
+    return {
+      total:   rdv.length,
+      done:    rdv.filter(a => a.status === "completed").length,
+      waiting: rdv.filter(a => a.status === "scheduled").length,
+    };
+  }, [todayAppts]);
 
   // Unbilled completed RDVs for the selected day
   const unbilledCompleted = useMemo(() =>
-    dayAppts.filter(a => a.status === "completed" && !a.billedAt),
+    dayAppts.filter(a => a.status === "completed" && !a.billedAt && !isBlockType(a.type)),
     [dayAppts]);
 
   const apptsPendingWa = useMemo(() => {
@@ -2027,6 +2151,14 @@ export function AgendaPage() {
             style={{ display: "none" }}
             onChange={handleIcalImport}
           />
+          <button className="btn btn-ghost" onClick={() => setBlockModal({})}>
+            <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 6 }}>
+              <rect x="2" y="2.5" width="10" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.4"/>
+              <path d="M4.5 6.5l2 2 3-3.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" opacity="0"/>
+              <path d="M2 5h10" stroke="currentColor" strokeWidth="1.4"/>
+            </svg>
+            {t("agenda.newBlock")}
+          </button>
           <button className="btn btn-primary" onClick={() => setModal({})}>
             <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ marginRight: 6 }}>
               <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
@@ -2172,7 +2304,7 @@ export function AgendaPage() {
                             style={{ borderLeftColor: apptTypeColor(a.type), cursor: "grab" }}
                             draggable
                             onDragStart={e => { e.stopPropagation(); e.dataTransfer.effectAllowed = "move"; setDragAppt(a); }}
-                            onClick={e => { e.stopPropagation(); navigate(`/agenda/${a.id}`); }}
+                            onClick={e => { e.stopPropagation(); openAppt(a); }}
                             title={`${a.startTime} · ${a.patientName}${lbl ? " · " + lbl.label : ""}`}
                           >
                             <span className="am-chip-time">{a.startTime}</span>
@@ -2291,7 +2423,7 @@ export function AgendaPage() {
                           setSelDate(iso);
                           setModal({ prefill: { date: iso, startTime: start, endTime: end } });
                         }}
-                        onApptClick={appt => { if (tgDragMovedRef.current) return; navigate(`/agenda/${appt.id}`); }}
+                        onApptClick={appt => { if (tgDragMovedRef.current) return; openAppt(appt); }}
                         onApptPointerDown={onApptPointerDown}
                         onApptContextMenu={(e, appt) => apptCtx.open(e, weekApptMenu(appt))}
                         draggingId={tgDrag?.appt.id ?? null}
@@ -2428,7 +2560,7 @@ export function AgendaPage() {
             <div className="agenda-list">
               {dayAppts.map(appt => {
                 const phone = appt.patientId ? patientPhoneMap.get(appt.patientId) : undefined;
-                const openDetail = () => navigate(`/agenda/${appt.id}`);
+                const openDetail = () => openAppt(appt);
                 const openBill = () => {
                   setBillModal({ appt });
                   // Seed the remise with the doctor's prepared value.
@@ -2516,6 +2648,27 @@ export function AgendaPage() {
             showToast(t("agenda.apptsBatch", { n: appts.length }));
           }}
           onClose={() => setModal(null)}
+        />
+      )}
+
+      {/* ── Block (indisponibilité) modal ── */}
+      {blockModal !== null && (
+        <BlockModal
+          initial={blockModal.appt}
+          isEdit={!!blockModal.appt}
+          defaultDate={selDate}
+          onSave={a => {
+            if (blockModal.appt) updateAppointment({ ...a, id: blockModal.appt.id });
+            else addAppointment(a);
+            showToast(blockModal.appt ? t("agenda.apptModified") : t("agenda.apptAdded"));
+          }}
+          onDelete={blockModal.appt ? async () => {
+            const appt = blockModal.appt!;
+            if (!await confirmDialog(t("agenda.blockDeleteConfirm", { name: apptTypeLabel(appt.type) }))) return;
+            deleteAppointment(appt.id);
+            setBlockModal(null);
+          } : undefined}
+          onClose={() => setBlockModal(null)}
         />
       )}
 
