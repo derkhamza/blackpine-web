@@ -1313,14 +1313,25 @@ export function AgendaPage() {
 
   // Smart agenda: is a day a public holiday and/or a cabinet day-off? Drives the
   // greyed-out styling + label on the week/month/day views and the booking warning.
-  const dayMark = (iso: string): { off: boolean; holiday?: Holiday; label?: string } => {
+  const dayMark = (iso: string): { off: boolean; holiday?: Holiday; label?: string; weeklyOff: boolean; custom: boolean } => {
     const holiday = doctorProfile.showPublicHolidays !== false ? holidayOn(iso) : undefined;
     const dow = new Date(iso + "T12:00:00").getDay();
     const weeklyOff = (doctorProfile.weeklyDaysOff ?? []).includes(dow);
     const custom = (doctorProfile.customDaysOff ?? []).find(c => c.date === iso);
     const off = weeklyOff || !!custom;
     const label = custom?.reason || (weeklyOff ? t("agenda.closed") : undefined) || holiday?.name;
-    return { off, holiday, label };
+    return { off, holiday, label, weeklyOff, custom: !!custom };
+  };
+
+  // Doctor-only: toggle a one-off closure (congé) for a specific date straight from
+  // the agenda — no trip to Paramètres. Recurring weekly closures stay in Paramètres.
+  // Days-off are visual cues only (still bookable), so no appointments are touched.
+  const canEditDaysOff = role !== "secretary";
+  const toggleCustomDayOff = (iso: string) => {
+    const cur = doctorProfile.customDaysOff ?? [];
+    const exists = cur.some(c => c.date === iso);
+    const next = exists ? cur.filter(c => c.date !== iso) : [...cur, { date: iso }];
+    setDoctorProfile({ ...doctorProfile, customDaysOff: next.length ? next : undefined });
   };
 
   // Context-menu section to change an appointment's TYPE (and optional label)
@@ -1453,6 +1464,9 @@ export function AgendaPage() {
   const tgDragMovedRef = useRef(false);
   const icalInputRef = useRef<HTMLInputElement>(null);
   const tgridScrollRef = useRef<HTMLDivElement>(null);
+  // Height available for the week time-grid body — measured so the grid can grow
+  // to fill it instead of leaving an empty band below (see gridEnd extension).
+  const [gridViewH, setGridViewH] = useState(0);
   const [moreOpen, setMoreOpen] = useState(false);
 
   // Drag a RDV onto another day column → reschedule to that day (time unchanged).
@@ -1643,6 +1657,9 @@ export function AgendaPage() {
   // Fit the grid to the week's actual hours so it stays visible without scrolling.
   // Contracts to the appointment span (±1h padding), falls back to a sensible
   // working window when the week is empty, and keeps a minimum span.
+  // Extra hour rows needed to fill the visible grid area (so no empty band remains
+  // below). Capped at 21:00 in the memo so we never sprawl into the small hours.
+  const fillRows = gridViewH > 0 ? Math.floor(gridViewH / TG_PX_H) : 0;
   const { gridStart, gridEnd } = useMemo(() => {
     let lo = 24, hi = 0, any = false;
     for (const list of weekApptsByDay.values()) {
@@ -1655,8 +1672,10 @@ export function AgendaPage() {
     if (!any) { lo = TG_START; hi = TG_END - 2; }   // default 07:00–18:00
     else { lo = Math.max(0, lo - 1); hi = Math.min(24, hi + 1); }
     if (hi - lo < 6) hi = Math.min(24, lo + 6);      // never smaller than 6h
+    // Grow to fill the viewport with bookable rows (never shrinks the real span).
+    if (fillRows > 0) hi = Math.min(24, Math.max(hi, Math.min(21, lo + fillRows)));
     return { gridStart: lo, gridEnd: hi };
-  }, [weekApptsByDay]);
+  }, [weekApptsByDay, fillRows]);
   const gridHours = gridHourList(gridStart, gridEnd);
   const nowTop = ((nowMinutes - gridStart * 60) / 60) * TG_PX_H;
 
@@ -1683,6 +1702,23 @@ export function AgendaPage() {
     if (targetPx != null) el.scrollTo({ top: Math.max(0, targetPx - 90), behavior: "auto" });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view, weekDays[0], gridStart, gridEnd]);
+
+  // Measure the visible grid area so the week grid can grow to fill it (reclaims
+  // the empty band that used to sit below a short day). clientHeight excludes the
+  // scrollbar and is content-independent, so extending the grid can't loop.
+  useEffect(() => {
+    if (view !== "week") return;
+    const el = tgridScrollRef.current;
+    if (!el) return;
+    const measure = () => {
+      const hdr = el.querySelector(".tgrid-hdr-row") as HTMLElement | null;
+      setGridViewH(Math.max(0, el.clientHeight - (hdr?.offsetHeight ?? 0)));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [view]);
 
   // Pointer-drag an RDV inside the week time-grid: vertical = new time, sideways
   // = new day. A floating ghost tracks the snapped slot; a tap (no movement)
@@ -2202,6 +2238,21 @@ export function AgendaPage() {
                         )}
                         {mk.label && <span className="tgrid-hdr-off-lbl" title={mk.label}>{mk.label}</span>}
                       </button>
+                      {canEditDaysOff && !mk.weeklyOff && (
+                        <button
+                          type="button"
+                          className={`tgrid-hdr-off-toggle${mk.custom ? " on" : ""}`}
+                          aria-pressed={mk.custom}
+                          title={mk.custom ? t("agenda.reopenDay") : t("agenda.markDayOff")}
+                          aria-label={mk.custom ? t("agenda.reopenDay") : t("agenda.markDayOff")}
+                          onClick={() => toggleCustomDayOff(iso)}
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden>
+                            <path d="M7 10V7a5 5 0 0 1 10 0" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+                            <rect x="4.5" y="10" width="15" height="10.5" rx="2.2" stroke="currentColor" strokeWidth="1.9" fill={mk.custom ? "currentColor" : "none"} />
+                          </svg>
+                        </button>
+                      )}
                     </div>
                   );
                 })}

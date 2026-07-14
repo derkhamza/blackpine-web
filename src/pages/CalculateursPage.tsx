@@ -198,11 +198,11 @@ function ImcCalc() {
         <div className="form-row">
           <Field label={t("calculateurs.imcWeight")}>
             <input className="form-input" type="number" min="1" max="500" step="0.1"
-              placeholder="70" value={weight} onChange={e => setWeight(e.target.value)} />
+              placeholder="ex. 70" value={weight} onChange={e => setWeight(e.target.value)} />
           </Field>
           <Field label={t("calculateurs.imcHeight")}>
             <input className="form-input" type="number" min="50" max="280" step="0.5"
-              placeholder="170" value={height} onChange={e => setHeight(e.target.value)} />
+              placeholder="ex. 170" value={height} onChange={e => setHeight(e.target.value)} />
           </Field>
         </div>
       </div>
@@ -268,7 +268,7 @@ function DfgCalc() {
             label={t("calculateurs.dfgCreatinine", { unit: unit === "umol" ? "µmol/L" : "mg/dL" })}
             hint={t("calculateurs.dfgHint")}>
             <input className="form-input" type="number" min="0" step="0.01"
-              placeholder={unit === "umol" ? "80" : "0.9"}
+              placeholder={unit === "umol" ? "ex. 80" : "ex. 0.9"}
               value={creat} onChange={e => setCreat(e.target.value)} />
           </Field>
           <div className="form-group">
@@ -288,7 +288,7 @@ function DfgCalc() {
         <div className="form-row">
           <Field label={t("calculateurs.dfgAge")}>
             <input className="form-input" type="number" min="18" max="120"
-              placeholder="45" value={age} onChange={e => setAge(e.target.value)} />
+              placeholder="ex. 45" value={age} onChange={e => setAge(e.target.value)} />
           </Field>
           <Field label={t("calculateurs.dfgSex")}>
             <SexToggle female={female} onChange={setFemale} />
@@ -351,7 +351,7 @@ function RisqueCvCalc() {
         <div className="form-row">
           <Field label={t("calculateurs.cvAge")}>
             <input className="form-input" type="number" min="40" max="80"
-              placeholder="55" value={age} onChange={e => setAge(e.target.value)} />
+              placeholder="ex. 55" value={age} onChange={e => setAge(e.target.value)} />
           </Field>
           <Field label={t("calculateurs.cvSex")}>
             <SexToggle female={female} onChange={setFemale} />
@@ -361,7 +361,7 @@ function RisqueCvCalc() {
         <div className="form-row">
           <Field label={t("calculateurs.cvSbp")}>
             <input className="form-input" type="number" min="80" max="220"
-              placeholder="130" value={pas} onChange={e => setPas(e.target.value)} />
+              placeholder="ex. 130" value={pas} onChange={e => setPas(e.target.value)} />
           </Field>
           <Field label={t("calculateurs.cvSmoking")}>
             <div style={{ display: "flex", gap: 8 }}>
@@ -379,11 +379,11 @@ function RisqueCvCalc() {
         <div className="form-row">
           <Field label={t("calculateurs.cvChol")} hint={t("calculateurs.cvCholHint")}>
             <input className="form-input" type="number" min="1" max="15" step="0.1"
-              placeholder="5.2" value={chol} onChange={e => setChol(e.target.value)} />
+              placeholder="ex. 5.2" value={chol} onChange={e => setChol(e.target.value)} />
           </Field>
           <Field label={t("calculateurs.cvHdl")}>
             <input className="form-input" type="number" min="0.1" max="5" step="0.1"
-              placeholder="1.3" value={hdl} onChange={e => setHdl(e.target.value)} />
+              placeholder="ex. 1.3" value={hdl} onChange={e => setHdl(e.target.value)} />
           </Field>
         </div>
       </div>
@@ -509,7 +509,7 @@ function PoidsIdealCalc() {
         <div className="form-row">
           <Field label={t("calculateurs.poidsHeight")}>
             <input className="form-input" type="number" min="100" max="250" step="0.5"
-              placeholder="170" value={height} onChange={e => setHeight(e.target.value)} />
+              placeholder="ex. 170" value={height} onChange={e => setHeight(e.target.value)} />
           </Field>
           <Field label={t("calculateurs.poidsSex")}>
             <SexToggle female={female} onChange={setFemale} />
@@ -575,7 +575,7 @@ function Hba1cCalc() {
       <div className="calc-form">
         <Field label={t("calculateurs.hbA1c")} hint={t("calculateurs.hbHint")}>
           <input className="form-input" type="number" min="3" max="20" step="0.1"
-            placeholder="7.5" value={a1c} onChange={e => setA1c(e.target.value)} />
+            placeholder="ex. 7.5" value={a1c} onChange={e => setA1c(e.target.value)} />
         </Field>
       </div>
 
@@ -631,7 +631,7 @@ function CockcroftCalc() {
         <div className="form-row" style={{ alignItems: "flex-end" }}>
           <Field label={t("calculateurs.ccCreatinine", { unit: unit === "umol" ? "µmol/L" : "mg/dL" })} hint={t("calculateurs.ccHint")}>
             <input className="form-input" type="number" min="0" step="0.01"
-              placeholder={unit === "umol" ? "80" : "0.9"} value={creat} onChange={e => setCreat(e.target.value)} />
+              placeholder={unit === "umol" ? "ex. 80" : "ex. 0.9"} value={creat} onChange={e => setCreat(e.target.value)} />
           </Field>
           <div className="form-group">
             <label className="form-label">{t("calculateurs.dfgUnit")}</label>
@@ -645,10 +645,10 @@ function CockcroftCalc() {
         </div>
         <div className="form-row">
           <Field label={t("calculateurs.ccAge")}>
-            <input className="form-input" type="number" min="18" max="120" placeholder="65" value={age} onChange={e => setAge(e.target.value)} />
+            <input className="form-input" type="number" min="18" max="120" placeholder="ex. 65" value={age} onChange={e => setAge(e.target.value)} />
           </Field>
           <Field label={t("calculateurs.ccWeight")}>
-            <input className="form-input" type="number" min="20" max="300" step="0.5" placeholder="70" value={weight} onChange={e => setWeight(e.target.value)} />
+            <input className="form-input" type="number" min="20" max="300" step="0.5" placeholder="ex. 70" value={weight} onChange={e => setWeight(e.target.value)} />
           </Field>
         </div>
         <Field label={t("calculateurs.ccSex")}>
@@ -693,11 +693,11 @@ function BsaCalc() {
         <div className="form-row">
           <Field label={t("calculateurs.bsaWeight")}>
             <input className="form-input" type="number" min="1" max="500" step="0.1"
-              placeholder="70" value={weight} onChange={e => setWeight(e.target.value)} />
+              placeholder="ex. 70" value={weight} onChange={e => setWeight(e.target.value)} />
           </Field>
           <Field label={t("calculateurs.bsaHeight")}>
             <input className="form-input" type="number" min="30" max="280" step="0.5"
-              placeholder="170" value={height} onChange={e => setHeight(e.target.value)} />
+              placeholder="ex. 170" value={height} onChange={e => setHeight(e.target.value)} />
           </Field>
         </div>
       </div>

@@ -1314,6 +1314,9 @@ function DocumentSettingsSection({
   ];
   const setMode = (kind: DocKind, mode: "simple" | "advanced") =>
     set({ docMode: { ...s.docMode, [kind]: mode } });
+  // The exact/advanced editor (STEP 3) is the tallest block and only needed
+  // occasionally — keep it collapsed so this section stays compact by default.
+  const [showAdvanced, setShowAdvanced] = useState(false);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       {/* ── STEP 1 — Simple built-in style (shared by every document) ── */}
@@ -1398,14 +1401,31 @@ function DocumentSettingsSection({
         </div>
       </div>
 
-      {/* ── STEP 3 — Exact preview + advanced layout editor ── */}
+      {/* ── STEP 3 — Exact preview + advanced layout editor (collapsed by default) ── */}
       {/* PageDesigner shows an exact, to-scale preview for EVERY document (real
           size + text positions). Simple documents are read-only here (with a
-          "customise" button); documents set to Avancé are fully editable. */}
+          "customise" button); documents set to Avancé are fully editable.
+          It is the tallest block, so it is folded away until the doctor opens it. */}
       <div style={{ borderTop: "1px solid var(--border)", paddingTop: 14 }}>
-        <div className="secretary-info-title" style={{ marginBottom: 2 }}>{t("settings.docPreviewExactTitle")}</div>
-        <div className="secretary-info-desc" style={{ marginBottom: 10 }}>{t("settings.docPreviewExactDesc")}</div>
-        <PageDesigner settings={s} doctorProfile={doctorProfile} onChange={onChange} />
+        <button
+          type="button"
+          className="doc-advanced-toggle"
+          aria-expanded={showAdvanced}
+          onClick={() => setShowAdvanced(v => !v)}
+        >
+          <div>
+            <div className="secretary-info-title" style={{ marginBottom: 2 }}>{t("settings.docPreviewExactTitle")}</div>
+            <div className="secretary-info-desc">{t("settings.docPreviewExactDesc")}</div>
+          </div>
+          <svg className={`doc-advanced-chevron${showAdvanced ? " open" : ""}`} width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
+            <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+        {showAdvanced && (
+          <div style={{ marginTop: 12 }}>
+            <PageDesigner settings={s} doctorProfile={doctorProfile} onChange={onChange} />
+          </div>
+        )}
       </div>
     </div>
   );

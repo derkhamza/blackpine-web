@@ -693,6 +693,10 @@ function ExecutiveTab({ stats, finance, retention, onGoto }: {
   const cfg = loadFinance();
   const m = financeMetrics(finance, cfg);
   const stick = retention ? Math.round(retention.stickiness.ratio * 100) : 0;
+  // Cross-cabinet clinical volumes (aggregated over the whole platform, no identity).
+  const snaps = stats.volumes.snapshots || 0;
+  const avgPatients = snaps ? Math.round(stats.volumes.totalPatients / snaps) : 0;
+  const avgAppts    = snaps ? Math.round(stats.volumes.totalAppointments / snaps) : 0;
 
   return (<>
     <div className="admin-exec-summary">
@@ -771,6 +775,18 @@ function ExecutiveTab({ stats, finance, retention, onGoto }: {
         </div>
       </Section>
     </div>
+
+    <Section title="Activité clinique — tous les cabinets">
+      <div className="admin-grid">
+        <Tile label="Patients enregistrés" value={stats.volumes.totalPatients} accent="var(--green)" />
+        <Tile label="Rendez-vous gérés" value={stats.volumes.totalAppointments} accent="var(--blue)" />
+        <Tile label="Réservations en ligne" value={stats.volumes.onlineBookings} accent="var(--gold)" />
+        <Tile label="Patients / cabinet (moy.)" value={avgPatients} accent="var(--blue)" />
+        <Tile label="RDV / cabinet (moy.)" value={avgAppts} />
+        <Tile label="Cabinets avec données" value={stats.volumes.snapshots} />
+      </div>
+      <div className="admin-sub">Totaux cumulés sur l'ensemble de la plateforme · données agrégées, sans identité de patient ni de médecin.</div>
+    </Section>
   </>);
 }
 

@@ -46,6 +46,16 @@ function fmtBytesLocal(n: number): string {
 
 interface TrendPoint { date: string; val: number; bad: boolean; }
 
+// A single measured value inside a merged result row (a vital, a bilan measure, or a lab value).
+interface ResultItem { label: string; value: string; unit?: string; bad?: boolean; }
+// One dated entry in the unified "Résultats & mesures" list — either the measures taken
+// during a consultation (vitals + bilan) or an external exam/lab result.
+interface ResultRow {
+  id: string; date: string; source: "consultation" | "exam";
+  accent: string; title: string; sub?: string;
+  items: ResultItem[]; notes?: string; abnormal: number;
+}
+
 function TrendChart({
   points, unit, label, yMin, yMax, dangerHigh, dangerLow, warnHigh,
 }: {
@@ -485,6 +495,61 @@ export function PatientDetailPage() {
       .sort((a, b) => a.label.localeCompare(b.label));
   }, [patientAppts, bilanFieldMeta]);
 
+  // ── Unified "Résultats & mesures" list ───────────────────────────────────────
+  // One dated entry per consultation (its vitals + bilan measures) and per external
+  // exam result, merged and sorted newest-first. This is the single place a doctor
+  // reads every measured value regardless of where it was captured — resolving the
+  // felt redundancy between point-of-care measures and the Examens/bio module.
+  const resultTimeline = useMemo<ResultRow[]>(() => {
+    const rows: ResultRow[] = [];
+    // Consultation-captured measures: vital signs + bilan clinique fields.
+    for (const a of patientAppts) {
+      const items: ResultItem[] = [];
+      const vs = a.vitalSigns;
+      if (vs) {
+        if (vs.bpSys != null && vs.bpDia != null)
+          items.push({ label: t("patientDetail.mTA"), value: `${vs.bpSys}/${vs.bpDia}`, unit: "mmHg", bad: vs.bpSys > 140 || vs.bpSys < 90 || vs.bpDia > 90 });
+        if (vs.hr != null)     items.push({ label: t("patientDetail.mHR"), value: String(vs.hr), unit: "bpm", bad: vs.hr > 100 || vs.hr < 50 });
+        if (vs.temp != null)   items.push({ label: t("patientDetail.mTemp"), value: String(vs.temp), unit: "°C", bad: vs.temp > 38.5 || vs.temp < 35 });
+        if (vs.spo2 != null)   items.push({ label: "SpO₂", value: String(vs.spo2), unit: "%", bad: vs.spo2 < 92 });
+        if (vs.weight != null) items.push({ label: t("patientDetail.mWeight"), value: String(vs.weight), unit: "kg" });
+        if (vs.height != null) items.push({ label: t("patientDetail.mHeight"), value: String(vs.height), unit: "cm" });
+      }
+      const ef = a.consultationNote?.extraFields;
+      if (ef) for (const [key, raw] of Object.entries(ef)) {
+        if (String(raw ?? "").trim() === "") continue;
+        const meta = bilanFieldMeta.get(key);
+        items.push({ label: meta?.label ?? key, value: String(raw).trim(), unit: meta?.unit });
+      }
+      if (items.length === 0) continue;
+      rows.push({
+        id: "c-" + a.id, date: a.date, source: "consultation",
+        accent: "#0A4E7E", title: t("patientDetail.srcConsult"),
+        items, abnormal: items.filter((i) => i.bad).length,
+      });
+    }
+    // External exam / lab results.
+    for (const e of examResults.filter((e) => e.patientId === patientId)) {
+      const items: ResultItem[] = (e.values ?? []).map((v) => {
+        const num = parseFloat(String(v.value ?? "").replace(",", ".").replace(/[^\d.\-]/g, ""));
+        const bad = v.isAbnormal === true
+          || (isFinite(num) && v.refMin != null && num < v.refMin)
+          || (isFinite(num) && v.refMax != null && num > v.refMax);
+        return { label: v.label, value: v.value, unit: v.unit, bad };
+      });
+      if (items.length === 0 && !e.notes?.trim()) continue;
+      rows.push({
+        id: "e-" + e.id, date: e.date, source: "exam",
+        accent: EXAM_TYPE_COLORS[e.type], title: e.title || EXAM_TYPE_LABELS[e.type],
+        sub: EXAM_TYPE_LABELS[e.type] + (e.labName ? ` · ${e.labName}` : ""),
+        items, notes: e.notes?.trim() || undefined, abnormal: items.filter((i) => i.bad).length,
+      });
+    }
+    return rows.sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+  }, [patientAppts, examResults, patientId, bilanFieldMeta, t]);
+
+  const hasResults = resultTimeline.length > 0;
+
   const hasTrends = hasVitals || labSeries.length > 0 || bilanSeries.length > 0;
 
   // Pediatric growth curve: shown for children (≤ 18 y). Age from date of birth.
@@ -789,7 +854,7 @@ export function PatientDetailPage() {
           { key: "timeline",    label: t("patientDetail.tabTimeline", { n: tlEntries.length }),       dot: tlEntries.length > 0 },
           { key: "dossier",     label: t("patientDetail.tabDossier"),                                 dot: false },
           { key: "consultations", label: t("patientDetail.tabConsultations", { n: patientAppts.length }), dot: patientAppts.length > 0 },
-          { key: "vitals",      label: t("patientDetail.tabVitals"),                                  dot: hasTrends || isChild },
+          { key: "vitals",      label: t("patientDetail.tabVitals"),                                  dot: hasResults || isChild },
           { key: "ordonnances", label: t("patientDetail.tabOrdonnances", { n: ordHistory.length }),     dot: ordHistory.length > 0 },
           { key: "documents",   label: t("patientDetail.tabDocuments", { n: patientDocs.length }),      dot: patientDocs.length > 0 },
         ] as const).map(({ key, label, dot }) => (
@@ -1134,7 +1199,7 @@ export function PatientDetailPage() {
       {tab === "vitals" && (
         <div className="appt-tab-panel">
           {isChild && patient && (
-            <div style={{ marginBottom: hasTrends ? 22 : 0 }}>
+            <div style={{ marginBottom: (hasResults || hasTrends) ? 22 : 0 }}>
               <div className="appt-section-header">
                 <div className="appt-section-title">{t("growth.title")}</div>
                 <span style={{ fontSize: 11, color: "var(--tertiary)" }}>{t("growth.subtitle")}</span>
@@ -1142,7 +1207,7 @@ export function PatientDetailPage() {
               <GrowthCurve patient={patient} appointments={appointments} />
             </div>
           )}
-          {!hasTrends ? (
+          {(!hasResults && !hasTrends) ? (
             !isChild && (
             <>
               <div className="appt-section-header">
@@ -1159,6 +1224,45 @@ export function PatientDetailPage() {
             )
           ) : (
             <>
+              {hasResults && (
+                <div style={{ marginBottom: hasTrends ? 24 : 0 }}>
+                  <div className="appt-section-header">
+                    <div className="appt-section-title">{t("patientDetail.resultsTitle")}</div>
+                    <span style={{ fontSize: 11, color: "var(--tertiary)" }}>
+                      {t("patientDetail.vitalsMeasures", { n: resultTimeline.length, s: resultTimeline.length !== 1 ? "s" : "" })}
+                    </span>
+                  </div>
+                  <div className="res-hint">{t("patientDetail.resultsHint")}</div>
+                  <div className="res-list">
+                    {resultTimeline.map((r) => (
+                      <div key={r.id} className="res-card" style={{ borderLeftColor: r.accent }}>
+                        <div className="res-card-head">
+                          <span className="res-src" style={{ background: r.accent }}>
+                            {r.source === "consultation" ? t("patientDetail.srcConsult") : t("patientDetail.srcExam")}
+                          </span>
+                          <span className="res-ttl">{r.title}</span>
+                          {r.sub && <span className="res-sub">{r.sub}</span>}
+                          <span className="res-date">{fmtDate(r.date, locale)}</span>
+                          {r.abnormal > 0 && (
+                            <span className="res-flag">{t("patientDetail.resAbnormal", { n: r.abnormal })}</span>
+                          )}
+                        </div>
+                        {r.items.length > 0 && (
+                          <div className="res-items">
+                            {r.items.map((it, i) => (
+                              <span key={i} className={"res-chip" + (it.bad ? " bad" : "")}>
+                                <span className="res-chip-l">{it.label}</span>
+                                <span className="res-chip-v">{it.value}{it.unit ? " " + it.unit : ""}</span>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {r.notes && <div className="res-notes">{r.notes}</div>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               {hasVitals && (
                 <>
                   <div className="appt-section-header">
