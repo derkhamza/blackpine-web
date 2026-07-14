@@ -1499,6 +1499,8 @@
     "permHandleBillingHint": "Take payment, mark appointments billed and print invoices/receipts.",
     "permEditPatients": "Edit patients",
     "permEditPatientsHint": "Create and edit patient records (contact details).",
+    "permViewExams": "Exams & Bio",
+    "permViewExamsHint": "View and file lab and imaging results.",
     "permViewClinical": "Clinical data",
     "permViewClinicalHint": "View documents, prescriptions and exams.",
     "permViewDocuments": "Documents & attachments",

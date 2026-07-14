@@ -199,6 +199,7 @@ export interface SecretaryPermissions {
   handleBilling?:       boolean; // facturation: encaisser, émettre factures/reçus
   viewFinances?:        boolean; // full accounting: comptabilité, transactions, rapports
   viewClinical?:        boolean; // consultation notes, diagnoses, ordonnances (also gates documents)
+  viewExams?:           boolean; // Examens & Bio (lab/imaging results) — front-desk filing, separate from full clinical
   editPatients?:        boolean; // create/edit patient records
   managePayroll?:       boolean; // salaries / bulletins
   useCommunication?:    boolean; // WhatsApp / messaging module (/communication)
@@ -215,10 +216,11 @@ export const DEFAULT_SECRETARY_PERMISSIONS: SecretaryPermissions = {
   handleBilling: true,
   viewFinances:  false,
   viewClinical:  false,
+  viewExams:     true,   // lab/imaging filing is a front-desk task
   editPatients:  true,
   managePayroll: false,
   useCommunication: false,
-  manageStock:      false,
+  manageStock:      true, // stock/inventory is commonly handled at the front desk
   useNotes:         false,
   useCalculators:   false,
 };

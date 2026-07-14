@@ -567,10 +567,11 @@ export function Layout({ title, subtitle, actions, children }: Props) {
   // Secretary access: the whole Quotidien group — including their own dashboard
   // at "/" — plus whatever extra areas the doctor has granted via
   // secretaryPermissions.
-  const secPerms = doctorProfile.secretaryPermissions ?? DEFAULT_SECRETARY_PERMISSIONS;
+  const secPerms = { ...DEFAULT_SECRETARY_PERMISSIONS, ...(doctorProfile.secretaryPermissions ?? {}) };
   const secretaryCanSee = (to: string, group: string): boolean => {
     if (group === "Quotidien") return true;
-    if (to === "/documents" || to === "/examens") return !!secPerms.viewClinical;
+    if (to === "/documents") return !!secPerms.viewClinical;
+    if (to === "/examens") return !!secPerms.viewExams;
     if (to === "/communication") return !!secPerms.useCommunication;
     if (to === "/calculateurs") return !!secPerms.useCalculators;
     if (to === "/notes") return !!secPerms.useNotes;

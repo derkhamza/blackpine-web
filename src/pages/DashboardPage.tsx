@@ -4,10 +4,10 @@ import { Layout } from "../components/Layout";
 import { useApp } from "../context/AppContext";
 import { useCabinet, estimateStorageBytes } from "../context/CabinetContext";
 import { formatMAD, todayIso } from "../lib/format";
-import { isUnbilledConsult, billingRemindersOn } from "../lib/billing";
+import { isUnbilledConsult, billingRemindersOn, paymentSummary } from "../lib/billing";
 import { clickable } from "../lib/a11y";
 import { AnimatedNumber } from "../components/AnimatedNumber";
-import { NOTE_COLOR_VALUES, isBlockType } from "../lib/cabinetTypes";
+import { NOTE_COLOR_VALUES, isBlockType, isTeleType } from "../lib/cabinetTypes";
 import { useTranslation } from "react-i18next";
 
 const DISMISSED_KEY = "bp.dashDismissedAlerts";
@@ -170,8 +170,11 @@ export function DashboardPage() {
   // ── Today's caisse (end-of-day money) ──────────────────────────────────────
   const caisse = useMemo(() => {
     const billedToday = appointments.filter(a => a.billedAt && a.billedAt.slice(0, 10) === today);
-    const collected   = billedToday.reduce((s, a) => s + (a.billedAmount ?? 0), 0);
-    const seen        = appointments.filter(a => a.date === today && a.status === "completed");
+    // Real cash collected today = sum of what was actually PAID (paidAmount), not the
+    // billed total — a deferred/partial bill must not inflate the day's takings.
+    const collected   = billedToday.reduce((s, a) => s + paymentSummary(a).paid, 0);
+    // Consultations seen today — exclude non-patient events + teleconsults.
+    const seen        = appointments.filter(a => a.date === today && a.status === "completed" && !isBlockType(a.type) && !isTeleType(a.type));
     const unpaid      = seen.filter(a => !a.billedAt);
     const prices      = doctorProfile?.appointmentPrices ?? {};
     const unpaidEstimate = unpaid.reduce((s, a) => s + (prices[a.type] ?? 0), 0);

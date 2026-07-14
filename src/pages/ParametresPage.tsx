@@ -872,6 +872,7 @@ function SecretaryPermissionsSection({
     { key: "handleBilling", label: t("settings.permHandleBilling"), hint: t("settings.permHandleBillingHint") },
     { key: "editPatients",  label: t("settings.permEditPatients"),  hint: t("settings.permEditPatientsHint") },
     { key: "viewClinical",  label: t("settings.permViewClinical"),  hint: t("settings.permViewClinicalHint") },
+    { key: "viewExams",     label: t("settings.permViewExams", { defaultValue: "Examens & Bio" }),  hint: t("settings.permViewExamsHint", { defaultValue: "Consulter et classer les résultats de laboratoire et d'imagerie." }) },
     { key: "viewFinances",  label: t("settings.permViewFinances"),  hint: t("settings.permViewFinancesHint") },
     { key: "managePayroll", label: t("settings.permManagePayroll"), hint: t("settings.permManagePayrollHint") },
     { key: "useCommunication", label: t("settings.permUseCommunication"), hint: t("settings.permUseCommunicationHint") },
@@ -1977,7 +1978,7 @@ export function ParametresPage() {
           </div>
 
           <SecretaryPermissionsSection
-            perms={doctorProfile?.secretaryPermissions ?? DEFAULT_SECRETARY_PERMISSIONS}
+            perms={{ ...DEFAULT_SECRETARY_PERMISSIONS, ...(doctorProfile?.secretaryPermissions ?? {}) }}
             onChange={(p) => setDoctorProfile({ ...doctorProfile, secretaryPermissions: p })}
           />
 

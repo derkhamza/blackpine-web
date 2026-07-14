@@ -55,7 +55,9 @@ function RequireAuth({ children, secretaryOk = false, perm, adminOk = false }: {
   if (isSecretary) {
     if (!secretaryOk && !perm) return <Navigate to="/agenda" replace />;
     if (perm) {
-      const perms = doctorProfile.secretaryPermissions ?? DEFAULT_SECRETARY_PERMISSIONS;
+      // Merge with defaults so keys added later (viewExams, manageStock…) grant the
+      // new front-desk access unless the doctor explicitly turned them off.
+      const perms = { ...DEFAULT_SECRETARY_PERMISSIONS, ...(doctorProfile.secretaryPermissions ?? {}) };
       if (!perms[perm]) return <Navigate to="/agenda" replace />;
     }
     return children;
@@ -269,7 +271,7 @@ export function App() {
         <RequireAuth perm="useNotes"><NotesPage /></RequireAuth>
       } />
       <Route path="/examens" element={
-        <RequireAuth perm="viewClinical"><ExamensPage /></RequireAuth>
+        <RequireAuth perm="viewExams"><ExamensPage /></RequireAuth>
       } />
       <Route path="/profil" element={
         <RequireAuth><ProfilePage /></RequireAuth>

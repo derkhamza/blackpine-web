@@ -32,8 +32,10 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
   const { transactions, addTransaction, deleteTransaction } = useApp();
   const facCtx = useContextMenu();
   const navigate = useNavigate();
-  // Facture correction happens right here (a modal), instead of jumping to the RDV.
+  // Facture correction + prepared-bill collection happen right here (modals),
+  // instead of jumping to the RDV screen.
   const [correctAppt, setCorrectAppt] = useState<Appointment | null>(null);
+  const [collectAppt, setCollectAppt] = useState<Appointment | null>(null);
 
   const today = todayIso();
   const currentYear = today.slice(0, 4);
@@ -245,7 +247,7 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
                   <span className="fac-toemit-meta">{apptTypeLabel(a.type)} · {fmtDate(a.date)}</span>
                 </div>
                 <span className="fac-toemit-amount">{formatMAD(preparedNet(a))}</span>
-                <Link to={`/agenda/${a.id}`} className="fac-emit-btn">{t("factures.collect")}</Link>
+                <button type="button" className="fac-emit-btn" onClick={() => setCollectAppt(a)}>{t("factures.collect")}</button>
               </div>
             ))}
           </div>}
@@ -529,6 +531,7 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
       )}
       {facCtx.menu}
       {correctAppt && <FactureCorrectModal appt={correctAppt} onClose={() => setCorrectAppt(null)} />}
+      {collectAppt && <PreparedCollectModal appt={collectAppt} onClose={() => setCollectAppt(null)} />}
     </>
   );
   if (noLayout) return body;
@@ -678,6 +681,84 @@ function FactureCorrectModal({ appt, onClose }: { appt: Appointment; onClose: ()
         <div className="modal-footer">
           <button type="button" className="btn btn-ghost" onClick={onClose}>{t("common.cancel")}</button>
           <button type="submit" className="btn btn-primary">{t("apptDetail.correctSave")}</button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+// Collect a doctor-prepared bill at the desk — WITHOUT jumping to the RDV. Shows the
+// prepared acts read-only + the amount collected, stamps the appointment billed, and
+// (doctor only) posts the ledger income, mirroring the consultation bill flow.
+function PreparedCollectModal({ appt, onClose }: { appt: Appointment; onClose: () => void }) {
+  const { t } = useTranslation();
+  const toast = useToast();
+  const { updateAppointment, viewAsSecretary } = useCabinet();
+  const { addTransaction } = useApp();
+  const items = appt.preparedItems ?? [];
+  const reduction = appt.preparedReduction ?? 0;
+  const net = Math.max(0, items.reduce((s, l) => s + l.qty * l.unitPrice, 0) - reduction);
+  const [collected, setCollected] = useState(String(net));
+
+  const collect = () => {
+    const coll = Math.min(net, Math.max(0, parseFloat(collected.replace(",", ".")) || 0));
+    const now = new Date().toISOString();
+    // Ledger income is the doctor's — a secretary collecting doesn't post it.
+    let billTxnId: string | undefined;
+    if (!viewAsSecretary && coll > 0) {
+      billTxnId = addTransaction({
+        type: "RECETTE", amount: coll, date: appt.date,
+        category: appt.type === "procedure" ? "acte_chirurgical" : "consultation",
+        deductibilityStatus: "FULLY_DEDUCTIBLE", professionalUseRatio: 1,
+        description: `${apptTypeLabel(appt.type)} – ${appt.patientName}`,
+      });
+    }
+    updateAppointment({
+      ...appt,
+      billedAt: now, billedAmount: net, billedItems: items.map(l => ({ ...l })),
+      billedReduction: reduction > 0 ? reduction : undefined,
+      paidAmount: coll,
+      payments: coll > 0 ? [{ amount: coll, date: now, method: "cash" }] : [],
+      billTxnId, preparedItems: null, preparedReduction: null,
+    });
+    toast(t("factures.collected", { defaultValue: "Encaissement enregistré" }));
+    onClose();
+  };
+
+  return (
+    <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <form className="modal" style={{ maxWidth: 440 }} onClick={e => e.stopPropagation()} onSubmit={e => { e.preventDefault(); collect(); }}>
+        <div className="modal-header">
+          <h2 className="modal-title">{t("factures.collectTitle", { defaultValue: "Encaisser" })}</h2>
+          <button type="button" className="modal-close" onClick={onClose} aria-label={t("common.close")}>×</button>
+        </div>
+        <div className="modal-body">
+          <div className="fac-correct-sub">{appt.patientName || t("factures.walkIn")} · {apptTypeLabel(appt.type)}</div>
+          <div className="bill-lines" style={{ marginBottom: 10 }}>
+            {items.map((l, i) => (
+              <div className="bill-line bill-line-ro" key={i}>
+                <span className="bill-line-ro-label">{l.label || "—"}</span>
+                {l.qty > 1 && <span className="bill-line-ro-qty">{l.qty} ×</span>}
+                <span className="bill-line-ro-price">{formatMAD(l.qty * l.unitPrice)}</span>
+              </div>
+            ))}
+          </div>
+          <div className="bill-totals">
+            {reduction > 0 && <div className="bill-total-row bill-total-reduction"><span>{t("apptDetail.billReduction")}</span><span>− {formatMAD(reduction)}</span></div>}
+            <div className="bill-total-row bill-total-net"><span>{t("apptDetail.billTotal")}</span><span>{formatMAD(net)}</span></div>
+          </div>
+          <div className="form-group" style={{ marginTop: 14 }}>
+            <label className="form-label">{t("apptDetail.billCollected")}</label>
+            <div className="bill-collect-row">
+              <input className="form-input" type="number" min="0" step="0.01" autoFocus value={collected} onChange={e => setCollected(e.target.value)} />
+              <button type="button" className="bill-collect-chip" onClick={() => setCollected(String(net))}>{t("apptDetail.billPayFull")}</button>
+              <button type="button" className="bill-collect-chip" onClick={() => setCollected("0")}>{t("apptDetail.billDefer")}</button>
+            </div>
+          </div>
+        </div>
+        <div className="modal-footer">
+          <button type="button" className="btn btn-ghost" onClick={onClose}>{t("common.cancel")}</button>
+          <button type="submit" className="btn btn-primary">{t("factures.collect")}</button>
         </div>
       </form>
     </div>

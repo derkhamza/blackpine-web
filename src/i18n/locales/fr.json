@@ -1501,6 +1501,8 @@
     "permEditPatientsHint": "Créer et modifier les fiches patients (coordonnées).",
     "permViewClinical": "Données cliniques",
     "permViewClinicalHint": "Voir les documents, ordonnances et examens.",
+    "permViewExams": "Examens & Bio",
+    "permViewExamsHint": "Consulter et classer les résultats de laboratoire et d'imagerie.",
     "permViewDocuments": "Documents & pièces jointes",
     "permViewDocumentsHint": "Accéder aux fichiers et certificats des patients.",
     "permViewFinances": "Comptabilité complète",

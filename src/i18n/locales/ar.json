@@ -1499,6 +1499,8 @@
     "permHandleBillingHint": "تحصيل المبالغ وتعليم المواعيد كمفوترة وطباعة الفواتير/الإيصالات.",
     "permEditPatients": "تعديل المرضى",
     "permEditPatientsHint": "إنشاء وتعديل ملفات المرضى (بيانات الاتصال).",
+    "permViewExams": "الفحوصات والمختبر",
+    "permViewExamsHint": "الاطّلاع على نتائج المختبر والتصوير وحفظها.",
     "permViewClinical": "البيانات السريرية",
     "permViewClinicalHint": "الاطلاع على الوثائق والوصفات والفحوصات.",
     "permViewDocuments": "الوثائق والمرفقات",
