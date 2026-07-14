@@ -9357,3 +9357,21 @@ html { scroll-behavior: smooth; }
   .hist-note { grid-template-columns: 1fr; gap: 1px; }
   .hist-note-label { padding-top: 0; }
 }
+
+/* ── Medical risk colours (theme-aware) — used by CalculateursPage severity
+   labels/gradients. Hardcoded hex failed contrast: pale green on light, dark red
+   on dark. Paired light/dark values keep every severity legible in both themes. */
+:root {
+  --risk-green:  #2f8f5b; --risk-greenLt: #2f9e6b; --risk-amber: #b7791f;
+  --risk-orange: #c05621; --risk-red:     #d13b3b; --risk-redDk: #9b2c2c;
+}
+:root[data-theme="dark"] {
+  --risk-green:  #48bb78; --risk-greenLt: #68d391; --risk-amber: #e0b34d;
+  --risk-orange: #ed8936; --risk-red:     #fc8181; --risk-redDk: #f56565;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --risk-green:  #48bb78; --risk-greenLt: #68d391; --risk-amber: #e0b34d;
+    --risk-orange: #ed8936; --risk-red:     #fc8181; --risk-redDk: #f56565;
+  }
+}

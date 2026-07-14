@@ -494,19 +494,22 @@ function ExamCard({ exam, locale, onEdit, onDelete, onPrint }: {
       </div>
 
       <div className="exam-card-actions">
-        <button className="tele-action-btn" onClick={onPrint}>
+        <button className="tele-action-btn" onClick={onPrint}
+          aria-label={t("common.print", { defaultValue: "Imprimer" })} title={t("common.print", { defaultValue: "Imprimer" })}>
           <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
             <path d="M3 5V2h8v3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
             <rect x="1" y="5" width="12" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.3"/>
             <path d="M3 9h8v3H3z" stroke="currentColor" strokeWidth="1.2"/>
           </svg>
         </button>
-        <button className="tele-action-btn" onClick={onEdit}>
+        <button className="tele-action-btn" onClick={onEdit}
+          aria-label={t("common.edit")} title={t("common.edit")}>
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
             <path d="M8.5 1.5a1.5 1.5 0 0 1 2 2L4 10H2v-2L8.5 1.5Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
           </svg>
         </button>
-        <button className="tx-delete" onClick={onDelete}>
+        <button className="tx-delete" onClick={onDelete}
+          aria-label={t("common.delete")} title={t("common.delete")}>
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
             <path d="M2 3h8M4 3V2h4v1M3.5 3v8h5V3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>

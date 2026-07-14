@@ -41,6 +41,14 @@ function notifySubscriptionExpired() {
   try { window.dispatchEvent(new Event(SUBSCRIPTION_EXPIRED_EVENT)); } catch { /* non-browser */ }
 }
 
+// Bridge so this non-React module can raise a user-facing toast (the ToastProvider
+// listens for "bp:toast"). Used for actionable failures the sync UI would otherwise
+// swallow as a generic "sync échouée".
+export const TOAST_EVENT = "bp:toast";
+function raiseToast(message: string, type: "error" | "warning" | "info" | "success" = "info") {
+  try { window.dispatchEvent(new CustomEvent(TOAST_EVENT, { detail: { message, type } })); } catch { /* non-browser */ }
+}
+
 // ── Secretary token helpers ──────────────────────────────────────────────────
 
 export interface SecretaryOwner {
@@ -561,6 +569,16 @@ export async function pushCabinet(
   if (res.status === 409) {
     const d = await res.json().catch(() => ({}));
     throw new CabinetConflictError((d as any).snapshot as CabinetSnapshot);
+  }
+  // Payload too large: attachments have inlined into the snapshot (cloud attachment
+  // storage isn't active) and it exceeds the server limit. Tell the user plainly
+  // instead of leaving a silent "sync failed" — local data is safe, but this push
+  // won't go through until the cabinet shrinks or Blob storage is enabled.
+  if (res.status === 413) {
+    raiseToast("Synchronisation impossible : trop de pièces jointes volumineuses. Réduisez-les ou contactez le support.", "error");
+    const err: any = new Error("cabinet_too_large");
+    err.code = "payload_too_large";
+    throw err;
   }
   if (!res.ok) {
     const d = await res.json().catch(() => ({}));

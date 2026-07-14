@@ -10,14 +10,14 @@ import { ActionIcon } from "../components/ActionIcon";
 function calcImc(weightKg: number, heightCm: number) {
   const imc = weightKg / Math.pow(heightCm / 100, 2);
   const cat =
-    imc < 16.0  ? { label: "calculateurs.imcCatSevDenut", color: "#e53e3e" }
-    : imc < 17.0 ? { label: "calculateurs.imcCatModDenut", color: "#dd6b20" }
-    : imc < 18.5 ? { label: "calculateurs.imcCatMaigreur", color: "#d69e2e" }
-    : imc < 25.0 ? { label: "calculateurs.imcCatNormal",   color: "#38a169" }
-    : imc < 30.0 ? { label: "calculateurs.imcCatSurpoids", color: "#d69e2e" }
-    : imc < 35.0 ? { label: "calculateurs.imcCatOb1",      color: "#dd6b20" }
-    : imc < 40.0 ? { label: "calculateurs.imcCatOb2",      color: "#e53e3e" }
-    :              { label: "calculateurs.imcCatOb3",       color: "#c53030" };
+    imc < 16.0  ? { label: "calculateurs.imcCatSevDenut", color: "var(--risk-red)" }
+    : imc < 17.0 ? { label: "calculateurs.imcCatModDenut", color: "var(--risk-orange)" }
+    : imc < 18.5 ? { label: "calculateurs.imcCatMaigreur", color: "var(--risk-amber)" }
+    : imc < 25.0 ? { label: "calculateurs.imcCatNormal",   color: "var(--risk-green)" }
+    : imc < 30.0 ? { label: "calculateurs.imcCatSurpoids", color: "var(--risk-amber)" }
+    : imc < 35.0 ? { label: "calculateurs.imcCatOb1",      color: "var(--risk-orange)" }
+    : imc < 40.0 ? { label: "calculateurs.imcCatOb2",      color: "var(--risk-red)" }
+    :              { label: "calculateurs.imcCatOb3",       color: "var(--risk-redDk)" };
   const minNormal = 18.5 * Math.pow(heightCm / 100, 2);
   const maxNormal = 24.9 * Math.pow(heightCm / 100, 2);
   return { imc, cat, minNormal, maxNormal };
@@ -36,12 +36,12 @@ function calcDfg(creatUmolL: number, age: number, female: boolean) {
   const sex   = female ? 1.012 : 1.0;
   const gfr   = 142 * part1 * part2 * (0.9938 ** age) * sex;
   const stage =
-    gfr >= 90 ? { label: "calculateurs.dfgG1", color: "#38a169" }
-    : gfr >= 60 ? { label: "calculateurs.dfgG2", color: "#68d391" }
-    : gfr >= 45 ? { label: "calculateurs.dfgG3a", color: "#d69e2e" }
-    : gfr >= 30 ? { label: "calculateurs.dfgG3b", color: "#dd6b20" }
-    : gfr >= 15 ? { label: "calculateurs.dfgG4",  color: "#e53e3e" }
-    :             { label: "calculateurs.dfgG5",   color: "#c53030" };
+    gfr >= 90 ? { label: "calculateurs.dfgG1", color: "var(--risk-green)" }
+    : gfr >= 60 ? { label: "calculateurs.dfgG2", color: "var(--risk-greenLt)" }
+    : gfr >= 45 ? { label: "calculateurs.dfgG3a", color: "var(--risk-amber)" }
+    : gfr >= 30 ? { label: "calculateurs.dfgG3b", color: "var(--risk-orange)" }
+    : gfr >= 15 ? { label: "calculateurs.dfgG4",  color: "var(--risk-red)" }
+    :             { label: "calculateurs.dfgG5",   color: "var(--risk-redDk)" };
   return { gfr, stage };
 }
 
@@ -62,10 +62,10 @@ function calcRisqueCv(
   else if (nonHdl >= 3.4) score += 3;
   const pct = Math.min(60, Math.round(score * 0.4));
   const cat =
-    pct < 5  ? { label: "calculateurs.cvCatFaible",    color: "#38a169" }
-    : pct < 10 ? { label: "calculateurs.cvCatModere",   color: "#d69e2e" }
-    : pct < 20 ? { label: "calculateurs.cvCatEleve",    color: "#dd6b20" }
-    :             { label: "calculateurs.cvCatTresEleve", color: "#e53e3e" };
+    pct < 5  ? { label: "calculateurs.cvCatFaible",    color: "var(--risk-green)" }
+    : pct < 10 ? { label: "calculateurs.cvCatModere",   color: "var(--risk-amber)" }
+    : pct < 20 ? { label: "calculateurs.cvCatEleve",    color: "var(--risk-orange)" }
+    :             { label: "calculateurs.cvCatTresEleve", color: "var(--risk-red)" };
   return { pct, cat, nonHdl };
 }
 
@@ -96,11 +96,11 @@ function calcHba1c(a1c: number) {
   const eagGL   = eagMgDl / 100;    // g/L — the unit Moroccan labs report
   const eagMmol = eagMgDl / 18.0;   // mmol/L
   const ctrl =
-    a1c < 6.5 ? { label: "calculateurs.hbCtrlGood",      color: "#38a169" }
-    : a1c < 7.0 ? { label: "calculateurs.hbCtrlTarget",   color: "#68d391" }
-    : a1c < 8.0 ? { label: "calculateurs.hbCtrlAbove",    color: "#d69e2e" }
-    : a1c < 9.0 ? { label: "calculateurs.hbCtrlHigh",     color: "#dd6b20" }
-    :             { label: "calculateurs.hbCtrlVeryHigh", color: "#e53e3e" };
+    a1c < 6.5 ? { label: "calculateurs.hbCtrlGood",      color: "var(--risk-green)" }
+    : a1c < 7.0 ? { label: "calculateurs.hbCtrlTarget",   color: "var(--risk-greenLt)" }
+    : a1c < 8.0 ? { label: "calculateurs.hbCtrlAbove",    color: "var(--risk-amber)" }
+    : a1c < 9.0 ? { label: "calculateurs.hbCtrlHigh",     color: "var(--risk-orange)" }
+    :             { label: "calculateurs.hbCtrlVeryHigh", color: "var(--risk-red)" };
   return { eagGL, eagMgDl, eagMmol, ctrl };
 }
 
@@ -110,11 +110,11 @@ function calcCockcroft(creatUmolL: number, age: number, weightKg: number, female
   const crMgDl = creatUmolToMgDl(creatUmolL);
   const clcr = ((140 - age) * weightKg * (female ? 0.85 : 1)) / (72 * crMgDl);
   const stage =
-    clcr >= 90 ? { label: "calculateurs.ccG1", color: "#38a169" }
-    : clcr >= 60 ? { label: "calculateurs.ccG2", color: "#68d391" }
-    : clcr >= 30 ? { label: "calculateurs.ccG3", color: "#d69e2e" }
-    : clcr >= 15 ? { label: "calculateurs.ccG4", color: "#dd6b20" }
-    :              { label: "calculateurs.ccG5", color: "#e53e3e" };
+    clcr >= 90 ? { label: "calculateurs.ccG1", color: "var(--risk-green)" }
+    : clcr >= 60 ? { label: "calculateurs.ccG2", color: "var(--risk-greenLt)" }
+    : clcr >= 30 ? { label: "calculateurs.ccG3", color: "var(--risk-amber)" }
+    : clcr >= 15 ? { label: "calculateurs.ccG4", color: "var(--risk-orange)" }
+    :              { label: "calculateurs.ccG5", color: "var(--risk-red)" };
   return { clcr, stage };
 }
 
@@ -184,12 +184,12 @@ function ImcCalc() {
   const res = valid ? calcImc(w, h) : null;
 
   const refRows: [string, string, string][] = [
-    [t("calculateurs.imcRef0"),       t("calculateurs.imcRefLabelMaigreur"), "#d69e2e"],
-    [t("calculateurs.imcRefNormal"),  t("calculateurs.imcRefLabelNormal"),   "#38a169"],
-    [t("calculateurs.imcRefSurpoids"),t("calculateurs.imcRefLabelSurpoids"), "#d69e2e"],
-    [t("calculateurs.imcRefOb1"),     t("calculateurs.imcRefLabelOb1"),      "#dd6b20"],
-    [t("calculateurs.imcRefOb2"),     t("calculateurs.imcRefLabelOb2"),      "#e53e3e"],
-    [t("calculateurs.imcRefOb3"),     t("calculateurs.imcRefLabelOb3"),      "#c53030"],
+    [t("calculateurs.imcRef0"),       t("calculateurs.imcRefLabelMaigreur"), "var(--risk-amber)"],
+    [t("calculateurs.imcRefNormal"),  t("calculateurs.imcRefLabelNormal"),   "var(--risk-green)"],
+    [t("calculateurs.imcRefSurpoids"),t("calculateurs.imcRefLabelSurpoids"), "var(--risk-amber)"],
+    [t("calculateurs.imcRefOb1"),     t("calculateurs.imcRefLabelOb1"),      "var(--risk-orange)"],
+    [t("calculateurs.imcRefOb2"),     t("calculateurs.imcRefLabelOb2"),      "var(--risk-red)"],
+    [t("calculateurs.imcRefOb3"),     t("calculateurs.imcRefLabelOb3"),      "var(--risk-redDk)"],
   ];
 
   return (
@@ -252,12 +252,12 @@ function DfgCalc() {
   const res    = valid ? calcDfg(crUmol, ageVal, female) : null;
 
   const refRows: [string, string, string][] = [
-    ["≥ 90",    t("calculateurs.dfgG1"),  "#38a169"],
-    ["60 – 89", t("calculateurs.dfgG2"),  "#68d391"],
-    ["45 – 59", t("calculateurs.dfgG3a"), "#d69e2e"],
-    ["30 – 44", t("calculateurs.dfgG3b"), "#dd6b20"],
-    ["15 – 29", t("calculateurs.dfgG4"),  "#e53e3e"],
-    ["< 15",    t("calculateurs.dfgG5"),  "#c53030"],
+    ["≥ 90",    t("calculateurs.dfgG1"),  "var(--risk-green)"],
+    ["60 – 89", t("calculateurs.dfgG2"),  "var(--risk-greenLt)"],
+    ["45 – 59", t("calculateurs.dfgG3a"), "var(--risk-amber)"],
+    ["30 – 44", t("calculateurs.dfgG3b"), "var(--risk-orange)"],
+    ["15 – 29", t("calculateurs.dfgG4"),  "var(--risk-red)"],
+    ["< 15",    t("calculateurs.dfgG5"),  "var(--risk-redDk)"],
   ];
 
   return (
@@ -563,11 +563,11 @@ function Hba1cCalc() {
   const res = valid ? calcHba1c(v) : null;
 
   const refRows: [string, string, string][] = [
-    ["< 6.5 %",   t("calculateurs.hbCtrlGood"),     "#38a169"],
-    ["6.5 – 7 %", t("calculateurs.hbCtrlTarget"),   "#68d391"],
-    ["7 – 8 %",   t("calculateurs.hbCtrlAbove"),    "#d69e2e"],
-    ["8 – 9 %",   t("calculateurs.hbCtrlHigh"),     "#dd6b20"],
-    ["≥ 9 %",     t("calculateurs.hbCtrlVeryHigh"), "#e53e3e"],
+    ["< 6.5 %",   t("calculateurs.hbCtrlGood"),     "var(--risk-green)"],
+    ["6.5 – 7 %", t("calculateurs.hbCtrlTarget"),   "var(--risk-greenLt)"],
+    ["7 – 8 %",   t("calculateurs.hbCtrlAbove"),    "var(--risk-amber)"],
+    ["8 – 9 %",   t("calculateurs.hbCtrlHigh"),     "var(--risk-orange)"],
+    ["≥ 9 %",     t("calculateurs.hbCtrlVeryHigh"), "var(--risk-red)"],
   ];
 
   return (
@@ -618,11 +618,11 @@ function CockcroftCalc() {
   const res = valid ? calcCockcroft(crUmol, ageVal, wVal, female) : null;
 
   const refRows: [string, string, string][] = [
-    ["≥ 90",    t("calculateurs.ccG1"), "#38a169"],
-    ["60 – 89", t("calculateurs.ccG2"), "#68d391"],
-    ["30 – 59", t("calculateurs.ccG3"), "#d69e2e"],
-    ["15 – 29", t("calculateurs.ccG4"), "#dd6b20"],
-    ["< 15",    t("calculateurs.ccG5"), "#e53e3e"],
+    ["≥ 90",    t("calculateurs.ccG1"), "var(--risk-green)"],
+    ["60 – 89", t("calculateurs.ccG2"), "var(--risk-greenLt)"],
+    ["30 – 59", t("calculateurs.ccG3"), "var(--risk-amber)"],
+    ["15 – 29", t("calculateurs.ccG4"), "var(--risk-orange)"],
+    ["< 15",    t("calculateurs.ccG5"), "var(--risk-red)"],
   ];
 
   return (

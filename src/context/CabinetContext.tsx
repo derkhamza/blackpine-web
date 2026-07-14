@@ -700,6 +700,10 @@ export function CabinetProvider({
   // ── Remote sync (multi-device, optimistic concurrency) ────────────────────
   const [syncState,  setSyncState]  = useState<"idle" | "syncing" | "synced" | "error">("idle");
   const [lastSynced, setLastSynced] = useState<string | null>(null);
+  // Bumped once after boot when un-pushed edits were restored from a prior session
+  // (see restorePending): the boot pull skips applySnapshot (no state change), so
+  // this re-runs the push effect to flush the restored edit promptly.
+  const [pushKick, setPushKick] = useState(0);
   const pushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Guard: never push to the server until the initial pull has resolved.
   // Otherwise a fresh device's empty state could overwrite the server snapshot.
@@ -735,6 +739,41 @@ export function CabinetProvider({
     tombstonesRef.current.appts.clear();   tombstonesRef.current.patients.clear();
     touchedRef.current.appts.clear();      touchedRef.current.patients.clear();
     tombstonesRef.current.apptDocs.clear(); touchedRef.current.apptDocs.clear();
+  };
+
+  // Persist the "un-pushed local edits" marks (ids + base token, NOT the data —
+  // the data already lives in the per-collection localStorage keys) so they
+  // survive a reload. Without this, an edit made offline and then a reload =
+  // dirtyRef/touched/tombstones reset to empty, so the next boot pull silently
+  // overwrites the offline edit. Restoring them lets the normal conflict-merge
+  // push reconcile instead. Cheap: a handful of ids.
+  const pendingKey = `${pfx}.pending`;
+  const persistPending = () => {
+    try {
+      if (!dirtyRef.current) { localStorage.removeItem(pendingKey); return; }
+      localStorage.setItem(pendingKey, JSON.stringify({
+        dirty: true,
+        base:  baseUpdatedAt.current,
+        t: { a: [...touchedRef.current.appts],    p: [...touchedRef.current.patients],    d: [...touchedRef.current.apptDocs] },
+        x: { a: [...tombstonesRef.current.appts], p: [...tombstonesRef.current.patients], d: [...tombstonesRef.current.apptDocs] },
+      }));
+    } catch { /* quota — best effort; the data itself is already saved */ }
+  };
+  const restorePending = () => {
+    try {
+      const raw = localStorage.getItem(pendingKey);
+      if (!raw) return;
+      const p = JSON.parse(raw);
+      if (!p?.dirty) return;
+      dirtyRef.current = true;
+      baseUpdatedAt.current          = p.base ?? baseUpdatedAt.current;
+      touchedRef.current.appts       = new Set(p.t?.a ?? []);
+      touchedRef.current.patients    = new Set(p.t?.p ?? []);
+      touchedRef.current.apptDocs    = new Set(p.t?.d ?? []);
+      tombstonesRef.current.appts    = new Set(p.x?.a ?? []);
+      tombstonesRef.current.patients = new Set(p.x?.p ?? []);
+      tombstonesRef.current.apptDocs = new Set(p.x?.d ?? []);
+    } catch { /* malformed → ignore, worst case a normal boot pull */ }
   };
 
   // Apply a full snapshot received from the server into local state.
@@ -807,13 +846,18 @@ export function CabinetProvider({
         // Don't clobber an edit the secretary made while this pull was in flight
         // (see the doctor branch below for the full rationale). NOT_MODIFIED =
         // the server's 304, i.e. nothing changed — keep local state as-is.
-        if (snap !== NOT_MODIFIED && (boot || !dirtyRef.current)) applySnapshot({
+        // Skip applying when there are un-pushed local edits — even on boot. A
+        // reload restores dirty marks (restorePending), so a boot pull no longer
+        // clobbers an offline edit; the debounced push reconciles it server-side.
+        if (snap !== NOT_MODIFIED && !dirtyRef.current) applySnapshot({
           appointments:  snap.appointments,
           patients:      snap.patients,
           doctorProfile: snap.doctorProfile,
           apptDocuments: snap.apptDocuments,
         } as CabinetSnapshot);
         hydrated.current = true;
+        // Restored un-pushed edits (dirty on a boot pull) → flush them now.
+        if (boot && dirtyRef.current) setPushKick(k => k + 1);
         setSyncState("synced");
         setLastSynced(new Date().toISOString());
         return snap !== NOT_MODIFIED;
@@ -837,7 +881,11 @@ export function CabinetProvider({
       // edit up, and the next idle pull brings server changes down. (Boot always
       // applies — it's the initial hydration and sets baseUpdatedAt.)
       // NOT_MODIFIED = the server's 304, i.e. unchanged — keep local state as-is.
-      if (snapshot && snapshot !== NOT_MODIFIED && (boot || !dirtyRef.current)) {
+      // Skip applying when there are un-pushed local edits — even on boot. A
+      // reload restores dirty marks (restorePending), so a boot pull no longer
+      // clobbers an offline edit; the debounced push then reconciles it via the
+      // normal optimistic-concurrency / conflict-merge flow.
+      if (snapshot && snapshot !== NOT_MODIFIED && !dirtyRef.current) {
         // Monotonic guard: never apply a snapshot OLDER than the base we already
         // hold. A stale/out-of-order read (e.g. a lagged DB replica) would drag
         // baseUpdatedAt backwards, and then every optimistic push conflicts
@@ -849,6 +897,8 @@ export function CabinetProvider({
         }
       }
       hydrated.current = true;
+      // Restored un-pushed edits (dirty on a boot pull) → flush them now.
+      if (boot && dirtyRef.current) setPushKick(k => k + 1);
       setSyncState("synced");
       setLastSynced(new Date().toISOString());
       return snapshot !== NOT_MODIFIED;
@@ -865,6 +915,7 @@ export function CabinetProvider({
   // Pull on mount (when a session is active)
   useEffect(() => {
     if (!secretarySession && (!userId || !getToken())) { hydrated.current = true; return; }
+    restorePending();     // re-arm un-pushed edit marks from before a reload, first
     pullFromServer(true); // boot: resilient to transient cold-start 401s
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, secretarySession?.ownerUserId]);
@@ -937,6 +988,7 @@ export function CabinetProvider({
     }
     dirtyRef.current = true;
     editSeqRef.current++;
+    persistPending();   // record the un-pushed edit immediately (survives a reload)
     if (pushTimer.current) clearTimeout(pushTimer.current);
     // 1.2 s debounce (was 3 s): pushes a change up quickly so the other side
     // (polling at the 12 s floor) reflects it soon, while still coalescing a
@@ -971,6 +1023,7 @@ export function CabinetProvider({
             if (Array.isArray(mergedDocs))     setApptDocuments(mergedDocs as ApptDocument[]);
             dirtyRef.current = false;
             clearMergeMarks();
+            persistPending();   // clean → drop the persisted pending marks
             setSyncState("synced");
             setLastSynced(new Date().toISOString());
           })
@@ -998,6 +1051,7 @@ export function CabinetProvider({
             clearMergeMarks();
             captureBase(appointments, patients); // server accepted our state → new base
           }
+          persistPending();   // clean (or still-dirty) → sync the persisted pending marks
           setSyncState("synced");
           setLastSynced(new Date().toISOString());
         })
@@ -1023,6 +1077,7 @@ export function CabinetProvider({
               tombstonesRef.current.apptDocs, touchedRef.current.apptDocs));
             // dirty stays true — the state changes above re-arm the debounced
             // push, which now carries the merged data + fresh base token.
+            persistPending();   // update the persisted base token after the merge
             setSyncState("syncing");
           } else {
             setSyncState("error"); // keep dirty; will retry on next change
@@ -1031,7 +1086,7 @@ export function CabinetProvider({
     }, 1200);
     return () => { if (pushTimer.current) clearTimeout(pushTimer.current); };
   }, [ // eslint-disable-line react-hooks/exhaustive-deps
-    userId, secretarySession,
+    userId, secretarySession, pushKick,
     appointments, patients, doctorProfile,
     employees, prescriptionTemplates, prescriptions, examRequests, certificates,
     stockItems, waTemplates, teleSessions, notes, suppliers,

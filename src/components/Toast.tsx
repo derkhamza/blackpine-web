@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -55,10 +55,24 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const addToast = useCallback((message: string, type: ToastType = "success") => {
     const id = Math.random().toString(36).slice(2, 9);
     setToasts(ts => [...ts, { id, message, type }]);
+    // Error/warning toasts linger longer — they carry something the user must read
+    // and often act on; a 3.8s success flash is too short for those.
+    const ttl = type === "error" ? 9000 : type === "warning" ? 7000 : 3800;
     setTimeout(() => {
       setToasts(ts => ts.filter(t => t.id !== id));
-    }, 3800);
+    }, ttl);
   }, []);
+
+  // Bridge for non-React callers (e.g. the API client) to raise a toast via a
+  // window event, so actionable failures aren't swallowed as a generic sync error.
+  useEffect(() => {
+    const onToast = (e: Event) => {
+      const d = (e as CustomEvent).detail || {};
+      if (d && typeof d.message === "string") addToast(d.message, (d.type as ToastType) || "info");
+    };
+    window.addEventListener("bp:toast", onToast);
+    return () => window.removeEventListener("bp:toast", onToast);
+  }, [addToast]);
 
   const remove = (id: string) =>
     setToasts(ts => ts.filter(t => t.id !== id));
