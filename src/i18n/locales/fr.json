@@ -1942,6 +1942,8 @@
     "colActions": "Actions",
     "notEmitted": "— Non émise",
     "reprint": "Réimprimer",
+    "toastEmitted": "Facture N° {{num}} émise",
+    "toastReprinted": "Facture réimprimée",
     "remove": "Supprimer la facture",
     "removeConfirm": "Supprimer la facture de {{name}} ? La consultation redeviendra non facturée (montant et paiement effacés).",
     "emit": "📄 Émettre",
@@ -2052,6 +2054,7 @@
     "deductNo": "Non déductible"
   },
   "messages": {
+    "toastSaved": "Modèle enregistré",
     "title": "Messages WhatsApp",
     "subtitle": "{{n}} modèle{{s}}",
     "newTpl": "Nouveau modèle",

@@ -1942,6 +1942,8 @@
     "colActions": "Actions",
     "notEmitted": "— Not issued",
     "reprint": "Reprint",
+    "toastEmitted": "Invoice No. {{num}} issued",
+    "toastReprinted": "Invoice reprinted",
     "remove": "Remove invoice",
     "removeConfirm": "Remove {{name}}'s invoice? The consultation reverts to unbilled (amount and payment cleared).",
     "emit": "📄 Issue",
@@ -2052,6 +2054,7 @@
     "deductNo": "Not deductible"
   },
   "messages": {
+    "toastSaved": "Template saved",
     "title": "WhatsApp Messages",
     "subtitle": "{{n}} template{{s}}",
     "newTpl": "New template",

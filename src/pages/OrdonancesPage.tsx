@@ -1,6 +1,7 @@
 import { confirmDialog } from "../lib/confirm";
 import { useState, useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import { tabProps } from "../lib/a11y";
 import { Layout } from "../components/Layout";
 import { useCabinet } from "../context/CabinetContext";
 import type { OrdonnanceLine, Prescription, PrescriptionTemplate, Appointment } from "../lib/cabinetTypes";
@@ -615,8 +616,8 @@ export function OrdonancesPage({ noLayout = false }: { noLayout?: boolean } = {}
         </div>
       </div>
 
-      <div className="four-tabs" style={{ marginBottom: 16 }}>
-        <button className={`four-tab${tab === "ordonnances" ? " active" : ""}`}
+      <div className="four-tabs" role="tablist" style={{ marginBottom: 16 }}>
+        <button className={`four-tab${tab === "ordonnances" ? " active" : ""}`} {...tabProps(tab === "ordonnances")}
           onClick={() => setTab("ordonnances")}>
           <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
             <path d="M3 2h6l3 3v7a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/>
@@ -626,7 +627,7 @@ export function OrdonancesPage({ noLayout = false }: { noLayout?: boolean } = {}
           {t("ordonnances.tabOrd")}
           <span className="badge" style={{ marginLeft: 4 }}>{allRx.length}</span>
         </button>
-        <button className={`four-tab${tab === "modeles" ? " active" : ""}`}
+        <button className={`four-tab${tab === "modeles" ? " active" : ""}`} {...tabProps(tab === "modeles")}
           onClick={() => setTab("modeles")}>
           <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
             <rect x="1" y="2" width="12" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.3"/>

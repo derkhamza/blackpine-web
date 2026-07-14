@@ -3,6 +3,7 @@ import { FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { clickable } from "../lib/a11y";
 import { Layout } from "../components/Layout";
+import { useToast } from "../components/Toast";
 import { useCabinet } from "../context/CabinetContext";
 import type { WaTemplate, WaTemplateCategory } from "../lib/cabinetTypes";
 import {
@@ -155,6 +156,7 @@ function TplForm({ initial, onSave, onCancel }: TplFormProps) {
 
 export function MessagesPage({ noLayout = false }: { noLayout?: boolean } = {}) {
   const { t } = useTranslation();
+  const showToast = useToast();
   const { waTemplates, addWaTemplate, updateWaTemplate, deleteWaTemplate } = useCabinet();
 
   const [activeCat, setActiveCat] = useState<WaTemplateCategory | "all">("all");
@@ -302,7 +304,7 @@ export function MessagesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
             <>
               <div className="msg-editor-title">{t("messages.editorNew")}</div>
               <TplForm
-                onSave={tpl => { addWaTemplate(tpl); setEditId(null); }}
+                onSave={tpl => { addWaTemplate(tpl); setEditId(null); showToast(t("messages.toastSaved", { defaultValue: "Modèle enregistré" })); }}
                 onCancel={() => setEditId(null)}
               />
             </>
@@ -312,7 +314,7 @@ export function MessagesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
               <TplForm
                 key={editId}
                 initial={editing}
-                onSave={tpl => { updateWaTemplate({ ...editing, ...tpl }); setEditId(null); }}
+                onSave={tpl => { updateWaTemplate({ ...editing, ...tpl }); setEditId(null); showToast(t("messages.toastSaved", { defaultValue: "Modèle enregistré" })); }}
                 onCancel={() => setEditId(null)}
               />
             </>

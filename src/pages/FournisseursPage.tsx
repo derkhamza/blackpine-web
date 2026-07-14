@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Layout } from "../components/Layout";
 import { useToast } from "../components/Toast";
 import { useCabinet } from "../context/CabinetContext";
-import { todayIso } from "../lib/format";
+import { todayIso, formatMAD } from "../lib/format";
 import type {
   Supplier, PurchaseOrder, PurchaseOrderLine, PurchaseOrderStatus,
 } from "../lib/cabinetTypes";
@@ -239,7 +239,7 @@ function POModal({ initial, suppliers, stockItems, onSave, onClose }: POModalPro
               </div>
               {total > 0 && (
                 <div className="po-lines-total">
-                  {t("fournisseurs.totalEst", { total: total.toLocaleString("fr-MA") })}
+                  {t("fournisseurs.totalEst", { total: formatMAD(total, { showCurrency: false }) })}
                 </div>
               )}
             </div>
@@ -626,7 +626,7 @@ export function FournisseursPage({ noLayout = false }: { noLayout?: boolean } = 
                       {order.orderedAt  && <span>{t("fournisseurs.orderedOn",  { date: fmtDate(order.orderedAt,  locale) })}</span>}
                       {order.expectedAt && <span style={{ color: isLate ? "var(--coral)" : "var(--muted)" }}>{t("fournisseurs.expectedOn", { date: fmtDate(order.expectedAt, locale) })}</span>}
                       {order.receivedAt && <span style={{ color: "var(--green)" }}>{t("fournisseurs.receivedOn",  { date: fmtDate(order.receivedAt, locale) })}</span>}
-                      {total > 0 && <span style={{ fontWeight: 600 }}>{total.toLocaleString("fr-MA")} MAD</span>}
+                      {total > 0 && <span style={{ fontWeight: 600 }}>{formatMAD(total)}</span>}
                     </div>
                   </div>
                   <div className="four-order-actions">

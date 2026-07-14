@@ -3,6 +3,7 @@ import { Fragment, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
 import { Layout } from "../components/Layout";
+import { useToast } from "../components/Toast";
 import { useContextMenu, type CtxItem } from "../components/ContextMenu";
 import { ActionIcon } from "../components/ActionIcon";
 import { useCabinet } from "../context/CabinetContext";
@@ -21,6 +22,7 @@ function yearOf(iso: string) {
 
 export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) {
   const { t, i18n } = useTranslation();
+  const showToast = useToast();
   const locale = i18n.language?.slice(0, 2) === "ar" ? "ar-MA"
                : i18n.language?.slice(0, 2) === "en" ? "en-US" : "fr-FR";
 
@@ -150,6 +152,7 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
       reduction:     appt.billedReduction,
       doctorProfile,
     });
+    showToast(t("factures.toastEmitted", { num: invNum, defaultValue: "Facture N° {{num}} émise" }));
   };
 
   const reprintInvoice = (apptId: string) => {
@@ -168,6 +171,7 @@ export function FacturesPage({ noLayout = false }: { noLayout?: boolean } = {}) 
       reduction:     appt.billedReduction,
       doctorProfile,
     });
+    showToast(t("factures.toastReprinted", { defaultValue: "Facture réimprimée" }));
   };
 
   // Remove a facture: void the billing so the appointment reverts to unbilled.

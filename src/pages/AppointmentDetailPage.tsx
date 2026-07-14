@@ -2,6 +2,7 @@ import { confirmDialog } from "../lib/confirm";
 import { useEffect, useRef, useState, useMemo } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { tabProps } from "../lib/a11y";
 import { Layout } from "../components/Layout";
 import { DictationButton } from "../components/DictationButton";
 import { useCabinet } from "../context/CabinetContext";
@@ -1375,7 +1376,7 @@ export function AppointmentDetailPage() {
       )}
 
       {/* ── Tab bar ── */}
-      <div className="appt-tabs">
+      <div className="appt-tabs" role="tablist">
         {([
           { key: "notes",  label: t("apptDetail.clinicalNotes"), dot: hasNotes },
           { key: "vitals", label: t("apptDetail.measuresTab"),   dot: !!appt.vitalSigns || filledBilan.length > 0 },
@@ -1387,6 +1388,7 @@ export function AppointmentDetailPage() {
           <button
             key={key}
             className={`appt-tab${tab === key ? " active" : ""}`}
+            {...tabProps(tab === key)}
             onClick={() => setTab(key)}
           >
             {label}

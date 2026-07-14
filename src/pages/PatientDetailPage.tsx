@@ -2,6 +2,7 @@ import { confirmDialog } from "../lib/confirm";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { tabProps } from "../lib/a11y";
 import { Layout } from "../components/Layout";
 import { ActionIcon } from "../components/ActionIcon";
 import { fetchAttachment } from "../api/client";
@@ -776,7 +777,7 @@ export function PatientDetailPage() {
       </div>
 
       {/* ── Tabs ── */}
-      <div className="appt-tabs">
+      <div className="appt-tabs" role="tablist">
         {([
           { key: "timeline",    label: t("patientDetail.tabTimeline", { n: tlEntries.length }),       dot: tlEntries.length > 0 },
           { key: "dossier",     label: t("patientDetail.tabDossier"),                                 dot: false },
@@ -788,6 +789,7 @@ export function PatientDetailPage() {
           <button
             key={key}
             className={`appt-tab${tab === key ? " active" : ""}`}
+            {...tabProps(tab === key)}
             onClick={() => setTab(key)}
           >
             {label}

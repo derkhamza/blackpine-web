@@ -1942,6 +1942,8 @@
     "colActions": "الإجراءات",
     "notEmitted": "— غير صادرة",
     "reprint": "إعادة طباعة",
+    "toastEmitted": "تم إصدار الفاتورة رقم {{num}}",
+    "toastReprinted": "تمت إعادة طباعة الفاتورة",
     "remove": "حذف الفاتورة",
     "removeConfirm": "حذف فاتورة {{name}}؟ ستعود الاستشارة غير مفوترة (يُمحى المبلغ والدفع).",
     "emit": "📄 إصدار",
@@ -2052,6 +2054,7 @@
     "deductNo": "غير قابل للخصم"
   },
   "messages": {
+    "toastSaved": "تم حفظ النموذج",
     "title": "رسائل WhatsApp",
     "subtitle": "{{n}} نموذج",
     "newTpl": "نموذج جديد",

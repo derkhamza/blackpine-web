@@ -2107,7 +2107,7 @@ export function AgendaPage() {
                   <div
                     key={i}
                     className={`agenda-month-cell${isToday ? " am-today" : ""}${isSel ? " am-sel" : ""}${isDropTarget ? " am-drop" : ""}${mk.off ? " am-off" : mk.holiday ? " am-holiday" : ""}`}
-                    onClick={() => { setSelDate(iso); setView("day"); }}
+                    {...clickable(() => { setSelDate(iso); setView("day"); }, iso)}
                     onDragOver={dragAppt ? (e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; if (dragOverDay !== iso) setDragOverDay(iso); } : undefined}
                     onDragLeave={dragAppt ? () => setDragOverDay(d => d === iso ? null : d) : undefined}
                     onDrop={dragAppt ? (e) => { e.preventDefault(); moveApptToDate(iso); } : undefined}

@@ -38,6 +38,11 @@ export function useModalA11y<T extends HTMLElement = HTMLDivElement>(onClose: ()
       (focusables()[0] ?? node).focus();
     });
 
+    // Wire `<label class="form-label">` ↔ its control (htmlFor/id) so clicking the
+    // label focuses the field and screen readers announce it on focus. Done in the
+    // DOM (React doesn't manage for/id here) for every focus-trapped modal at once.
+    autoAssociateLabels(node);
+
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") { e.stopPropagation(); onCloseRef.current(); return; }
       if (e.key !== "Tab") return;
@@ -59,6 +64,32 @@ export function useModalA11y<T extends HTMLElement = HTMLDivElement>(onClose: ()
   }, []);
 
   return ref;
+}
+
+let labelSeq = 0;
+
+// Associate `<label class="form-label">` with its control (htmlFor/id) inside a
+// container, so clicking the label focuses the field and SRs announce it. Operates
+// on the standard `.form-group` (one label + one control) shape; skips labels
+// already wired. Idempotent — safe to run on every modal open.
+export function autoAssociateLabels(root: HTMLElement | null): void {
+  if (!root) return;
+  const labels = root.querySelectorAll<HTMLLabelElement>("label.form-label:not([for])");
+  labels.forEach((label) => {
+    const group = label.closest(".form-group") ?? label.parentElement;
+    const control = group?.querySelector<HTMLElement>("input, select, textarea");
+    if (!control) return;
+    if (!control.id) control.id = `bpf-${++labelSeq}`;
+    label.setAttribute("for", control.id);
+  });
+}
+
+// ARIA tab semantics for an existing `<button className="…tab…">`. Add
+// `role="tablist"` to the container and spread this on each tab button. Kept
+// simple (no roving-tabindex/arrow nav) so the buttons stay Tab-focusable as
+// today while announcing tab + selected state to screen readers.
+export function tabProps(isActive: boolean) {
+  return { role: "tab" as const, "aria-selected": isActive };
 }
 
 /**
